@@ -21,3 +21,29 @@ coverage/
 
 # Vision toolkit temp files
 .dsh-vision-toolkit/
+
+# scan-to-docs 临时扫描缓存
+.scan-cache/
+**/.scan-cache/
+
+# Superpowers 临时文件
+.superpowers/
+**/.superpowers/
+**/docs/superpowers/
+
+# 计划和任务类临时文档
+**/*plan*.md
+**/*task*.md
+**/*todo*.md
+**/*设计*.md
+**/*规划*.md
+
+# scan-to-docs 补充：AI 工具链与编辑器产物
+.reasonix/
+reasonix.toml
+.codebase-memory/
+*.iml
+*.swo
+.env.local
+.env.*.local
+*~
