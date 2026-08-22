@@ -81,11 +81,6 @@ window.__ModuleLoader__.load({
       return idx === -1 ? norm : norm.slice(idx + 1)
     }
 
-    function dirLabel(dir) {
-      if (dir === '') return strings.root()
-      return dir.split('/').filter(Boolean).join('.')
-    }
-
     function relativeTime(time) {
       const diff = Date.now() - time
       if (diff < 60 * 1000) return strings.justNow()
@@ -96,35 +91,51 @@ window.__ModuleLoader__.load({
       return strings.dayAgo(Math.floor(hour / 24))
     }
 
-    /** Group per-file counts by folder; folder labels are dotted multi-level paths. */
-    function buildFolders(counts, cwd) {
-      const folders = new Map()
+    /**
+     * Build a nested directory tree from per-file counts. Files directly
+     * under the workspace root (cwd) are root children; every directory node
+     * aggregates its subtree counters and sorts directories first
+     * (alphabetically), then files (by activity, then name).
+     */
+    function buildTree(counts, cwd) {
+      const root = { type: 'dir', name: '', children: [], read: 0, create: 0, modify: 0 }
       for (const [abs, counter] of Object.entries(counts)) {
         const rel = toRelative(abs, cwd)
-        const idx = rel.lastIndexOf('/')
-        const dir = idx === -1 ? '' : rel.slice(0, idx)
-        const name = idx === -1 ? rel : rel.slice(idx + 1)
-        let entry = folders.get(dir)
-        if (entry === undefined) {
-          entry = { files: [], read: 0, create: 0, modify: 0 }
-          folders.set(dir, entry)
+        const parts = rel.split('/').filter((part) => part !== '')
+        if (parts.length === 0) continue
+        const name = parts[parts.length - 1]
+        let node = root
+        for (const dir of parts.slice(0, -1)) {
+          let child = node.children.find((c) => c.type === 'dir' && c.name === dir)
+          if (child === undefined) {
+            child = { type: 'dir', name: dir, children: [], read: 0, create: 0, modify: 0 }
+            node.children.push(child)
+          }
+          node = child
+          node.read += counter.read
+          node.create += counter.create
+          node.modify += counter.modify
         }
-        entry.files.push({ abs, name, read: counter.read, create: counter.create, modify: counter.modify, firstSeen: counter.firstSeen, lastSeen: counter.lastSeen })
-        entry.read += counter.read
-        entry.create += counter.create
-        entry.modify += counter.modify
+        node.children.push({
+          type: 'file', name, abs,
+          read: counter.read, create: counter.create, modify: counter.modify,
+          firstSeen: counter.firstSeen, lastSeen: counter.lastSeen,
+        })
       }
-      const list = []
-      for (const [dir, entry] of folders) list.push({ dir, label: dirLabel(dir), ...entry })
-      list.sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0))
-      for (const folder of list) {
-        folder.files.sort((a, b) => {
+      const sortNode = (node) => {
+        node.children.sort((a, b) => {
+          if (a.type !== b.type) return a.type === 'dir' ? -1 : 1
+          if (a.type === 'dir') return a.name < b.name ? -1 : a.name > b.name ? 1 : 0
           const ta = a.read + a.create + a.modify
           const tb = b.read + b.create + b.modify
           return tb - ta || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
         })
+        for (const child of node.children) {
+          if (child.type === 'dir') sortNode(child)
+        }
       }
-      return list
+      sortNode(root)
+      return root
     }
 
     // ── tiny external store ───────────────────────────────────────────────
@@ -321,7 +332,7 @@ window.__ModuleLoader__.load({
         }
       }, [visible, sessionId, dataStore])
 
-      const folders = useMemo(() => buildFolders(data.counts ?? {}, cwd), [data.counts, cwd])
+      const tree = useMemo(() => buildTree(data.counts ?? {}, cwd), [data.counts, cwd])
 
       const openFile = (path) => {
         try {
@@ -357,18 +368,15 @@ window.__ModuleLoader__.load({
 
       const recent = data.recent ?? []
 
-      // Files directly under the session workspace (cwd) are shown flat
-      // without a "root" group label; files in subdirectories keep their
-      // folder groups (see the stats section below).
-      const rootFiles = folders.find((folder) => folder.dir === '')?.files ?? []
-      const subFolders = folders.filter((folder) => folder.dir !== '')
-      const fileRow = (file, paddingLeft) =>
+      // Nested row helpers: files are clickable rows; directories render
+      // recursively with their subtree counters.
+      const fileRow = (file, depth) =>
         createElement(
           'div',
           {
             key: file.abs,
             onClick: () => openFile(file.abs),
-            style: paddingLeft ? { ...rowStyle, paddingLeft } : rowStyle,
+            style: { ...rowStyle, paddingLeft: depth * 14 },
             title: fileTitle(file.abs, file.firstSeen, file.lastSeen),
           },
           createElement('span', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, file.name),
@@ -381,6 +389,25 @@ window.__ModuleLoader__.load({
               : null,
           ),
         )
+
+      const renderTreeNode = (node, depth) => {
+        if (node.type === 'file') return fileRow(node, depth)
+        return createElement(
+          'div',
+          { key: node.name, style: { marginBottom: '2px' } },
+          createElement(
+            'div',
+            { style: { display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0', paddingLeft: depth * 14 } },
+            createElement('span', { style: { fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, node.name + '/'),
+            createElement('span', { style: { display: 'flex', gap: '4px', flexShrink: 0 } },
+              countPill(node.read, strings.read(), '#4a90d9'),
+              countPill(node.create, strings.create(), '#4caf7d'),
+              countPill(node.modify, strings.modify(), '#e6a23c'),
+            ),
+          ),
+          ...node.children.map((child) => renderTreeNode(child, depth + 1)),
+        )
+      }
 
       return createElement(
         'div',
@@ -427,33 +454,14 @@ window.__ModuleLoader__.load({
                 ),
               ),
         ),
-        // ── stats by folder ──
+        // ── stats as a directory tree ──
         createElement(
           'div',
           { style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
           createElement('div', { style: sectionTitleStyle }, strings.stats()),
-          folders.length === 0
+          tree.children.length === 0
             ? createElement('div', { style: { color: 'var(--dsh-color-text-secondary, #888)', padding: '6px 0' } }, strings.empty())
-            : [
-                ...rootFiles.map((file) => fileRow(file, '')),
-                ...subFolders.map((folder) =>
-                  createElement(
-                    'div',
-                    { key: folder.dir, style: { marginBottom: '6px' } },
-                    createElement(
-                      'div',
-                      { style: { display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0' } },
-                      createElement('span', { style: { fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, folder.label),
-                      createElement('span', { style: { display: 'flex', gap: '4px', flexShrink: 0 } },
-                        countPill(folder.read, strings.read(), '#4a90d9'),
-                        countPill(folder.create, strings.create(), '#4caf7d'),
-                        countPill(folder.modify, strings.modify(), '#e6a23c'),
-                      ),
-                    ),
-                    folder.files.map((file) => fileRow(file, '22px')),
-                  ),
-                ),
-            ],
+            : tree.children.map((child) => renderTreeNode(child, 0)),
         ),
       )
     }

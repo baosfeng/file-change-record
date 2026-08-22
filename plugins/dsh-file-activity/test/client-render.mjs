@@ -128,10 +128,17 @@ assert.ok(joined.includes('文件统计'), 'stats section')
 assert.ok(joined.includes('刷新'), 'refresh button')
 assert.ok(joined.includes('清空'), 'clear button')
 
-// dotted folder labels: a.b.c.d and src.components.ui; workspace-root files
-// are shown flat, so no "根目录" group label appears
-assert.ok(joined.includes('a.b.c.d'), 'multi-level folder dotted label')
-assert.ok(joined.includes('src.components.ui'), 'src.components.ui label')
+// Directory tree: every directory renders as its own node label (name + '/'),
+// nested — no flat dotted labels like a.b.c.d / src.components.ui
+assert.ok(texts.includes('a/'), 'dir a/ present (nested tree)')
+assert.ok(texts.includes('b/'), 'dir b/ present')
+assert.ok(texts.includes('c/'), 'dir c/ present')
+assert.ok(texts.includes('d/'), 'dir d/ present')
+assert.ok(texts.includes('src/'), 'dir src/ present')
+assert.ok(texts.includes('components/'), 'dir components/ present')
+assert.ok(texts.includes('ui/'), 'dir ui/ present')
+assert.ok(!texts.includes('a.b.c.d'), 'no flat dotted label a.b.c.d')
+assert.ok(!texts.includes('src.components.ui'), 'no flat dotted label src.components.ui')
 assert.ok(!joined.includes('根目录'), 'no root group label (root files shown flat)')
 
 // File rows carry the absolute path as title (native preview targets):
@@ -146,8 +153,8 @@ assert.ok(titles.includes('/work/README.md'), 'root file row present')
 const recentRows = rows.filter((r) => r.title === '/work/a/b/c/d/e.txt' || r.title === '/work/README.md' || r.title === '/work/src/components/ui/Button.tsx')
 assert.ok(recentRows.length >= 4, 'recent entries clickable')
 
-// the dotted-folder example from the user: "a.b.c.d" + indented "e"
-assert.ok(joined.includes('a.b.c.d'), 'folder flattening with dotted multi-level path')
+// the nested-tree example: a/b/c/d/e.txt renders as dirs a/ b/ c/ d/ with e.txt
+assert.ok(texts.includes('e.txt'), 'nested file name present')
 
 console.log('ALL CLIENT RENDER-PATH TESTS PASSED')
 console.log('sample output tree (clickable rows):')
