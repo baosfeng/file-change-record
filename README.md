@@ -1,5 +1,7 @@
 # dsh-file-activity
 
+[![插件生态](https://img.shields.io/badge/插件生态-topic%20dsh--better--sidebar-4d6bfe)](https://github.com/topics/dsh-better-sidebar)
+
 **DSH 侧边栏文件活动插件**（基于 [dsh-better-sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) 扩展）
 
 在 better-sidebar 中新增「文件活动」页签，提供：
