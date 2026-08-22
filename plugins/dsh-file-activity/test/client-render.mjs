@@ -51,14 +51,16 @@ assert.equal(typeof exportsObj.apply, 'function')
 
 // ── mock betterSidebar service + context ───────────────────────────────────
 let capturedTab = null
+const openFileCalls = []
+const openTabCalls = []
 const mockService = {
   registerTab: (descriptor) => {
     capturedTab = descriptor
     return () => {}
   },
   features: ['openFile'],
-  openFile: () => {},
-  openTab: () => {},
+  openFile: (scope, path) => { openFileCalls.push({ scope, path }) },
+  openTab: (seed) => { openTabCalls.push(seed) },
   getSnapshot: () => undefined,
   subscribeState: () => () => {},
 }
@@ -114,7 +116,7 @@ function walk(node, depth) {
   }
   const props = node.props ?? {}
   if (typeof props.onClick === 'function') {
-    rows.push({ title: props.title, depth })
+    rows.push({ title: props.title, depth, onClick: props.onClick })
   }
   walk(props.children, depth + 1)
 }
@@ -157,6 +159,21 @@ assert.ok(recentRows.length >= 4, 'recent entries clickable')
 
 // the nested-tree example: a/b/c/d/e.txt renders as dirs a/ b/ c/ d/ with e.txt
 assert.ok(texts.includes('e.txt'), 'nested file name present')
+
+// ── click behavior: every clickable file row opens the file through the
+// sidebar's native preview API (ctx.betterSidebar.openFile with the tab scope)
+const clickableRows = rows.filter((r) => typeof r.onClick === 'function' && typeof r.title === 'string' && r.title !== '')
+for (const row of clickableRows) row.onClick()
+assert.equal(openFileCalls.length, clickableRows.length, 'every clickable row triggers openFile')
+assert.equal(openTabCalls.length, 0, 'openFile capability present, no openTab fallback used')
+const openByPath = new Map(openFileCalls.map((c) => [c.path, c]))
+assert.ok(openByPath.has('/work/README.md'), 'openFile called for README.md')
+assert.ok(openByPath.has('/work/a/b/c/d/e.txt'), 'openFile called for nested e.txt')
+assert.ok(openByPath.has('/work/src/index.ts'), 'openFile called for src/index.ts')
+assert.ok(openByPath.has('/work/src/components/ui/Button.tsx'), 'openFile called for Button.tsx')
+for (const call of openFileCalls) {
+  assert.equal(call.scope, scope, 'openFile receives the tab scope')
+}
 
 console.log('ALL CLIENT RENDER-PATH TESTS PASSED')
 console.log('sample output tree (clickable rows):')
