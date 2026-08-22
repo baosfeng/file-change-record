@@ -138,6 +138,25 @@ try {
   assert.equal(value.recent.length, 6, 'recent records')
   assert.equal(value.recent[0].path, '/work/c.txt', 'most recent first')
 
+  // 7b. firstSeen / lastSeen tracked per file
+  const aCounts = value.counts['/work/a.txt']
+  const bCounts = value.counts['/work/b.txt']
+  assert.equal(typeof aCounts.firstSeen, 'number', 'a.txt firstSeen present')
+  assert.equal(typeof aCounts.lastSeen, 'number', 'a.txt lastSeen present')
+  assert.equal(typeof bCounts.firstSeen, 'number', 'b.txt firstSeen present')
+  assert.ok(aCounts.lastSeen >= aCounts.firstSeen, 'a.txt lastSeen >= firstSeen')
+  assert.ok(bCounts.lastSeen >= bCounts.firstSeen, 'b.txt lastSeen >= firstSeen (create then modify)')
+
+  // 7c. recent history capped at RECENT_LIMIT (10)
+  for (let i = 0; i < 12; i++) {
+    emitObserved(ctx, 'read', sid, `/work/cap-${i}.txt`)
+  }
+  const capped = await callRoute(getRoute, 'GET', `/file-activity/api/stats?sessionId=${sid}`)
+  assert.equal(capped.json.value.recent.length, 10, 'recent capped at 10')
+  assert.equal(capped.json.value.recent[0].path, '/work/cap-11.txt', 'newest entry kept')
+  assert.equal(capped.json.value.counts['/work/cap-0.txt'].read, 1, 'capped file still counted')
+  assert.equal(typeof capped.json.value.counts['/work/cap-0.txt'].firstSeen, 'number', 'capped file firstSeen present')
+
   // 8. persistence file written (debounced 500ms → wait)
   await new Promise((resolve) => setTimeout(resolve, 800))
   const persisted = JSON.parse(readFileSync(statePath, 'utf8'))

@@ -20,7 +20,7 @@ export const name = 'dsh-file-activity'
 export const inject = ['webServer', 'sessions', 'webRuntime']
 
 /** How many recent events to keep per session. */
-const RECENT_LIMIT = 300
+const RECENT_LIMIT = 10
 
 /** State file: $DSH_HOME/file-activity.json (fallback: ~/.dsh/file-activity.json). */
 function stateFile() {
@@ -62,21 +62,27 @@ function mapOp(op) {
  * Fold one observed operation into the state.
  * 'write' is classified create vs modify through the per-session known-file
  * registry (first contact = create, later writes = modify); edits are always
- * modifies. Returns true when a record was produced.
+ * modifies. Each file's counters also track firstSeen (first contact time,
+ * i.e. creation time) and lastSeen (most recent activity time).
+ * Returns true when a record was produced.
  */
 function applyRecord(state, sessionId, path, op, time) {
   if (typeof sessionId !== 'string' || sessionId === '') return false
   if (typeof path !== 'string' || path === '') return false
   if (path.includes('\0')) return false
   const session = state.sessions[sessionId] ?? (state.sessions[sessionId] = { known: {}, counts: {}, recent: [] })
+  const timestamp = typeof time === 'number' ? time : Date.now()
+  const firstSeen = typeof session.known[path] === 'number' ? session.known[path] : timestamp
   const finalOp = op === 'write' ? (session.known[path] ? 'modify' : 'create') : op === 'edit' ? 'modify' : 'read'
-  session.known[path] = true
+  session.known[path] = firstSeen
   const counts = session.counts[path] ?? (session.counts[path] = { read: 0, create: 0, modify: 0 })
   if (finalOp === 'create') counts.create += 1
   else if (finalOp === 'modify') counts.modify += 1
   else counts.read += 1
+  counts.firstSeen = firstSeen
+  counts.lastSeen = timestamp
   // Newest-first history; cap at RECENT_LIMIT entries.
-  session.recent.unshift({ path, op: finalOp, time: typeof time === 'number' ? time : Date.now() })
+  session.recent.unshift({ path, op: finalOp, time: timestamp })
   if (session.recent.length > RECENT_LIMIT) session.recent.length = RECENT_LIMIT
   return true
 }
@@ -277,7 +283,7 @@ export function apply(ctx) {
           const recent = session.recent.map((entry) => ({ path: entry.path, op: entry.op, time: entry.time }))
           const counts = {}
           for (const [path, counter] of Object.entries(session.counts)) {
-            counts[path] = { read: counter.read, create: counter.create, modify: counter.modify }
+            counts[path] = { read: counter.read, create: counter.create, modify: counter.modify, firstSeen: counter.firstSeen, lastSeen: counter.lastSeen }
           }
           writeJson(response, 200, { ok: true, value: { recent, counts, cwd } })
           return

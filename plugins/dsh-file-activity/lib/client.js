@@ -60,6 +60,9 @@ window.__ModuleLoader__.load({
       dayAgo: (n) => (isZh() ? `${n} 天前` : `${n}d ago`),
       root: () => (isZh() ? '根目录' : '(root)'),
       loadError: () => (isZh() ? '加载失败' : 'Load failed'),
+      created: () => (isZh() ? '创建' : 'Created'),
+      lastSeen: () => (isZh() ? '最近访问' : 'Last seen'),
+      unknown: () => (isZh() ? '未知' : 'unknown'),
     }
 
     // ── path helpers ──────────────────────────────────────────────────────
@@ -106,7 +109,7 @@ window.__ModuleLoader__.load({
           entry = { files: [], read: 0, create: 0, modify: 0 }
           folders.set(dir, entry)
         }
-        entry.files.push({ abs, name, read: counter.read, create: counter.create, modify: counter.modify })
+        entry.files.push({ abs, name, read: counter.read, create: counter.create, modify: counter.modify, firstSeen: counter.firstSeen, lastSeen: counter.lastSeen })
         entry.read += counter.read
         entry.create += counter.create
         entry.modify += counter.modify
@@ -427,13 +430,16 @@ window.__ModuleLoader__.load({
                         key: file.abs,
                         onClick: () => openFile(file.abs),
                         style: { ...rowStyle, paddingLeft: '22px' },
-                        title: file.abs,
+                        title: fileTitle(file.abs, file.firstSeen, file.lastSeen),
                       },
                       createElement('span', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, file.name),
                       createElement('span', { style: { display: 'flex', gap: '4px', flexShrink: 0 } },
                         countPill(file.read, strings.readShort(), '#4a90d9'),
                         countPill(file.create, strings.createShort(), '#4caf7d'),
                         countPill(file.modify, strings.modifyShort(), '#e6a23c'),
+                        file.lastSeen
+                          ? createElement('span', { style: { color: 'var(--dsh-color-text-tertiary, #999)', fontSize: '10px', flexShrink: 0 } }, relativeTime(file.lastSeen))
+                          : null,
                       ),
                     ),
                   ),
@@ -457,6 +463,13 @@ window.__ModuleLoader__.load({
     const countPill = (count, label, color) =>
       createElement('span', { style: { fontSize: '10px', color, background: color + '22', borderRadius: '3px', padding: '0 4px', flexShrink: 0 } }, `${label} ${count}`)
     const opLabel = (op) => (op === 'create' ? strings.create() : op === 'modify' ? strings.modify() : strings.read())
+    /** Tooltip for a stats file row: absolute path + created / last-seen times. */
+    const fileTitle = (abs, firstSeen, lastSeen) => {
+      const times = []
+      if (typeof firstSeen === 'number') times.push(`${strings.created()} ${relativeTime(firstSeen)}`)
+      if (typeof lastSeen === 'number') times.push(`${strings.lastSeen()} ${relativeTime(lastSeen)}`)
+      return times.length > 0 ? `${abs}\n${times.join(' · ')}` : abs
+    }
 
     // ── plugin body ───────────────────────────────────────────────────────
     exports.inject = ['betterSidebar']

@@ -1,12 +1,12 @@
 {
   "name": "dsh-file-activity",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "DSH web plugin: file activity tracker for dsh-better-sidebar — recent file access history plus create/modify/read counts grouped by folder (dotted multi-level paths), with native sidebar previews and auto-open.",
   "type": "module",
   "main": "lib/index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/baosfeng/file-change-record"
+    "url": "https://github.com/baosfeng/my-dsh-plugins"
   },
   "engines": {
     "node": ">=20"
