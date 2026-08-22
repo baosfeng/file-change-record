@@ -47,3 +47,7 @@ reasonix.toml
 .env.local
 .env.*.local
 *~
+
+# DSH 工具相关目录
+.dsh/
+**/.dsh/

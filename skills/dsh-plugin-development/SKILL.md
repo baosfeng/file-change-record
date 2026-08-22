@@ -1,6 +1,6 @@
 ---
 name: dsh-plugin-development
-description: 在本仓库（my-dsh-plugins）中新建、修改、调试或发布 DSH 插件时使用。也适用于处理注册冲突（already registered）、挂载不生效、HMR 不热更新、profile 双挂载、GitHub Release 发版与 tag 规则等错误场景。仓库内插件均为 plugins/<name> 自包含 bundle，接入 dsh-better-sidebar 服务。
+description: 在本仓库（my-dsh-plugins）中新建、修改、调试或发布 DSH 插件时使用。覆盖三种插件形态：工具型（defineTool 注册 agent 工具）、侧边栏页签/预览器（消费 dsh-better-sidebar）、纯 server（事件/HTTP 路由）。也适用于处理注册冲突（already registered）、挂载不生效、HMR 不热更新、profile 双挂载、GitHub Release 发版与 tag 规则等错误场景。仓库内插件均为 plugins/<name> 自包含 bundle；工具型与生态参考见 references/。
 ---
 
 # 本仓库 DSH 插件开发
@@ -22,13 +22,16 @@ description: 在本仓库（my-dsh-plugins）中新建、修改、调试或发�
 - **修改**现有插件（server / client 任一端）
 - **调试**：注册冲突、挂载不生效、页面不刷新不生效、重复挂载
 - **发布**：版本号、CHANGELOG、tag、GitHub Release
+- **开发工具型插件**（agent 可调用的函数）：读 [references/dsh-tools-api.md](references/dsh-tools-api.md) 的官方 `defineTool` 权威 API
+- **调研生态/分发渠道**（npm、GitHub topic、插件市场收录）：读 [references/dsh-ecosystem.md](references/dsh-ecosystem.md)
 
 ## 插件形态（先决策）
 
 | 形态 | 面向 | 关键 API |
 |---|---|---|
+| **工具型插件**（注册 agent 工具） | 提供 agent 可调用的函数（天气/搜索/记忆等纯工具） | server 端 `ctx.tools.register(defineTool(...))`，详见 [dsh-tools-api.md](references/dsh-tools-api.md) |
 | **侧边栏页签 / 预览器**（消费 better-sidebar） | 在侧边栏提供新页面或文件预览 | client 端 `ctx.betterSidebar.registerTab` / `registerFileViewer` |
-| **纯 server 插件** | 事件监听 / 工具注册 / HTTP 路由 | `apply(ctx)` + `ctx.on` / `defineTool` |
+| **纯 server 插件** | 事件监听 / HTTP 路由 / 持久化 | `apply(ctx)` + `ctx.on` / `webServer` |
 | **两者混合**（最常见） | 页面 + 后端逻辑 | 两端都写，client 通过 HTTP 路由或事件上报 server |
 
 > `ctx.betterSidebar` **只存在于 client 端**。server 端需要侧边栏数据时走 `/sidebar/api/*` HTTP 路由，不要假设服务存在。
@@ -142,8 +145,45 @@ window.__ModuleLoader__.load({
 - `export const name = '<包名>'`、`export const inject = [...]`（可用 `webServer`、`sessions`、`webRuntime` 等服务）、`export function apply(ctx)`。
 - 可选服务用 `ctx.get('服务名')` 读取并处理 undefined；硬依赖才放 inject。
 - 监听 DSH 事件用 `ctx.on('事件名', handler)`；所有副作用包 `ctx.effect(() => {...})`（返回 disposer 的注册函数直接返回其返回值）。
+- 注册 agent 工具：`inject: ['tools']` 后 `ctx.tools.register(defineTool({ name, description, parameters, output, execute }))`——完整权威 API 与 schema 硬规则见 [references/dsh-tools-api.md](references/dsh-tools-api.md)。
 - HTTP 路由：`ctx.webServer.register({ kind: 'prefix', path: '/<插件名>/api', handler })`；handler 签名 `(request, response)`，用 `request.url` 分发，`writeHead` + `end` 返回 JSON；先做 loopback 信任围栏。
 - 持久化：写 `$DSH_HOME` 下 JSON（防抖 + 原子写 tmp+rename），按会话隔离。
+
+## 工具型插件（defineTool）速览
+
+> 官方权威 API（dsh 插件最核心形态）：注册 agent 可调用的工具函数。完整细节见 [references/dsh-tools-api.md](references/dsh-tools-api.md)。
+
+```js
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+export const name = 'my-tool'              // 必须与 cordis.patch.yml 的 id 一致
+export const inject = ['tools']            // 必须：否则 ctx.tools undefined
+
+export function apply(ctx) {
+  ctx.tools.register(defineTool({
+    name: 'my_tool_func',
+    description: '做某件事（agent 据此决定是否调用）',
+    parameters: { arg: { type: 'string', description: '参数说明', required: true } },
+    output: {
+      schema: { type: 'object', properties: { ok: { type: 'boolean', required: true } }, additionalProperties: false },
+      render: (_args, value) => [{ type: 'text', text: String(value.ok) }],
+    },
+    async execute(args) { return { ok: true } },   // 是 execute 不是 run
+  }))
+}
+```
+
+**schema 硬规则：** ① `required` 是属性级（写 `required: true`，无 `required` 数组、无 `required: false`）；② 对象 schema 必须显式 `additionalProperties: false`；③ `output` 必填（schema + render 返回 `{ type: 'text', text }`）；④ 用 `execute(args)` 不是 `run`。
+
+**开发调试：** `npx @dsh-io/dsh-dev scaffold <name>` 生成官方 TS 骨架 → `npm run build` → `npx @deepseek-ai/dsh --profile web --patch <abs-path>/cordis.patch.yml` 对活 harness 调试 → `dsh plugin add <dir>` 永久注册。本仓库纯 JS 插件同样可用 `defineTool`（无类型检查时手动遵守硬规则）。
+
+## 外部生态与分发
+
+> 调研整理（2026-08）：官方资源、插件市场收录机制、生态差异。完整参考见 [references/dsh-ecosystem.md](references/dsh-ecosystem.md)。
+
+- **官方权威 skill**：`dsh-io/dsh-plugin-skill`（defineTool API 唯一权威）；better-sidebar 外部插件指南 `omdsh-dev/DSH-better-sidebar/docs/external-plugin-guide.md`。
+- **市场收录**：给公开仓库打 GitHub topic `dsh-plugin` 即被 dshfind.com 与 DSH 1024Store（deepseek1024.com，4100+ 插件）自动聚合收录；1024Store 收录前静态校验 `package.json` + `dsh.bundle.patch` + patch 文件齐备。
+- **本仓库分发约定不变**：只发 GitHub Release（tag `<包名>@v<版本>`）；若未来插件需进 npm/市场，再按生态通道补充。
 
 ## 发布流程（GitHub Release only）
 
@@ -160,6 +200,9 @@ window.__ModuleLoader__.load({
 | 症状 | 根因 | 解决 |
 |---|---|---|
 | `"tab type ... already registered"` | 重复注册：HMR 残留或 id 冲突 | 注册必须包 `ctx.effect`；id 全局唯一（内置 explorer/git/terminal 等不可占用） |
+| `"no service available"`（tools） | 工具型插件没声明 `inject: ['tools']` | `export const inject = ['tools']` |
+| 工具注册了但 agent 从不调用 | `description` 写得不够好 | description 是 agent 决策依据，写清用途与参数 |
+| schema 类型推断/校验失败 | `required` 数组、`required: false`、缺 `additionalProperties` | 属性级 `required: true`；对象 schema 显式 `additionalProperties: false`（见 dsh-tools-api.md） |
 | 页面没效果 | 只改了 server 端没重启；或没硬刷新 | server 改动重启 `dsh web`；client 改动 Cmd/Ctrl+Shift+R |
 | `duplicate loader entry id` | profile 里手动 insert + bundle patch 自动插入重复 | 删掉手动行，只用 `dsh plugin` 安装 |
 | `ctx.betterSidebar` undefined | 没声明 inject，或服务未加载 | `inject: ['betterSidebar']`；可选场景 `ctx.get` 判空降级 |
