@@ -128,17 +128,19 @@ assert.ok(joined.includes('文件统计'), 'stats section')
 assert.ok(joined.includes('刷新'), 'refresh button')
 assert.ok(joined.includes('清空'), 'clear button')
 
-// Directory tree: every directory renders as its own node label (name + '/'),
-// nested — no flat dotted labels like a.b.c.d / src.components.ui
-assert.ok(texts.includes('a/'), 'dir a/ present (nested tree)')
-assert.ok(texts.includes('b/'), 'dir b/ present')
-assert.ok(texts.includes('c/'), 'dir c/ present')
-assert.ok(texts.includes('d/'), 'dir d/ present')
-assert.ok(texts.includes('src/'), 'dir src/ present')
-assert.ok(texts.includes('components/'), 'dir components/ present')
-assert.ok(texts.includes('ui/'), 'dir ui/ present')
-assert.ok(!texts.includes('a.b.c.d'), 'no flat dotted label a.b.c.d')
-assert.ok(!texts.includes('src.components.ui'), 'no flat dotted label src.components.ui')
+// Directory tree with chain compression: single-child directory chains
+// collapse into one dotted label (a/b/c/d → a.b.c.d); a directory with
+// siblings or files keeps its own level (src/), and no loose labels remain
+assert.ok(texts.includes('a.b.c.d'), 'chain dirs compressed to a.b.c.d')
+assert.ok(!texts.includes('a/'), 'no loose dir a/ after compression')
+assert.ok(!texts.includes('b/'), 'no loose dir b/ after compression')
+assert.ok(!texts.includes('c/'), 'no loose dir c/ after compression')
+assert.ok(!texts.includes('d/'), 'no loose dir d/ after compression')
+assert.ok(texts.includes('src/'), 'dir src/ present (has siblings, not compressed)')
+assert.ok(texts.includes('components.ui'), 'chain dirs compressed to components.ui')
+assert.ok(!texts.includes('components/'), 'no loose dir components/ after compression')
+assert.ok(!texts.includes('ui/'), 'no loose dir ui/ after compression')
+assert.ok(!texts.includes('src.components.ui'), 'no flat chain crossing a non-chain dir')
 assert.ok(!joined.includes('根目录'), 'no root group label (root files shown flat)')
 
 // File rows carry the absolute path as title (native preview targets):

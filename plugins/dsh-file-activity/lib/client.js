@@ -92,6 +92,27 @@ window.__ModuleLoader__.load({
     }
 
     /**
+     * Collapse chain directories: a directory whose only child is another
+     * directory merges into it (a → a.b → a.b.c …). Deep single-child paths
+     * render as one dotted label with the file(s) directly beneath.
+     * `root` itself is never collapsed (its name is '' and would drop the
+     * top-level directory).
+     */
+    function compressChains(node, isRoot) {
+      for (const child of node.children) {
+        if (child.type === 'dir') compressChains(child, false)
+      }
+      if (isRoot) return
+      while (node.children.length === 1 && node.children[0].type === 'dir') {
+        const only = node.children[0]
+        node.name = `${node.name}.${only.name}`
+        node.children = only.children
+        node.compressed = true
+        // subtree counters were already aggregated into every ancestor
+      }
+    }
+
+    /**
      * Build a nested directory tree from per-file counts, keyed by the file's
      * absolute path (e.g. /Users/me/project/src/index.ts → Users/me/project/
      * src/ …). Every directory node aggregates its subtree counters and sorts
@@ -134,6 +155,7 @@ window.__ModuleLoader__.load({
         }
       }
       sortNode(root)
+      compressChains(root, true)
       return root
     }
 
@@ -397,7 +419,7 @@ window.__ModuleLoader__.load({
           createElement(
             'div',
             { style: { display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0', paddingLeft: depth * 14 } },
-            createElement('span', { style: { fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, node.name + '/'),
+            createElement('span', { style: { fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, node.compressed ? node.name : node.name + '/'),
             createElement('span', { style: { display: 'flex', gap: '4px', flexShrink: 0 } },
               countPill(node.read, strings.read(), '#4a90d9'),
               countPill(node.create, strings.create(), '#4caf7d'),
