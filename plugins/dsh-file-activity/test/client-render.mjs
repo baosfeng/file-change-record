@@ -128,10 +128,11 @@ assert.ok(joined.includes('文件统计'), 'stats section')
 assert.ok(joined.includes('刷新'), 'refresh button')
 assert.ok(joined.includes('清空'), 'clear button')
 
-// dotted folder labels: a.b.c.d and src.components.ui, plus root folder
+// dotted folder labels: a.b.c.d and src.components.ui; workspace-root files
+// are shown flat, so no "根目录" group label appears
 assert.ok(joined.includes('a.b.c.d'), 'multi-level folder dotted label')
 assert.ok(joined.includes('src.components.ui'), 'src.components.ui label')
-assert.ok(joined.includes('根目录'), 'root folder label')
+assert.ok(!joined.includes('根目录'), 'no root group label (root files shown flat)')
 
 // File rows carry the absolute path as title (native preview targets):
 // 4 stats rows + 4 recent rows = 8.

@@ -357,6 +357,31 @@ window.__ModuleLoader__.load({
 
       const recent = data.recent ?? []
 
+      // Files directly under the session workspace (cwd) are shown flat
+      // without a "root" group label; files in subdirectories keep their
+      // folder groups (see the stats section below).
+      const rootFiles = folders.find((folder) => folder.dir === '')?.files ?? []
+      const subFolders = folders.filter((folder) => folder.dir !== '')
+      const fileRow = (file, paddingLeft) =>
+        createElement(
+          'div',
+          {
+            key: file.abs,
+            onClick: () => openFile(file.abs),
+            style: paddingLeft ? { ...rowStyle, paddingLeft } : rowStyle,
+            title: fileTitle(file.abs, file.firstSeen, file.lastSeen),
+          },
+          createElement('span', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, file.name),
+          createElement('span', { style: { display: 'flex', gap: '4px', flexShrink: 0 } },
+            countPill(file.read, strings.readShort(), '#4a90d9'),
+            countPill(file.create, strings.createShort(), '#4caf7d'),
+            countPill(file.modify, strings.modifyShort(), '#e6a23c'),
+            file.lastSeen
+              ? createElement('span', { style: { color: 'var(--dsh-color-text-tertiary, #999)', fontSize: '10px', flexShrink: 0 } }, relativeTime(file.lastSeen))
+              : null,
+          ),
+        )
+
       return createElement(
         'div',
         { style: { display: 'flex', flexDirection: 'column', height: '100%', overflow: 'auto', padding: '8px', gap: '10px', fontSize: '12px' } },
@@ -409,42 +434,26 @@ window.__ModuleLoader__.load({
           createElement('div', { style: sectionTitleStyle }, strings.stats()),
           folders.length === 0
             ? createElement('div', { style: { color: 'var(--dsh-color-text-secondary, #888)', padding: '6px 0' } }, strings.empty())
-            : folders.map((folder) =>
-                createElement(
-                  'div',
-                  { key: folder.dir, style: { marginBottom: '6px' } },
+            : [
+                ...rootFiles.map((file) => fileRow(file, '')),
+                ...subFolders.map((folder) =>
                   createElement(
                     'div',
-                    { style: { display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0' } },
-                    createElement('span', { style: { fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, folder.label),
-                    createElement('span', { style: { display: 'flex', gap: '4px', flexShrink: 0 } },
-                      countPill(folder.read, strings.read(), '#4a90d9'),
-                      countPill(folder.create, strings.create(), '#4caf7d'),
-                      countPill(folder.modify, strings.modify(), '#e6a23c'),
-                    ),
-                  ),
-                  folder.files.map((file) =>
+                    { key: folder.dir, style: { marginBottom: '6px' } },
                     createElement(
                       'div',
-                      {
-                        key: file.abs,
-                        onClick: () => openFile(file.abs),
-                        style: { ...rowStyle, paddingLeft: '22px' },
-                        title: fileTitle(file.abs, file.firstSeen, file.lastSeen),
-                      },
-                      createElement('span', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, file.name),
+                      { style: { display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0' } },
+                      createElement('span', { style: { fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, folder.label),
                       createElement('span', { style: { display: 'flex', gap: '4px', flexShrink: 0 } },
-                        countPill(file.read, strings.readShort(), '#4a90d9'),
-                        countPill(file.create, strings.createShort(), '#4caf7d'),
-                        countPill(file.modify, strings.modifyShort(), '#e6a23c'),
-                        file.lastSeen
-                          ? createElement('span', { style: { color: 'var(--dsh-color-text-tertiary, #999)', fontSize: '10px', flexShrink: 0 } }, relativeTime(file.lastSeen))
-                          : null,
+                        countPill(folder.read, strings.read(), '#4a90d9'),
+                        countPill(folder.create, strings.create(), '#4caf7d'),
+                        countPill(folder.modify, strings.modify(), '#e6a23c'),
                       ),
                     ),
+                    folder.files.map((file) => fileRow(file, '22px')),
                   ),
                 ),
-              ),
+            ],
         ),
       )
     }
