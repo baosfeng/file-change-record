@@ -445,7 +445,7 @@ window.__ModuleLoader__.load({
             countPill(file.create, strings.createShort(), '#4caf7d'),
             countPill(file.modify, strings.modifyShort(), '#e6a23c'),
             file.lastSeen
-              ? createElement('span', { style: { color: 'var(--dsh-color-text-tertiary, #999)', fontSize: '10px', flexShrink: 0 } }, relativeTime(file.lastSeen))
+              ? createElement('span', { style: { color: 'var(--dsw-alias-label-tertiary, #999)', fontSize: '10px', flexShrink: 0 } }, relativeTime(file.lastSeen))
               : null,
           ),
         )
@@ -495,9 +495,9 @@ window.__ModuleLoader__.load({
           recent.length === 0
             ? createElement(
                 'div',
-                { style: { color: 'var(--dsh-color-text-secondary, #888)', padding: '6px 0', lineHeight: 1.6 } },
+                { style: { color: 'var(--dsw-alias-label-secondary, #888)', padding: '6px 0', lineHeight: 1.6 } },
                 strings.empty(),
-                createElement('div', { style: { color: 'var(--dsh-color-text-tertiary, #999)', fontSize: '11px' } }, strings.emptyHint()),
+                createElement('div', { style: { color: 'var(--dsw-alias-label-tertiary, #999)', fontSize: '11px' } }, strings.emptyHint()),
               )
             : recent.map((entry) =>
                 createElement(
@@ -510,7 +510,7 @@ window.__ModuleLoader__.load({
                   },
                   createElement('span', { style: opBadgeStyle(entry.op) }, opLabel(entry.op)),
                   createElement('span', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'rtl', textAlign: 'left' } }, toRelative(entry.path, cwd)),
-                  createElement('span', { style: { color: 'var(--dsh-color-text-tertiary, #999)', flexShrink: 0 } }, relativeTime(entry.time)),
+                  createElement('span', { style: { color: 'var(--dsw-alias-label-tertiary, #999)', flexShrink: 0 } }, relativeTime(entry.time)),
                 ),
               ),
         ),
@@ -520,7 +520,7 @@ window.__ModuleLoader__.load({
           { style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
           createElement('div', { style: sectionTitleStyle }, strings.stats()),
           tree.children.length === 0
-            ? createElement('div', { style: { color: 'var(--dsh-color-text-secondary, #888)', padding: '6px 0' } }, strings.empty())
+            ? createElement('div', { style: { color: 'var(--dsw-alias-label-secondary, #888)', padding: '6px 0' } }, strings.empty())
             : tree.children.map((child) => renderTreeNode(child, 0)),
         ),
         // ── floating preview window ──
@@ -531,20 +531,30 @@ window.__ModuleLoader__.load({
     }
 
     // ── floating preview window ────────────────────────────────────────────
+    // Colors follow the DSH theme tokens (--dsw-alias-*) so the window looks
+    // right in both dark and light themes; fallbacks assume the dark theme.
     const previewOverlayStyle = {
       position: 'fixed', top: 48, right: 330, width: 520, maxWidth: 'calc(100vw - 380px)',
       height: '70vh', maxHeight: 720,
-      background: 'var(--dsh-color-bg-secondary, #222327)', color: 'inherit',
-      border: '1px solid var(--dsh-color-border, #444)', borderRadius: '8px',
-      boxShadow: '0 10px 36px rgba(0, 0, 0, 0.45)', zIndex: 2000,
+      background: 'var(--dsw-alias-bg-layer-2, #232327)', color: 'var(--dsw-alias-label-primary, #e8e8e8)',
+      border: '1px solid var(--dsw-alias-border-l2, #4a4a4e)', borderRadius: '8px',
+      boxShadow: 'var(--dsw-shadow-lv2, 0 10px 36px rgba(0, 0, 0, 0.45))', zIndex: 2000,
       display: 'flex', flexDirection: 'column', overflow: 'hidden',
     }
     const previewHeaderStyle = {
       display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px',
-      borderBottom: '1px solid var(--dsh-color-border, #444)', flexShrink: 0,
+      borderBottom: '1px solid var(--dsw-alias-border-l1, #3a3a3e)', flexShrink: 0,
     }
     const previewBodyStyle = {
       flex: 1, overflow: 'auto', padding: '10px', fontSize: '12px', minHeight: 0,
+    }
+
+    /** Resolve a possibly-relative path against the session cwd. */
+    function resolvePath(path, cwd) {
+      if (typeof path !== 'string' || path === '') return path
+      if (path.startsWith('/')) return path
+      if (typeof cwd === 'string' && cwd !== '') return `${cwd.replace(/\/+$/, '')}/${path}`
+      return path
     }
 
     /**
@@ -554,31 +564,33 @@ window.__ModuleLoader__.load({
      */
     function PreviewWindow({ scope, preview, onClose, onOpenInSidebar }) {
       const sessionId = scope?.sessionId ?? ''
-      const [state, setState] = useState({ status: 'loading', kind: fileKind(preview.abs), content: '' })
+      const cwd = scope?.cwd ?? ''
+      const [state, setState] = useState({ status: 'loading', kind: fileKind(preview.abs), content: '', message: '' })
 
       useEffect(() => {
         let cancelled = false
         const kind = fileKind(preview.abs)
-        setState({ status: kind === 'text' ? 'loading' : 'ready', kind, content: '' })
+        setState({ status: kind === 'text' ? 'loading' : 'ready', kind, content: '', message: '' })
         if (kind !== 'text' || sessionId === '') return () => { cancelled = true }
+        const target = resolvePath(preview.abs, cwd)
         void fetch('/sidebar/api/fs.read', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ sessionId, path: preview.abs }),
+          body: JSON.stringify({ sessionId, path: target }),
         }).then((response) => response.json())
           .then((json) => {
             if (cancelled) return
             if (json === null || typeof json !== 'object' || json.ok !== true || json.value === undefined) {
-              setState({ status: 'error', kind, content: '' })
+              setState({ status: 'error', kind, content: '', message: json?.error?.message ?? '' })
               return
             }
-            setState({ status: 'ready', kind, content: typeof json.value.content === 'string' ? json.value.content : '' })
+            setState({ status: 'ready', kind, content: typeof json.value.content === 'string' ? json.value.content : '', message: '' })
           })
-          .catch(() => {
-            if (!cancelled) setState({ status: 'error', kind, content: '' })
+          .catch((error) => {
+            if (!cancelled) setState({ status: 'error', kind, content: '', message: error instanceof Error ? error.message : String(error) })
           })
         return () => { cancelled = true }
-      }, [preview.abs, sessionId])
+      }, [preview.abs, sessionId, cwd])
 
       const kind = state.kind
       const media = kind === 'image' || kind === 'pdf' ? mediaUrl(sessionId, preview.abs) : ''
@@ -588,9 +600,14 @@ window.__ModuleLoader__.load({
       } else if (kind === 'pdf') {
         body = createElement('iframe', { src: media, style: { width: '100%', height: '100%', border: 'none' } })
       } else if (state.status === 'loading') {
-        body = createElement('div', { style: { color: 'var(--dsh-color-text-tertiary, #999)' } }, strings.loading())
+        body = createElement('div', { style: { color: 'var(--dsw-alias-label-tertiary, #999)' } }, strings.loading())
       } else if (state.status === 'error') {
-        body = createElement('div', { style: { color: '#e06c5a' } }, strings.previewFailed())
+        body = createElement('div', { style: { color: 'var(--dsw-alias-state-error-primary, #e06c5a)', whiteSpace: 'pre-wrap', wordBreak: 'break-all' } },
+          strings.previewFailed(),
+          state.message
+            ? createElement('div', { style: { marginTop: '6px', fontSize: '11px', opacity: 0.85 } }, state.message)
+            : null,
+        )
       } else {
         body = createElement('pre', { style: { margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '11px', lineHeight: 1.5 } }, state.content)
       }
@@ -615,10 +632,10 @@ window.__ModuleLoader__.load({
 
     // helper styles and small pieces
     const buttonStyle = {
-      border: '1px solid var(--dsh-color-border, #444)', background: 'transparent', color: 'inherit',
+      border: '1px solid var(--dsw-alias-border-l2, #4a4a4e)', background: 'transparent', color: 'inherit',
       borderRadius: '4px', padding: '2px 8px', fontSize: '11px', cursor: 'pointer',
     }
-    const sectionTitleStyle = { fontWeight: 600, fontSize: '12px', padding: '2px 0', color: 'var(--dsh-color-text-secondary, #888)' }
+    const sectionTitleStyle = { fontWeight: 600, fontSize: '12px', padding: '2px 0', color: 'var(--dsw-alias-label-secondary, #888)' }
     const rowStyle = { display: 'flex', alignItems: 'center', gap: '6px', padding: '3px 4px', borderRadius: '4px', cursor: 'pointer' }
     const opBadgeStyle = (op) => ({
       borderRadius: '3px', padding: '1px 5px', fontSize: '10px', color: '#fff', flexShrink: 0,
