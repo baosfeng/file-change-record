@@ -357,6 +357,10 @@ window.__ModuleLoader__.load({
 
       const openFile = (path) => {
         try {
+          if (ctx.betterSidebar.isTabEnabled?.('editor') === false) {
+            console.warn('[dsh-file-activity] cannot open file: the "editor" tab is disabled in the sidebar settings (dsh-better-sidebar side card)')
+            return
+          }
           if (ctx.betterSidebar.features?.includes('openFile')) {
             ctx.betterSidebar.openFile(scope, path)
           } else {

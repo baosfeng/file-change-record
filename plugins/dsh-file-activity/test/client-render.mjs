@@ -59,6 +59,7 @@ const mockService = {
     return () => {}
   },
   features: ['openFile'],
+  isTabEnabled: () => true,
   openFile: (scope, path) => { openFileCalls.push({ scope, path }) },
   openTab: (seed) => { openTabCalls.push(seed) },
   getSnapshot: () => undefined,
@@ -174,6 +175,32 @@ assert.ok(openByPath.has('/work/src/components/ui/Button.tsx'), 'openFile called
 for (const call of openFileCalls) {
   assert.equal(call.scope, scope, 'openFile receives the tab scope')
 }
+
+// ── editor-disabled scenario: clicks must not silently no-op ──────────────
+// (openFile should refuse with a warning, never call the service)
+const openFileCallsDisabled = []
+const mockServiceDisabled = {
+  ...mockService,
+  isTabEnabled: () => false,
+  openFile: (s, p) => { openFileCallsDisabled.push({ scope: s, path: p }) },
+}
+const ctxDisabled = { betterSidebar: mockServiceDisabled, effect: (fn) => fn() }
+exportsObj.apply(ctxDisabled)
+const disabledElement = capturedTab.component({ ctx: ctxDisabled, scope, visible: true })
+disabledElement.props.dataStore.set({ recent: [], counts: { '/work/README.md': { read: 1, create: 1, modify: 0 } } })
+const disabledTree = disabledElement.type(disabledElement.props)
+const disabledRows = []
+const walkDisabled = (node, depth) => {
+  if (node === null || node === undefined || typeof node === 'boolean') return
+  if (Array.isArray(node)) { for (const child of node) walkDisabled(child, depth); return }
+  const props = node.props ?? {}
+  if (typeof props.onClick === 'function' && typeof props.title === 'string' && props.title !== '') disabledRows.push(props.onClick)
+  walkDisabled(props.children, depth + 1)
+}
+walkDisabled(disabledTree, 0)
+assert.ok(disabledRows.length > 0, 'file rows exist in disabled scenario')
+for (const click of disabledRows) click()
+assert.equal(openFileCallsDisabled.length, 0, 'no openFile call when editor tab is disabled')
 
 console.log('ALL CLIENT RENDER-PATH TESTS PASSED')
 console.log('sample output tree (clickable rows):')
