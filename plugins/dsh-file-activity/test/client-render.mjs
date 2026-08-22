@@ -4,6 +4,10 @@
  * mocked betterSidebar service, then invokes the view component directly to
  * verify the element tree builds without errors and the folder flattening /
  * dotted-label / recent-list logic produces the expected structure.
+ *
+ * Clicking a file row must open the file in the sidebar's NATIVE viewer via
+ * ctx.betterSidebar.openFile(scope, path) (built-in markdown/code rendering),
+ * NOT a hand-rolled floating preview — there is no preview data path anymore.
  */
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -108,9 +112,10 @@ dataStore.set({
 const tree = element.type(element.props)
 assert.ok(tree, 'view tree built')
 
-// Traverse the tree and collect text + clickable rows.
+// Traverse the tree and collect text + clickable rows + labeled icon buttons.
 const texts = []
 const rows = []
+const ariaLabels = []
 function walk(node, depth) {
   if (node === null || node === undefined || typeof node === 'boolean') return
   if (typeof node === 'string' || typeof node === 'number') {
@@ -125,17 +130,21 @@ function walk(node, depth) {
   if (typeof props.onClick === 'function') {
     rows.push({ title: props.title, depth, onClick: props.onClick })
   }
+  if (typeof props['aria-label'] === 'string') ariaLabels.push(props['aria-label'])
   walk(props.children, depth + 1)
 }
 walk(tree, 0)
 
 // ── assertions ─────────────────────────────────────────────────────────────
 const joined = texts.join('|')
-assert.ok(joined.includes('文件活动'), 'tab title')
+// No in-content "文件活动" heading: the tab strip already names the page, so
+// the view starts flush with content (refreshed/compact, "immersive").
+assert.ok(!joined.includes('文件活动'), 'no redundant in-content tab title')
 assert.ok(joined.includes('最近访问'), 'recent section')
 assert.ok(joined.includes('文件统计'), 'stats section')
-assert.ok(joined.includes('刷新'), 'refresh button')
-assert.ok(joined.includes('清空'), 'clear button')
+// Header action buttons are icon-only but must be reachable & labelled.
+assert.ok(ariaLabels.includes('刷新'), 'refresh icon button labelled')
+assert.ok(ariaLabels.includes('清空'), 'clear icon button labelled')
 
 // Directory tree with chain compression: single-child directory chains
 // collapse into one dotted label (a/b/c/d → a.b.c.d); a directory with
@@ -154,8 +163,9 @@ assert.ok(!joined.includes('根目录'), 'no root group label (root files shown 
 
 // File rows carry the absolute path as title (native preview targets);
 // directory rows end with '/' and toggle collapse instead:
-// 4 stats rows + 4 recent rows = 8 file rows.
-const fileRows = rows.filter((r) => typeof r.title === 'string' && r.title !== '' && !r.title.endsWith('/'))
+// 4 stats rows + 4 recent rows = 8 file rows. (Icon-only header actions carry
+// a chinese tooltip title, so identify real rows by the leading '/' path.)
+const fileRows = rows.filter((r) => typeof r.title === 'string' && r.title.startsWith('/') && !r.title.endsWith('/'))
 assert.equal(fileRows.length, 8, `expected 8 file rows, got ${fileRows.length}`)
 const titles = fileRows.map((r) => r.title)
 assert.ok(titles.includes('/work/a/b/c/d/e.txt'), 'nested file row present')
@@ -173,95 +183,43 @@ assert.ok(recentRows.length >= 4, 'recent entries clickable')
 // the nested-tree example: a/b/c/d/e.txt renders as dirs a/ b/ c/ d/ with e.txt
 assert.ok(texts.includes('e.txt'), 'nested file name present')
 
-// ── click behavior: every clickable file row opens the floating preview ───
-// (sets dataStore.preview; no sidebar tab is opened; dir rows are excluded)
-const clickableRows = rows.filter((r) => typeof r.onClick === 'function' && typeof r.title === 'string' && r.title !== '' && !r.title.endsWith('/'))
+// ── click behavior: every clickable file row opens the FLOATING preview ──
+// (which reuses the sidebar's native viewer), NOT the sidebar editor tab.
+const clickableRows = rows.filter((r) => typeof r.onClick === 'function' && typeof r.title === 'string' && r.title.startsWith('/') && !r.title.endsWith('/'))
 for (const row of clickableRows) row.onClick()
-assert.equal(openFileCalls.length, 0, 'clicking rows does not open the sidebar editor')
-assert.equal(openTabCalls.length, 0, 'clicking rows does not open any sidebar tab')
-const previewAfterClick = dataStore.getSnapshot().preview
-assert.ok(previewAfterClick !== null && typeof previewAfterClick === 'object', 'click opens the floating preview')
-assert.equal(previewAfterClick.abs, clickableRows[clickableRows.length - 1].title, 'preview targets the clicked file')
+assert.equal(openFileCalls.length, 0, 'clicking a row does not open the sidebar editor tab')
+assert.equal(openTabCalls.length, 0, 'clicking a row does not open any sidebar tab')
+const preview = dataStore.getSnapshot().preview
+assert.ok(preview !== null && typeof preview === 'object', 'click opens the floating preview')
+assert.equal(preview.abs, clickableRows[clickableRows.length - 1].title, 'floating preview targets the clicked file')
 
-// ── preview window renders with title, close and open-in-sidebar actions ──
-const previewTree = element.type(element.props)
-const previewTexts = []
-const previewButtons = []
-const walkPreview = (node) => {
+// ── floating preview: click-outside (scrim overlay) & the close button ────
+// both dismiss it; large files scroll inside the window body.
+const fpTree = element.type(element.props) // re-render with preview in the store
+let overlay = null
+let closeBtn = null
+const fpTexts = []
+const walkFp = (node) => {
   if (node === null || node === undefined || typeof node === 'boolean') return
-  if (typeof node === 'string' || typeof node === 'number') { previewTexts.push(String(node)); return }
-  if (Array.isArray(node)) { for (const child of node) walkPreview(child); return }
-  // Expand function components manually (no React runtime in this test).
-  if (typeof node.type === 'function') { walkPreview(node.type(node.props)); return }
+  if (typeof node === 'string' || typeof node === 'number') { fpTexts.push(String(node)); return }
+  if (Array.isArray(node)) { for (const c of node) walkFp(c); return }
+  if (typeof node.type === 'function') { walkFp(node.type(node.props)); return }
   const props = node.props ?? {}
-  if (typeof props.onClick === 'function') previewButtons.push(props)
-  walkPreview(props.children)
+  if (props.className === 'dfa-fp-overlay') overlay = props
+  if (props['aria-label'] === '关闭预览') closeBtn = props
+  walkFp(props.children)
 }
-walkPreview(previewTree)
-assert.ok(previewTexts.includes(previewAfterClick.name), 'preview header shows the file name')
-assert.ok(previewTexts.includes('关闭'), 'close button present')
-const closeButton = previewButtons.find((b) => Array.isArray(b.children) ? b.children.includes('关闭') : b.children === '关闭')
-assert.ok(closeButton, 'close button wired')
-closeButton.onClick()
-assert.equal(dataStore.getSnapshot().preview, null, 'close dismisses the preview')
-
-// ── auto-close: leaving the window closes it after a delay, re-entering cancels ──
+walkFp(fpTree)
+assert.ok(fpTexts.includes('加载中…') || fpTexts.includes('Loading…'), 'floating preview shows its loading state (viewer mounts in a real browser)')
+assert.ok(overlay && typeof overlay.onClick === 'function', 'scrim overlay present (click-outside dismisses)')
+// Clicking OUTSIDE the window dismisses it.
+overlay.onClick()
+assert.equal(dataStore.getSnapshot().preview, null, 'clicking outside the window closes the floating preview')
+// Re-open, then dismiss via the close button.
 dataStore.set({ preview: { abs: '/work/README.md', name: 'README.md' } })
-const autoTree = element.type(element.props)
-let overlayProps = null
-const findOverlay = (node) => {
-  if (overlayProps !== null || node === null || node === undefined || typeof node === 'boolean') return
-  if (Array.isArray(node)) { for (const child of node) findOverlay(child); return }
-  if (typeof node.type === 'function') { findOverlay(node.type(node.props)); return }
-  if (node.props && typeof node.props.onMouseLeave === 'function' && typeof node.props.onMouseEnter === 'function') {
-    overlayProps = node.props
-    return
-  }
-  findOverlay(node.props?.children)
-}
-findOverlay(autoTree)
-assert.ok(overlayProps !== null, 'preview overlay carries mouse leave/enter handlers')
-
-// re-enter cancels a pending auto-close
-overlayProps.onMouseEnter()
-overlayProps.onMouseLeave()
-overlayProps.onMouseEnter()
-await new Promise((resolve) => setTimeout(resolve, 700))
-assert.ok(dataStore.getSnapshot().preview !== null, 're-entering cancels the auto-close')
-
-// leaving without re-entering closes the preview after the delay
-overlayProps.onMouseLeave()
-await new Promise((resolve) => setTimeout(resolve, 700))
-assert.equal(dataStore.getSnapshot().preview, null, 'mouse leave auto-closes the preview')
-
-// ── editor-disabled scenario: preview still works; open-in-sidebar guarded ─
-const openFileCallsDisabled = []
-const mockServiceDisabled = {
-  ...mockService,
-  isTabEnabled: () => false,
-  openFile: (s, p) => { openFileCallsDisabled.push({ scope: s, path: p }) },
-}
-const ctxDisabled = { betterSidebar: mockServiceDisabled, effect: (fn) => fn() }
-exportsObj.apply(ctxDisabled)
-const disabledElement = capturedTab.component({ ctx: ctxDisabled, scope, visible: true })
-const disabledStore = disabledElement.props.dataStore
-disabledStore.set({ recent: [], counts: { '/work/README.md': { read: 1, create: 1, modify: 0 } }, preview: { abs: '/work/README.md', name: 'README.md' } })
-const disabledTree = disabledElement.type(disabledElement.props)
-const disabledButtons = []
-const walkDisabled = (node) => {
-  if (node === null || node === undefined || typeof node === 'boolean') return
-  if (Array.isArray(node)) { for (const child of node) walkDisabled(child); return }
-  if (typeof node.type === 'function') { walkDisabled(node.type(node.props)); return }
-  const props = node.props ?? {}
-  if (typeof props.onClick === 'function') disabledButtons.push(props)
-  walkDisabled(props.children)
-}
-walkDisabled(disabledTree)
-const sidebarButton = disabledButtons.find((b) => b.children === '在侧边栏打开')
-assert.ok(sidebarButton, 'open-in-sidebar button present in preview window')
-sidebarButton.onClick()
-assert.equal(openFileCallsDisabled.length, 0, 'no openFile call when editor tab is disabled')
-assert.equal(disabledStore.getSnapshot().preview.abs, '/work/README.md', 'preview stays open when sidebar open is refused')
+assert.ok(closeBtn && typeof closeBtn.onClick === 'function', 'floating preview has a close button')
+closeBtn.onClick()
+assert.equal(dataStore.getSnapshot().preview, null, 'close button dismisses the floating preview')
 
 console.log('ALL CLIENT RENDER-PATH TESTS PASSED')
 console.log('sample output tree (clickable rows):')

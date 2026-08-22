@@ -5,8 +5,11 @@
  *  - recent file access history (agent + sidebar operations),
  *  - per-file create/modify/read counts flattened by folder, with multi-level
  *    folders shown as dotted paths (a.b.c.d) and their files indented below,
- *  - clicking any file opens it in the sidebar's native viewer (image / pdf /
- *    html / code / markdown ... via ctx.betterSidebar.openFile),
+ *  - clicking any file opens a FLOATING preview that reuses the sidebar's
+ *    NATIVE viewer via `ctx.betterSidebar.matchFileViewer(path)` — its own
+ *    `component` is mounted (built-in markdown / code / image / pdf / html
+ *    renderers), so code gets syntax highlighting and markdown gets rendered
+ *    with no hand-rolled preview; clicking outside / Esc / × closes it,
  *  - auto-opens once per session by default (toggleable in the sidebar
  *    settings, enabled by default).
  *
@@ -14,6 +17,13 @@
  * half's fetch interception for sidebar file operations (fs.read / fs.write /
  * /sidebar/file media opens), both persisted host-side; the tab polls
  * /file-activity/api/stats.
+ *
+ * Styling follows the dsh-better-sidebar design language: all colors ride the
+ * DSH semantic tokens (--dsw-alias-*), typography rides the font roles
+ * (--dsw-font-*), motion rides --ds-*. Flat surfaces (no box-shadow), hairline
+ * borders, 28px circular icon controls with hover fills, and 8px-radius rows
+ * with hover fills. The stylesheet is injected once per activation and torn
+ * down with the fiber, so HMR/disable leaves no residue.
  */
 window.__ModuleLoader__.load({
   id: 'dsh-file-activity',
@@ -43,8 +53,8 @@ window.__ModuleLoader__.load({
       stats: () => (isZh() ? '文件统计' : 'File Stats'),
       empty: () => (isZh() ? '暂无文件活动记录' : 'No file activity yet'),
       emptyHint: () => (isZh()
-        ? '在侧边栏打开文件、编辑保存，或让 agent 读写文件，都会记录在这里。'
-        : 'Opening files in the sidebar, editing, or agent file operations are recorded here.'),
+        ? '在侧边栏打开文件、编辑保存，或让 agent 读写文件（创建/读取/修改），都会记录在这里。点击任意文件将在侧边栏内用原生预览打开（代码高亮 / Markdown 渲染 / 图片 / PDF…）。'
+        : 'Opening files in the sidebar, editing, or agent file operations (create/read/modify) are recorded here. Click any file to open it in the sidebar with native preview (syntax highlighting / Markdown rendering / images / PDF…).'),
       refresh: () => (isZh() ? '刷新' : 'Refresh'),
       clear: () => (isZh() ? '清空' : 'Clear'),
       clearConfirm: () => (isZh() ? '确定清空当前会话的全部文件活动记录？' : 'Clear all file activity for this session?'),
@@ -54,35 +64,42 @@ window.__ModuleLoader__.load({
       readShort: () => (isZh() ? '读' : 'R'),
       createShort: () => (isZh() ? '增' : 'C'),
       modifyShort: () => (isZh() ? '改' : 'M'),
-      root: () => (isZh() ? '根目录' : '(root)'),
       loadError: () => (isZh() ? '加载失败' : 'Load failed'),
       created: () => (isZh() ? '创建' : 'Created'),
       lastSeen: () => (isZh() ? '最近访问' : 'Last seen'),
-      unknown: () => (isZh() ? '未知' : 'unknown'),
-      openInSidebar: () => (isZh() ? '在侧边栏打开' : 'Open in sidebar'),
-      closePreview: () => (isZh() ? '关闭' : 'Close'),
+      justNow: () => (isZh() ? '刚刚' : 'just now'),
+      minutesAgo: (m) => (isZh() ? `${m} 分钟前` : `${m}m ago`),
+      hoursAgo: (h) => (isZh() ? `${h} 小时前` : `${h}h ago`),
+      daysAgo: (d) => (isZh() ? `${d} 天前` : `${d}d ago`),
+      closePreview: () => (isZh() ? '关闭预览' : 'Close preview'),
       loading: () => (isZh() ? '加载中…' : 'Loading…'),
       previewUnsupported: () => (isZh() ? '该文件类型暂不支持预览' : 'This file type cannot be previewed yet'),
       previewFailed: () => (isZh() ? '预览加载失败' : 'Preview failed to load'),
     }
 
     // ── path helpers ──────────────────────────────────────────────────────
-    function toRelative(path, cwd) {
-      if (!cwd || typeof path !== 'string') return path
-      const norm = path.split('\\').join('/')
-      const base = cwd.split('\\').join('/').replace(/\/+$/, '')
-      if (norm === base) return ''
-      if (norm.startsWith(base + '/')) return norm.slice(base.length + 1)
-      return norm
-    }
-
     function basenameOf(path) {
       const norm = path.split('\\').join('/')
       const idx = norm.lastIndexOf('/')
       return idx === -1 ? norm : norm.slice(idx + 1)
     }
 
-    /** Local wall-clock time of a timestamp, as HH:MM:SS. */
+    /** Compact relative time: 刚刚 / N 分钟前 / N 小时前 / N 天前 / MM/DD. */
+    function formatRelative(time) {
+      if (typeof time !== 'number' || !Number.isFinite(time)) return ''
+      const diff = Date.now() - time
+      if (diff < 30_000) return strings.justNow()
+      const minutes = Math.floor(diff / 60_000)
+      if (minutes < 60) return strings.minutesAgo(minutes)
+      const hours = Math.floor(minutes / 60)
+      if (hours < 24) return strings.hoursAgo(hours)
+      const days = Math.floor(hours / 24)
+      if (days < 7) return strings.daysAgo(days)
+      const date = new Date(time)
+      return `${date.getMonth() + 1}/${date.getDate()}`
+    }
+
+    /** Local wall-clock HH:MM:SS (used in tooltips; full precision). */
     function formatTime(time) {
       const date = new Date(time)
       const pad = (n) => String(n).padStart(2, '0')
@@ -106,15 +123,13 @@ window.__ModuleLoader__.load({
         node.name = `${node.name}.${only.name}`
         node.children = only.children
         node.compressed = true
-        // subtree counters were already aggregated into every ancestor
       }
     }
 
     /**
      * Build a nested directory tree from per-file counts, keyed by the file's
-     * absolute path (e.g. /Users/me/project/src/index.ts → Users/me/project/
-     * src/ …). Every directory node aggregates its subtree counters and sorts
-     * directories first (alphabetically), then files (by activity, then name).
+     * absolute path. Every directory node aggregates its subtree counters and
+     * sorts directories first (alphabetically), then files (by activity).
      */
     function buildTree(counts) {
       const root = { type: 'dir', name: '', path: '', children: [], read: 0, create: 0, modify: 0 }
@@ -155,26 +170,6 @@ window.__ModuleLoader__.load({
       sortNode(root)
       compressChains(root, true)
       return root
-    }
-
-    // ── preview helpers ────────────────────────────────────────────────────
-    const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico']
-    const PDF_EXTS = ['pdf']
-
-    /** Classify a file for the preview window: 'image' | 'pdf' | 'text'. */
-    function fileKind(path) {
-      const name = basenameOf(path)
-      const idx = name.lastIndexOf('.')
-      if (idx <= 0) return 'text'
-      const ext = name.slice(idx + 1).toLowerCase()
-      if (IMAGE_EXTS.includes(ext)) return 'image'
-      if (PDF_EXTS.includes(ext)) return 'pdf'
-      return 'text'
-    }
-
-    /** Media URL for the sidebar's /sidebar/file route (images, pdfs…). */
-    function mediaUrl(sessionId, path) {
-      return `/sidebar/file?${new URLSearchParams({ sessionId, path })}`
     }
 
     // ── tiny external store ───────────────────────────────────────────────
@@ -314,10 +309,6 @@ window.__ModuleLoader__.load({
           return
         }
         try {
-          // A content-style open (path seed) makes better-sidebar expand the
-          // panel natively when it is collapsed, so the tab always lands in
-          // sight ("available by default"). The empty path is inert for this
-          // tab type.
           service.openTab({ type: tabId, title: strings.title(), path: '' })
           window.localStorage.setItem(AUTO_OPEN_KEY + sessionId, '1')
         } catch (error) {
@@ -334,8 +325,127 @@ window.__ModuleLoader__.load({
       return off
     }
 
+    // ── icons (inline, stroke=currentColor, matching better-sidebar) ──────
+    const ICON_STROKE = 1.8
+    const iconSvg = (children, size) =>
+      createElement('svg', {
+        width: size, height: size, viewBox: '0 0 24 24', fill: 'none',
+        stroke: 'currentColor', strokeWidth: ICON_STROKE, strokeLinecap: 'round', strokeLinejoin: 'round',
+        'aria-hidden': 'true',
+      }, children.map((child, i) => (child === null || child === undefined || typeof child === 'boolean')
+        ? child
+        : createElement(child.type, { key: i, ...child.props })))
+
+    const icon = {
+      clock: (size = 16) => iconSvg([
+        createElement('circle', { cx: 12, cy: 12, r: 9 }),
+        createElement('path', { d: 'M12 7v5l3 2' }),
+      ], size),
+      refresh: (size = 16) => iconSvg([
+        createElement('path', { d: 'M21 12a9 9 0 1 1-2.64-6.36' }),
+        createElement('polyline', { points: '21 3 21 9 15 9' }),
+      ], size),
+      trash: (size = 16) => iconSvg([
+        createElement('path', { d: 'M3 6h18' }),
+        createElement('path', { d: 'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6' }),
+        createElement('path', { d: 'M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2' }),
+      ], size),
+      chevronRight: (size = 14) => iconSvg([
+        createElement('polyline', { points: '9 6 15 12 9 18' }),
+      ], size),
+      chevronDown: (size = 14) => iconSvg([
+        createElement('polyline', { points: '6 9 12 15 18 9' }),
+      ], size),
+      file: (size = 16) => iconSvg([
+        createElement('path', { d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z' }),
+        createElement('path', { d: 'M14 2v6h6' }),
+      ], size),
+      folder: (size = 16) => iconSvg([
+        createElement('path', { d: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' }),
+      ], size),
+      external: (size = 15) => iconSvg([
+        createElement('path', { d: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' }),
+        createElement('polyline', { points: '15 3 21 3 21 9' }),
+        createElement('line', { x1: 10, y1: 14, x2: 21, y2: 3 }),
+      ], size),
+      close: (size = 15) => iconSvg([
+        createElement('line', { x1: 18, y1: 6, x2: 6, y2: 18 }),
+        createElement('line', { x1: 6, y1: 6, x2: 18, y2: 18 }),
+      ], size),
+    }
+
+    // ── themed stylesheet (injected once per activation) ──────────────────
+    // Mirrors the better-sidebar explorer surface: tight 2px 6px 8px body,
+    // 30px rows, box-sizing border-box indentation, folder rows use the
+    // strong type face to read as directories, files stay regular.
+    const STYLES = `
+.dfa { display:flex; flex-direction:column; height:100%; overflow-y:auto; overflow-x:hidden;
+  padding:2px 6px 8px; gap:2px; font:var(--dsw-font-s-14); color:var(--dsw-alias-label-primary); }
+.dfa-iconbtn { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; padding:0;
+  border:none; border-radius:50%; background:transparent; color:var(--dsw-alias-label-secondary); cursor:pointer; flex:none;
+  transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out), color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dfa-iconbtn svg { display:block; }
+.dfa-iconbtn:hover:not(:disabled) { background:var(--dsw-alias-interactive-bg-hover); color:var(--dsw-alias-label-primary); }
+.dfa-iconbtn:disabled { opacity:.4; cursor:default; }
+.dfa-iconbtn-danger:hover:not(:disabled) { color:var(--dsw-alias-state-error-primary); }
+.dfa-iconbtn-xs { width:20px; height:20px; }
+.dfa-section-head-actions { display:flex; align-items:center; gap:2px; flex:none; }
+.dfa-section { margin-top:4px; }
+.dfa-section-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:2px 6px 2px;
+  font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-label-tertiary); text-transform:uppercase; letter-spacing:.04em; }
+.dfa-section-head-toggle { display:flex; align-items:center; gap:5px; cursor:pointer; color:var(--dsw-alias-label-secondary); border:none; background:transparent; padding:0;
+  font:var(--dsw-font-xxxs-strong-11); text-transform:uppercase; letter-spacing:.04em; }
+.dfa-section-head-toggle:hover { color:var(--dsw-alias-label-primary); }
+.dfa-section-head-toggle svg { display:block; flex:none; }
+.dfa-empty { padding:8px 6px; font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); line-height:1.7; }
+.dfa-empty-hint { display:block; margin-top:2px; color:var(--dsw-alias-label-dimmed); font:var(--dsw-font-xxxs-11); }
+.dfa-list { display:flex; flex-direction:column; gap:0; }
+.dfa-row { display:flex; align-items:center; gap:6px; box-sizing:border-box; width:100%; min-height:26px;
+  margin:0; padding:0 8px; border:none; background:transparent; border-radius:8px; cursor:pointer; text-align:left;
+  animation:dfa-row-in 150ms var(--ds-ease-in-out); font:var(--dsw-font-s-14); color:var(--dsw-alias-label-primary); }
+.dfa-row:hover { background:var(--dsw-alias-interactive-bg-hover); }
+.dfa-row-dir { font:var(--dsw-font-s-strong-14); color:var(--dsw-alias-label-primary); }
+.dfa-chevron { flex:none; display:flex; align-items:center; color:var(--dsw-alias-label-tertiary); }
+.dfa-row-icon { flex:none; display:flex; align-items:center; color:var(--dsw-alias-label-secondary); }
+/* Strong folder-vs-file separation: folders get the brand accent ink so the
+   directory rows read as the colorful navigation spine; files stay neutral
+   and faint, so the eye separates them instantly. */
+.dfa-icon-folder { color:var(--dsw-alias-accent); }
+.dfa-icon-file { color:var(--dsw-alias-label-tertiary); }
+.dfa-row-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dfa-name-file { color:var(--dsw-alias-label-secondary); }
+.dfa-time { flex:none; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); white-space:nowrap; }
+.dfa-op { flex:none; display:inline-flex; align-items:center; justify-content:center; height:17px; padding:0 5px; border-radius:4px;
+  font:var(--dsw-font-xxxs-strong-11); }
+.dfa-op-create { color:var(--dsw-alias-state-success-primary); background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 14%, transparent); }
+.dfa-op-modify { color:var(--dsw-alias-state-warn-primary); background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
+.dfa-op-read { color:var(--dsw-alias-accent); background:color-mix(in srgb, var(--dsw-alias-accent) 12%, transparent); }
+.dfa-counts { flex:none; display:flex; align-items:center; gap:3px; }
+.dfa-count { flex:none; display:inline-flex; align-items:center; justify-content:center; height:15px; padding:0 4px; border-radius:4px;
+  font:var(--dsw-font-xxxs-strong-11); }
+.dfa-count-create { color:var(--dsw-alias-state-success-primary); background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 12%, transparent); }
+.dfa-count-modify { color:var(--dsw-alias-state-warn-primary); background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 14%, transparent); }
+.dfa-count-read { color:var(--dsw-alias-accent); background:color-mix(in srgb, var(--dsw-alias-accent) 10%, transparent); }
+/* ── floating preview window (uses the sidebar's native viewer rendering) ──
+   A transparent-ish scrim fills the viewport and closes the window on any
+   outside click / Escape; the window itself stops propagation. Its body is a
+   scroll container so large files scroll inside. */
+.dfa-fp-overlay { position:fixed; inset:0; z-index:1990; background:rgba(0,0,0,0.12); }
+.dfa-fp { position:fixed; top:56px; right:340px; width:min(720px, calc(100vw - 376px)); height:76vh; max-height:860px;
+  background:var(--dsw-alias-bg-layer-2); color:var(--dsw-alias-label-primary);
+  border:1px solid var(--dsw-alias-border-l2); border-radius:10px; box-shadow:var(--dsw-shadow-lv2); z-index:2000;
+  display:flex; flex-direction:column; overflow:hidden; }
+.dfa-fp-head { display:flex; align-items:center; gap:6px; padding:6px 8px; border-bottom:1px solid var(--dsw-alias-border-l1); flex:none; }
+.dfa-fp-title { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:var(--dsw-font-s-strong-14); color:var(--dsw-alias-label-primary); }
+.dfa-fp-actions { display:flex; align-items:center; gap:2px; flex:none; }
+.dfa-fp-body { flex:1; overflow:auto; padding:10px 12px; min-height:0; }
+.dfa-fp-note { color:var(--dsw-alias-label-tertiary); font:var(--dsw-font-xxs-12); }
+.dfa-fp-err { color:var(--dsw-alias-state-error-primary); font:var(--dsw-font-xxs-12); white-space:pre-wrap; word-break:break-all; }
+@keyframes dfa-row-in { from { opacity:0; transform:translateY(1px); } to { opacity:1; transform:none; } }
+`
+
     // ── view component ────────────────────────────────────────────────────
-    function FileActivityView({ ctx, scope, visible, dataStore }) {
+    function FileActivityView({ ctx, store, scope, visible, dataStore }) {
       const data = useSyncExternalStore(dataStore.subscribe, dataStore.getSnapshot)
       const [cwd, setCwd] = useState(scope?.cwd || '')
       const [error, setError] = useState(false)
@@ -375,9 +485,6 @@ window.__ModuleLoader__.load({
 
       const tree = useMemo(() => buildTree(data.counts ?? {}), [data.counts])
 
-      const preview = data.preview ?? null
-
-      /** Toggle a directory's collapsed state in the stats tree. */
       const toggleDir = (path) => {
         setCollapsedDirs((prev) => {
           const next = new Set(prev)
@@ -387,29 +494,13 @@ window.__ModuleLoader__.load({
         })
       }
 
-      /** Open the floating preview window for a file (default click action). */
+      /** Default file action: open a floating preview that reuses the
+       *  sidebar's NATIVE viewer (built-in syntax highlighting / Markdown
+       *  rendering / images / PDF / HTML). */
       const openPreview = (path) => {
         dataStore.set({ preview: { abs: path, name: basenameOf(path) } })
       }
-
       const closePreview = () => dataStore.set({ preview: null })
-
-      /** Open a file in the sidebar's editor tab (preview window fallback). */
-      const openInSidebar = (path) => {
-        try {
-          if (ctx.betterSidebar.isTabEnabled?.('editor') === false) {
-            console.warn('[dsh-file-activity] cannot open file: the "editor" tab is disabled in the sidebar settings (dsh-better-sidebar side card)')
-            return
-          }
-          if (ctx.betterSidebar.features?.includes('openFile')) {
-            ctx.betterSidebar.openFile(scope, path)
-          } else {
-            ctx.betterSidebar.openTab({ type: 'editor', path, title: basenameOf(path) })
-          }
-        } catch (error) {
-          console.error('[dsh-file-activity] open failed:', error)
-        }
-      }
 
       const onClear = () => {
         if (window.confirm(strings.clearConfirm())) {
@@ -433,26 +524,30 @@ window.__ModuleLoader__.load({
 
       const recent = data.recent ?? []
 
-      // Nested row helpers: files are clickable rows; directories render
-      // recursively with their subtree counters.
+      /** Three colored count pills for a file/dir node (read/create/modify). */
+      const countPills = (node) =>
+        createElement('span', { className: 'dfa-counts', style: { paddingLeft: '6px' } },
+          createElement('span', { className: 'dfa-count dfa-count-read' }, `${strings.readShort()} ${node.read}`),
+          createElement('span', { className: 'dfa-count dfa-count-create' }, `${strings.createShort()} ${node.create}`),
+          createElement('span', { className: 'dfa-count dfa-count-modify' }, `${strings.modifyShort()} ${node.modify}`),
+        )
+
       const fileRow = (file, depth) =>
         createElement(
           'div',
           {
             key: file.abs,
+            className: 'dfa-row',
             onClick: () => openPreview(file.abs),
-            style: { ...rowStyle, paddingLeft: depth * 14 },
+            style: { paddingLeft: 8 + depth * 20 },
             title: fileTitle(file.abs, file.firstSeen, file.lastSeen),
           },
-          createElement('span', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, file.name),
-          createElement('span', { style: { display: 'flex', gap: '4px', flexShrink: 0 } },
-            countPill(file.read, strings.readShort(), '#4a90d9'),
-            countPill(file.create, strings.createShort(), '#4caf7d'),
-            countPill(file.modify, strings.modifyShort(), '#e6a23c'),
-            file.lastSeen
-              ? createElement('span', { style: { color: 'var(--dsw-alias-label-tertiary, #999)', fontSize: '10px', flexShrink: 0 } }, formatTime(file.lastSeen))
-              : null,
-          ),
+          createElement('span', { className: 'dfa-row-icon dfa-icon-file' }, icon.file(14)),
+          createElement('span', { className: 'dfa-row-name dfa-name-file' }, file.name),
+          countPills(file),
+          file.lastSeen
+            ? createElement('span', { className: 'dfa-time' }, formatRelative(file.lastSeen))
+            : null,
         )
 
       const renderTreeNode = (node, depth) => {
@@ -460,21 +555,23 @@ window.__ModuleLoader__.load({
         const collapsed = collapsedDirs.has(node.path)
         return createElement(
           'div',
-          { key: node.path, style: { marginBottom: '2px' } },
+          { key: node.path },
           createElement(
             'div',
             {
+              className: 'dfa-row dfa-row-dir',
               onClick: () => toggleDir(node.path),
-              style: { display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0', paddingLeft: depth * 14, cursor: 'pointer' },
+              style: { paddingLeft: 8 + depth * 20 },
               title: `${node.path}/`,
             },
-            createElement('span', { style: { fontSize: '10px', width: '12px', flexShrink: 0, color: 'var(--dsw-alias-label-tertiary, #999)' } }, collapsed ? '▸' : '▾'),
-            createElement('span', { style: { fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, node.compressed ? node.name : node.name + '/'),
-            createElement('span', { style: { display: 'flex', gap: '4px', flexShrink: 0 } },
-              countPill(node.read, strings.read(), '#4a90d9'),
-              countPill(node.create, strings.create(), '#4caf7d'),
-              countPill(node.modify, strings.modify(), '#e6a23c'),
+            createElement('span', { className: 'dfa-chevron' },
+              collapsed ? icon.chevronRight(13) : icon.chevronDown(13),
             ),
+            createElement('span', { className: 'dfa-row-icon dfa-icon-folder' }, icon.folder(14)),
+            createElement('span', { className: 'dfa-row-name' },
+              node.compressed ? node.name : node.name + '/',
+            ),
+            countPills(node),
           ),
           collapsed ? null : node.children.map((child) => renderTreeNode(child, depth + 1)),
         )
@@ -482,89 +579,70 @@ window.__ModuleLoader__.load({
 
       return createElement(
         'div',
-        { style: { display: 'flex', flexDirection: 'column', height: '100%', overflow: 'auto', padding: '8px', gap: '10px', fontSize: '12px' } },
-        // header
-        createElement(
-          'div',
-          { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' } },
-          createElement('span', { style: { fontWeight: 600, fontSize: '12px' } }, strings.title()),
-          createElement(
-            'span',
-            { style: { display: 'flex', gap: '6px' } },
-            createElement('button', { onClick: onRefresh, style: buttonStyle }, strings.refresh()),
-            createElement('button', { onClick: onClear, style: { ...buttonStyle, color: '#e06c5a' } }, strings.clear()),
-          ),
-        ),
+        { className: 'dfa' },
         error
-          ? createElement('div', { style: { color: '#e06c5a', padding: '4px 0' } }, strings.loadError())
+          ? createElement('div', { style: { color: 'var(--dsw-alias-state-error-primary)', padding: '4px 6px', font: 'var(--dsw-font-xxs-12)' } }, strings.loadError())
           : null,
         // ── recent ──
         createElement(
           'div',
-          { style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
+          { className: 'dfa-section' },
           createElement(
             'div',
-            { onClick: () => setRecentOpen((v) => !v), style: { ...sectionTitleStyle, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' } },
-            createElement('span', { style: { fontSize: '10px', width: '12px', flexShrink: 0, color: 'var(--dsw-alias-label-tertiary, #999)' } }, recentOpen ? '▾' : '▸'),
-            strings.recent(),
+            { className: 'dfa-section-head' },
+            createElement(
+              'button',
+              { className: 'dfa-section-head-toggle', onClick: () => setRecentOpen((v) => !v) },
+              recentOpen ? icon.chevronDown(13) : icon.chevronRight(13),
+              strings.recent(),
+            ),
+            createElement('span', { className: 'dfa-section-head-actions' },
+              createElement('button', { className: 'dfa-iconbtn dfa-iconbtn-xs', onClick: onRefresh, title: strings.refresh(), 'aria-label': strings.refresh() }, icon.refresh(14)),
+              createElement('button', { className: 'dfa-iconbtn dfa-iconbtn-xs dfa-iconbtn-danger', onClick: onClear, title: strings.clear(), 'aria-label': strings.clear() }, icon.trash(14)),
+            ),
           ),
           !recentOpen ? null : recent.length === 0
             ? createElement(
                 'div',
-                { style: { color: 'var(--dsw-alias-label-secondary, #888)', padding: '6px 0', lineHeight: 1.6 } },
+                { className: 'dfa-empty' },
                 strings.empty(),
-                createElement('div', { style: { color: 'var(--dsw-alias-label-tertiary, #999)', fontSize: '11px' } }, strings.emptyHint()),
+                createElement('span', { className: 'dfa-empty-hint' }, strings.emptyHint()),
               )
-            : recent.map((entry) =>
-                createElement(
-                  'div',
-                  {
-                    key: `${entry.path}:${entry.time}:${entry.op}`,
-                    onClick: () => openPreview(entry.path),
-                    style: rowStyle,
-                    title: entry.path,
-                  },
-                  createElement('span', { style: opBadgeStyle(entry.op) }, opLabel(entry.op)),
-                  createElement('span', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'rtl', textAlign: 'left' } }, toRelative(entry.path, cwd)),
-                  createElement('span', { style: { color: 'var(--dsw-alias-label-tertiary, #999)', flexShrink: 0 } }, formatTime(entry.time)),
+            : createElement(
+                'div',
+                { className: 'dfa-list' },
+                recent.map((entry) =>
+                  createElement(
+                    'div',
+                    {
+                      key: `${entry.path}:${entry.time}:${entry.op}`,
+                      className: 'dfa-row',
+                      onClick: () => openPreview(entry.path),
+                      title: entry.path,
+                    },
+                    createElement('span', { className: `dfa-op ${opClass(entry.op)}` }, opLabel(entry.op)),
+                    createElement('span', { className: 'dfa-row-name' }, basenameOf(entry.path)),
+                    createElement('span', { className: 'dfa-time' }, formatRelative(entry.time)),
+                  ),
                 ),
               ),
         ),
         // ── stats as a directory tree ──
         createElement(
           'div',
-          { style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
-          createElement('div', { style: sectionTitleStyle }, strings.stats()),
+          { className: 'dfa-section' },
+          createElement('div', { className: 'dfa-section-head' }, strings.stats()),
           tree.children.length === 0
-            ? createElement('div', { style: { color: 'var(--dsw-alias-label-secondary, #888)', padding: '6px 0' } }, strings.empty())
-            : tree.children.map((child) => renderTreeNode(child, 0)),
+            ? createElement('div', { className: 'dfa-empty' }, strings.empty())
+            : createElement('div', { className: 'dfa-list' }, tree.children.map((child) => renderTreeNode(child, 0))),
         ),
-        // ── floating preview window ──
-        preview
-          ? createElement(PreviewWindow, { scope, preview, onClose: closePreview, onOpenInSidebar: openInSidebar })
+        data.preview
+          ? createElement(FloatingPreview, { ctx, store, scope, preview: data.preview, onClose: closePreview })
           : null,
       )
     }
 
-    // ── floating preview window ────────────────────────────────────────────
-    // Colors follow the DSH theme tokens (--dsw-alias-*) so the window looks
-    // right in both dark and light themes; fallbacks assume the dark theme.
-    const previewOverlayStyle = {
-      position: 'fixed', top: 48, right: 330, width: 520, maxWidth: 'calc(100vw - 380px)',
-      height: '70vh', maxHeight: 720,
-      background: 'var(--dsw-alias-bg-layer-2, #232327)', color: 'var(--dsw-alias-label-primary, #e8e8e8)',
-      border: '1px solid var(--dsw-alias-border-l2, #4a4a4e)', borderRadius: '8px',
-      boxShadow: 'var(--dsw-shadow-lv2, 0 10px 36px rgba(0, 0, 0, 0.45))', zIndex: 2000,
-      display: 'flex', flexDirection: 'column', overflow: 'hidden',
-    }
-    const previewHeaderStyle = {
-      display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px',
-      borderBottom: '1px solid var(--dsw-alias-border-l1, #3a3a3e)', flexShrink: 0,
-    }
-    const previewBodyStyle = {
-      flex: 1, overflow: 'auto', padding: '10px', fontSize: '12px', minHeight: 0,
-    }
-
+    // ── floating preview window (reuses the sidebar's native viewer) ──────
     /** Resolve a possibly-relative path against the session cwd. */
     function resolvePath(path, cwd) {
       if (typeof path !== 'string' || path === '') return path
@@ -573,118 +651,122 @@ window.__ModuleLoader__.load({
       return path
     }
 
-    /** Auto-close timer for the preview window (single floating instance). */
-    let previewCloseTimer = null
-    const PREVIEW_AUTO_CLOSE_MS = 450
-
     /**
-     * Floating preview window. Images/PDFs render through the sidebar media
-     * route; text-like files are fetched via /sidebar/api/fs.read and shown
-     * in a scrollable <pre>. The window closes automatically shortly after
-     * the mouse leaves it (moving back in cancels the close).
+     * A floating preview window. Instead of re-implementing rendering, it
+     * asks the sidebar registry for the file's viewer (`matchFileViewer`),
+     * fetches the bytes the viewer's fetchStrategy needs (fsRead text /
+     * mediaUrl / customData), then mounts that viewer's own component — so
+     * code gets syntax highlighting and markdown gets rendered by the SAME
+     * built-in renderers the sidebar's editor tab uses.
      */
-    function PreviewWindow({ scope, preview, onClose, onOpenInSidebar }) {
+    function FloatingPreview({ ctx, store, scope, preview, onClose }) {
       const sessionId = scope?.sessionId ?? ''
-      const cwd = scope?.cwd ?? ''
-      const [state, setState] = useState({ status: 'loading', kind: fileKind(preview.abs), content: '', message: '' })
-
-      const armAutoClose = () => {
-        if (previewCloseTimer !== null) return
-        previewCloseTimer = window.setTimeout(() => {
-          previewCloseTimer = null
-          onClose()
-        }, PREVIEW_AUTO_CLOSE_MS)
-      }
-      const cancelAutoClose = () => {
-        if (previewCloseTimer === null) return
-        window.clearTimeout(previewCloseTimer)
-        previewCloseTimer = null
-      }
-
-      // Clear any pending auto-close when the window unmounts.
-      useEffect(() => () => {
-        if (previewCloseTimer !== null) {
-          window.clearTimeout(previewCloseTimer)
-          previewCloseTimer = null
-        }
-      }, [])
+      const path = preview.abs
+      const title = preview.name
+      const service = ctx.betterSidebar
+      const [load, setLoad] = useState({ status: 'loading', viewer: null })
 
       useEffect(() => {
         let cancelled = false
-        const kind = fileKind(preview.abs)
-        setState({ status: kind === 'text' ? 'loading' : 'ready', kind, content: '', message: '' })
-        if (kind !== 'text' || sessionId === '') return () => { cancelled = true }
-        const target = resolvePath(preview.abs, cwd)
-        void fetch('/sidebar/api/fs.read', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ sessionId, path: target }),
-        }).then((response) => response.json())
-          .then((json) => {
-            if (cancelled) return
-            if (json === null || typeof json !== 'object' || json.ok !== true || json.value === undefined) {
-              setState({ status: 'error', kind, content: '', message: json?.error?.message ?? '' })
-              return
-            }
-            setState({ status: 'ready', kind, content: typeof json.value.content === 'string' ? json.value.content : '', message: '' })
+        const viewer = service?.matchFileViewer?.(path)
+        if (!viewer) {
+          setLoad({ status: 'error', viewer: null, message: strings.previewUnsupported() })
+          return () => { cancelled = true }
+        }
+        const strategy = viewer.fetchStrategy
+        const mediaUrlOf = () => `/sidebar/file?${new URLSearchParams({ sessionId, path })}`
+        setLoad({ status: 'loading', viewer })
+        if (strategy === 'fsRead') {
+          const target = resolvePath(path, scope?.cwd ?? '')
+          void fetch('/sidebar/api/fs.read', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ sessionId, path: target }),
+          }).then((response) => response.json())
+            .then((json) => {
+              if (cancelled) return
+              if (json !== null && typeof json === 'object' && json.ok === true && typeof json.value?.content === 'string') {
+                setLoad({ status: 'ready', viewer, content: json.value.content })
+              } else {
+                setLoad({ status: 'error', viewer, message: json?.error?.message ?? strings.previewFailed() })
+              }
+            }).catch((error) => {
+              if (!cancelled) setLoad({ status: 'error', viewer, message: error instanceof Error ? error.message : String(error) })
+            })
+          return () => { cancelled = true }
+        }
+        if (strategy === 'mediaUrl') {
+          setLoad({ status: 'ready', viewer, mediaUrl: mediaUrlOf() })
+          return () => { cancelled = true }
+        }
+        if (strategy === 'custom') {
+          void (viewer.load?.(path, scope) ?? Promise.resolve(undefined)).then((data) => {
+            if (!cancelled) setLoad({ status: 'ready', viewer, customData: data })
+          }).catch((error) => {
+            if (!cancelled) setLoad({ status: 'error', viewer, message: error instanceof Error ? error.message : String(error) })
           })
-          .catch((error) => {
-            if (!cancelled) setState({ status: 'error', kind, content: '', message: error instanceof Error ? error.message : String(error) })
-          })
+          return () => { cancelled = true }
+        }
+        // 'binary-download' and anything else: mount the viewer's own
+        // component (it handles the download / media itself).
+        setLoad({ status: 'ready', viewer })
         return () => { cancelled = true }
-      }, [preview.abs, sessionId, cwd])
+      }, [path, sessionId, scope])
 
-      const kind = state.kind
-      const media = kind === 'image' || kind === 'pdf' ? mediaUrl(sessionId, preview.abs) : ''
-      let body = null
-      if (kind === 'image') {
-        body = createElement('img', { src: media, alt: preview.name, style: { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block', margin: '0 auto' } })
-      } else if (kind === 'pdf') {
-        body = createElement('iframe', { src: media, style: { width: '100%', height: '100%', border: 'none' } })
-      } else if (state.status === 'loading') {
-        body = createElement('div', { style: { color: 'var(--dsw-alias-label-tertiary, #999)' } }, strings.loading())
-      } else if (state.status === 'error') {
-        body = createElement('div', { style: { color: 'var(--dsw-alias-state-error-primary, #e06c5a)', whiteSpace: 'pre-wrap', wordBreak: 'break-all' } },
+      // Clicking outside is the primary dismiss (the overlay's onClick);
+      // Escape is a keyboard affordance. Both call onClose.
+      useEffect(() => {
+        if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return () => {}
+        const handler = (event) => { if (event && event.key === 'Escape') onClose() }
+        document.addEventListener('keydown', handler)
+        return () => document.removeEventListener('keydown', handler)
+      }, [onClose])
+
+      let body
+      if (load.status === 'loading') {
+        body = createElement('div', { className: 'dfa-fp-note' }, strings.loading())
+      } else if (load.status === 'error') {
+        body = createElement('div', { className: 'dfa-fp-err' },
           strings.previewFailed(),
-          state.message
-            ? createElement('div', { style: { marginTop: '6px', fontSize: '11px', opacity: 0.85 } }, state.message)
+          load.message
+            ? createElement('div', { style: { marginTop: '6px', fontSize: '11px', opacity: 0.85 } }, load.message)
             : null,
         )
       } else {
-        body = createElement('pre', { style: { margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '11px', lineHeight: 1.5 } }, state.content)
+        body = createElement(load.viewer.component, {
+          ctx, store, scope, path, title,
+          viewerId: load.viewer.id,
+          content: load.content,
+          mediaUrl: load.mediaUrl,
+          customData: load.customData,
+        })
       }
 
       return createElement(
         'div',
-        { style: previewOverlayStyle, onMouseLeave: armAutoClose, onMouseEnter: cancelAutoClose },
+        { className: 'dfa-fp-overlay', onClick: onClose },
         createElement(
           'div',
-          { style: previewHeaderStyle },
-          createElement('span', { style: { fontWeight: 600, fontSize: '12px', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, preview.name),
-          createElement('span', { style: { display: 'flex', gap: '4px', flexShrink: 0 } },
-            onOpenInSidebar
-              ? createElement('button', { onClick: () => onOpenInSidebar(preview.abs), style: buttonStyle }, strings.openInSidebar())
-              : null,
-            createElement('button', { onClick: onClose, style: buttonStyle }, strings.closePreview()),
+          { className: 'dfa-fp', onClick: (event) => { if (event && event.stopPropagation) event.stopPropagation() } },
+          createElement(
+            'div',
+            { className: 'dfa-fp-head' },
+            createElement('span', { className: 'dfa-fp-title' }, title),
+            createElement(
+              'span',
+              { className: 'dfa-fp-actions' },
+              createElement('button', { className: 'dfa-iconbtn', title: strings.closePreview(), 'aria-label': strings.closePreview(), onClick: () => onClose() },
+                icon.close(15),
+              ),
+            ),
           ),
+          createElement('div', { className: 'dfa-fp-body' }, body),
         ),
-        createElement('div', { style: previewBodyStyle }, body),
       )
     }
 
-    // helper styles and small pieces
-    const buttonStyle = {
-      border: '1px solid var(--dsw-alias-border-l2, #4a4a4e)', background: 'transparent', color: 'inherit',
-      borderRadius: '4px', padding: '2px 8px', fontSize: '11px', cursor: 'pointer',
-    }
-    const sectionTitleStyle = { fontWeight: 600, fontSize: '12px', padding: '2px 0', color: 'var(--dsw-alias-label-secondary, #888)' }
-    const rowStyle = { display: 'flex', alignItems: 'center', gap: '6px', padding: '3px 4px', borderRadius: '4px', cursor: 'pointer' }
-    const opBadgeStyle = (op) => ({
-      borderRadius: '3px', padding: '1px 5px', fontSize: '10px', color: '#fff', flexShrink: 0,
-      background: op === 'create' ? '#4caf7d' : op === 'modify' ? '#e6a23c' : '#4a90d9',
-    })
-    const countPill = (count, label, color) =>
-      createElement('span', { style: { fontSize: '10px', color, background: color + '22', borderRadius: '3px', padding: '0 4px', flexShrink: 0 } }, `${label} ${count}`)
+    // helpers used by the view
+    const opClass = (op) => (op === 'create' ? 'dfa-op-create' : op === 'modify' ? 'dfa-op-modify' : 'dfa-op-read')
     const opLabel = (op) => (op === 'create' ? strings.create() : op === 'modify' ? strings.modify() : strings.read())
     /** Tooltip for a stats file row: absolute path + created / last-seen times. */
     const fileTitle = (abs, firstSeen, lastSeen) => {
@@ -703,6 +785,18 @@ window.__ModuleLoader__.load({
 
       const dataStore = createStore({ recent: [], counts: {}, loading: true })
 
+      // Inject the shared stylesheet once (torn down with the fiber).
+      ctx.effect(() => {
+        if (typeof document === 'undefined' || document === null || typeof document.head === 'undefined') return () => {}
+        const style = document.createElement('style')
+        style.setAttribute('data-dsh-file-activity', 'styles')
+        style.textContent = STYLES
+        document.head.appendChild(style)
+        return () => {
+          if (style.parentNode) style.parentNode.removeChild(style)
+        }
+      }, 'dsh-file-activity: styles')
+
       // Mount probe: report client activation to the host state (synthetic
       // session id, invisible in the UI — used to confirm the client half
       // actually loaded after a page refresh).
@@ -719,10 +813,7 @@ window.__ModuleLoader__.load({
       ctx.effect(() => service.registerTab({
         id: TAB_ID,
         title: () => strings.title(),
-        icon: (size) => createElement('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' },
-          createElement('circle', { cx: 12, cy: 12, r: 9 }),
-          createElement('path', { d: 'M12 7v5l3 2' }),
-        ),
+        icon: (size) => icon.clock(size),
         order: 15,
         single: true,
         settings: {
