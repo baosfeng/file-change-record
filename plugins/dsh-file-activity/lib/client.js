@@ -92,16 +92,15 @@ window.__ModuleLoader__.load({
     }
 
     /**
-     * Build a nested directory tree from per-file counts. Files directly
-     * under the workspace root (cwd) are root children; every directory node
-     * aggregates its subtree counters and sorts directories first
-     * (alphabetically), then files (by activity, then name).
+     * Build a nested directory tree from per-file counts, keyed by the file's
+     * absolute path (e.g. /Users/me/project/src/index.ts → Users/me/project/
+     * src/ …). Every directory node aggregates its subtree counters and sorts
+     * directories first (alphabetically), then files (by activity, then name).
      */
-    function buildTree(counts, cwd) {
+    function buildTree(counts) {
       const root = { type: 'dir', name: '', children: [], read: 0, create: 0, modify: 0 }
       for (const [abs, counter] of Object.entries(counts)) {
-        const rel = toRelative(abs, cwd)
-        const parts = rel.split('/').filter((part) => part !== '')
+        const parts = abs.split('/').filter((part) => part !== '')
         if (parts.length === 0) continue
         const name = parts[parts.length - 1]
         let node = root
@@ -332,7 +331,7 @@ window.__ModuleLoader__.load({
         }
       }, [visible, sessionId, dataStore])
 
-      const tree = useMemo(() => buildTree(data.counts ?? {}, cwd), [data.counts, cwd])
+      const tree = useMemo(() => buildTree(data.counts ?? {}), [data.counts])
 
       const openFile = (path) => {
         try {
