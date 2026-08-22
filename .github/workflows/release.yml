@@ -1,12 +1,13 @@
 name: Release
 
-# Create a GitHub Release whenever a `v*` tag is pushed.
-# The tag name MUST equal `v<package.json version>` (enforced below), so a
-# single `npm version patch|minor|major` keeps git and GitHub in lockstep.
+# Create a GitHub Release whenever a `<plugin>@v<version>` tag is pushed,
+# e.g. `dsh-file-activity@v0.1.0`. The tag embeds the plugin directory name
+# and the version; the version MUST equal the plugin's package.json version
+# (enforced below).
 
 on:
   push:
-    tags: ['v*']
+    tags: ['*@v*']
 
 permissions:
   contents: write # allow creating the GitHub Release
@@ -21,22 +22,37 @@ jobs:
         with:
           node-version: 22
 
+      - name: Parse plugin and version from tag
+        run: |
+          TAG="$GITHUB_REF_NAME"
+          PLUGIN="${TAG%%@v*}"
+          VERSION="${TAG##*@v}"
+          echo "PLUGIN=$PLUGIN" >> "$GITHUB_ENV"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Validate plugin directory
+        run: |
+          test -d "plugins/$PLUGIN" || { echo "::error::unknown plugin '$PLUGIN' (no plugins/$PLUGIN directory)"; exit 1; }
+
       - name: Smoke test (host half)
-        run: node test/host-smoke.mjs
+        run: |
+          (cd "plugins/$PLUGIN" && npm test)
 
       - name: Verify the git tag matches package.json version
         run: |
-          expected="v$(node -p "require('./package.json').version")"
-          if [ "$GITHUB_REF_NAME" != "$expected" ]; then
-            echo "::error::tag '$GITHUB_REF_NAME' does not match package.json version '$expected'"
+          expected="v$(node -p "require('./plugins/$PLUGIN/package.json').version")"
+          if [ "$VERSION" != "$expected" ]; then
+            echo "::error::tag version '$VERSION' does not match plugins/$PLUGIN package.json version '$expected'"
             exit 1
           fi
 
       - name: Pack tarball for the GitHub Release
-        run: mkdir -p dist && npm pack --pack-destination ./dist
+        run: |
+          mkdir -p dist
+          (cd "plugins/$PLUGIN" && npm pack --pack-destination "$OLDPWD/dist")
 
       - name: Extract the matching CHANGELOG.md section as the release body
-        run: node .github/scripts/extract-release-body.mjs "$(node -p "require('./package.json').version")" dist/release-body.md
+        run: node .github/scripts/extract-release-body.mjs "plugins/$PLUGIN/CHANGELOG.md" "$VERSION" dist/release-body.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

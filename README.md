@@ -1,66 +1,48 @@
-# dsh-file-activity
+# my-dsh-plugins
 
 [![插件生态](https://img.shields.io/badge/插件生态-topic%20dsh--better--sidebar-4d6bfe)](https://github.com/topics/dsh-better-sidebar)
 
-<div align="center">
-  <img alt="文件活动插件截图" src="./assets/screenshot.png" width="80%" />
-</div>
+**个人 DSH（DeepSeek Harness）插件集合仓库**：轻量多插件目录，每个插件位于 `plugins/<name>/`，自包含、可独立安装与发布。
 
-**DSH 侧边栏文件活动插件**（基于 [dsh-better-sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) 扩展）
+## 插件列表
 
-在 better-sidebar 中新增「文件活动」页签，提供：
+| 插件 | 版本 | 简介 |
+|---|---|---|
+| [dsh-file-activity](plugins/dsh-file-activity/README.md) | 0.1.0 | 侧边栏文件活动页签：记录文件读取 / 新增 / 修改历史与统计，按文件夹平铺展示，点击即用原生预览打开 |
 
-- **最近访问**：按时间倒序记录文件读取 / 新增 / 修改事件（agent 工具读写 + 侧边栏打开/编辑保存都会记录），点击任意文件即用侧边栏**原生预览能力**打开（图片 / PDF / HTML / 代码 / Markdown 等内置 viewer 自动匹配）。
-- **文件统计**：每个文件的「读取 / 新增 / 修改」次数，**按文件夹平铺**展示——多层文件夹以 `.` 拼接展示（如 `src.components.ui`），文件夹下的文件缩进列在下方：
+## 目录结构
 
-  ```
-  docs.guide
-    quickstart.md
-  src.components.ui
-    Button.tsx
-  ```
-
-- **默认启用**：页签注册后默认开启（无需在设置页勾选），且每个会话首次打开时**自动打开**本页（可在侧边栏设置中关闭自动打开）。
-
-## 工作原理
-
-- **Server 端**（`lib/index.js`）：监听 DSH `fs/observed` 事件捕获 agent 的 `read` / `write` / `edit` / `str_replace_editor` / `read_image` 等文件操作；提供 `/file-activity/api` 路由（`stats` / `record` / `clear`）；状态按会话持久化到 `$DSH_HOME/file-activity.json`（防抖 + 原子写入）。
-  - `write` 通过每会话的已知文件表自动区分**新增**（首次接触）与**修改**（再次写入）。
-- **Client 端**（`lib/client.js`）：通过 `ctx.betterSidebar.registerTab` 注册页签；fetch 拦截捕获侧边栏自身操作（`/sidebar/api/fs.read`、`/sidebar/api/fs.write`、`/sidebar/file` 媒体预览）并上报 server；点击文件调用 `ctx.betterSidebar.openFile(scope, path)` 走内置 viewer 匹配（image/pdf/markdown/html/code…）。
-
-## 安装
-
-前置：已安装 `dsh-better-sidebar`（v0.12+，推荐 v0.14）。
-
-```sh
-# 方式一：dsh plugin（推荐）
-dsh plugin --profile web add link:/Users/bsfeng/IdeaProjects/file-change-record
-
-# 方式二：手动
-# 1) 在 ~/.dsh/profiles/web/package.json 的 dependencies 增加：
-#    "dsh-file-activity": "link:/Users/bsfeng/IdeaProjects/file-change-record"
-# 2) 在 ~/.dsh/profiles/web 下执行 pnpm install
-# 3) 在 ~/.dsh/profiles/web/cordis.patch.yml 增加：
-#    - insert:
-#        - id: file-activity
-#          name: 'dsh-file-activity'
+```
+├── plugins/          # 所有插件（每目录一个自包含插件）
+│   └── dsh-file-activity/
+├── skills/           # 本仓库的开发技能（SKILL.md 格式，可安装到 ~/.dsh/skills/）
+│   └── dsh-plugin-development/
+├── docs/             # 通用文档与设计文档
+└── .github/workflows/  # CI（遍历插件测试）与 Release（tag 触发）
 ```
 
-装完后**硬刷新浏览器**（Cmd/Ctrl+Shift+R）。
+## 开发新插件
 
-> 编辑 profile 的 `cordis.patch.yml` 会在运行中通过 Cordis HMR 热挂载 server 端，无需重启 `dsh web`；client 端在页面刷新后生效。
+仓库内自带插件开发技能（[skills/dsh-plugin-development/SKILL.md](skills/dsh-plugin-development/SKILL.md)）：
 
-## 使用
+```sh
+# 将技能安装到个人技能目录（可选，便于 DSH 会话自动加载）
+cp -r skills/dsh-plugin-development ~/.dsh/skills/
+```
 
-- 侧边栏 `+` 菜单 → 文件活动（或会话开始自动打开）。
-- 点击任意文件行 → 在侧边栏中打开该文件（图片/PDF/HTML/Markdown/代码等原生预览）。
-- 顶部「刷新」手动重载，「清空」删除当前会话全部记录。
+新插件骨架：
 
-## 配置
+1. 按技能指引在 `plugins/<新插件名>/` 下创建自包含插件包（package.json + cordis.patch.yml + lib/ + README + CHANGELOG + LICENSE）。
+2. 本地安装验证：`dsh plugin --profile web add link:<绝对路径>/plugins/<新插件名>`。
+3. 更新本 README 插件列表与 `plugins/<新插件名>/README.md`（中文 + 截图 + 生态 badge）。
+4. 发版：更新版本号与 CHANGELOG → 推送 tag `<包名>@v<版本>` → GitHub Actions 自动创建 Release。
 
-「设置 → 侧边卡片 → 文件活动」卡片齿轮：`会话开始时自动打开`（默认开）。
+## 发布约定
 
-## 数据说明
+- 只发布 **GitHub Release**（不发布 npm）。
+- tag 格式：`<包名>@v<版本>`（如 `dsh-file-activity@v0.1.0`），由 [release.yml](.github/workflows/release.yml) 自动打包并创建 Release。
+- 每个插件独立版本号（semver）、独立 CHANGELOG（Keep a Changelog 格式）。
 
-- 按会话（session）隔离存储；记录保留最近 300 条/会话。
-- agent 的 `bash`/`git` 等命令内部的文件触碰不在此跟踪范围（只跟踪 DSH 原生文件工具与侧边栏操作）。
+## 许可
+
+每个插件各自携带 MIT LICENSE；仓库级文档默认 MIT。

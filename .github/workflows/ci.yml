@@ -15,10 +15,14 @@ jobs:
         with:
           node-version: 22
 
-      - name: Syntax check
+      - name: Test all plugins under plugins/
         run: |
-          node --check lib/index.js
-          node --check lib/client.js
-
-      - name: Smoke test (host half)
-        run: node test/host-smoke.mjs
+          set -e
+          for d in plugins/*/; do
+            [ -f "$d/package.json" ] || continue
+            echo "== $d =="
+            for f in lib/index.js lib/client.js; do
+              [ -f "$d$f" ] && node --check "$d$f"
+            done
+            (cd "$d" && npm test)
+          done
