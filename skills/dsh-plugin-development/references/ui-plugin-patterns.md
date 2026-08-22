@@ -1,6 +1,8 @@
 # dsh UI 插件实现思路调研（2026-08）
 
-> 调研样本：zhu1090093659/dsh-web-ui（5500★，UI 插件全家桶 monorepo，18+ 插件包）、omdsh-dev/DSH-better-sidebar（右侧面板服务）、nexu-io/open-design（dsh-runtime 设计引擎）、amruthpillai/reactive-resume（dsh-plugin 简历应用）、官方 dsh-io/dsh-plugin-skill。
+> 调研样本：zhu1090093659/dsh-web-ui（5500★，UI 插件全家桶 monorepo，18+ 插件包）、omdsh-dev/DSH-better-sidebar（右侧面板服务）、nexu-io/open-design（dsh-runtime 设计引擎）、amruthpillai/reactive-resume（dsh-plugin 简历应用）、官方 dsh-io/dsh-plugin-skill；第二轮：Nagi-ovo/dsh-visualize（生成式 UI）、bowenliang123/dsh-context（上下文面板+slash 命令）、toolclub/dsh-agent-team-gui、Fishquito7/dsh-skill-viewer（技能/MCP 面板）、Noob-stupid/dsh-plugin-hub（插件管理面板）、ccch1mneyyy/dsh-TUI + working-activity、ZSeven-W/dsh-ios（iOS 模拟器）、NanmiCoder/dsh-agent-teams（开发文档踩坑蒸馏）。
+>
+> ⚠️ **实战踩坑清单（14+ 项目蒸馏）见 [dsh-plugin-pitfalls.md](dsh-plugin-pitfalls.md)**——开发前必读。
 
 ## 一、项目形态：monorepo 全家桶 vs 单包
 
@@ -58,6 +60,21 @@ my-plugin/
 - 错误边界：渲染失败显示错误条（`RenderBoundary`），不白屏。
 - CSS Modules（如 `pet.module.css`）+ 主题。
 - 皮肤/主题类 UI：`skin.json` 清单 + 资产目录，由**皮肤中心**唯一加载器动态加载（插件负责逻辑、皮肤负责外观）。
+
+## 五·二、第二轮调研：新发现模式（2026-08）
+
+| 模式 | 代表 | 思路 |
+|------|------|------|
+| **生成式 UI** | dsh-visualize | 模型调用 `visualize` 工具写入 HTML fragment → 对话内渲染交互卡片；**sandboxed iframe + CSP**（禁网络/嵌套/表单，只允许固定 CDN）+ fragment 1MB 上限；会话重放从持久化工具结果恢复。工具型 + UI 渲染的混合形态 |
+| **slash command 载体** | dsh-context | 除面板外，`/context` 命令弹窗展示上下文洞察——命令是 UI 的第二出口 |
+| **事件驱动状态行** | working-activity | 监听 `tool_execution_start/end/update` 实时渲染"正在跑什么"；无进度事件时退化为耗时显示 |
+| **插件管理面板** | dsh-plugin-hub | 插件 toggle = `- id: xxx / disabled: true` 两行 YAML（HMR ~1s 重组）；安装链：curl 手动装 tarball（node 网络受限）→ git 通道 → EPERM stale-dir 清理重试；**升级后兼容警告**而非静默失败 |
+| **设置面板多分区** | dsh-skill-viewer | 设置页注册多个 `settings.section` 分区（技能 + MCP）；管理 `cordis.patch.yml` 受管块，保存后 HMR 热加载；技能实体按**工作区作用域**（全局 `~/.dsh/skills` vs 工作区 `.dsh/skills`）精确操作，同名不互相影响 |
+| **子进程管理** | dsh-ios | serve-sim 子进程：专用端口段（3181-3244）避免冲突、`--host` 永不使用、崩溃自动重启、无消费者自动停、**孤儿进程收养/回收**（`-k` 再拉起） |
+| **跨平台适配** | working-activity | 同一 UI 想法适配 pi CLI + DSH 双平台，各自独立 npm 包；DSH 版可能需要 **runtime 补丁**（patches/*.patch） |
+| **对话流卡片** | dsh-agent-teams | 会话事件（`SessionEventMap` 合并）→ 对话内流程卡片；**面板类 UI 以磁盘为真相源**（host 快照），事件只用于节点展示 |
+
+> 通用结论：UI 载体已多样化——官方 Slot / settings 分区 / slash command / 对话流卡片 / 全局挂载 / 消费方 API（better-sidebar）/ TUI 槽位。选型看 UI 的生命周期作用域：会话级 → 会话槽位/对话流；宿主全局 → settings 分区/全局挂载/命令。
 
 ## 六、对本仓库的启示（对比）
 
