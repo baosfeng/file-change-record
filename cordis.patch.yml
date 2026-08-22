@@ -1,0 +1,14 @@
+# dsh-file-activity bundle patch: inserts the plugin row into the profile
+# roster. The row mounts the host half (file-op tracking + stats API) and the
+# client half (sidebar tab). Install with:
+#
+#   dsh plugin --profile web add link:/Users/bsfeng/IdeaProjects/file-change-record
+#
+# or manually: add the link dependency to the profile package.json, run
+# `pnpm install` in the profile dir, and add this insert row to the profile's
+# own `cordis.patch.yml`. Editing the profile patch file hot-mounts the row
+# through Cordis HMR (no server restart needed; a browser hard refresh loads
+# the client bundle).
+- insert:
+    - id: file-activity
+      name: 'dsh-file-activity'
