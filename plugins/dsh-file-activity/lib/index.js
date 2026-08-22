@@ -19,8 +19,8 @@ export const name = 'dsh-file-activity'
 
 export const inject = ['webServer', 'sessions', 'webRuntime']
 
-/** How many recent events to keep per session. */
-const RECENT_LIMIT = 10
+/** How many recent entries to keep per session (LRU: one entry per path). */
+const RECENT_LIMIT = 5
 
 /** State file: $DSH_HOME/file-activity.json (fallback: ~/.dsh/file-activity.json). */
 function stateFile() {
@@ -81,7 +81,10 @@ function applyRecord(state, sessionId, path, op, time) {
   else counts.read += 1
   counts.firstSeen = firstSeen
   counts.lastSeen = timestamp
-  // Newest-first history; cap at RECENT_LIMIT entries.
+  // Newest-first LRU history: revisiting a path moves it to the front
+  // instead of appending a duplicate; cap at RECENT_LIMIT entries.
+  const existing = session.recent.findIndex((entry) => entry.path === path)
+  if (existing !== -1) session.recent.splice(existing, 1)
   session.recent.unshift({ path, op: finalOp, time: timestamp })
   if (session.recent.length > RECENT_LIMIT) session.recent.length = RECENT_LIMIT
   return true
@@ -201,14 +204,25 @@ export function apply(ctx) {
 
   void loadState(file).then((loaded) => {
     if (loaded.sessions === undefined || typeof loaded.sessions !== 'object') loaded.sessions = {}
-    // Trim pre-existing history to the current cap: older state files may
-    // hold more entries than RECENT_LIMIT, and without this the full list
-    // would keep showing until new entries force a trim.
+    // Trim pre-existing history to the current cap and drop duplicate paths
+    // (LRU semantics: one entry per path, newest occurrence wins — the
+    // array is newest-first, so the first occurrence of each path is kept).
     let trimmed = false
     for (const session of Object.values(loaded.sessions)) {
-      if (Array.isArray(session.recent) && session.recent.length > RECENT_LIMIT) {
-        session.recent.length = RECENT_LIMIT
-        trimmed = true
+      if (Array.isArray(session.recent)) {
+        const seen = new Set()
+        const deduped = session.recent.filter((entry) => {
+          if (typeof entry?.path !== 'string' || entry.path === '') return false
+          if (seen.has(entry.path)) return false
+          seen.add(entry.path)
+          return true
+        })
+        if (deduped.length !== session.recent.length) trimmed = true
+        session.recent = deduped
+        if (session.recent.length > RECENT_LIMIT) {
+          session.recent.length = RECENT_LIMIT
+          trimmed = true
+        }
       }
     }
     state = loaded

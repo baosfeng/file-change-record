@@ -54,10 +54,6 @@ window.__ModuleLoader__.load({
       readShort: () => (isZh() ? '读' : 'R'),
       createShort: () => (isZh() ? '增' : 'C'),
       modifyShort: () => (isZh() ? '改' : 'M'),
-      justNow: () => (isZh() ? '刚刚' : 'just now'),
-      minAgo: (n) => (isZh() ? `${n} 分钟前` : `${n}m ago`),
-      hourAgo: (n) => (isZh() ? `${n} 小时前` : `${n}h ago`),
-      dayAgo: (n) => (isZh() ? `${n} 天前` : `${n}d ago`),
       root: () => (isZh() ? '根目录' : '(root)'),
       loadError: () => (isZh() ? '加载失败' : 'Load failed'),
       created: () => (isZh() ? '创建' : 'Created'),
@@ -86,14 +82,11 @@ window.__ModuleLoader__.load({
       return idx === -1 ? norm : norm.slice(idx + 1)
     }
 
-    function relativeTime(time) {
-      const diff = Date.now() - time
-      if (diff < 60 * 1000) return strings.justNow()
-      const min = Math.floor(diff / 60000)
-      if (min < 60) return strings.minAgo(min)
-      const hour = Math.floor(min / 60)
-      if (hour < 24) return strings.hourAgo(hour)
-      return strings.dayAgo(Math.floor(hour / 24))
+    /** Local wall-clock time of a timestamp, as HH:MM:SS. */
+    function formatTime(time) {
+      const date = new Date(time)
+      const pad = (n) => String(n).padStart(2, '0')
+      return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
     }
 
     /**
@@ -445,7 +438,7 @@ window.__ModuleLoader__.load({
             countPill(file.create, strings.createShort(), '#4caf7d'),
             countPill(file.modify, strings.modifyShort(), '#e6a23c'),
             file.lastSeen
-              ? createElement('span', { style: { color: 'var(--dsw-alias-label-tertiary, #999)', fontSize: '10px', flexShrink: 0 } }, relativeTime(file.lastSeen))
+              ? createElement('span', { style: { color: 'var(--dsw-alias-label-tertiary, #999)', fontSize: '10px', flexShrink: 0 } }, formatTime(file.lastSeen))
               : null,
           ),
         )
@@ -510,7 +503,7 @@ window.__ModuleLoader__.load({
                   },
                   createElement('span', { style: opBadgeStyle(entry.op) }, opLabel(entry.op)),
                   createElement('span', { style: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', direction: 'rtl', textAlign: 'left' } }, toRelative(entry.path, cwd)),
-                  createElement('span', { style: { color: 'var(--dsw-alias-label-tertiary, #999)', flexShrink: 0 } }, relativeTime(entry.time)),
+                  createElement('span', { style: { color: 'var(--dsw-alias-label-tertiary, #999)', flexShrink: 0 } }, formatTime(entry.time)),
                 ),
               ),
         ),
@@ -673,8 +666,8 @@ window.__ModuleLoader__.load({
     /** Tooltip for a stats file row: absolute path + created / last-seen times. */
     const fileTitle = (abs, firstSeen, lastSeen) => {
       const times = []
-      if (typeof firstSeen === 'number') times.push(`${strings.created()} ${relativeTime(firstSeen)}`)
-      if (typeof lastSeen === 'number') times.push(`${strings.lastSeen()} ${relativeTime(lastSeen)}`)
+      if (typeof firstSeen === 'number') times.push(`${strings.created()} ${formatTime(firstSeen)}`)
+      if (typeof lastSeen === 'number') times.push(`${strings.lastSeen()} ${formatTime(lastSeen)}`)
       return times.length > 0 ? `${abs}\n${times.join(' · ')}` : abs
     }
 
