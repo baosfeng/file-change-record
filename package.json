@@ -12,8 +12,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node test/host-smoke.mjs",
-    "prepublishOnly": "npm test"
+    "test": "node test/host-smoke.mjs"
   },
   "exports": {
     ".": {

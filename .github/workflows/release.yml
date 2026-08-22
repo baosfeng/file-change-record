@@ -1,8 +1,8 @@
 name: Release
 
-# Publish to npm + create a GitHub Release whenever a `v*` tag is pushed.
+# Create a GitHub Release whenever a `v*` tag is pushed.
 # The tag name MUST equal `v<package.json version>` (enforced below), so a
-# single `npm version patch|minor|major` keeps git, npm, and GitHub in lockstep.
+# single `npm version patch|minor|major` keeps git and GitHub in lockstep.
 
 on:
   push:
@@ -31,16 +31,6 @@ jobs:
             echo "::error::tag '$GITHUB_REF_NAME' does not match package.json version '$expected'"
             exit 1
           fi
-
-      - name: Configure npm auth
-        run: |
-          echo "registry=https://registry.npmjs.org/" > ~/.npmrc
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" >> ~/.npmrc
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish to npm
-        run: npm publish --no-git-checks
 
       - name: Pack tarball for the GitHub Release
         run: mkdir -p dist && npm pack --pack-destination ./dist

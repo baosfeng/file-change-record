@@ -24,9 +24,9 @@
 
 ## 工作原理
 
-- **Host 半**（`lib/index.js`）：监听 DSH `fs/observed` 事件捕获 agent 的 `read` / `write` / `edit` / `str_replace_editor` / `read_image` 等文件操作；提供 `/file-activity/api` 路由（`stats` / `record` / `clear`）；状态按会话持久化到 `$DSH_HOME/file-activity.json`（防抖 + 原子写入）。
+- **Server 端**（`lib/index.js`）：监听 DSH `fs/observed` 事件捕获 agent 的 `read` / `write` / `edit` / `str_replace_editor` / `read_image` 等文件操作；提供 `/file-activity/api` 路由（`stats` / `record` / `clear`）；状态按会话持久化到 `$DSH_HOME/file-activity.json`（防抖 + 原子写入）。
   - `write` 通过每会话的已知文件表自动区分**新增**（首次接触）与**修改**（再次写入）。
-- **Client 半**（`lib/client.js`）：通过 `ctx.betterSidebar.registerTab` 注册页签；fetch 拦截捕获侧边栏自身操作（`/sidebar/api/fs.read`、`/sidebar/api/fs.write`、`/sidebar/file` 媒体预览）并上报 host；点击文件调用 `ctx.betterSidebar.openFile(scope, path)` 走内置 viewer 匹配（image/pdf/markdown/html/code…）。
+- **Client 端**（`lib/client.js`）：通过 `ctx.betterSidebar.registerTab` 注册页签；fetch 拦截捕获侧边栏自身操作（`/sidebar/api/fs.read`、`/sidebar/api/fs.write`、`/sidebar/file` 媒体预览）并上报 server；点击文件调用 `ctx.betterSidebar.openFile(scope, path)` 走内置 viewer 匹配（image/pdf/markdown/html/code…）。
 
 ## 安装
 
@@ -48,7 +48,7 @@ dsh plugin --profile web add link:/Users/bsfeng/IdeaProjects/file-change-record
 
 装完后**硬刷新浏览器**（Cmd/Ctrl+Shift+R）。
 
-> 编辑 profile 的 `cordis.patch.yml` 会在运行中通过 Cordis HMR 热挂载 host 半，无需重启 `dsh web`；client 半在页面刷新后生效。
+> 编辑 profile 的 `cordis.patch.yml` 会在运行中通过 Cordis HMR 热挂载 server 端，无需重启 `dsh web`；client 端在页面刷新后生效。
 
 ## 使用
 
