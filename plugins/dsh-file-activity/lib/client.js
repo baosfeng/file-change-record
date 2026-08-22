@@ -557,15 +557,41 @@ window.__ModuleLoader__.load({
       return path
     }
 
+    /** Auto-close timer for the preview window (single floating instance). */
+    let previewCloseTimer = null
+    const PREVIEW_AUTO_CLOSE_MS = 450
+
     /**
      * Floating preview window. Images/PDFs render through the sidebar media
      * route; text-like files are fetched via /sidebar/api/fs.read and shown
-     * in a scrollable <pre>.
+     * in a scrollable <pre>. The window closes automatically shortly after
+     * the mouse leaves it (moving back in cancels the close).
      */
     function PreviewWindow({ scope, preview, onClose, onOpenInSidebar }) {
       const sessionId = scope?.sessionId ?? ''
       const cwd = scope?.cwd ?? ''
       const [state, setState] = useState({ status: 'loading', kind: fileKind(preview.abs), content: '', message: '' })
+
+      const armAutoClose = () => {
+        if (previewCloseTimer !== null) return
+        previewCloseTimer = window.setTimeout(() => {
+          previewCloseTimer = null
+          onClose()
+        }, PREVIEW_AUTO_CLOSE_MS)
+      }
+      const cancelAutoClose = () => {
+        if (previewCloseTimer === null) return
+        window.clearTimeout(previewCloseTimer)
+        previewCloseTimer = null
+      }
+
+      // Clear any pending auto-close when the window unmounts.
+      useEffect(() => () => {
+        if (previewCloseTimer !== null) {
+          window.clearTimeout(previewCloseTimer)
+          previewCloseTimer = null
+        }
+      }, [])
 
       useEffect(() => {
         let cancelled = false
@@ -614,7 +640,7 @@ window.__ModuleLoader__.load({
 
       return createElement(
         'div',
-        { style: previewOverlayStyle },
+        { style: previewOverlayStyle, onMouseLeave: armAutoClose, onMouseEnter: cancelAutoClose },
         createElement(
           'div',
           { style: previewHeaderStyle },

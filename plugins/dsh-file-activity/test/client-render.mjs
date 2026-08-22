@@ -34,6 +34,8 @@ global.window = {
   location: { href: 'http://127.0.0.1:3080/app', search: '' },
   confirm: () => true,
   fetch: () => Promise.resolve({ json: () => Promise.resolve({ ok: true, value: {} }) }),
+  setTimeout: (fn, ms) => setTimeout(fn, ms),
+  clearTimeout: (id) => clearTimeout(id),
 }
 Object.defineProperty(global, 'navigator', { value: { language: 'zh-CN' }, configurable: true })
 global.localStorage = { getItem: () => null, setItem: () => {} }
@@ -192,6 +194,35 @@ const closeButton = previewButtons.find((b) => Array.isArray(b.children) ? b.chi
 assert.ok(closeButton, 'close button wired')
 closeButton.onClick()
 assert.equal(dataStore.getSnapshot().preview, null, 'close dismisses the preview')
+
+// ── auto-close: leaving the window closes it after a delay, re-entering cancels ──
+dataStore.set({ preview: { abs: '/work/README.md', name: 'README.md' } })
+const autoTree = element.type(element.props)
+let overlayProps = null
+const findOverlay = (node) => {
+  if (overlayProps !== null || node === null || node === undefined || typeof node === 'boolean') return
+  if (Array.isArray(node)) { for (const child of node) findOverlay(child); return }
+  if (typeof node.type === 'function') { findOverlay(node.type(node.props)); return }
+  if (node.props && typeof node.props.onMouseLeave === 'function' && typeof node.props.onMouseEnter === 'function') {
+    overlayProps = node.props
+    return
+  }
+  findOverlay(node.props?.children)
+}
+findOverlay(autoTree)
+assert.ok(overlayProps !== null, 'preview overlay carries mouse leave/enter handlers')
+
+// re-enter cancels a pending auto-close
+overlayProps.onMouseEnter()
+overlayProps.onMouseLeave()
+overlayProps.onMouseEnter()
+await new Promise((resolve) => setTimeout(resolve, 700))
+assert.ok(dataStore.getSnapshot().preview !== null, 're-entering cancels the auto-close')
+
+// leaving without re-entering closes the preview after the delay
+overlayProps.onMouseLeave()
+await new Promise((resolve) => setTimeout(resolve, 700))
+assert.equal(dataStore.getSnapshot().preview, null, 'mouse leave auto-closes the preview')
 
 // ── editor-disabled scenario: preview still works; open-in-sidebar guarded ─
 const openFileCallsDisabled = []
