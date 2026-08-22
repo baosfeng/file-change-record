@@ -39,27 +39,71 @@ description: 在本仓库（my-dsh-plugins）中新建、修改、调试或发�
 plugins/<name>/                  # 插件目录（小写连字符命名，如 dsh-file-activity）
 ├── lib/
 │   ├── index.js                 # server 端入口（export { name, inject, apply }）
-│   └── client.js                # client 端入口
+│   └── client.js                # client 端入口（__ModuleLoader__ 格式，见下）
 ├── test/                        # 测试（CI 只跑 node test/host-smoke.mjs）
 ├── assets/                      # README 截图等
 ├── package.json
 ├── cordis.patch.yml             # bundle 挂载补丁
 ├── README.md                    # 中文说明（截图 + 功能 + 安装 + 配置）
-├── LICENSE                      # MIT
+├── LICENSE                      # MIT（从现有插件复制）
 └── CHANGELOG.md                 # Keep a Changelog 格式
 ```
 
-命名：包名 `dsh-<功能>`（如 `dsh-file-activity`），无 scope；目录名 = 包名；插件行 id 用短横线小写（如 `file-activity`），**client 注册的 tab/viewer id 用 `包名:xxx` 前缀**（如 `dsh-file-activity:recent`）。
+命名与规范：
+
+- 包名 `dsh-<功能>`（如 `dsh-file-activity`），无 scope；**目录名 = 包名**。
+- 插件行 id（cordis.patch.yml）用短横线小写（如 `file-activity`）。
+- **client 注册的 tab/viewer id 统一用 `包名:xxx` 前缀**（如 `dsh-file-activity:recent`），不与内置 id 冲突。
+- 每个插件**不需要**独立 .gitignore（根 .gitignore 统一覆盖 node_modules / .DS_Store / .dsh-vision-toolkit 等）。
+- 新插件 README 必须中文，顶部放插件生态 badge（见现有插件）与截图；骨架阶段截图可用占位注释，发版前补真实截图。
 
 ## 开发流程
 
-1. **搭骨架**：按上面目录结构创建 `plugins/<name>/`，复制现有插件（如 `plugins/dsh-file-activity/`）的 `cordis.patch.yml`、LICENSE、.gitignore 约定。
+1. **搭骨架**：按上面目录结构创建 `plugins/<name>/`，复制现有插件（`plugins/dsh-file-activity/`）的 `cordis.patch.yml`、LICENSE 作参照。
 2. **写 package.json**（见下方字段说明）。
-3. **写 server 端** `lib/index.js`：`export const name / inject / apply(ctx)`。用 `ctx.on(...)` 监听事件、`ctx.effect(() => ...)` 注册副作用（返回 disposer），可注入 `webServer`（HTTP 路由）、`sessions` 等服务（用 `ctx.get('服务名')` 读可选服务并处理 undefined）。
-4. **写 client 端** `lib/client.js`：注入 `betterSidebar` 服务，用 `ctx.effect(() => ctx.betterSidebar.registerTab(...))` 注册页签（disposer 必须被 fiber 持有，否则 HMR/禁用后残留注册、下次激活报 `"already registered"`）。
-5. **写测试**：`test/` 下放纯 Node 冒烟测试（mock ctx / mock betterSidebar），CI 只跑 `npm test`（即 `node test/host-smoke.mjs`）；依赖浏览器/真实 GUI 的测试留在本机手动跑。
+3. **写 server 端** `lib/index.js`：`export const name / inject / apply(ctx)`。用 `ctx.on(...)` 监听事件、`ctx.effect(() => ...)` 注册副作用（返回 disposer）。HTTP 路由注入 `webServer`：`ctx.webServer.register({ kind: 'prefix', path: '/<插件名>/api', handler: async (request, response) => {...} })`，handler 内先做 loopback 信任围栏（参考现有插件的 `fence(request)`，403 拒绝非本机来源）。
+4. **写 client 端** `lib/client.js`（格式见下节）：声明 `inject`、用 `ctx.effect(() => ctx.betterSidebar.registerTab(...))` 注册页签（disposer 必须被 fiber 持有，否则 HMR/禁用后残留注册、下次激活报 `"already registered"`）。
+5. **写测试**：`test/` 下放纯 Node 冒烟测试（mock ctx / mock webServer / mock betterSidebar），CI 只跑 `npm test`（即 `node test/host-smoke.mjs`）；依赖浏览器/真实 GUI 的测试留在本机手动跑。
 6. **本地验证**：`dsh plugin --profile web add link:<路径>` → 浏览器硬刷新（Cmd/Ctrl+Shift+R）。client 改动热加载无需重启；**server 端改动需重启 `dsh web`**。
-7. **发布**：更新版本号 + CHANGELOG → 推 tag `<包名>@v<版本>`（如 `dsh-server-status@v0.1.0`）→ 根目录 `.github/workflows/release.yml` 自动打包 + 创建 GitHub Release。
+7. **发布**：更新 `package.json` 版本号（若代码内硬编码了版本常量，一并同步）→ CHANGELOG 加段落 → 推 tag `<包名>@v<版本>`（如 `dsh-server-status@v0.1.0`）→ 根 `.github/workflows/release.yml` 自动打包 + 创建 GitHub Release。
+
+## Client 端文件形态（必须用这个格式）
+
+client bundle 由浏览器模块加载器装载，**不是 Node ESM**。照抄这个骨架：
+
+```js
+// lib/client.js
+window.__ModuleLoader__.load({
+  id: 'dsh-<功能>',                                  // = 包名
+  factory: (require) => {
+    var module = { exports: {} }
+    var exports = module.exports
+    Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' })
+    const { createElement, useEffect, useState } = require('react')
+
+    exports.inject = ['betterSidebar']
+
+    exports.apply = function apply(ctx) {
+      // 注册页签：disposer 必须包在 effect 里
+      ctx.effect(() =>
+        ctx.betterSidebar.registerTab({
+          id: 'dsh-<功能>:<页面>',                     // 包名:xxx 前缀
+          title: () => '页面名',                       // 或字符串；中文用 i18n 判断
+          order: 50,
+          single: true,
+          component: ({ scope, visible }) => createElement(Page, { sessionId: scope.sessionId }),
+        })
+      )
+    }
+
+    return module.exports
+  },
+})
+```
+
+- `inject: ['betterSidebar']` = **硬依赖**：better-sidebar 未安装时插件进入等待、不激活。若插件应在未装 better-sidebar 时也工作，改用 `ctx.get('betterSidebar')` 判空降级（此时不要 inject）。
+- 页面组件里用 `scope.sessionId` 调 `/sidebar/api/*`；`visible === false` 时暂停轮询/订阅。
+- 文本用 `navigator.language` 判断中英文（参考现有插件 `isZh()` 模式）。
 
 ## package.json 关键字段
 
@@ -73,7 +117,7 @@ plugins/<name>/                  # 插件目录（小写连字符命名，如 ds
   "files": ["lib", "cordis.patch.yml", "README.md", "CHANGELOG.md", "LICENSE"],
   "dsh": { "bundle": { "patch": "./cordis.patch.yml" }, "client": { "platform": "web", "inject": ["@deepseek-ai/dsh-client-runtime"] } },
   "peerDependencies": { "dsh-better-sidebar": "^0.14.0", "cordis": "^4.0.0-rc.8", "react": "^18.2.0" },
-  "peerDependenciesMeta": { "dsh-better-sidebar": { "optional": true } },
+  "peerDependenciesMeta": { "dsh-better-sidebar": { "optional": true }, "cordis": { "optional": true } },
   "scripts": { "test": "node test/host-smoke.mjs" }
 }
 ```
@@ -81,7 +125,7 @@ plugins/<name>/                  # 插件目录（小写连字符命名，如 ds
 要点：
 
 - `dsh.bundle.patch` 指向的 `cordis.patch.yml` 会被 `dsh plugin add` 自动应用，**不要在 profile 里手动重复 insert 同一行**（会报 duplicate loader entry）。
-- `dsh-better-sidebar` 必须是 **peerDependency**（避免双实例），且 `optional: true`（未安装时插件照常加载、注册代码因 `ctx.betterSidebar` 为 undefined 安全跳过）。
+- peer 依赖（cordis / dsh-better-sidebar / react）由宿主 profile 提供；`optional: true` 表示缺省也可加载（注册代码判空跳过）。
 
 ## cordis.patch.yml
 
@@ -93,47 +137,23 @@ plugins/<name>/                  # 插件目录（小写连字符命名，如 ds
 
 `id` 在 profile 内全局唯一。挂载行只负责装载：不要在这里写配置，配置经 `config` 字段且由插件自行校验。
 
-## Client 端接入 better-sidebar
+## Server 端要点
 
-完整 API 与字段见 `references/better-sidebar-api.md`。速查：
-
-```js
-// lib/client.js
-export const inject = ['betterSidebar']
-
-export function apply(ctx) {
-  // 注册页签：disposer 必须包在 effect 里
-  ctx.effect(() =>
-    ctx.betterSidebar.registerTab({
-      id: 'dsh-xxx:page', title: '页面名', order: 50, single: true,
-      component: ({ scope }) => createElement(Page, { sessionId: scope.sessionId }),
-    })
-  )
-  // 注册文件预览器
-  ctx.effect(() =>
-    ctx.betterSidebar.registerFileViewer({
-      id: 'dsh-xxx:csv', exts: ['csv'], fetchStrategy: 'custom',
-      load: async (path, scope) => { /* POST /sidebar/api/fs.read */ },
-      component: ({ customData }) => createElement(CsvGrid, { rows: customData }),
-    })
-  )
-}
-```
-
-- **必须** `inject: ['betterSidebar']`，Cordis 保证服务就绪后才激活插件。
-- 读文件数据走 `/sidebar/api/fs.read`（POST，body 带 `{ sessionId, path }`），媒体走 `/sidebar/file?sessionId=&path=`；**不要** value-import better-sidebar 内部模块。
-- 声明式设置：`settings.pluginToggles`（插件自有行）或 `settings.render`（自定义面板），持久化在 `pluginSettings[id]`，不需要宿主 schema 字段。
-- 生命周期：`onOpen/onClose` 在真正打开/关闭 tab 时触发（组件卸载 ≠ tab 关闭）；`visible === false` 时暂停轮询。
+- `export const name = '<包名>'`、`export const inject = [...]`（可用 `webServer`、`sessions`、`webRuntime` 等服务）、`export function apply(ctx)`。
+- 可选服务用 `ctx.get('服务名')` 读取并处理 undefined；硬依赖才放 inject。
+- 监听 DSH 事件用 `ctx.on('事件名', handler)`；所有副作用包 `ctx.effect(() => {...})`（返回 disposer 的注册函数直接返回其返回值）。
+- HTTP 路由：`ctx.webServer.register({ kind: 'prefix', path: '/<插件名>/api', handler })`；handler 签名 `(request, response)`，用 `request.url` 分发，`writeHead` + `end` 返回 JSON；先做 loopback 信任围栏。
+- 持久化：写 `$DSH_HOME` 下 JSON（防抖 + 原子写 tmp+rename），按会话隔离。
 
 ## 发布流程（GitHub Release only）
 
 仓库只发 GitHub Release，**不发布 npm**。
 
-1. `plugins/<name>/package.json` 里 `version` 递增（semver：patch/minor/major）。
+1. `plugins/<name>/package.json` 里 `version` 递增（semver）。
 2. 在 `plugins/<name>/CHANGELOG.md` 顶部加对应 `## [x.y.z]` 段落。
 3. 打 tag 并推送：`git tag <包名>@v<版本> && git push origin <包名>@v<版本>`（如 `dsh-server-status@v0.1.0`）。
-4. 根 `.github/workflows/release.yml` 自动：在该插件目录跑测试 → 校验 tag 与 package.json 版本一致 → `npm pack` 打 tarball → 提取 CHANGELOG 段落 → 创建 GitHub Release（附件 tarball）。
-5. 在仓库 README 插件列表更新新插件条目与版本。
+4. 根 `.github/workflows/release.yml` 自动：解析 tag → 校验插件目录与版本一致 → 跑测试 → `npm pack` 打 tarball → 提取该插件 CHANGELOG 段落 → 创建 GitHub Release（附件 tarball）。
+5. 更新根 README 插件列表条目（版本、简介）。
 
 ## 常见错误
 
@@ -142,7 +162,7 @@ export function apply(ctx) {
 | `"tab type ... already registered"` | 重复注册：HMR 残留或 id 冲突 | 注册必须包 `ctx.effect`；id 全局唯一（内置 explorer/git/terminal 等不可占用） |
 | 页面没效果 | 只改了 server 端没重启；或没硬刷新 | server 改动重启 `dsh web`；client 改动 Cmd/Ctrl+Shift+R |
 | `duplicate loader entry id` | profile 里手动 insert + bundle patch 自动插入重复 | 删掉手动行，只用 `dsh plugin` 安装 |
-| `ctx.betterSidebar` undefined | 没声明 `inject` 或服务未加载 | `inject: ['betterSidebar']`；未安装 better 时用 `ctx.get('betterSidebar')` 判空降级 |
+| `ctx.betterSidebar` undefined | 没声明 inject，或服务未加载 | `inject: ['betterSidebar']`；可选场景 `ctx.get` 判空降级 |
 | 双 Cordis / 类型分裂 | 同时引用 unscoped 与 scoped cordis | 全链统一一个 cordis（本仓库用 `cordis` peer + link 安装） |
 | HMR 后状态错乱 | disposer 没被 fiber 持有 | `ctx.effect(() => register(...))`，绝不裸调 |
 
@@ -152,4 +172,4 @@ export function apply(ctx) {
 - **不要**在 client value-import better-sidebar 内部模块（如 `src/client/api.ts`）——构建纯度门会挡；用 fetch 模式自己请求。
 - **不要**在 README/文档里写 "Host 半"——本项目统一叫 **Server 端 / Client 端**。
 - **不要**把 `.dsh-vision-toolkit/`、`node_modules/` 等提交进 git。
-- 新插件 README 必须中文，顶部放插件生态 badge 与截图。
+- 发版前核对：`package.json` 版本号、CHANGELOG 段落、tag 三者一致（workflow 会强校验版本，tag 格式错则直接失败）。

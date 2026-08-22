@@ -110,6 +110,11 @@ settings: {
 
 行类型：`'switch' | 'text' | 'number'`（默认 switch）；值必须 JSON 可序列化。`toggles`（宿主 prefs 字段行）仅在需要绑定宿主内置键时使用。
 
+读写闭环：
+
+- `render` 面板内：props 直接给 `pluginSettings`（本 descriptor 的持久化 blob）与 `updatePluginSetting(key, value)`，面板内改动即时持久化。
+- 页面组件（tab/viewer 的 component）内读取插件设置：经组件 props 的 `store` 访问（`pluginSettings` 随 store 快照暴露；精确读取路径参考 better-sidebar 内置实现 `src/client/builtins/` 与 `src/client/service.ts`，或把需要的值经 `badge`/`onOpen` 等回调带入组件状态）。
+
 ## 版本与能力探测
 
 ```js
