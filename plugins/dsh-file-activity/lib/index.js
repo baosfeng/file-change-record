@@ -201,6 +201,16 @@ export function apply(ctx) {
 
   void loadState(file).then((loaded) => {
     if (loaded.sessions === undefined || typeof loaded.sessions !== 'object') loaded.sessions = {}
+    // Trim pre-existing history to the current cap: older state files may
+    // hold more entries than RECENT_LIMIT, and without this the full list
+    // would keep showing until new entries force a trim.
+    let trimmed = false
+    for (const session of Object.values(loaded.sessions)) {
+      if (Array.isArray(session.recent) && session.recent.length > RECENT_LIMIT) {
+        session.recent.length = RECENT_LIMIT
+        trimmed = true
+      }
+    }
     state = loaded
     ready = true
     // Drain any records that arrived while the state was still loading.
@@ -208,7 +218,7 @@ export function apply(ctx) {
     for (const item of drained) {
       applyRecord(state, item.sessionId, item.path, mapOp(item.op), item.time)
     }
-    if (drained.length > 0) persistSoon()
+    if (drained.length > 0 || trimmed) persistSoon()
   })
 
   /** Record an operation once state is loaded (buffered before that). */

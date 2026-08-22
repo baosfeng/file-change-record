@@ -3,7 +3,7 @@
  * mocked context and drives fs/observed events + HTTP routes through it.
  */
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { apply } from '../lib/index.js'
@@ -171,6 +171,24 @@ try {
   assert.equal(clr.status, 200)
   const after = await callRoute(getRoute, 'GET', `/file-activity/api/stats?sessionId=${sid}`)
   assert.deepEqual(after.json.value.counts, {}, 'cleared counts')
+
+  // 11. persisted history longer than the cap is trimmed on load
+  // (wait out the clear's debounced persist first, then seed an oversized file)
+  await new Promise((resolve) => setTimeout(resolve, 600))
+  writeFileSync(statePath, JSON.stringify({
+    version: 1,
+    sessions: {
+      'session-2': {
+        known: {},
+        counts: {},
+        recent: Array.from({ length: 15 }, (_, i) => ({ path: `/work/old-${14 - i}.txt`, op: 'read', time: 1000 + (14 - i) })),
+      },
+    },
+  }), 'utf8')
+  const { getRoute: getRoute2 } = await boot()
+  const trimmed = await callRoute(getRoute2, 'GET', '/file-activity/api/stats?sessionId=session-2')
+  assert.equal(trimmed.json.value.recent.length, 10, 'pre-existing history trimmed to 10 on load')
+  assert.equal(trimmed.json.value.recent[0].path, '/work/old-14.txt', 'newest entry kept after trim')
 
   console.log('ALL HOST SMOKE TESTS PASSED')
 } finally {
