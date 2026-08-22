@@ -117,7 +117,7 @@ window.__ModuleLoader__.load({
      * directories first (alphabetically), then files (by activity, then name).
      */
     function buildTree(counts) {
-      const root = { type: 'dir', name: '', children: [], read: 0, create: 0, modify: 0 }
+      const root = { type: 'dir', name: '', path: '', children: [], read: 0, create: 0, modify: 0 }
       for (const [abs, counter] of Object.entries(counts)) {
         const parts = abs.split('/').filter((part) => part !== '')
         if (parts.length === 0) continue
@@ -126,7 +126,7 @@ window.__ModuleLoader__.load({
         for (const dir of parts.slice(0, -1)) {
           let child = node.children.find((c) => c.type === 'dir' && c.name === dir)
           if (child === undefined) {
-            child = { type: 'dir', name: dir, children: [], read: 0, create: 0, modify: 0 }
+            child = { type: 'dir', name: dir, path: `${node.path}/${dir}`, children: [], read: 0, create: 0, modify: 0 }
             node.children.push(child)
           }
           node = child
@@ -339,6 +339,8 @@ window.__ModuleLoader__.load({
       const data = useSyncExternalStore(dataStore.subscribe, dataStore.getSnapshot)
       const [cwd, setCwd] = useState(scope?.cwd || '')
       const [error, setError] = useState(false)
+      const [recentOpen, setRecentOpen] = useState(true)
+      const [collapsedDirs, setCollapsedDirs] = useState(() => new Set())
 
       const sessionId = scope?.sessionId ?? ''
 
@@ -374,6 +376,16 @@ window.__ModuleLoader__.load({
       const tree = useMemo(() => buildTree(data.counts ?? {}), [data.counts])
 
       const preview = data.preview ?? null
+
+      /** Toggle a directory's collapsed state in the stats tree. */
+      const toggleDir = (path) => {
+        setCollapsedDirs((prev) => {
+          const next = new Set(prev)
+          if (next.has(path)) next.delete(path)
+          else next.add(path)
+          return next
+        })
+      }
 
       /** Open the floating preview window for a file (default click action). */
       const openPreview = (path) => {
@@ -445,12 +457,18 @@ window.__ModuleLoader__.load({
 
       const renderTreeNode = (node, depth) => {
         if (node.type === 'file') return fileRow(node, depth)
+        const collapsed = collapsedDirs.has(node.path)
         return createElement(
           'div',
-          { key: node.name, style: { marginBottom: '2px' } },
+          { key: node.path, style: { marginBottom: '2px' } },
           createElement(
             'div',
-            { style: { display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0', paddingLeft: depth * 14 } },
+            {
+              onClick: () => toggleDir(node.path),
+              style: { display: 'flex', alignItems: 'center', gap: '6px', padding: '2px 0', paddingLeft: depth * 14, cursor: 'pointer' },
+              title: `${node.path}/`,
+            },
+            createElement('span', { style: { fontSize: '10px', width: '12px', flexShrink: 0, color: 'var(--dsw-alias-label-tertiary, #999)' } }, collapsed ? '▸' : '▾'),
             createElement('span', { style: { fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, node.compressed ? node.name : node.name + '/'),
             createElement('span', { style: { display: 'flex', gap: '4px', flexShrink: 0 } },
               countPill(node.read, strings.read(), '#4a90d9'),
@@ -458,7 +476,7 @@ window.__ModuleLoader__.load({
               countPill(node.modify, strings.modify(), '#e6a23c'),
             ),
           ),
-          ...node.children.map((child) => renderTreeNode(child, depth + 1)),
+          collapsed ? null : node.children.map((child) => renderTreeNode(child, depth + 1)),
         )
       }
 
@@ -484,8 +502,13 @@ window.__ModuleLoader__.load({
         createElement(
           'div',
           { style: { display: 'flex', flexDirection: 'column', gap: '4px' } },
-          createElement('div', { style: sectionTitleStyle }, strings.recent()),
-          recent.length === 0
+          createElement(
+            'div',
+            { onClick: () => setRecentOpen((v) => !v), style: { ...sectionTitleStyle, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' } },
+            createElement('span', { style: { fontSize: '10px', width: '12px', flexShrink: 0, color: 'var(--dsw-alias-label-tertiary, #999)' } }, recentOpen ? '▾' : '▸'),
+            strings.recent(),
+          ),
+          !recentOpen ? null : recent.length === 0
             ? createElement(
                 'div',
                 { style: { color: 'var(--dsw-alias-label-secondary, #888)', padding: '6px 0', lineHeight: 1.6 } },

@@ -19,8 +19,12 @@ const hookValues = new Map()
 const stubbed = {
   createElement: react.createElement,
   useState: (initial) => {
-    if (!hookValues.has('state')) hookValues.set('state', [initial, () => {}])
-    return hookValues.get('state')
+    const idx = hookValues.size
+    if (!hookValues.has(idx)) {
+      const value = typeof initial === 'function' ? initial() : initial
+      hookValues.set(idx, [value, () => {}])
+    }
+    return hookValues.get(idx)
   },
   useEffect: () => {},
   useMemo: (fn) => fn(),
@@ -148,13 +152,19 @@ assert.ok(!texts.includes('ui/'), 'no loose dir ui/ after compression')
 assert.ok(!texts.includes('src.components.ui'), 'no flat chain crossing a non-chain dir')
 assert.ok(!joined.includes('根目录'), 'no root group label (root files shown flat)')
 
-// File rows carry the absolute path as title (native preview targets):
-// 4 stats rows + 4 recent rows = 8.
-const fileRows = rows.filter((r) => typeof r.title === 'string' && r.title !== '')
-assert.equal(fileRows.length, 8, `expected 8 titled rows, got ${fileRows.length}`)
+// File rows carry the absolute path as title (native preview targets);
+// directory rows end with '/' and toggle collapse instead:
+// 4 stats rows + 4 recent rows = 8 file rows.
+const fileRows = rows.filter((r) => typeof r.title === 'string' && r.title !== '' && !r.title.endsWith('/'))
+assert.equal(fileRows.length, 8, `expected 8 file rows, got ${fileRows.length}`)
 const titles = fileRows.map((r) => r.title)
 assert.ok(titles.includes('/work/a/b/c/d/e.txt'), 'nested file row present')
 assert.ok(titles.includes('/work/README.md'), 'root file row present')
+
+// Directory rows are clickable collapse toggles carrying their folder path.
+const dirRows = rows.filter((r) => typeof r.title === 'string' && r.title.endsWith('/'))
+assert.equal(dirRows.length, 4, `expected 4 directory rows, got ${dirRows.length}`)
+assert.ok(dirRows.every((r) => typeof r.onClick === 'function'), 'directory rows toggle collapse on click')
 
 // recent entries are also clickable (4 recent rows with path titles)
 const recentRows = rows.filter((r) => r.title === '/work/a/b/c/d/e.txt' || r.title === '/work/README.md' || r.title === '/work/src/components/ui/Button.tsx')
@@ -164,8 +174,8 @@ assert.ok(recentRows.length >= 4, 'recent entries clickable')
 assert.ok(texts.includes('e.txt'), 'nested file name present')
 
 // ── click behavior: every clickable file row opens the floating preview ───
-// (sets dataStore.preview; no sidebar tab is opened)
-const clickableRows = rows.filter((r) => typeof r.onClick === 'function' && typeof r.title === 'string' && r.title !== '')
+// (sets dataStore.preview; no sidebar tab is opened; dir rows are excluded)
+const clickableRows = rows.filter((r) => typeof r.onClick === 'function' && typeof r.title === 'string' && r.title !== '' && !r.title.endsWith('/'))
 for (const row of clickableRows) row.onClick()
 assert.equal(openFileCalls.length, 0, 'clicking rows does not open the sidebar editor')
 assert.equal(openTabCalls.length, 0, 'clicking rows does not open any sidebar tab')
