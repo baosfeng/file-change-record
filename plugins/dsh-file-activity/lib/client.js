@@ -63,6 +63,11 @@ window.__ModuleLoader__.load({
       created: () => (isZh() ? '创建' : 'Created'),
       lastSeen: () => (isZh() ? '最近访问' : 'Last seen'),
       unknown: () => (isZh() ? '未知' : 'unknown'),
+      openInSidebar: () => (isZh() ? '在侧边栏打开' : 'Open in sidebar'),
+      closePreview: () => (isZh() ? '关闭' : 'Close'),
+      loading: () => (isZh() ? '加载中…' : 'Loading…'),
+      previewUnsupported: () => (isZh() ? '该文件类型暂不支持预览' : 'This file type cannot be previewed yet'),
+      previewFailed: () => (isZh() ? '预览加载失败' : 'Preview failed to load'),
     }
 
     // ── path helpers ──────────────────────────────────────────────────────
@@ -157,6 +162,26 @@ window.__ModuleLoader__.load({
       sortNode(root)
       compressChains(root, true)
       return root
+    }
+
+    // ── preview helpers ────────────────────────────────────────────────────
+    const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico']
+    const PDF_EXTS = ['pdf']
+
+    /** Classify a file for the preview window: 'image' | 'pdf' | 'text'. */
+    function fileKind(path) {
+      const name = basenameOf(path)
+      const idx = name.lastIndexOf('.')
+      if (idx <= 0) return 'text'
+      const ext = name.slice(idx + 1).toLowerCase()
+      if (IMAGE_EXTS.includes(ext)) return 'image'
+      if (PDF_EXTS.includes(ext)) return 'pdf'
+      return 'text'
+    }
+
+    /** Media URL for the sidebar's /sidebar/file route (images, pdfs…). */
+    function mediaUrl(sessionId, path) {
+      return `/sidebar/file?${new URLSearchParams({ sessionId, path })}`
     }
 
     // ── tiny external store ───────────────────────────────────────────────
@@ -355,7 +380,17 @@ window.__ModuleLoader__.load({
 
       const tree = useMemo(() => buildTree(data.counts ?? {}), [data.counts])
 
-      const openFile = (path) => {
+      const preview = data.preview ?? null
+
+      /** Open the floating preview window for a file (default click action). */
+      const openPreview = (path) => {
+        dataStore.set({ preview: { abs: path, name: basenameOf(path) } })
+      }
+
+      const closePreview = () => dataStore.set({ preview: null })
+
+      /** Open a file in the sidebar's editor tab (preview window fallback). */
+      const openInSidebar = (path) => {
         try {
           if (ctx.betterSidebar.isTabEnabled?.('editor') === false) {
             console.warn('[dsh-file-activity] cannot open file: the "editor" tab is disabled in the sidebar settings (dsh-better-sidebar side card)')
@@ -400,7 +435,7 @@ window.__ModuleLoader__.load({
           'div',
           {
             key: file.abs,
-            onClick: () => openFile(file.abs),
+            onClick: () => openPreview(file.abs),
             style: { ...rowStyle, paddingLeft: depth * 14 },
             title: fileTitle(file.abs, file.firstSeen, file.lastSeen),
           },
@@ -469,7 +504,7 @@ window.__ModuleLoader__.load({
                   'div',
                   {
                     key: `${entry.path}:${entry.time}:${entry.op}`,
-                    onClick: () => openFile(entry.path),
+                    onClick: () => openPreview(entry.path),
                     style: rowStyle,
                     title: entry.path,
                   },
@@ -488,6 +523,93 @@ window.__ModuleLoader__.load({
             ? createElement('div', { style: { color: 'var(--dsh-color-text-secondary, #888)', padding: '6px 0' } }, strings.empty())
             : tree.children.map((child) => renderTreeNode(child, 0)),
         ),
+        // ── floating preview window ──
+        preview
+          ? createElement(PreviewWindow, { scope, preview, onClose: closePreview, onOpenInSidebar: openInSidebar })
+          : null,
+      )
+    }
+
+    // ── floating preview window ────────────────────────────────────────────
+    const previewOverlayStyle = {
+      position: 'fixed', top: 48, right: 330, width: 520, maxWidth: 'calc(100vw - 380px)',
+      height: '70vh', maxHeight: 720,
+      background: 'var(--dsh-color-bg-secondary, #222327)', color: 'inherit',
+      border: '1px solid var(--dsh-color-border, #444)', borderRadius: '8px',
+      boxShadow: '0 10px 36px rgba(0, 0, 0, 0.45)', zIndex: 2000,
+      display: 'flex', flexDirection: 'column', overflow: 'hidden',
+    }
+    const previewHeaderStyle = {
+      display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px',
+      borderBottom: '1px solid var(--dsh-color-border, #444)', flexShrink: 0,
+    }
+    const previewBodyStyle = {
+      flex: 1, overflow: 'auto', padding: '10px', fontSize: '12px', minHeight: 0,
+    }
+
+    /**
+     * Floating preview window. Images/PDFs render through the sidebar media
+     * route; text-like files are fetched via /sidebar/api/fs.read and shown
+     * in a scrollable <pre>.
+     */
+    function PreviewWindow({ scope, preview, onClose, onOpenInSidebar }) {
+      const sessionId = scope?.sessionId ?? ''
+      const [state, setState] = useState({ status: 'loading', kind: fileKind(preview.abs), content: '' })
+
+      useEffect(() => {
+        let cancelled = false
+        const kind = fileKind(preview.abs)
+        setState({ status: kind === 'text' ? 'loading' : 'ready', kind, content: '' })
+        if (kind !== 'text' || sessionId === '') return () => { cancelled = true }
+        void fetch('/sidebar/api/fs.read', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ sessionId, path: preview.abs }),
+        }).then((response) => response.json())
+          .then((json) => {
+            if (cancelled) return
+            if (json === null || typeof json !== 'object' || json.ok !== true || json.value === undefined) {
+              setState({ status: 'error', kind, content: '' })
+              return
+            }
+            setState({ status: 'ready', kind, content: typeof json.value.content === 'string' ? json.value.content : '' })
+          })
+          .catch(() => {
+            if (!cancelled) setState({ status: 'error', kind, content: '' })
+          })
+        return () => { cancelled = true }
+      }, [preview.abs, sessionId])
+
+      const kind = state.kind
+      const media = kind === 'image' || kind === 'pdf' ? mediaUrl(sessionId, preview.abs) : ''
+      let body = null
+      if (kind === 'image') {
+        body = createElement('img', { src: media, alt: preview.name, style: { maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block', margin: '0 auto' } })
+      } else if (kind === 'pdf') {
+        body = createElement('iframe', { src: media, style: { width: '100%', height: '100%', border: 'none' } })
+      } else if (state.status === 'loading') {
+        body = createElement('div', { style: { color: 'var(--dsh-color-text-tertiary, #999)' } }, strings.loading())
+      } else if (state.status === 'error') {
+        body = createElement('div', { style: { color: '#e06c5a' } }, strings.previewFailed())
+      } else {
+        body = createElement('pre', { style: { margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '11px', lineHeight: 1.5 } }, state.content)
+      }
+
+      return createElement(
+        'div',
+        { style: previewOverlayStyle },
+        createElement(
+          'div',
+          { style: previewHeaderStyle },
+          createElement('span', { style: { fontWeight: 600, fontSize: '12px', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, preview.name),
+          createElement('span', { style: { display: 'flex', gap: '4px', flexShrink: 0 } },
+            onOpenInSidebar
+              ? createElement('button', { onClick: () => onOpenInSidebar(preview.abs), style: buttonStyle }, strings.openInSidebar())
+              : null,
+            createElement('button', { onClick: onClose, style: buttonStyle }, strings.closePreview()),
+          ),
+        ),
+        createElement('div', { style: previewBodyStyle }, body),
       )
     }
 

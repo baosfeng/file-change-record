@@ -161,23 +161,39 @@ assert.ok(recentRows.length >= 4, 'recent entries clickable')
 // the nested-tree example: a/b/c/d/e.txt renders as dirs a/ b/ c/ d/ with e.txt
 assert.ok(texts.includes('e.txt'), 'nested file name present')
 
-// ── click behavior: every clickable file row opens the file through the
-// sidebar's native preview API (ctx.betterSidebar.openFile with the tab scope)
+// ── click behavior: every clickable file row opens the floating preview ───
+// (sets dataStore.preview; no sidebar tab is opened)
 const clickableRows = rows.filter((r) => typeof r.onClick === 'function' && typeof r.title === 'string' && r.title !== '')
 for (const row of clickableRows) row.onClick()
-assert.equal(openFileCalls.length, clickableRows.length, 'every clickable row triggers openFile')
-assert.equal(openTabCalls.length, 0, 'openFile capability present, no openTab fallback used')
-const openByPath = new Map(openFileCalls.map((c) => [c.path, c]))
-assert.ok(openByPath.has('/work/README.md'), 'openFile called for README.md')
-assert.ok(openByPath.has('/work/a/b/c/d/e.txt'), 'openFile called for nested e.txt')
-assert.ok(openByPath.has('/work/src/index.ts'), 'openFile called for src/index.ts')
-assert.ok(openByPath.has('/work/src/components/ui/Button.tsx'), 'openFile called for Button.tsx')
-for (const call of openFileCalls) {
-  assert.equal(call.scope, scope, 'openFile receives the tab scope')
-}
+assert.equal(openFileCalls.length, 0, 'clicking rows does not open the sidebar editor')
+assert.equal(openTabCalls.length, 0, 'clicking rows does not open any sidebar tab')
+const previewAfterClick = dataStore.getSnapshot().preview
+assert.ok(previewAfterClick !== null && typeof previewAfterClick === 'object', 'click opens the floating preview')
+assert.equal(previewAfterClick.abs, clickableRows[clickableRows.length - 1].title, 'preview targets the clicked file')
 
-// ── editor-disabled scenario: clicks must not silently no-op ──────────────
-// (openFile should refuse with a warning, never call the service)
+// ── preview window renders with title, close and open-in-sidebar actions ──
+const previewTree = element.type(element.props)
+const previewTexts = []
+const previewButtons = []
+const walkPreview = (node) => {
+  if (node === null || node === undefined || typeof node === 'boolean') return
+  if (typeof node === 'string' || typeof node === 'number') { previewTexts.push(String(node)); return }
+  if (Array.isArray(node)) { for (const child of node) walkPreview(child); return }
+  // Expand function components manually (no React runtime in this test).
+  if (typeof node.type === 'function') { walkPreview(node.type(node.props)); return }
+  const props = node.props ?? {}
+  if (typeof props.onClick === 'function') previewButtons.push(props)
+  walkPreview(props.children)
+}
+walkPreview(previewTree)
+assert.ok(previewTexts.includes(previewAfterClick.name), 'preview header shows the file name')
+assert.ok(previewTexts.includes('关闭'), 'close button present')
+const closeButton = previewButtons.find((b) => Array.isArray(b.children) ? b.children.includes('关闭') : b.children === '关闭')
+assert.ok(closeButton, 'close button wired')
+closeButton.onClick()
+assert.equal(dataStore.getSnapshot().preview, null, 'close dismisses the preview')
+
+// ── editor-disabled scenario: preview still works; open-in-sidebar guarded ─
 const openFileCallsDisabled = []
 const mockServiceDisabled = {
   ...mockService,
@@ -187,20 +203,24 @@ const mockServiceDisabled = {
 const ctxDisabled = { betterSidebar: mockServiceDisabled, effect: (fn) => fn() }
 exportsObj.apply(ctxDisabled)
 const disabledElement = capturedTab.component({ ctx: ctxDisabled, scope, visible: true })
-disabledElement.props.dataStore.set({ recent: [], counts: { '/work/README.md': { read: 1, create: 1, modify: 0 } } })
+const disabledStore = disabledElement.props.dataStore
+disabledStore.set({ recent: [], counts: { '/work/README.md': { read: 1, create: 1, modify: 0 } }, preview: { abs: '/work/README.md', name: 'README.md' } })
 const disabledTree = disabledElement.type(disabledElement.props)
-const disabledRows = []
-const walkDisabled = (node, depth) => {
+const disabledButtons = []
+const walkDisabled = (node) => {
   if (node === null || node === undefined || typeof node === 'boolean') return
-  if (Array.isArray(node)) { for (const child of node) walkDisabled(child, depth); return }
+  if (Array.isArray(node)) { for (const child of node) walkDisabled(child); return }
+  if (typeof node.type === 'function') { walkDisabled(node.type(node.props)); return }
   const props = node.props ?? {}
-  if (typeof props.onClick === 'function' && typeof props.title === 'string' && props.title !== '') disabledRows.push(props.onClick)
-  walkDisabled(props.children, depth + 1)
+  if (typeof props.onClick === 'function') disabledButtons.push(props)
+  walkDisabled(props.children)
 }
-walkDisabled(disabledTree, 0)
-assert.ok(disabledRows.length > 0, 'file rows exist in disabled scenario')
-for (const click of disabledRows) click()
+walkDisabled(disabledTree)
+const sidebarButton = disabledButtons.find((b) => b.children === '在侧边栏打开')
+assert.ok(sidebarButton, 'open-in-sidebar button present in preview window')
+sidebarButton.onClick()
 assert.equal(openFileCallsDisabled.length, 0, 'no openFile call when editor tab is disabled')
+assert.equal(disabledStore.getSnapshot().preview.abs, '/work/README.md', 'preview stays open when sidebar open is refused')
 
 console.log('ALL CLIENT RENDER-PATH TESTS PASSED')
 console.log('sample output tree (clickable rows):')
