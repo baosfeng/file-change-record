@@ -29,6 +29,7 @@
 | [dsh-think-zh-expand](plugins/dsh-think-zh-expand/README.md) | 0.4.0 | 思考增强：通过 system-prompt 注入让思考与回复强制使用中文；对话中思考内容默认展开显示（替代内置单行折叠），可点击收起、流式中保持展开；文本块与**思考块**都支持 Markdown 渲染（含表格 / Mermaid 图表）；界面英文标签中文化 |
 | [dsh-mermaid-render](plugins/dsh-mermaid-render/README.md) | 0.1.1 | 对话 mermaid/mmd 代码块自动渲染为图表卡片（预览/代码切换），mermaid 引擎内联打包、零 CDN 依赖、完全离线可用；流式渲染稳健（等流式结束渲染，避免残缺态） |
 | [dsh-notify](plugins/dsh-notify/README.md) | 0.1.0 | 通知提醒：会话结束 / agent 询问（ask）/ 等待审批时弹浏览器通知 + 滴声提示，点击通知跳转对应会话；预留远程 hook 触发接口（`POST /notify/api/trigger`，支持可选 token），SSE 实时通道 |
+| [dsh-guardian](plugins/dsh-guardian/README.md) | 0.1.0 | 插件治理：新装/更新插件先进候选区（cordis.staged.json），启动完成后由守护插件逐个热挂载——成功自动转正，失败自动隔离记录，连续失败冻结，一键安全模式，侧边栏诊断面板；守护插件自身永不拖垮进程（看门狗自保） |
 
 ## 目录结构
 
@@ -37,7 +38,8 @@
 │   ├── dsh-file-activity/
 │   ├── dsh-think-zh-expand/
 │   ├── dsh-mermaid-render/
-│   └── dsh-notify/
+│   ├── dsh-notify/
+│   └── dsh-guardian/
 ├── skills/           # 本仓库的开发技能（SKILL.md 格式，可安装到 ~/.dsh/skills/）
 │   └── dsh-plugin-development/
 ├── docs/             # 通用文档与设计文档
