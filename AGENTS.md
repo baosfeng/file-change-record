@@ -34,7 +34,7 @@ docs/
 > 📌 **文档定位原则：** 能被自动化流程加载的内容（skill、脚本、工具）**不写进 docs/ 文档**——流程/方法优先沉淀为 skill 或脚本（如 `development-lifecycle` skill、`scripts/release.mjs`），文档不重复。docs/ 只记录**必须依靠外部才能实现、真的会踩坑**的内容（如 GitHub Release 校验 bug、CDN 不可达等踩坑与外部依赖说明）。新增文档前先问：这个能被 skill/脚本自动化吗？能 → 沉淀为 skill/脚本；不能且会踩坑 → 才写文档。
 
 ## 项目简介
-- **版本:** 各插件独立 semver（当前主插件 dsh-file-activity v0.4.2；dsh-think-zh-expand v0.3.0；dsh-mermaid-render v0.1.0） **语言:** JavaScript (Node ≥ 20, ESM) **类型:** 基础服务（DSH 插件集合） **技术栈:** Node.js + Cordis 4 + React 18 + dsh-better-sidebar
+- **版本:** 各插件独立 semver（当前主插件 dsh-file-activity v0.4.2；dsh-think-zh-expand v0.3.0；dsh-mermaid-render v0.1.1） **语言:** JavaScript (Node ≥ 20, ESM) **类型:** 基础服务（DSH 插件集合） **技术栈:** Node.js + Cordis 4 + React 18 + dsh-better-sidebar
 
 > 🧪 测试命令: `cd plugins/<插件名> && npm test`（CI 遍历 `plugins/*/` 执行 `node --check` + 冒烟测试） — 提交前必跑全部测试并修复失败
 - [项目简介](docs/概览/项目简介.md) | [架构总览](docs/概览/架构总览.md) | [快速上手](docs/概览/快速上手.md)
