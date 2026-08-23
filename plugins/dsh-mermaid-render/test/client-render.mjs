@@ -11,15 +11,17 @@
  */
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
-const reactPath = '/Users/bsfeng/.npm-global/lib/node_modules/@deepseek-ai/dsh/node_modules/react/index.js'
-const react = require(reactPath)
+// ── minimal react stub (self-contained: no react install needed, so the
+//    test also runs in CI where the dsh react path does not exist) ────────
+function createElement(type, props, ...children) {
+  // Mirror react's shape: children live under props.children (flattened),
+  // so tree-walking code written against react works unchanged.
+  return { type, props: { ...(props || {}), children: children.flat() } }
+}
 
-// ── stubbed react + react-dom/client ─────────────────────────────────────
 const stubbed = {
-  createElement: react.createElement,
+  createElement,
   useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
   useEffect: () => {},
   useMemo: (fn) => fn(),
