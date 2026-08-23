@@ -13,6 +13,16 @@
  *  - image 块 → 复用 owner 的 renderMessageImages（内置图片渲染）；
  *  - tool-call 块与内置一致跳过（tool-call 有独立节点渲染）。
  *
+ * 功能 3：界面标签中文化。
+ *
+ * 官方 UI（dsh-client-ui-conversation / dsh-client-ui-trajectory）的 zh 字典
+ * 本身未翻译完（如 `toolbar.duration: "Duration"`），且存在硬编码英文
+ * （"Thinking"、"Tool Call"、"ASSISTANT" 等）；`locale.register` 对已注册的
+ * 同 ns+locale 字典重复注册会抛错，无法经 locale 服务补译。因此本插件在
+ * DOM 层做精准文本替换：只匹配「完全等于」词表的叶子文本节点（排除
+ * pre/code/输入区，避免误伤代码块与消息正文），MutationObserver 跟随
+ * React 重渲染持续生效。
+ *
  * 样式走 DSH 语义 token（--dsw-alias-* / --dsw-font-*），随 activation 注入、
  * fiber teardown 卸载（HMR/禁用无残留）。
  */
@@ -128,6 +138,41 @@ window.__ModuleLoader__.load({
             ...buf.map((l, j) => createElement('p', { key: j }, ...mdInline(l, 'bq' + out.length + '-' + j)))))
           continue
         }
+        // 表格：表头行（| a | b |）+ 分隔行（|---|---|）+ 数据行
+        const tableHead = line.match(/^\s*\|.*\|\s*$/)
+        if (tableHead) {
+          const sep = lines[i + 1]
+          const isSep = typeof sep === 'string' && /^\s*\|?[\s:\-|]+\|?\s*$/.test(sep) && sep.includes('-')
+          if (isSep) {
+            const cellsOf = (row) => row.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim())
+            const aligns = cellsOf(sep).map((a) => {
+              if (a.startsWith(':') && a.endsWith(':')) return 'center'
+              if (a.endsWith(':')) return 'right'
+              return 'left'
+            })
+            const header = cellsOf(line)
+            const dataRows = []
+            i += 2
+            while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) {
+              dataRows.push(cellsOf(lines[i]))
+              i += 1
+            }
+            const cellStyle = (j) => ({ textAlign: aligns[j] ?? 'left' })
+            out.push(createElement('table', { key: 'b' + out.length, className: 'tzx-table' },
+              createElement('thead', null,
+                createElement('tr', null, header.map((c, j) =>
+                  createElement('th', { key: j, style: cellStyle(j) },
+                    ...mdInline(c, 'th' + out.length + '-' + j))))),
+              dataRows.length > 0
+                ? createElement('tbody', null,
+                    dataRows.map((row, ri) => createElement('tr', { key: ri },
+                      row.map((c, j) => createElement('td', { key: j, style: cellStyle(j) },
+                        ...mdInline(c, 'td' + out.length + '-' + ri + '-' + j))))))
+                : null))
+            continue
+          }
+          // 无分隔行（不是标准表格）：回落到段落逻辑。
+        }
         if (line.trim() === '') {
           i += 1
           continue
@@ -229,6 +274,9 @@ window.__ModuleLoader__.load({
 .tzx-md .tzx-pre code{background:none;padding:0}
 .tzx-md .tzx-bq{margin:0;padding-left:12px;border-left:3px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary)}
 .tzx-md .tzx-bq p{margin:0}
+.tzx-md .tzx-table{border-collapse:collapse;margin:0;font-size:14px;line-height:22px}
+.tzx-md .tzx-table th,.tzx-md .tzx-table td{border:1px solid var(--dsw-alias-border-l1);padding:4px 10px}
+.tzx-md .tzx-table th{background:var(--dsw-alias-markdown-code-block);font-weight:600}
 .tzx-md a{color:var(--dsw-alias-accent-primary)}
 .tzx-think{display:flex;flex-direction:column;color:var(--dsw-alias-label-tertiary)}
 .tzx-think-row{display:flex;align-items:center;gap:8px;min-width:0;cursor:pointer;user-select:none;padding:2px 0;border-radius:6px}
@@ -241,6 +289,115 @@ window.__ModuleLoader__.load({
     `
 
     exports.inject = ['slots']
+
+    // ── 界面标签中文化：词表 + 精准文本节点替换 ────────────────────────
+    // 只替换「完全等于」词表 key 的叶子文本节点；排除代码块/输入区/脚本区，
+    // 避免误伤消息正文与代码内容。词条来自官方 UI 的 zh 字典缺译与硬编码英文
+    // （dsh-client-ui-trajectory 的 Thinking/Tool Call/ASSISTANT 等、
+    // dsh-client-ui-conversation 的 context.tools/stats.toolCall 等）。
+    const ZH_TABLE = {
+      'Thinking': '思考',
+      'Tool Call': '工具调用',
+      'Tool calls': '工具调用',
+      'Tool call': '工具调用',
+      'Tool call only': '仅工具调用',
+      'Tools': '工具',
+      'No content': '无内容',
+      'Tools Updated': '工具已更新',
+      'Duration': '用时',
+      'Use actual duration': '使用实际耗时',
+      'Use equal-width operations': '使用等宽操作',
+      'Turns': '轮次',
+      'Expand turns': '展开轮次',
+      'Collapse turns': '收起轮次',
+      'Calls': '调用',
+      'Expand calls': '展开调用',
+      'Collapse calls': '收起调用',
+      'Load earlier history': '加载更早历史',
+      'Loading earlier history…': '正在加载更早历史…',
+      'Loading earlier history': '正在加载更早历史',
+      'ASSISTANT': '助手',
+      'TOOL': '工具',
+      'USER': '用户',
+      'Session log': '会话日志',
+      'Cordis Plugin': 'Cordis 插件',
+      'System prompt': '系统提示',
+      'Messages': '消息',
+      'Files': '文件',
+      'Full access': '完全访问',
+      'Enable Full access': '启用完全访问',
+      'Cancel': '取消',
+    }
+    // 动态格式（保持原始数字/单位，只翻译标签词）
+    const ZH_PATTERNS = [
+      [/^Turn (\d+)$/, '第 $1 轮'],
+      [/^Tool call (.+)$/, '工具调用 $1'],
+      [/^Input ([\d.]+) tok · Output ([\d.]+) tok$/, '输入 $1 tok · 输出 $2 tok'],
+      [/^LLM (.+)$/, '模型调用 $1'],
+    ]
+    /** 这些标签内部的文本一律不动（代码、输入、脚本）。 */
+    const ZH_SKIP_TAGS = new Set(['PRE', 'CODE', 'SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'SELECT', 'OPTION', 'KBD', 'SAMP'])
+
+    /**
+     * 安装界面中文化：扫描现有文本节点 + MutationObserver 跟随 React 重渲染。
+     * 返回 disposer（断开观察器）。
+     */
+    function installUiLocalize() {
+      if (typeof document === 'undefined' || document === null || typeof MutationObserver === 'undefined') return () => {}
+
+      const inSkipped = (element) => {
+        let node = element
+        while (node && node.nodeType === 1) {
+          if (ZH_SKIP_TAGS.has(node.nodeName)) return true
+          node = node.parentElement
+        }
+        return false
+      }
+
+      const translateText = (textNode) => {
+        const raw = textNode.nodeValue
+        if (typeof raw !== 'string' || raw === '') return
+        const trimmed = raw.trim()
+        if (trimmed === '') return
+        if (inSkipped(textNode.parentElement)) return
+        const exact = ZH_TABLE[trimmed]
+        if (exact !== undefined) {
+          textNode.nodeValue = raw.replace(trimmed, exact)
+          return
+        }
+        for (const [pattern, replacement] of ZH_PATTERNS) {
+          if (pattern.test(trimmed)) {
+            textNode.nodeValue = raw.replace(pattern, replacement)
+            return
+          }
+        }
+      }
+
+      const scan = (root) => {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+        const hits = []
+        let node
+        while ((node = walker.nextNode()) !== null) hits.push(node)
+        for (const hit of hits) translateText(hit)
+      }
+
+      scan(document.body)
+
+      const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          if (mutation.type === 'characterData' && mutation.target.nodeType === 3) {
+            translateText(mutation.target)
+          } else if (mutation.type === 'childList') {
+            for (const added of mutation.addedNodes) {
+              if (added.nodeType === 1) scan(added)
+              else if (added.nodeType === 3) translateText(added)
+            }
+          }
+        }
+      })
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true })
+      return () => observer.disconnect()
+    }
 
     exports.apply = function apply(ctx) {
       // Inject the shared stylesheet once (torn down with the fiber).
@@ -264,6 +421,9 @@ window.__ModuleLoader__.load({
         priority: -1,
         registrant: 'dsh-think-zh-expand',
       }, (props) => createElement(AssistantStepView, props))), 'dsh-think-zh-expand: assistant-step renderer')
+
+      // UI 标签中文化（词表替换，随 fiber 卸载断开观察器）。
+      ctx.effect(() => installUiLocalize(), 'dsh-think-zh-expand: ui localization')
     }
 
     return module.exports

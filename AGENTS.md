@@ -31,7 +31,7 @@ docs/
 > 文档↔源码映射: `docs/文件活动追踪/` → `plugins/dsh-file-activity/`、`docs/思考增强/` → `plugins/dsh-think-zh-expand/`，各核心文件的精确路径见对应模块文档。
 
 ## 项目简介
-- **版本:** 各插件独立 semver（当前主插件 dsh-file-activity v0.4.1；dsh-think-zh-expand v0.1.0） **语言:** JavaScript (Node ≥ 20, ESM) **类型:** 基础服务（DSH 插件集合） **技术栈:** Node.js + Cordis 4 + React 18 + dsh-better-sidebar
+- **版本:** 各插件独立 semver（当前主插件 dsh-file-activity v0.4.2；dsh-think-zh-expand v0.2.1） **语言:** JavaScript (Node ≥ 20, ESM) **类型:** 基础服务（DSH 插件集合） **技术栈:** Node.js + Cordis 4 + React 18 + dsh-better-sidebar
 
 > 🧪 测试命令: `cd plugins/<插件名> && npm test`（CI 遍历 `plugins/*/` 执行 `node --check` + 冒烟测试） — 提交前必跑全部测试并修复失败
 - [项目简介](docs/概览/项目简介.md) | [架构总览](docs/概览/架构总览.md) | [快速上手](docs/概览/快速上手.md)
