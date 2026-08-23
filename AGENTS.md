@@ -6,10 +6,7 @@
 > 2. **读取** — `read_file` 读取对应模块文档或规范文档
 > 3. **理解** — 确认核心文件路径和关键流程后再编码
 >
-> ❌ 禁止跳过阅读直接 `explore`。如安装了知识图谱工具，**禁止使用 explore**，按序使用：
-> ① `list_projects`/`index_status` 确认项目名与索引状态 → ② 未索引先建索引、有变更先增量更新 →
-> ③ `search_graph`（语义/符号搜索）、`trace_path`（调用链）、`query_graph`（Cypher 复杂分析）、`search_code`（grep 式）→
-> ④ 搜不到才降级：换关键词 → 查文档 → 最后 `explore`/`grep`。
+> ❌ **代码查询一律走知识图谱（禁 explore/grep）：** 项目 `Users-bsfeng-IdeaProjects-my-dsh-plugins` 已索引。查符号/调用链/影响/架构用 `search_graph`/`trace_path`/`query_graph` 等 `mcp__codebase-memory__*` 工具；先 `list_projects`/`index_status` 确认索引，未索引先 `index_repository`，图外事实才 grep/read。细节见 skill `codebase-memory`。
 
 > ⚠️ **副作用操作必须先 ask 用户：** git 提交/推送、删除文件/目录、覆盖已有内容，都须用 `ask` 确认后执行。同一会话内同类操作首次确认后自动授权（提交豁免≠删除豁免）。
 
