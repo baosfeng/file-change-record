@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### 新增
+
+- **工具中文化**：对话/轨迹里的工具卡片标题（`Search`/`Bash`/`Read`/`Write`/`Edit`/`Code`/`Inspect` 等官方硬编码英文，源码标注 "design literals, not translatable copy"）在卡片行内替换为中文；轨迹视图 Tool Catalog 的工具名与描述（`web_search` + 英文描述）按「工具名→中文」映射整体替换（描述按工具名索引，不匹配英文原文）；others 卡片摘要 `工具名 · …` 前缀同步替换。未覆盖工具保留英文。新增 `test/client-render.mjs` 用例 11 覆盖映射纯函数。
+
 ### 修复
 
 - **行内代码支持 CommonMark 多反引号配对**：思考/正文里模型引用的 `` `agent/status` `` 这类「双反引号包裹、内容含单个反引号」的文本此前被错误解析——分隔反引号裸露、`agent/status` 退化为裸文本、出现空白内容的 code 高亮块。现按 CommonMark 语义将 N 个反引号开闭配对整体渲染为 `<code>`（内容按规范裁去紧贴分隔符的空格），单反引号、无内容的连续反引号串（````）行为保持不变。新增 `test/client-render.mjs` 用例 7-10 覆盖。

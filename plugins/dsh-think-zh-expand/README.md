@@ -35,6 +35,12 @@
 - 排除代码块 / 输入区 / 脚本区，**不会误伤消息正文与代码内容**；
 - MutationObserver 跟随 React 重渲染持续生效，插件卸载即断开。
 
+**工具卡片与工具目录中文化**（官方 `VARIANT_TITLES` 注释为 "design literals, not translatable copy"，无 i18n 路径）：
+
+- 工具调用卡片标题（`Search`→`搜索`、`Bash`→`命令行`、`Read`→`读取`、`Write`→`写入`、`Edit`→`编辑`、`Code`→`代码`，以及 cordis 的 `Inspect`→`检查`、`Run Cordis Plugin`→`运行 Cordis 插件` 等）**只在工具卡片行内**（祖先含 `data-chat-call-id`）替换；
+- 轨迹视图 Tool Catalog 的工具名与描述按「工具名 → 中文」映射整体替换（`web_search`→`网络搜索`、`bash`→`命令行` 等，描述按工具名索引、不匹配英文原文，DSH 升级改文案不失效）；
+- others 卡片摘要 `工具名 · …` 的前缀工具名同步替换（`ask_user_question · …`→`询问用户 · …`）；未覆盖的工具保留英文。
+
 样式全部走 DSH 语义 token（`--dsw-alias-*` / `--dsw-font-*`），随激活注入、随 fiber 卸载，HMR/禁用无残留。
 
 ## 工作原理

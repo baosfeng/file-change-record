@@ -208,6 +208,34 @@ try {
   const r10 = collectCode(capturedRenderer({ node: { data: { blocks: [{ kind: 'reasoning', text: '调用 `` `agent/status` `` 查看状态' }] } } }))
   assert.ok(r10.codeTexts.includes('`agent/status`'), 'reasoning block renders multi-backtick code')
 
+  // 11. 工具中文化映射（需求 3a）：卡片标题 / 工具名 / 工具描述 / others 摘要
+  assert.equal(exportsObj.zhCardTitle('Search'), '搜索', 'variant title Search')
+  assert.equal(exportsObj.zhCardTitle('Bash'), '命令行', 'variant title Bash')
+  assert.equal(exportsObj.zhCardTitle('Read'), '读取', 'variant title Read')
+  assert.equal(exportsObj.zhCardTitle('Write'), '写入', 'variant title Write')
+  assert.equal(exportsObj.zhCardTitle('Edit'), '编辑', 'variant title Edit')
+  assert.equal(exportsObj.zhCardTitle('Code'), '代码', 'variant title Code')
+  assert.equal(exportsObj.zhCardTitle('Inspect'), '检查', 'cordis inspect title')
+  assert.equal(exportsObj.zhCardTitle('Run Cordis Plugin'), '运行 Cordis 插件', 'cordis run title')
+  assert.equal(exportsObj.zhCardTitle('Tool call'), null, '"Tool call" stays with the global table')
+  assert.equal(exportsObj.zhToolName('web_search'), '网络搜索', 'tool name web_search')
+  assert.equal(exportsObj.zhToolName('bash'), '命令行', 'tool name bash')
+  assert.equal(exportsObj.zhToolName('read'), '读取文件', 'tool name read')
+  assert.equal(exportsObj.zhToolName('ask_user_question'), '询问用户', 'tool name ask_user_question')
+  assert.equal(exportsObj.zhToolName('mcp__codebase-memory__search_graph'), '图搜索', 'tool name codebase-memory')
+  assert.equal(exportsObj.zhToolName('unknown_tool'), null, 'unmapped tool stays english')
+  assert.equal(exportsObj.zhToolDesc('web_search'), '搜索网络获取最新信息。', 'tool desc web_search')
+  assert.equal(exportsObj.zhToolDesc('bash'), '执行命令并返回输出（可设置工作目录、超时）。', 'tool desc bash')
+  assert.equal(exportsObj.zhToolDesc('unknown_tool'), null, 'unmapped desc stays english')
+  assert.equal(
+    exportsObj.zhCardSummary('ask_user_question · {"text":"确认"}'),
+    '询问用户 · {"text":"确认"}',
+    'others summary tool-name prefix localized'
+  )
+  assert.equal(exportsObj.zhCardSummary('web_search · 关键词'), '网络搜索 · 关键词', 'others summary web_search')
+  assert.equal(exportsObj.zhCardSummary('no_prefix_here'), null, 'summary without tool prefix untouched')
+  assert.equal(exportsObj.zhCardSummary('unknown_tool · x'), null, 'unmapped summary tool untouched')
+
   console.log('ALL CLIENT RENDER-PATH TESTS PASSED')
 } finally {
   delete global.window
