@@ -811,15 +811,13 @@ window.__ModuleLoader__.load({
     exports.inject = ['betterSidebar']
 
     exports.apply = function apply(ctx) {
-      const service = ctx.betterSidebar
-      if (service === undefined) return
-
-      // Per-session data store: { bySession: { [sessionId]: { recent, counts, loading } }, preview }
-      // Each conversation reads/writes only its own bucket, so switching
-      // sessions never leaks another session's file activity into the view.
-      const dataStore = createStore({ bySession: {}, preview: null })
-
-      // Inject the shared stylesheet once (torn down with the fiber).
+      // The stylesheet is pure static CSS and must NOT depend on the
+      // betterSidebar service: inject it first, unconditionally. If it lived
+      // behind the `service === undefined` early return, an HMR rebuild or
+      // service reload could leave the already-rendered tab WITHOUT its
+      // stylesheet — the raw white-text list you see when the CSS is gone.
+      // Each fiber owns its own <style> element and the disposer removes
+      // only that element, so a rebuild always keeps at least one copy.
       ctx.effect(() => {
         if (typeof document === 'undefined' || document === null || typeof document.head === 'undefined') return () => {}
         const style = document.createElement('style')
@@ -830,6 +828,14 @@ window.__ModuleLoader__.load({
           if (style.parentNode) style.parentNode.removeChild(style)
         }
       }, 'dsh-file-activity: styles')
+
+      const service = ctx.betterSidebar
+      if (service === undefined) return
+
+      // Per-session data store: { bySession: { [sessionId]: { recent, counts, loading } }, preview }
+      // Each conversation reads/writes only its own bucket, so switching
+      // sessions never leaks another session's file activity into the view.
+      const dataStore = createStore({ bySession: {}, preview: null })
 
       // Mount probe: report client activation to the host state (synthetic
       // session id, invisible in the UI — used to confirm the client half

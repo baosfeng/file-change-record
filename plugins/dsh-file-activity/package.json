@@ -1,6 +1,6 @@
 {
   "name": "dsh-file-activity",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "DSH web plugin: file activity tracker for dsh-better-sidebar — recent file access history plus create/modify/read counts grouped by folder (dotted multi-level paths), opening files in the sidebar's built-in native preview (syntax highlighting / Markdown rendering / images / PDF) and auto-open.",
   "type": "module",
   "main": "lib/index.js",

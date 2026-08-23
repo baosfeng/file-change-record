@@ -216,6 +216,7 @@ export function apply(ctx) {
 | `ctx.betterSidebar` undefined | 没声明 inject，或服务未加载 | `inject: ['betterSidebar']`；可选场景 `ctx.get` 判空降级 |
 | 双 Cordis / 类型分裂 | 同时引用 unscoped 与 scoped cordis | 全链统一一个 cordis（本仓库用 `cordis` peer + link 安装） |
 | HMR 后状态错乱 | disposer 没被 fiber 持有 | `ctx.effect(() => register(...))`，绝不裸调 |
+| 页签偶发"纯文字无样式" | 样式注入放在服务判空早退（`if (service === undefined) return`）之后，HMR/服务重载瞬间跳过注入 | **样式注入必须放 `apply` 最前、无条件执行**（不依赖任何服务），每个 fiber 持自己的 `<style>`、disposer 只删自己的（详见 [踩坑：插件页签样式丢失](../../docs/踩坑/插件页签样式丢失.md)） |
 
 ## 需要避免的坑
 

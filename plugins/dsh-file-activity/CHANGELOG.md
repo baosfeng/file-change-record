@@ -2,6 +2,12 @@
 
 本文件记录 dsh-file-activity 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.2] - 2026-08-23
+
+### 修复
+
+- **修复页签偶发"纯文字无样式"**：样式注入曾放在 `betterSidebar` 服务判空早退之后，HMR 重建/服务重载瞬间新实例可能跳过注入，导致已渲染的页签失去全部 CSS（纯白文本列表）。样式注入改为 `apply` 无条件最先执行（纯静态 CSS，不依赖任何服务），每个 fiber 持有自己的 `<style>` 元素，重建后至少保留一份。
+
 ## [0.4.1] - 2026-08-23
 
 ### 修复
