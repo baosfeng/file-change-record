@@ -71,7 +71,8 @@ plugins/<name>/                  # 插件目录（小写连字符命名，如 ds
 5. **写测试**：`test/` 下放纯 Node 冒烟测试（mock ctx / mock webServer / mock betterSidebar），CI 只跑 `npm test`（即 `node test/host-smoke.mjs`）；依赖浏览器/真实 GUI 的测试留在本机手动跑。**新增功能必须补测试**，易碎需求（重启恢复/会话隔离）必须有专门断言（可参考 `dsh-file-activity/test/host-smoke.mjs` 的"重启恢复"测试段落）。
 6. **回归验证（强制）**：跑全部测试 + 对照需求清单逐条验证（尤其与本次改动相邻的功能），确认无回归后再提交。
 7. **本地验证**：`dsh plugin --profile web add link:<路径>` → 浏览器硬刷新（Cmd/Ctrl+Shift+R）。client 改动热加载无需重启；**server 端改动需重启 `dsh web`**。
-8. **发布**：更新 `package.json` 版本号（若代码内硬编码了版本常量，一并同步）→ CHANGELOG 加段落 → 推 tag `<包名>@v<版本>`（如 `dsh-server-status@v0.1.0`）→ 根 `.github/workflows/release.yml` 自动打包 + 创建 GitHub Release。
+8. **清理验证环境（强制）**：验证完成后必须清干净——停掉后台验证实例（job_kill）、删除临时验证目录（`/tmp/dsh-<port>`）、关闭验证用专用浏览器（`browser_close` + 杀 `chrome-cdp-profile` 实例）、确认端口已释放（`curl` 应无响应）、`job_list` 确认无 running 任务。**用户可能同时在开发多个插件，残留环境会互相干扰**。完整清单见 [verifying-dsh-plugins](../../../.dsh/skills/verifying-dsh-plugins/SKILL.md) 的「收尾」章节（全局技能）。
+9. **发布**：更新 `package.json` 版本号（若代码内硬编码了版本常量，一并同步）→ CHANGELOG 加段落 → 推 tag `<包名>@v<版本>`（如 `dsh-server-status@v0.1.0`）→ 根 `.github/workflows/release.yml` 自动打包 + 创建 GitHub Release。
 
 ## Client 端文件形态（必须用这个格式）
 
