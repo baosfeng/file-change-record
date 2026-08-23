@@ -31,6 +31,8 @@ docs/
 > 本项目所有文档位于 `docs/`。首次接触请先读 [索引.md](docs/索引.md)。
 > 文档↔源码映射: `docs/文件活动追踪/` → `plugins/dsh-file-activity/`、`docs/思考增强/` → `plugins/dsh-think-zh-expand/`、`docs/mermaid渲染/` → `plugins/dsh-mermaid-render/`，各核心文件的精确路径见对应模块文档。
 
+> 📌 **文档定位原则：** 能被自动化流程加载的内容（skill、脚本、工具）**不写进 docs/ 文档**——流程/方法优先沉淀为 skill 或脚本（如 `development-lifecycle` skill、`scripts/release.mjs`），文档不重复。docs/ 只记录**必须依靠外部才能实现、真的会踩坑**的内容（如 GitHub Release 校验 bug、CDN 不可达等踩坑与外部依赖说明）。新增文档前先问：这个能被 skill/脚本自动化吗？能 → 沉淀为 skill/脚本；不能且会踩坑 → 才写文档。
+
 ## 项目简介
 - **版本:** 各插件独立 semver（当前主插件 dsh-file-activity v0.4.2；dsh-think-zh-expand v0.2.1；dsh-mermaid-render v0.1.0） **语言:** JavaScript (Node ≥ 20, ESM) **类型:** 基础服务（DSH 插件集合） **技术栈:** Node.js + Cordis 4 + React 18 + dsh-better-sidebar
 
