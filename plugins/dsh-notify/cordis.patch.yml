@@ -1,0 +1,9 @@
+# dsh-notify bundle patch: inserts the plugin row into the profile roster.
+# The row mounts the host half (DSH event watchers + SSE broadcast + remote
+# trigger hook) and the client half (browser notification / beep / toast with
+# click-to-focus-session). Install with:
+#
+#   dsh plugin --profile web add link:/Users/bsfeng/IdeaProjects/my-dsh-plugins/plugins/dsh-notify
+- insert:
+    - id: notify
+      name: 'dsh-notify'

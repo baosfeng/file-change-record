@@ -19,6 +19,7 @@ docs/
 ├── 文件活动追踪/             ← dsh-file-activity 插件模块文档（源码: plugins/dsh-file-activity/）
 ├── 思考增强/                 ← dsh-think-zh-expand 插件模块文档（源码: plugins/dsh-think-zh-expand/）
 ├── mermaid渲染/              ← dsh-mermaid-render 插件模块文档（源码: plugins/dsh-mermaid-render/）
+├── 通知提醒/                 ← dsh-notify 插件模块文档（源码: plugins/dsh-notify/）
 ├── 插件开发技能/             ← 插件开发技能说明（源码: skills/dsh-plugin-development/）
 ├── 快速集成/                 ← 插件安装与快速开始
 ├── 开发指南/                 ← 文档规范/构建与测试/lint 配置建议
@@ -26,12 +27,12 @@ docs/
 ```
 
 > 本项目所有文档位于 `docs/`。首次接触请先读 [索引.md](docs/索引.md)。
-> 文档↔源码映射: `docs/文件活动追踪/` → `plugins/dsh-file-activity/`、`docs/思考增强/` → `plugins/dsh-think-zh-expand/`、`docs/mermaid渲染/` → `plugins/dsh-mermaid-render/`，各核心文件的精确路径见对应模块文档。
+> 文档↔源码映射: `docs/文件活动追踪/` → `plugins/dsh-file-activity/`、`docs/思考增强/` → `plugins/dsh-think-zh-expand/`、`docs/mermaid渲染/` → `plugins/dsh-mermaid-render/`、`docs/通知提醒/` → `plugins/dsh-notify/`，各核心文件的精确路径见对应模块文档。
 
 > 📌 **文档定位原则：** 能被自动化流程加载的内容（skill、脚本、工具）**不写进 docs/ 文档**——流程/方法优先沉淀为 skill 或脚本（如 `development-lifecycle` skill、`scripts/release.mjs`），文档不重复。docs/ 只记录**必须依靠外部才能实现、真的会踩坑**的内容（如 GitHub Release 校验 bug、CDN 不可达等踩坑与外部依赖说明）。新增文档前先问：这个能被 skill/脚本自动化吗？能 → 沉淀为 skill/脚本；不能且会踩坑 → 才写文档。
 
 ## 项目简介
-- **版本:** 各插件独立 semver（当前主插件 dsh-file-activity v0.4.4；dsh-think-zh-expand v0.3.0；dsh-mermaid-render v0.1.1） **语言:** JavaScript (Node ≥ 20, ESM) **类型:** 基础服务（DSH 插件集合） **技术栈:** Node.js + Cordis 4 + React 18 + dsh-better-sidebar
+- **版本:** 各插件独立 semver（当前主插件 dsh-file-activity v0.4.4；dsh-think-zh-expand v0.3.0；dsh-mermaid-render v0.1.1；dsh-notify v0.1.0） **语言:** JavaScript (Node ≥ 20, ESM) **类型:** 基础服务（DSH 插件集合） **技术栈:** Node.js + Cordis 4 + React 18 + dsh-better-sidebar
 
 > 🧪 测试命令: `cd plugins/<插件名> && npm test`（CI 遍历 `plugins/*/` 执行 `node --check` + 冒烟测试） — 提交前必跑全部测试并修复失败
 - [项目简介](docs/概览/项目简介.md) | [架构总览](docs/概览/架构总览.md) | [快速上手](docs/概览/快速上手.md)
@@ -63,6 +64,7 @@ docs/
 | 思考增强 | 思考中文、中文提示、思考展开、Think 展开、思考折叠 | 思考与回复强制中文（system-prompt 注入）；对话思考内容默认展开显示、可交互折叠（需求清单见 [docs/思考增强/需求清单.md](docs/思考增强/需求清单.md)） | `plugins/dsh-think-zh-expand/lib/index.js`（server）`plugins/dsh-think-zh-expand/lib/client.js`（client） |
 | Mermaid 渲染 | mermaid、图表、流程图、时序图、mmd、离线渲染 | 对话 mermaid/mmd 代码块自动渲染为图表卡片（预览/代码切换），引擎内联离线可用（需求清单见 [docs/mermaid渲染/需求清单.md](docs/mermaid渲染/需求清单.md)） | `plugins/dsh-mermaid-render/lib/client.src.js`（client 源码）`plugins/dsh-mermaid-render/lib/client.js`（构建产物） |
 | 插件开发技能 | 插件开发、新建插件、发布插件、注册冲突、HMR、Release | 仓库内置插件开发规范：插件形态、目录结构、开发流程、发布流程 | `skills/dsh-plugin-development/SKILL.md` |
+| 通知提醒 | 会话结束提醒、询问提醒、ask 提醒、审批提醒、浏览器通知、提示音、远程 hook | 会话（本轮）结束 / agent 询问 / 等待批准时弹浏览器通知 + 滴声，点击跳转会话；`POST /notify/api/trigger` 远程触发接口（loopback 围栏 + 可选 token）；SSE 实时通道（需求清单见 [docs/通知提醒/需求清单.md](docs/通知提醒/需求清单.md)） | `plugins/dsh-notify/lib/index.js`（server）`plugins/dsh-notify/lib/client.js`（client） |
 
 ## 共享语言
 - [术语表](docs/术语表.md) — 项目领域术语权威定义，沟通业务概念前先查阅，避免黑话歧义
