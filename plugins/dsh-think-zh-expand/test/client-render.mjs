@@ -158,6 +158,56 @@ try {
   assert.ok(codeLangs.includes('language-js'), 'js fence keeps language class')
   assert.ok(mdCodeBlockWrappers >= 2, 'fenced blocks wrapped in md-code-block for third-party renderers')
 
+  // 7. CommonMark 多反引号行内代码：`` `agent/status` ``（内容含单反引号）
+  //    应整体渲染为 code 且内容为 `agent/status`（回归：mdInline 只支持单
+  //    反引号配对时，双反引号输入会错位——反引号裸露、agent/status 变裸
+  //    文本、出现内容为空白的 code）。
+  function constText(node) {
+    const out = []
+    function walk(n) {
+      if (n === null || n === undefined || typeof n === 'boolean') return
+      if (typeof n === 'string' || typeof n === 'number') { out.push(String(n)); return }
+      if (Array.isArray(n)) { for (const c of n) walk(c); return }
+      const props = n.props ?? {}
+      if (typeof n.type === 'function') { walk(n.type(props)); return }
+      walk(props.children)
+    }
+    walk(node)
+    return out.join('')
+  }
+  function collectCode(tree) {
+    const codeTexts = []
+    const allTexts = []
+    function walk(node) {
+      if (node === null || node === undefined || typeof node === 'boolean') return
+      if (typeof node === 'string' || typeof node === 'number') { allTexts.push(String(node)); return }
+      if (Array.isArray(node)) { for (const c of node) walk(c); return }
+      const props = node.props ?? {}
+      if (typeof node.type === 'function') { walk(node.type(props)); return }
+      if (node.type === 'code') codeTexts.push(constText(props.children))
+      walk(props.children)
+    }
+    walk(tree)
+    return { codeTexts, allTexts }
+  }
+  const r7 = collectCode(capturedRenderer({ node: { data: { blocks: [{ kind: 'text', text: '思考内容中的 `` `agent/status` `` 应该会被 `mdInline` 解析' }] } } }))
+  assert.deepEqual(r7.codeTexts, ['`agent/status`', 'mdInline'], 'double-backtick span renders whole token as code, single backtick still works')
+  assert.ok(!r7.codeTexts.includes(' '), 'no whitespace-only code artifact')
+  assert.ok(!r7.codeTexts.includes(''), 'no empty code artifact')
+
+  // 8. 混合：双反引号（紧凑/带空格）与单反引号共存
+  const r8 = collectCode(capturedRenderer({ node: { data: { blocks: [{ kind: 'text', text: '`` `job_list` `` 与 `agent/status`' }] } } }))
+  assert.deepEqual(r8.codeTexts, ['`job_list`', 'agent/status'], 'mixed multi/single backticks')
+
+  // 9. 无内容的连续反引号串（4 连）保持字面量，不解析为 code
+  const r9 = collectCode(capturedRenderer({ node: { data: { blocks: [{ kind: 'text', text: '无内容反引号串 ```` 原样' }] } } }))
+  assert.ok(!r9.codeTexts.some((t) => t.includes('`')), 'four consecutive backticks stay literal')
+  assert.ok(r9.allTexts.some((t) => t.includes('````')), 'four backticks text retained')
+
+  // 10. 思考块（reasoning）内的双反引号同样渲染为 code（用户场景回归）
+  const r10 = collectCode(capturedRenderer({ node: { data: { blocks: [{ kind: 'reasoning', text: '调用 `` `agent/status` `` 查看状态' }] } } }))
+  assert.ok(r10.codeTexts.includes('`agent/status`'), 'reasoning block renders multi-backtick code')
+
   console.log('ALL CLIENT RENDER-PATH TESTS PASSED')
 } finally {
   delete global.window

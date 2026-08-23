@@ -12,7 +12,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node test/host-smoke.mjs"
+    "test": "node test/host-smoke.mjs && node test/client-render.mjs"
   },
   "exports": {
     ".": {

@@ -35,32 +35,44 @@ window.__ModuleLoader__.load({
     const { createElement, useState } = require('react')
 
     // ── 轻量行内 Markdown：行内代码 / 粗体 / 斜体 / 链接 ───────────────
+    // 行内代码按 CommonMark 语义：N 个反引号开闭配对（\1 回声闭合串），
+    // 内容允许含单个反引号（如 `` `agent/status` `` → <code>`agent/status`</code>）；
+    // 仅支持单反引号配对的实现会在双反引号输入上错位解析，把内容切成
+    // 裸文本。闭合串后不能紧跟反引号（(?!`)，避免把更长的 run 误当闭合。
     function mdInline(text, key) {
       const out = []
-      const re = /(`[^`]+`|\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\)|\*[^*]+\*)/g
+      // content 首字符禁反引号（[^`\n]）："````"（4 连反引号）这类无内容的
+      // 反引号串保持原样，不会被拆成 code"``"。
+      const re = /(`+)([^`\n][^\n]*?)\1(?!`)|(\*\*[^*]+\*\*)|(\[[^\]]+\]\([^)]+\))|(\*[^*]+\*)/g
+      // CommonMark：内容以空格开头且以空格结尾、且不只含空格时，去首尾各一个空格。
+      const trimCode = (raw) => {
+        if (raw.length > 1 && raw[0] === ' ' && raw[raw.length - 1] === ' ' && raw.trim() !== '') {
+          return raw.slice(1, -1)
+        }
+        return raw
+      }
       let last = 0
       let m = null
       let k = 0
       while ((m = re.exec(text)) !== null) {
         if (m.index > last) out.push(text.slice(last, m.index))
-        const tok = m[0]
         const kk = key + '-i' + k
-        if (tok[0] === '`') {
-          out.push(createElement('code', { key: kk }, tok.slice(1, -1)))
-        } else if (tok.startsWith('**')) {
-          out.push(createElement('strong', { key: kk }, tok.slice(2, -2)))
-        } else if (tok.startsWith('*')) {
-          out.push(createElement('em', { key: kk }, tok.slice(1, -1)))
-        } else {
-          const lm = tok.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
+        if (m[1] !== undefined) {
+          out.push(createElement('code', { key: kk }, trimCode(m[2])))
+        } else if (m[3] !== undefined) {
+          out.push(createElement('strong', { key: kk }, m[3].slice(2, -2)))
+        } else if (m[4] !== undefined) {
+          const lm = m[4].match(/^\[([^\]]+)\]\(([^)]+)\)$/)
           if (lm) {
             out.push(createElement('a', { key: kk, href: lm[2], target: '_blank', rel: 'noreferrer' }, lm[1]))
           } else {
-            out.push(tok)
+            out.push(m[4])
           }
+        } else {
+          out.push(createElement('em', { key: kk }, m[5].slice(1, -1)))
         }
         k += 1
-        last = m.index + tok.length
+        last = m.index + m[0].length
       }
       if (last < text.length) out.push(text.slice(last))
       return out

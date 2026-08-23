@@ -2,6 +2,12 @@
 
 本文件记录 dsh-think-zh-expand 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 修复
+
+- **行内代码支持 CommonMark 多反引号配对**：思考/正文里模型引用的 `` `agent/status` `` 这类「双反引号包裹、内容含单个反引号」的文本此前被错误解析——分隔反引号裸露、`agent/status` 退化为裸文本、出现空白内容的 code 高亮块。现按 CommonMark 语义将 N 个反引号开闭配对整体渲染为 `<code>`（内容按规范裁去紧贴分隔符的空格），单反引号、无内容的连续反引号串（````）行为保持不变。新增 `test/client-render.mjs` 用例 7-10 覆盖。
+
 ## [0.3.0] - 2026-08-23
 
 ### 新增
