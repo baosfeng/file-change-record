@@ -10,16 +10,21 @@
  */
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { createRequire } from 'node:module'
-
-const require = createRequire(import.meta.url)
 
 // ── stubbed react ─────────────────────────────────────────────────────────
-const reactPath = '/Users/bsfeng/.npm-global/lib/node_modules/@deepseek-ai/dsh/node_modules/react/index.js'
-const react = require(reactPath)
+// 渲染路径测试只需要元素树结构（type/props/children），不依赖真实 react：
+// 自写最小 createElement（children 语义与 React 一致：单 child 直接赋值、
+// 多 child 组装数组、数组 child 原样保留）。CI（ubuntu runner 无 node_modules）
+// 与本机均可运行——此前 require 本机绝对路径的 react，导致远程 CI 必然失败。
+function createElement(type, props, ...children) {
+  const p = props ? { ...props } : {}
+  if (children.length === 1) p.children = children[0]
+  else if (children.length > 1) p.children = children
+  return { type, props: p }
+}
 
 const stubbed = {
-  createElement: react.createElement,
+  createElement,
   useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
   useEffect: () => {},
   useMemo: (fn) => fn(),
