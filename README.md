@@ -10,11 +10,13 @@
       <td align="center" style="vertical-align:top"><img src="plugins/dsh-file-activity/assets/screenshot.png" width="230" alt="dsh-file-activity 文件活动侧边栏" /></td>
       <td align="center" style="vertical-align:top"><img src="plugins/dsh-think-zh-expand/assets/think-markdown.png" width="230" alt="dsh-think-zh-expand 思考块渲染" /></td>
       <td align="center" style="vertical-align:top"><img src="plugins/dsh-mermaid-render/assets/mermaid-card.png" width="230" alt="dsh-mermaid-render 图表卡片" /></td>
+      <td align="center" style="vertical-align:top"><img src="plugins/dsh-notify/assets/notify-toast.png" width="230" alt="dsh-notify 通知提醒 toast" /></td>
     </tr>
     <tr>
       <td align="center"><sub>dsh-file-activity</sub></td>
       <td align="center"><sub>dsh-think-zh-expand</sub></td>
       <td align="center"><sub>dsh-mermaid-render</sub></td>
+      <td align="center"><sub>dsh-notify</sub></td>
     </tr>
   </table>
 </div>
