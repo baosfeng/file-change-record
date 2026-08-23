@@ -9,12 +9,14 @@
 | 插件 | 版本 | 简介 |
 |---|---|---|
 | [dsh-file-activity](plugins/dsh-file-activity/README.md) | 0.4.1 | 侧边栏文件活动页签：记录文件读取 / 新增 / 修改历史与统计，按文件夹树形展示，点击文件即浮窗预览（复用侧边栏内置渲染）；按会话隔离、重启后恢复 |
+| [dsh-think-zh-expand](plugins/dsh-think-zh-expand/README.md) | 0.1.0 | 思考增强：通过 system-prompt 注入让思考与回复强制使用中文；对话中思考内容默认展开显示（替代内置单行折叠），可点击收起、流式中保持展开 |
 
 ## 目录结构
 
 ```
 ├── plugins/          # 所有插件（每目录一个自包含插件）
-│   └── dsh-file-activity/
+│   ├── dsh-file-activity/
+│   └── dsh-think-zh-expand/
 ├── skills/           # 本仓库的开发技能（SKILL.md 格式，可安装到 ~/.dsh/skills/）
 │   └── dsh-plugin-development/
 ├── docs/             # 通用文档与设计文档
