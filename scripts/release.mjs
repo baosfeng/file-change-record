@@ -71,9 +71,14 @@ let changed = false
 // README plugin table: | [<name>](plugins/<name>/README.md) | <old> | ...
 const readmeRe = new RegExp(`(\\| \\[${name}\\]\\(plugins/${name}/README\\.md\\) \\| )\\d+\\.\\d+\\.\\d+( \\|)`)
 if (readmeRe.test(readme)) {
-  readme = readme.replace(readmeRe, `$1${version}$2`)
-  changed = true
-  console.log(`✓ README.md version synced to ${version}`)
+  const next = readme.replace(readmeRe, `$1${version}$2`)
+  if (next !== readme) {
+    readme = next
+    changed = true
+    console.log(`✓ README.md version synced to ${version}`)
+  } else {
+    console.log(`- README.md already at ${version}`)
+  }
 } else {
   console.log(`- README.md: no row for ${name} (add it manually if new)`)
 }
@@ -81,9 +86,14 @@ if (readmeRe.test(readme)) {
 // AGENTS.md: "<name> v<old>" in the 版本 line
 const agentsRe = new RegExp(`(${name} v)\\d+\\.\\d+\\.\\d+`)
 if (agentsRe.test(agents)) {
-  agents = agents.replace(agentsRe, `$1${version}`)
-  changed = true
-  console.log(`✓ AGENTS.md version synced to ${version}`)
+  const next = agents.replace(agentsRe, `$1${version}`)
+  if (next !== agents) {
+    agents = next
+    changed = true
+    console.log(`✓ AGENTS.md version synced to ${version}`)
+  } else {
+    console.log(`- AGENTS.md already at ${version}`)
+  }
 } else {
   console.log(`- AGENTS.md: no "${name} v…" found (add it manually if new)`)
 }
