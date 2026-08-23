@@ -2,6 +2,13 @@
 
 本文件记录 dsh-file-activity 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.3] - 2026-08-23
+
+### 变更
+
+- **README 补充现场效果图**：顶部新增真实现场效果图（侧边栏「文件活动」页签 最近访问/文件统计树 + 点击文件的浮窗预览），便于其他用户下载前了解功能。
+- **发布包包含效果图**：`package.json` 的 `files` 加入 `assets/`，使 GitHub Release 的 tarball 一并包含效果图资源。
+
 ## [0.4.2] - 2026-08-23
 
 ### 修复
