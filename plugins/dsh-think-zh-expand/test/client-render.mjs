@@ -140,19 +140,23 @@ try {
   assert.ok(thinkTexts.some((t) => t.includes('第一行')), 'thinking content expanded')
 
   // 6. fenced code blocks keep their language marker (```mermaid → language-mermaid)
-  //    so third-party renderers (dsh-mermaid-render / dsh-genui) can detect them.
+  //    and are wrapped in the host `md-code-block` container, so third-party
+  //    renderers (dsh-mermaid-render scans `div.md-code-block`) can find them.
   const codeLangs = []
+  let mdCodeBlockWrappers = 0
   function walkLangs(node) {
     if (node === null || node === undefined || typeof node === 'boolean') return
     if (Array.isArray(node)) { for (const c of node) walkLangs(c); return }
     const props = node.props ?? {}
     if (typeof node.type === 'function') { walkLangs(node.type(props)); return }
+    if (node.type === 'div' && props.className === 'md-code-block') mdCodeBlockWrappers += 1
     if (node.type === 'code' && typeof props.className === 'string') codeLangs.push(props.className)
     walkLangs(props.children)
   }
   walkLangs(capturedRenderer({ node: { data: { blocks: [{ kind: 'text', text: '```mermaid\nflowchart TD\n    A --> B\n```\n\n```js\nconst x = 1\n```' }] } } }))
   assert.ok(codeLangs.includes('language-mermaid'), 'mermaid fence keeps language class')
   assert.ok(codeLangs.includes('language-js'), 'js fence keeps language class')
+  assert.ok(mdCodeBlockWrappers >= 2, 'fenced blocks wrapped in md-code-block for third-party renderers')
 
   console.log('ALL CLIENT RENDER-PATH TESTS PASSED')
 } finally {
