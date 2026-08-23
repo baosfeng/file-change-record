@@ -75,6 +75,7 @@ window.__ModuleLoader__.load({
       loading: () => (isZh() ? '加载中…' : 'Loading…'),
       previewUnsupported: () => (isZh() ? '该文件类型暂不支持预览' : 'This file type cannot be previewed yet'),
       previewFailed: () => (isZh() ? '预览加载失败' : 'Preview failed to load'),
+      downloadToView: () => (isZh() ? '下载查看' : 'download to view'),
     }
 
     // ── path helpers ──────────────────────────────────────────────────────
@@ -441,6 +442,13 @@ window.__ModuleLoader__.load({
 .dfa-fp-body { flex:1; overflow:auto; padding:10px 12px; min-height:0; }
 .dfa-fp-note { color:var(--dsw-alias-label-tertiary); font:var(--dsw-font-xxs-12); }
 .dfa-fp-err { color:var(--dsw-alias-state-error-primary); font:var(--dsw-font-xxs-12); white-space:pre-wrap; word-break:break-all; }
+/* PDF preview: a native browser PDF frame filled from the plugin's own media
+   route, with a download fallback in the toolbar. */
+.dfa-pdf { display:flex; flex-direction:column; width:100%; height:100%; }
+.dfa-pdf-toolbar { flex:none; display:flex; justify-content:flex-end; padding:2px 4px 6px; }
+.dfa-pdf-download { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-accent); text-decoration:none; }
+.dfa-pdf-download:hover { text-decoration:underline; }
+.dfa-pdf-frame { flex:1; min-height:0; width:100%; border:none; border-radius:6px; background:transparent; }
 @keyframes dfa-row-in { from { opacity:0; transform:translateY(1px); } to { opacity:1; transform:none; } }
 `
 
@@ -689,6 +697,14 @@ window.__ModuleLoader__.load({
      * mediaUrl / customData), then mounts that viewer's own component — so
      * code gets syntax highlighting and markdown gets rendered by the SAME
      * built-in renderers the sidebar's editor tab uses.
+     *
+     * Media caveat: the sidebar's own media route (/sidebar/file) only serves
+     * files inside the session working directory, while file activity records
+     * files the agent touched anywhere (/tmp scratch files, sibling repos…).
+     * Media bytes therefore come from OUR route (/file-activity/file), which
+     * authorizes exactly the paths this session recorded; PDF is the one
+     * built-in viewer that fetches its own URL internally (it ignores the
+     * `mediaUrl` prop), so it gets a small iframe preview instead.
      */
     function FloatingPreview({ ctx, store, scope, preview, onClose }) {
       const sessionId = scope?.sessionId ?? ''
@@ -696,6 +712,7 @@ window.__ModuleLoader__.load({
       const title = preview.name
       const service = ctx.betterSidebar
       const [load, setLoad] = useState({ status: 'loading', viewer: null })
+      const mediaUrlOf = () => `/file-activity/file?${new URLSearchParams({ sessionId, path })}`
 
       useEffect(() => {
         let cancelled = false
@@ -705,7 +722,6 @@ window.__ModuleLoader__.load({
           return () => { cancelled = true }
         }
         const strategy = viewer.fetchStrategy
-        const mediaUrlOf = () => `/sidebar/file?${new URLSearchParams({ sessionId, path })}`
         setLoad({ status: 'loading', viewer })
         if (strategy === 'fsRead') {
           const target = resolvePath(path, scope?.cwd ?? '')
@@ -764,13 +780,19 @@ window.__ModuleLoader__.load({
             : null,
         )
       } else {
-        body = createElement(load.viewer.component, {
-          ctx, store, scope, path, title,
-          viewerId: load.viewer.id,
-          content: load.content,
-          mediaUrl: load.mediaUrl,
-          customData: load.customData,
-        })
+        body = load.viewer.id === 'pdf'
+          ? createElement(PdfPreview, {
+              src: mediaUrlOf(),
+              download: `${mediaUrlOf()}&download=1`,
+              title,
+            })
+          : createElement(load.viewer.component, {
+              ctx, store, scope, path, title,
+              viewerId: load.viewer.id,
+              content: load.content,
+              mediaUrl: load.mediaUrl,
+              customData: load.customData,
+            })
       }
 
       return createElement(
@@ -793,6 +815,24 @@ window.__ModuleLoader__.load({
           ),
           createElement('div', { className: 'dfa-fp-body' }, body),
         ),
+      )
+    }
+
+    /**
+     * Lightweight PDF preview. better-sidebar's built-in PdfView fetches
+     * `/sidebar/file` internally (it ignores any injected `mediaUrl` prop),
+     * and that route refuses files outside the session working directory — so
+     * a recorded /tmp PDF would never load. This tiny view embeds the bytes
+     * from OUR media route in a native browser PDF frame, with a download
+     * fallback in its toolbar.
+     */
+    function PdfPreview({ src, download, title }) {
+      return createElement('div', { className: 'dfa-pdf' },
+        createElement('div', { className: 'dfa-pdf-toolbar' },
+          createElement('a', { className: 'dfa-pdf-download', href: download, download: true, title: strings.downloadToView() },
+            strings.downloadToView()),
+        ),
+        createElement('iframe', { className: 'dfa-pdf-frame', src, title }),
       )
     }
 

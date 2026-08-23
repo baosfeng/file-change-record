@@ -66,10 +66,12 @@ dsh plugin --profile web add link:/Users/bsfeng/IdeaProjects/my-dsh-plugins/plug
 
 - **代码**（后台为侧边栏内置 CodeMirror 编辑器）：语法高亮 + 行号；支持 预览/编辑 切换与保存。
 - **Markdown**（`.md` / `.markdown`）：渲染后的富文本预览，可切换 预览/编辑 模式。
-- **图片**（png / jpg / jpeg / gif / webp / svg / bmp / ico / avif）：通过侧边栏媒体路由渲染。
-- **PDF**：侧边栏内置 PDF 查看器。
+- **图片**（png / jpg / jpeg / gif / webp / svg / bmp / ico / avif）：通过媒体路由渲染。
+- **PDF**：浏览器原生 PDF 查看器（浮窗内嵌，工具栏提供下载）。
 - **HTML**：沙箱化渲染预览。
 - 其余文件按内置 viewer 的 `matchFileViewer` 回退匹配（如 `binary-download` 下载未知二进制）。
+
+> 💡 **工作区外文件也能预览**：文件活动记录的是 agent 实际触碰过的文件，路径可能在会话工作区之外（如 `/tmp` 临时文件）。侧边栏自带的媒体路由只允许工作区内文件，因此图片/PDF 的字节由插件自身的 `/file-activity/file` 路由提供——它按会话记录授权（只放行本会话记录过的路径，未记录的路径一律 403），fence 与侧边栏一致。Markdown/代码/HTML 文本则仍走侧边栏 `fs.read`（不被工作区限制）。
 
 ## 配置
 

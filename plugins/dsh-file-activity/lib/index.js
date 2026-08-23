@@ -12,8 +12,9 @@
  * State (recent history + per-file counts) is kept per session and persisted
  * to $DSH_HOME/file-activity.json (atomic tmp+rename, debounced).
  */
-import { readFile, rename, writeFile } from 'node:fs/promises'
+import { readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
+import { basename, isAbsolute, join } from 'node:path'
 
 export const name = 'dsh-file-activity'
 
@@ -21,6 +22,29 @@ export const inject = ['webServer', 'sessions', 'webRuntime']
 
 /** How many recent entries to keep per session (LRU: one entry per path). */
 const RECENT_LIMIT = 5
+
+/** Cap for the plugin's own media route (bytes): images / PDFs only. */
+const MEDIA_LIMIT = 64 * 1024 * 1024
+
+/** Content types served by /file-activity/file (mirrors the sidebar's set). */
+const MEDIA_TYPES = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.bmp': 'image/bmp',
+  '.ico': 'image/x-icon',
+  '.avif': 'image/avif',
+  '.pdf': 'application/pdf',
+}
+
+function mediaTypeForPath(path) {
+  const dot = path.lastIndexOf('.')
+  const ext = dot === -1 ? '' : path.slice(dot).toLowerCase()
+  return MEDIA_TYPES[ext] ?? 'application/octet-stream'
+}
 
 /** State file: $DSH_HOME/file-activity.json (fallback: ~/.dsh/file-activity.json). */
 function stateFile() {
@@ -171,6 +195,27 @@ function sessionCwdOf(ctx, sessionId) {
   const headerCwd = session?.header?.cwd
   if (typeof headerCwd === 'string' && headerCwd !== '') return headerCwd
   return process.cwd()
+}
+
+/**
+ * Whether `path` appears in this session's recorded file activity (counts or
+ * recent). The media route authorizes EXACTLY these paths — the record itself
+ * is the permission: the agent actually touched the file, so previewing it is
+ * expected, while arbitrary unrecorded paths stay refused.
+ */
+function isRecordedPath(state, sessionId, path) {
+  const session = state.sessions[sessionId]
+  if (session === undefined) return false
+  if (session.counts !== undefined && typeof session.counts[path] === 'object' && session.counts[path] !== null) return true
+  if (Array.isArray(session.recent)) return session.recent.some((entry) => entry.path === path)
+  return false
+}
+
+/** Error carrying an HTTP status, for the media route's catch-all. */
+function mediaError(status, message) {
+  const error = new Error(message)
+  error.status = status
+  return error
 }
 
 export function apply(ctx) {
@@ -328,6 +373,54 @@ export function apply(ctx) {
       }
     },
   }), 'dsh-file-activity: /file-activity/api routes')
+
+  // Media route for the floating preview. The sidebar's own /sidebar/file
+  // media route refuses every path outside the session working directory
+  // (isWithin(cwd, …)), but file activity records files the agent touched
+  // ANYWHERE — /tmp scratch files, sibling repos, … — so images/PDFs outside
+  // the workspace resolve to a broken <img>. This route serves the bytes with
+  // the same trust fence, swapping the "inside the session cwd" boundary for
+  // "paths this session actually recorded".
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'prefix',
+    path: '/file-activity/file',
+    handler: async (request, response) => {
+      if (!fence(request)) {
+        writeJson(response, 403, { ok: false, error: { code: 'forbidden', message: 'forbidden' } })
+        return
+      }
+      if (request.method !== 'GET') {
+        writeJson(response, 405, { ok: false, error: { message: 'method not allowed' } })
+        return
+      }
+      try {
+        const url = new URL(request.url ?? '/', 'http://dsh.internal')
+        const sessionId = url.searchParams.get('sessionId')
+        const raw = url.searchParams.get('path')
+        if (sessionId === null || raw === null || raw === '') throw mediaError(400, 'sessionId and path are required')
+        if (!isRecordedPath(state, sessionId, raw)) throw mediaError(403, 'path is not in this session\'s file activity')
+        const abs = isAbsolute(raw) ? raw : join(sessionCwdOf(ctx, sessionId), raw)
+        let info
+        try {
+          info = await stat(abs)
+        } catch {
+          throw mediaError(404, 'file not found')
+        }
+        if (!info.isFile()) throw mediaError(400, 'not a file')
+        if (info.size > MEDIA_LIMIT) throw mediaError(413, 'file too large')
+        const body = await readFile(abs)
+        const headers = { 'content-type': mediaTypeForPath(abs), 'cache-control': 'no-cache' }
+        if (url.searchParams.get('download') === '1') {
+          headers['content-disposition'] = `attachment; filename*=UTF-8''${encodeURIComponent(basename(abs))}`
+        }
+        response.writeHead(200, headers)
+        response.end(body)
+      } catch (error) {
+        const status = typeof error?.status === 'number' ? error.status : 400
+        writeJson(response, status, { ok: false, error: { message: error instanceof Error ? error.message : String(error) } })
+      }
+    },
+  }), 'dsh-file-activity: /file-activity/file media route')
 
   // Tear down on unload: flush pending persistence.
   ctx.effect(() => () => {

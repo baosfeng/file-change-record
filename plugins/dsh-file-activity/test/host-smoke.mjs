@@ -59,12 +59,13 @@ const statePath = join(dir, 'file-activity.json')
 
 /** Build a plugin context, run apply, wait for state load, return handles. */
 async function boot() {
-  const routeHolder = captureRoute('/file-activity/api')
+  const apiHolder = captureRoute('/file-activity/api')
+  const mediaHolder = captureRoute('/file-activity/file')
   const ctx = {
     logger: { warn: () => {} },
     webRuntime: { trustedHosts: [] },
     sessions: { get: () => undefined },
-    webServer: { register: (route) => { routeHolder.set(route); return () => {} } },
+    webServer: { register: (route) => { apiHolder.set(route); mediaHolder.set(route); return () => {} } },
     events: [],
     effectCallbacks: [],
     on(name, listener) {
@@ -80,7 +81,7 @@ async function boot() {
   apply(ctx)
   // wait for async state load
   await new Promise((resolve) => setTimeout(resolve, 50))
-  return { ctx, getRoute: () => routeHolder.get() }
+  return { ctx, getRoute: () => apiHolder.get(), getMediaRoute: () => mediaHolder.get() }
 }
 
 function emitObserved(ctx, toolName, sessionId, path, opts) {
@@ -99,6 +100,15 @@ async function callRoute(getRoute, method, url, body) {
   const res = makeResponse()
   await route.handler(makeRequest(method, url, body), res)
   return { status: res._status, json: JSON.parse(res._body) }
+}
+
+/** Call the binary media route (the response body is raw bytes, not JSON). */
+async function callMedia(getMediaRoute, method, url) {
+  const route = getMediaRoute()
+  assert.ok(route, 'media route registered')
+  const res = makeResponse()
+  await route.handler(makeRequest(method, url), res)
+  return { status: res._status, headers: res._headers, body: res._body }
 }
 
 try {
@@ -166,7 +176,7 @@ try {
 
   // 8b. RESTART RECOVERY: a fresh plugin instance (simulating a DSH restart)
   // must load the persisted state and serve the same per-session data.
-  const { getRoute: getRouteRestarted } = await boot()
+  const { ctx: ctxRestarted, getRoute: getRouteRestarted, getMediaRoute: getMediaRestarted } = await boot()
   const restarted = await callRoute(getRouteRestarted, 'GET', `/file-activity/api/stats?sessionId=${sid}`)
   assert.equal(restarted.status, 200, 'stats served after restart')
   assert.equal(restarted.json.value.counts['/work/a.txt'].read, 2, 'a.txt reads survive restart')
@@ -176,6 +186,34 @@ try {
   assert.equal(restarted.json.value.counts['/work/c.txt'].create, 1, 'c.txt create survives restart')
   assert.equal(restarted.json.value.recent.length, 5, 'recent history survives restart (LRU cap)')
   assert.equal(restarted.json.value.recent[0].path, '/work/cap-11.txt', 'newest entry survives restart')
+
+  // 8c. MEDIA ROUTE: a file recorded OUTSIDE the session cwd (e.g. /tmp) must
+  // preview — the sidebar's /sidebar/file would 403 it, /file-activity/file
+  // authorizes exactly the recorded paths and serves the bytes.
+  const mediaFile = join(tmpdir(), `dfa-media-${Date.now()}.png`)
+  const mediaBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  writeFileSync(mediaFile, mediaBytes)
+  emitObserved(ctxRestarted, 'read', sid, mediaFile)
+  const media = await callMedia(getMediaRestarted, 'GET', `/file-activity/file?sessionId=${sid}&path=${encodeURIComponent(mediaFile)}`)
+  assert.equal(media.status, 200, 'recorded outside-cwd file served')
+  assert.equal(media.headers['content-type'], 'image/png', 'image/png content type')
+  assert.ok(Buffer.isBuffer(media.body) ? media.body.equals(mediaBytes) : media.body === mediaBytes.toString('utf8'), 'exact bytes served')
+  const mediaDl = await callMedia(getMediaRestarted, 'GET', `/file-activity/file?sessionId=${sid}&path=${encodeURIComponent(mediaFile)}&download=1`)
+  assert.equal(mediaDl.status, 200, 'download variant served')
+  assert.ok(String(mediaDl.headers['content-disposition']).startsWith('attachment'), 'content-disposition attachment')
+
+  // 8d. MEDIA ROUTE refuses: unrecorded paths (403), deleted files (404),
+  // missing parameters (400).
+  const unrecorded = await callMedia(getMediaRestarted, 'GET', `/file-activity/file?sessionId=${sid}&path=${encodeURIComponent('/work/never-touched.png')}`)
+  assert.equal(unrecorded.status, 403, 'unrecorded path refused')
+  assert.equal(JSON.parse(unrecorded.body).ok, false, 'unrecorded path JSON error')
+  emitObserved(ctxRestarted, 'read', sid, '/work/ghost.png')
+  const ghost = await callMedia(getMediaRestarted, 'GET', `/file-activity/file?sessionId=${sid}&path=${encodeURIComponent('/work/ghost.png')}`)
+  assert.equal(ghost.status, 404, 'recorded but missing file → 404')
+  const noParam = await callMedia(getMediaRestarted, 'GET', '/file-activity/file?sessionId=')
+  assert.equal(noParam.status, 400, 'missing path → 400')
+  const foreignSession = await callMedia(getMediaRestarted, 'GET', `/file-activity/file?sessionId=other-session&path=${encodeURIComponent(mediaFile)}`)
+  assert.equal(foreignSession.status, 403, 'other session cannot read this session\'s media')
 
   // 9. unknown route → 404
   const nf = await callRoute(getRouteRestarted, 'GET', '/file-activity/api/nope')
