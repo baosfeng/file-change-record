@@ -28,7 +28,7 @@
 
 - **Server 端**（`lib/index.js`）：监听 DSH `fs/observed` 事件捕获 agent 的 `read` / `write` / `edit` / `str_replace_editor` / `read_image` 等文件操作；提供 `/file-activity/api` 路由（`stats` / `record` / `clear`）；状态按会话持久化到 `$DSH_HOME/file-activity.json`（防抖 + 原子写入）。
   - `write` 通过每会话的已知文件表自动区分**新增**（首次接触）与**修改**（再次写入）。
-- **Client 端**（`lib/client.js`）：通过 `ctx.betterSidebar.registerTab` 注册页签；fetch 拦截捕获侧边栏自身操作（`/sidebar/api/fs.read`、`/sidebar/api/fs.write`、`/sidebar/file` 媒体预览）并上报 server；点击文件调用 `ctx.betterSidebar.openFile(scope, path)` 走内置 viewer 匹配（image/pdf/markdown/html/code…）。
+- **Client 端**（`lib/client.js`）：通过 `ctx.betterSidebar.registerTab` 注册页签；fetch 拦截捕获侧边栏自身操作（`/sidebar/api/fs.read`、`/sidebar/api/fs.write`、`/sidebar/file` 媒体预览）并上报 server；数据按会话（session）**分桶隔离**（`bySession`），每个会话只渲染自己的记录——新建/切换会话立即显示该会话的数据，**不会残留上一个会话的记录**；点击文件通过 `ctx.betterSidebar.matchFileViewer(path)` 匹配内置 viewer 并挂载其组件，打开浮窗预览。
 
 ## 安装
 
@@ -75,5 +75,6 @@ dsh plugin --profile web add link:/Users/bsfeng/IdeaProjects/my-dsh-plugins/plug
 
 ## 数据说明
 
-- 按会话（session）隔离存储；最近访问列表每会话最多保留 5 条（LRU：同一文件仅一条，重复访问移到最前），文件统计不受条数限制。
+- 按会话（session）隔离存储（服务端 `$DSH_HOME/file-activity.json` 按 sessionId 分桶 + 前端 `bySession` 分桶展示）；**DSH 重启后历史数据自动恢复**（持久化加载）；新建/切换会话不残留其他会话的记录。
+- 最近访问列表每会话最多保留 5 条（LRU：同一文件仅一条，重复访问移到最前），文件统计不受条数限制。
 - agent 的 `bash`/`git` 等命令内部的文件触碰不在此跟踪范围（只跟踪 DSH 原生文件工具与侧边栏操作）。
