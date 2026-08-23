@@ -445,6 +445,9 @@ window.__ModuleLoader__.load({
 `
 
     // ── view component ────────────────────────────────────────────────────
+    /** Shared empty bucket for sessions that have never loaded data (stable ref). */
+    const EMPTY_SESSION = { recent: [], counts: {}, loading: true }
+
     function FileActivityView({ ctx, store, scope, visible, dataStore }) {
       const data = useSyncExternalStore(dataStore.subscribe, dataStore.getSnapshot)
       const [cwd, setCwd] = useState(scope?.cwd || '')
@@ -453,6 +456,9 @@ window.__ModuleLoader__.load({
       const [collapsedDirs, setCollapsedDirs] = useState(() => new Set())
 
       const sessionId = scope?.sessionId ?? ''
+      // Each session renders only its own bucket: a fresh conversation shows
+      // an empty list immediately, no residue from the previous session.
+      const sessionData = (data.bySession ?? {})[sessionId] ?? EMPTY_SESSION
 
       useEffect(() => {
         if (scope?.cwd) setCwd(scope.cwd)
@@ -465,7 +471,13 @@ window.__ModuleLoader__.load({
           void fetchStats(sessionId).then((value) => {
             if (cancelled || value === null) return
             setCwd((prev) => prev || value.cwd || '')
-            dataStore.set({ recent: value.recent ?? [], counts: value.counts ?? {}, loading: false })
+            const current = dataStore.getSnapshot()
+            dataStore.set({
+              bySession: {
+                ...(current.bySession ?? {}),
+                [sessionId]: { recent: value.recent ?? [], counts: value.counts ?? {}, loading: false },
+              },
+            })
             setError(false)
           }).catch(() => {
             if (!cancelled) setError(true)
@@ -483,7 +495,14 @@ window.__ModuleLoader__.load({
         }
       }, [visible, sessionId, dataStore])
 
-      const tree = useMemo(() => buildTree(data.counts ?? {}), [data.counts])
+      // Switching conversations closes any floating preview left open by the
+      // previous session (preview is shared UI state; the session data itself
+      // never crosses sessions anymore).
+      useEffect(() => {
+        dataStore.set({ preview: null })
+      }, [sessionId, dataStore])
+
+      const tree = useMemo(() => buildTree(sessionData.counts ?? {}), [sessionData.counts])
 
       const toggleDir = (path) => {
         setCollapsedDirs((prev) => {
@@ -505,7 +524,13 @@ window.__ModuleLoader__.load({
       const onClear = () => {
         if (window.confirm(strings.clearConfirm())) {
           postClear(sessionId)
-          dataStore.set({ recent: [], counts: {} })
+          const current = dataStore.getSnapshot()
+          dataStore.set({
+            bySession: {
+              ...(current.bySession ?? {}),
+              [sessionId]: { recent: [], counts: {}, loading: false },
+            },
+          })
         }
       }
 
@@ -514,7 +539,13 @@ window.__ModuleLoader__.load({
         void fetchStats(sessionId).then((value) => {
           if (value === null) return
           setCwd((prev) => prev || value.cwd || '')
-          dataStore.set({ recent: value.recent ?? [], counts: value.counts ?? {} })
+          const current = dataStore.getSnapshot()
+          dataStore.set({
+            bySession: {
+              ...(current.bySession ?? {}),
+              [sessionId]: { recent: value.recent ?? [], counts: value.counts ?? {}, loading: false },
+            },
+          })
           setError(false)
         }).catch(() => setError(true))
         void fetchSessionCwd(sessionId).then((cwd) => {
@@ -522,7 +553,7 @@ window.__ModuleLoader__.load({
         })
       }
 
-      const recent = data.recent ?? []
+      const recent = sessionData.recent ?? []
 
       /** Three colored count pills for a file/dir node (read/create/modify). */
       const countPills = (node) =>
@@ -783,7 +814,10 @@ window.__ModuleLoader__.load({
       const service = ctx.betterSidebar
       if (service === undefined) return
 
-      const dataStore = createStore({ recent: [], counts: {}, loading: true })
+      // Per-session data store: { bySession: { [sessionId]: { recent, counts, loading } }, preview }
+      // Each conversation reads/writes only its own bucket, so switching
+      // sessions never leaks another session's file activity into the view.
+      const dataStore = createStore({ bySession: {}, preview: null })
 
       // Inject the shared stylesheet once (torn down with the fiber).
       ctx.effect(() => {

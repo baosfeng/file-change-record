@@ -164,14 +164,27 @@ try {
   const persisted = JSON.parse(readFileSync(statePath, 'utf8'))
   assert.equal(persisted.sessions[sid].counts['/work/b.txt'].create, 1, 'persisted creates')
 
+  // 8b. RESTART RECOVERY: a fresh plugin instance (simulating a DSH restart)
+  // must load the persisted state and serve the same per-session data.
+  const { getRoute: getRouteRestarted } = await boot()
+  const restarted = await callRoute(getRouteRestarted, 'GET', `/file-activity/api/stats?sessionId=${sid}`)
+  assert.equal(restarted.status, 200, 'stats served after restart')
+  assert.equal(restarted.json.value.counts['/work/a.txt'].read, 2, 'a.txt reads survive restart')
+  assert.equal(restarted.json.value.counts['/work/a.txt'].modify, 1, 'a.txt modifies survive restart')
+  assert.equal(restarted.json.value.counts['/work/b.txt'].create, 1, 'b.txt creates survive restart')
+  assert.equal(restarted.json.value.counts['/work/b.txt'].modify, 1, 'b.txt modifies survive restart')
+  assert.equal(restarted.json.value.counts['/work/c.txt'].create, 1, 'c.txt create survives restart')
+  assert.equal(restarted.json.value.recent.length, 5, 'recent history survives restart (LRU cap)')
+  assert.equal(restarted.json.value.recent[0].path, '/work/cap-11.txt', 'newest entry survives restart')
+
   // 9. unknown route → 404
-  const nf = await callRoute(getRoute, 'GET', '/file-activity/api/nope')
+  const nf = await callRoute(getRouteRestarted, 'GET', '/file-activity/api/nope')
   assert.equal(nf.status, 404)
 
   // 10. clear route
-  const clr = await callRoute(getRoute, 'POST', '/file-activity/api/clear', { sessionId: sid })
+  const clr = await callRoute(getRouteRestarted, 'POST', '/file-activity/api/clear', { sessionId: sid })
   assert.equal(clr.status, 200)
-  const after = await callRoute(getRoute, 'GET', `/file-activity/api/stats?sessionId=${sid}`)
+  const after = await callRoute(getRouteRestarted, 'GET', `/file-activity/api/stats?sessionId=${sid}`)
   assert.deepEqual(after.json.value.counts, {}, 'cleared counts')
 
   // 11. persisted history longer than the cap is trimmed on load (and

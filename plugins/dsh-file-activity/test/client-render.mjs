@@ -91,20 +91,25 @@ const scope = { sessionId: 'sess-test', cwd: '/work' }
 const element = capturedTab.component({ ctx, scope, visible: true })
 assert.equal(element.type.name, 'FileActivityView', 'component wired')
 
-// Seed the store with realistic data (multi-level folders like a.b.c.d + e).
+// Seed the store with realistic data (multi-level folders like a.b.c.d + e),
+// bucketed per session: the view reads only its own sessionId's bucket.
 const dataStore = element.props.dataStore
 dataStore.set({
-  recent: [
-    { path: '/work/a/b/c/d/e.txt', op: 'create', time: Date.now() },
-    { path: '/work/a/b/c/d/e.txt', op: 'read', time: Date.now() },
-    { path: '/work/src/components/ui/Button.tsx', op: 'modify', time: Date.now() },
-    { path: '/work/README.md', op: 'read', time: Date.now() },
-  ],
-  counts: {
-    '/work/a/b/c/d/e.txt': { read: 1, create: 2, modify: 0 },
-    '/work/src/components/ui/Button.tsx': { read: 3, create: 0, modify: 5 },
-    '/work/README.md': { read: 1, create: 1, modify: 0 },
-    '/work/src/index.ts': { read: 2, create: 0, modify: 1 },
+  bySession: {
+    'sess-test': {
+      recent: [
+        { path: '/work/a/b/c/d/e.txt', op: 'create', time: Date.now() },
+        { path: '/work/a/b/c/d/e.txt', op: 'read', time: Date.now() },
+        { path: '/work/src/components/ui/Button.tsx', op: 'modify', time: Date.now() },
+        { path: '/work/README.md', op: 'read', time: Date.now() },
+      ],
+      counts: {
+        '/work/a/b/c/d/e.txt': { read: 1, create: 2, modify: 0 },
+        '/work/src/components/ui/Button.tsx': { read: 3, create: 0, modify: 5 },
+        '/work/README.md': { read: 1, create: 1, modify: 0 },
+        '/work/src/index.ts': { read: 2, create: 0, modify: 1 },
+      },
+    },
   },
 })
 

@@ -59,16 +59,19 @@ plugins/<name>/                  # 插件目录（小写连字符命名，如 ds
 - **client 注册的 tab/viewer id 统一用 `包名:xxx` 前缀**（如 `dsh-file-activity:recent`），不与内置 id 冲突。
 - 每个插件**不需要**独立 .gitignore（根 .gitignore 统一覆盖 node_modules / .DS_Store / .dsh-vision-toolkit 等）。
 - 新插件 README 必须中文，顶部放插件生态 badge（见现有插件）与截图；骨架阶段截图可用占位注释，发版前补真实截图。
+- **需求清单（强制）**：每个插件在仓库 `docs/<模块>/需求清单.md` 维护一份需求清单，把用户明确的需求逐条列出（编号 R1/R2/…，注明验证方式），**易碎需求（重启恢复、会话隔离、持久化不丢失、数据不串）必须有专门测试断言**。开发/修改本插件前逐条对照，开发后逐条回归（见 [构建与测试 · 需求回归](../docs/开发指南/构建与测试.md#需求回归强制要求)）。
 
 ## 开发流程
 
+0. **先建/读需求清单**：`docs/<模块>/需求清单.md` 不存在则先建（把用户提出的需求逐条列进去），存在则通读——本次改动涉及哪些条目、可能影响哪些条目，先想清楚。
 1. **搭骨架**：按上面目录结构创建 `plugins/<name>/`，复制现有插件（`plugins/dsh-file-activity/`）的 `cordis.patch.yml`、LICENSE 作参照。
 2. **写 package.json**（见下方字段说明）。
 3. **写 server 端** `lib/index.js`：`export const name / inject / apply(ctx)`。用 `ctx.on(...)` 监听事件、`ctx.effect(() => ...)` 注册副作用（返回 disposer）。HTTP 路由注入 `webServer`：`ctx.webServer.register({ kind: 'prefix', path: '/<插件名>/api', handler: async (request, response) => {...} })`，handler 内先做 loopback 信任围栏（参考现有插件的 `fence(request)`，403 拒绝非本机来源）。
 4. **写 client 端** `lib/client.js`（格式见下节）：声明 `inject`、用 `ctx.effect(() => ctx.betterSidebar.registerTab(...))` 注册页签（disposer 必须被 fiber 持有，否则 HMR/禁用后残留注册、下次激活报 `"already registered"`）。
-5. **写测试**：`test/` 下放纯 Node 冒烟测试（mock ctx / mock webServer / mock betterSidebar），CI 只跑 `npm test`（即 `node test/host-smoke.mjs`）；依赖浏览器/真实 GUI 的测试留在本机手动跑。
-6. **本地验证**：`dsh plugin --profile web add link:<路径>` → 浏览器硬刷新（Cmd/Ctrl+Shift+R）。client 改动热加载无需重启；**server 端改动需重启 `dsh web`**。
-7. **发布**：更新 `package.json` 版本号（若代码内硬编码了版本常量，一并同步）→ CHANGELOG 加段落 → 推 tag `<包名>@v<版本>`（如 `dsh-server-status@v0.1.0`）→ 根 `.github/workflows/release.yml` 自动打包 + 创建 GitHub Release。
+5. **写测试**：`test/` 下放纯 Node 冒烟测试（mock ctx / mock webServer / mock betterSidebar），CI 只跑 `npm test`（即 `node test/host-smoke.mjs`）；依赖浏览器/真实 GUI 的测试留在本机手动跑。**新增功能必须补测试**，易碎需求（重启恢复/会话隔离）必须有专门断言（可参考 `dsh-file-activity/test/host-smoke.mjs` 的"重启恢复"测试段落）。
+6. **回归验证（强制）**：跑全部测试 + 对照需求清单逐条验证（尤其与本次改动相邻的功能），确认无回归后再提交。
+7. **本地验证**：`dsh plugin --profile web add link:<路径>` → 浏览器硬刷新（Cmd/Ctrl+Shift+R）。client 改动热加载无需重启；**server 端改动需重启 `dsh web`**。
+8. **发布**：更新 `package.json` 版本号（若代码内硬编码了版本常量，一并同步）→ CHANGELOG 加段落 → 推 tag `<包名>@v<版本>`（如 `dsh-server-status@v0.1.0`）→ 根 `.github/workflows/release.yml` 自动打包 + 创建 GitHub Release。
 
 ## Client 端文件形态（必须用这个格式）
 
