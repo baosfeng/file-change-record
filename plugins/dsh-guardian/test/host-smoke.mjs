@@ -12,6 +12,13 @@ import { apply } from '../lib/index.js'
 const dir = mkdtempSync(join(tmpdir(), 'dsh-guardian-test-'))
 process.env.DSH_HOME = dir
 
+// Watchdog self-protection: the guardian must never leak an unhandled
+// rejection (fail-loud would kill the whole dsh web process).
+let unhandledRejections = 0
+process.on('unhandledRejection', () => {
+  unhandledRejections += 1
+})
+
 const stagedFile = () => join(dir, 'cordis.staged.json')
 const stateFile = () => join(dir, 'guardian', 'state.json')
 const readState = () => JSON.parse(readFileSync(stateFile(), 'utf8'))
@@ -50,21 +57,27 @@ function makeLoaderAndTree() {
   }
 }
 
-function makeCtx(fake) {
+function makeCtx(fake, opts = {}) {
   const services = {
-    webServer: {
-      register: (route) => {
-        if (route.kind === 'prefix' && route.path === '/guardian/api') fake.apiRoute = route
-        return () => {}
-      },
-    },
+    webServer: opts.webServer === false
+      ? undefined
+      : {
+          register: (route) => {
+            if (route.kind === 'prefix' && route.path === '/guardian/api') fake.apiRoute = route
+            return () => {}
+          },
+        },
     webRuntime: { trustedHosts: [] },
   }
   const effects = []
+  const intervals = []
   const ctx = {
     logger: { warn: () => {} },
     loader: fake.loader,
-    timer: { interval: () => () => {} },
+    timer: { interval: (callback) => {
+      intervals.push(callback)
+      return () => {}
+    } },
     get(name) {
       return services[name]
     },
@@ -76,6 +89,8 @@ function makeCtx(fake) {
     },
   }
   ctx.fakeEffects = effects
+  ctx.fakeIntervals = intervals
+  ctx.fakeServices = services
   return ctx
 }
 
@@ -117,8 +132,8 @@ async function callApi(fake, method, path, body) {
 }
 
 /** Boot a fresh guardian instance against the same fake tree. */
-function boot(fake) {
-  const ctx = makeCtx(fake)
+function boot(fake, opts) {
+  const ctx = makeCtx(fake, opts)
   apply(ctx)
   return ctx
 }
@@ -328,6 +343,48 @@ try {
     await sleep(50)
     assert.deepEqual(fake.removed, ['tear'], 'guardian unmounted its entries on teardown')
   }
+
+  // ── 10. webServer appears AFTER the guardian: API registers on the next
+  //        poll tick (deferred registration must not be lost to a race) ─────
+  {
+    const fake = makeLoaderAndTree()
+    writeFileSync(stagedFile(), '[]\n')
+    const ctx10 = boot(fake, { webServer: false })
+    await sleep(100)
+    assert.ok(fake.apiRoute === undefined, 'api not registered before webServer appears')
+    // the webServer service appears now
+    ctx10.fakeServices.webServer = {
+      register: (route) => {
+        if (route.kind === 'prefix' && route.path === '/guardian/api') fake.apiRoute = route
+        return () => {}
+      },
+    }
+    // trigger a poll tick
+    for (const callback of ctx10.fakeIntervals) callback()
+    await sleep(50)
+    assert.ok(fake.apiRoute, 'api registered after webServer appears (poll retry)')
+    await shutdown(ctx10)
+  }
+
+  // ── 11. a broken loader tree must not make apply throw ──────────────────
+  {
+    const fake = makeLoaderAndTree()
+    fake.loader.entries = () => {
+      throw new Error('broken loader tree')
+    }
+    const ctx11 = makeCtx(fake)
+    let threw = false
+    try {
+      apply(ctx11)
+    } catch {
+      threw = true
+    }
+    assert.equal(threw, false, 'apply must not throw on a broken loader tree')
+    await shutdown(ctx11)
+  }
+
+  // ── 12. no unhandled rejection leaked across every scenario above ───────
+  assert.equal(unhandledRejections, 0, 'guardian leaked no unhandled rejection')
 
   console.log('ALL GUARDIAN HOST SMOKE TESTS PASSED')
 } finally {

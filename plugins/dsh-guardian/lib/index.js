@@ -234,6 +234,17 @@ function errorSnip(error) {
 // ── plugin body ────────────────────────────────────────────────────────────
 
 export function apply(ctx) {
+  // Watchdog self-protection: the guardian itself must never take the process
+  // down. Any synchronous failure inside apply degrades the guardian (no
+  // staged loading) instead of failing the whole boot (fail-loud).
+  try {
+    applyInner(ctx)
+  } catch (error) {
+    ctx.logger?.warn(`[dsh-guardian] apply failed — guardian degraded: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
+function applyInner(ctx) {
   const loader = ctx.loader
   const timer = ctx.timer
 
@@ -401,6 +412,7 @@ export function apply(ctx) {
     ready = true
     await scanStaged()
     await mountPromoted()
+    ensureApi()
   }
 
   // ── run after boot settles ──────────────────────────────────────────────
@@ -423,6 +435,7 @@ export function apply(ctx) {
 
   timer.interval(() => {
     if (!ready) return
+    ensureApi()
     void scanStaged().catch(() => {})
   }, POLL_MS)
 
@@ -440,10 +453,18 @@ export function apply(ctx) {
   })
 
   // ── http api (optional surface; CLI profiles skip it) ────────────────────
-  const webServer = ctx.get('webServer')
-  const webRuntime = ctx.get('webRuntime')
-  if (webServer !== undefined) {
-    ctx.effect(() => webServer.register({
+  // The webServer service may mount AFTER the guardian (loader rows activate
+  // concurrently), so registration is deferred and retried on every poll tick
+  // until the service appears — the API must never be lost to a race.
+  let apiRegistered = false
+  function ensureApi() {
+    if (apiRegistered) return
+    const webServer = ctx.get('webServer')
+    if (webServer === undefined) return
+    const webRuntime = ctx.get('webRuntime')
+    apiRegistered = true
+    try {
+      ctx.effect(() => webServer.register({
       kind: 'prefix',
       path: '/guardian/api',
       handler: async (request, response) => {
@@ -521,7 +542,12 @@ export function apply(ctx) {
           writeJson(response, 400, { ok: false, error: { message: error instanceof Error ? error.message : String(error) } })
         }
       },
-    }), 'dsh-guardian: /guardian/api routes')
+      }), 'dsh-guardian: /guardian/api routes')
+    } catch (error) {
+      // registration failed: allow a later poll tick to retry
+      apiRegistered = false
+      ctx.logger?.warn(`[dsh-guardian] api registration failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
 
   /** Retry a staged or promoted entry (manual unfreeze). */
