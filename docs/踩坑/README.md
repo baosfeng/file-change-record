@@ -1,8 +1,8 @@
 ---
 title: 踩坑记录
-description: 项目已知问题与解决方案总索引 — 未检测到踩坑记录
+description: 项目已知问题与解决方案总索引
 created: 2026-08-22
-updated: 2026-08-22
+updated: 2026-08-23
 ---
 
 # 踩坑记录
@@ -11,7 +11,7 @@ updated: 2026-08-22
 
 ## 功能域
 
-- 未检测到踩坑记录（2026-08-22 扫描：源码无 TODO/FIXME/HACK 标记，执行过程无异常）
+- [发布 / Release](github-release版本校验失败.md) — release workflow 版本校验格式不一致导致任何 tag 发布失败（已解决，2026-08-23）
 
 ## 维护规则
 

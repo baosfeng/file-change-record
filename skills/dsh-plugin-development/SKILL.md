@@ -197,9 +197,10 @@ export function apply(ctx) {
 
 1. `plugins/<name>/package.json` 里 `version` 递增（semver）。
 2. 在 `plugins/<name>/CHANGELOG.md` 顶部加对应 `## [x.y.z]` 段落。
-3. 打 tag 并推送：`git tag <包名>@v<版本> && git push origin <包名>@v<版本>`（如 `dsh-server-status@v0.1.0`）。
+3. **先推送 main**（tag 需指向已推送的提交，确保 workflow 与版本改动在远程）→ 打 tag 并推送：`git push origin main && git tag <包名>@v<版本> && git push origin <包名>@v<版本>`。
 4. 根 `.github/workflows/release.yml` 自动：解析 tag → 校验插件目录与版本一致 → 跑测试 → `npm pack` 打 tarball → 提取该插件 CHANGELOG 段落 → 创建 GitHub Release（附件 tarball）。
-5. 更新根 README 插件列表条目（版本、简介）。
+5. 更新根 README 插件列表条目（版本、简介）——**发版时同步提交**。
+6. **验证发布结果**：GitHub Releases 页面或 API 确认 Release + `.tgz` 附件已生成；失败时去 Actions 页看失败步骤（2026-08-23 实测 workflow 校验 bug 见 [踩坑：release 版本校验失败](../../docs/踩坑/github-release版本校验失败.md)）。
 
 ## 常见错误
 
@@ -208,6 +209,7 @@ export function apply(ctx) {
 | `"tab type ... already registered"` | 重复注册：HMR 残留或 id 冲突 | 注册必须包 `ctx.effect`；id 全局唯一（内置 explorer/git/terminal 等不可占用） |
 | `"no service available"`（tools） | 工具型插件没声明 `inject: ['tools']` | `export const inject = ['tools']` |
 | 工具注册了但 agent 从不调用 | `description` 写得不够好 | description 是 agent 决策依据，写清用途与参数 |
+| Release workflow 在 `Verify the git tag matches package.json version` 失败 | 校验比较格式不一致（历史 bug：`expected` 带 `v` 前缀而 tag 解析的 `VERSION` 不带） | 校验必须比较**裸版本**：`expected="$(node -p ...)"`（不带 v），与 tag `@v` 后部分一致；改后删 tag 重推（`git tag -d <tag> && git push origin :refs/tags/<tag>`） |
 | schema 类型推断/校验失败 | `required` 数组、`required: false`、缺 `additionalProperties` | 属性级 `required: true`；对象 schema 显式 `additionalProperties: false`（见 dsh-tools-api.md） |
 | 页面没效果 | 只改了 server 端没重启；或没硬刷新 | server 改动重启 `dsh web`；client 改动 Cmd/Ctrl+Shift+R |
 | `duplicate loader entry id` | profile 里手动 insert + bundle patch 自动插入重复 | 删掉手动行，只用 `dsh plugin` 安装 |
