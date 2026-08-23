@@ -40,7 +40,7 @@ jobs:
 
       - name: Verify the git tag matches package.json version
         run: |
-          expected="v$(node -p "require('./plugins/$PLUGIN/package.json').version")"
+          expected="$(node -p "require('./plugins/$PLUGIN/package.json').version")"
           if [ "$VERSION" != "$expected" ]; then
             echo "::error::tag version '$VERSION' does not match plugins/$PLUGIN package.json version '$expected'"
             exit 1
