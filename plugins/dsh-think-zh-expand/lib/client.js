@@ -82,8 +82,11 @@ window.__ModuleLoader__.load({
             i += 1
           }
           i += 1
+          // Keep the fence language (```mermaid / ```dsh-ui / ```js ...) on the
+          // <code> element so third-party renderers (dsh-mermaid-render,
+          // dsh-genui, syntax highlighters) can detect what to render.
           out.push(createElement('pre', { key: 'b' + out.length, className: 'tzx-pre' },
-            createElement('code', null, buf.join('\n'))))
+            createElement('code', { className: fence[1] ? 'language-' + fence[1] : '' }, buf.join('\n'))))
           continue
         }
         const heading = line.match(/^(#{1,4})\s+(.*)$/)
