@@ -2,6 +2,10 @@
 
 [![插件生态](https://img.shields.io/badge/插件生态-topic%20dsh-4d6bfe)](https://github.com/topics/dsh)
 
+<div align="center">
+  <img alt="mermaid 代码块自动渲染为图表卡片（预览 / 代码切换）" src="./assets/mermaid-card.png" width="360" />
+</div>
+
 **DSH 对话 Mermaid 图表渲染插件**：把对话消息里的 `mermaid` / `mmd` 代码块自动渲染成**图表卡片**（预览 / 代码切换），**mermaid 引擎内联打包、完全离线**，不依赖任何 CDN。
 
 ## 功能
@@ -10,7 +14,7 @@
 - **预览 / 代码切换**：卡片右上角可切换「预览」（渲染的 SVG 图）与「代码」（原始 mermaid 源码）。
 - **离线可用**：mermaid 引擎（`mermaid.min.js` UMD）在构建时**内联进 client bundle**，页面加载即用，**零 CDN 依赖**——网络被墙/离线环境也能渲染。
 - **失败兜底**：渲染失败时保留原始代码块，并在卡片内显示错误横幅（含具体错误信息）。
-- **流式兼容**：MutationObserver 跟随消息流式渲染，新出现的 mermaid 块自动处理。
+- **流式兼容且稳健**：MutationObserver 跟随消息流式渲染；流式中的 mermaid 块会等到内容稳定（流式结束）再渲染，避免把流式中间态的残缺内容渲染成失败卡片；
 - **主题一致**：卡片样式走 DSH 语义 token（`--dsw-alias-*` / `--dsw-font-*`），深浅主题自适应。
 
 ## 工作原理

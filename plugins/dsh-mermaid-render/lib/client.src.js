@@ -32,7 +32,16 @@ window.__ModuleLoader__.load({
 
     // ── vendored mermaid engine (base64-injected at build time) ─────────
     const MERMAID_UMD_B64 = __MERMAID_UMD_B64__
-    const MERMAID_UMD = typeof atob === 'function' ? atob(MERMAID_UMD_B64) : ''
+    // atob() yields a latin1 binary string; the vendored engine contains
+    // non-ASCII chars, so decode the UTF-8 bytes back to a proper JS string
+    // (naive `atob(b64)` corrupts them and the <script> fails to parse).
+    function b64ToUtf8(b64) {
+      const bin = atob(b64)
+      const bytes = new Uint8Array(bin.length)
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+      return new TextDecoder('utf-8').decode(bytes)
+    }
+    const MERMAID_UMD = typeof atob === 'function' ? b64ToUtf8(MERMAID_UMD_B64) : ''
 
     let mermaidReady = null
     /** Load (or reuse) the embedded mermaid engine on window.mermaid. */
@@ -166,6 +175,18 @@ window.__ModuleLoader__.load({
         root.render(createElement(MermaidCard, { entryId, source }))
       }
 
+      // Streaming-aware: a mermaid block inside a still-streaming assistant
+      // row gets its code text in incomplete chunks (e.g. just "flow" before
+      // the rest of the diagram arrives). Mounting early renders a stale
+      // snapshot that never updates, so skip blocks that live under an
+      // ancestor with [data-streaming]; the observer watches that attribute
+      // and re-scans once streaming ends, mounting the complete source then.
+      const attemptMount = (block) => {
+        if (seen.has(block)) return
+        if (block.closest && block.closest('[data-streaming]')) return
+        mount(block)
+      }
+
       const scan = (root) => {
         const scrolls = []
         if (root instanceof Element && root.matches && root.matches('[data-conversation-scroll]')) scrolls.push(root)
@@ -176,7 +197,7 @@ window.__ModuleLoader__.load({
           for (const block of sc.querySelectorAll('div.md-code-block')) {
             if (seen.has(block)) continue
             if (!isMermaidBlock(block)) continue
-            mount(block)
+            attemptMount(block)
           }
         }
       }
@@ -189,8 +210,21 @@ window.__ModuleLoader__.load({
             if (added.nodeType === 1) scan(added)
           }
         }
+        // Fallback re-scan: a React list item added *inside*
+        // [data-conversation-scroll] is scanned from `added`, which cannot
+        // reach up to the scroll container, so a freshly rendered
+        // md-code-block is missed (also missed while streaming, when
+        // code.language-mermaid is set only after the block mounts). Rescan
+        // every known scroll container so such blocks are picked up.
+        for (const sc of document.querySelectorAll('[data-conversation-scroll]')) {
+          for (const block of sc.querySelectorAll('div.md-code-block')) {
+            if (seen.has(block)) continue
+            if (!isMermaidBlock(block)) continue
+            attemptMount(block)
+          }
+        }
       })
-      observer.observe(document.body, { childList: true, subtree: true })
+      observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-streaming'] })
       return () => observer.disconnect()
     }
 

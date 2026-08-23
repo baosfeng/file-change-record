@@ -61,6 +61,29 @@ try {
   process.exit(1)
 }
 
+// 3b. README 效果图校验：发版前必须引用真实截图（见效果图规范）
+const plugReadmePath = join(pluginDir, 'README.md')
+const assetsDir = join(pluginDir, 'assets')
+let screenshotRefs = 0
+if (existsSync(plugReadmePath)) {
+  const plugReadme = readFileSync(plugReadmePath, 'utf8')
+  // 同时匹配 markdown 图片（![…](./assets/…)）与 HTML <img src="./assets/…">
+  const imgRe = /(?:!\[[^\]]*\]\(\.\/assets\/([^)]+)\)|<img[^>]*src="\.\/assets\/([^"]+)")/g
+  const refs = []
+  for (const m of plugReadme.matchAll(imgRe)) refs.push(m[1] || m[2])
+  screenshotRefs = refs.length
+  const missingFiles = refs.filter((f) => !existsSync(join(assetsDir, f)))
+  if (refs.length > 0 && missingFiles.length > 0) {
+    console.error(`✗ ${name}/README.md references missing screenshots: ${missingFiles.join(', ')}`)
+    process.exit(1)
+  }
+}
+if (screenshotRefs === 0) {
+  console.error(`✗ ${name}/README.md has no real screenshot reference (./assets/...) — update README + assets/ per the 效果图规范`)
+  process.exit(1)
+}
+console.log(`✓ README references ${screenshotRefs} screenshot(s) under assets/`)
+
 // 4. sync versions in root README.md and AGENTS.md
 const readmePath = join(root, 'README.md')
 const agentsPath = join(root, 'AGENTS.md')

@@ -2,6 +2,10 @@
 
 [![插件生态](https://img.shields.io/badge/插件生态-topic%20dsh-4d6bfe)](https://github.com/topics/dsh)
 
+<div align="center">
+  <img alt="思考块默认展开并渲染 Markdown 与 Mermaid 图表" src="./assets/think-markdown.png" width="340" />
+</div>
+
 **DSH 思考增强插件**：让 agent 的思考（reasoning）与回复强制使用中文，对话里的思考内容**默认展开显示**（替代内置的单行折叠），并把界面残留的硬编码英文（Thinking / Tool Call 等）**中文化**。
 
 ## 功能
@@ -18,7 +22,7 @@
 
 内置的思考块（`ReasoningRow`）默认折叠成单行摘要，只显示第一行；本插件替换 `conversation.chat.node` 的 `assistant-step` 渲染器：
 
-- **思考块默认展开**：完整思考内容直接显示，点击标题行可收起（流式生成中强制保持展开）；
+- **思考块默认展开**：完整思考内容直接显示，点击标题行可收起（流式生成中强制保持展开）；思考内容**同样走轻量 Markdown 渲染**（代码块 / 标题 / 列表 / 引用 / 表格 / **Mermaid 图表**），思考里出现的 markdown 语法不再以原始文本显示，mermaid 代码块会渲染成图表卡片；
 - **文本块轻量 Markdown 渲染**：代码块 / 标题 / 列表 / 引用 / **表格**（含对齐）/ 粗体 / 行内代码 / 链接；
 - **图片块**复用内置 `renderMessageImages` 渲染；
 - **tool-call 块**与内置行为一致（由独立节点渲染）。

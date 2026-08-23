@@ -1,6 +1,6 @@
 {
   "name": "dsh-mermaid-render",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "DSH web plugin: render mermaid/mmd code blocks in the conversation into diagram cards (preview/code toggle), with a vendored offline mermaid engine — no CDN dependency.",
   "type": "module",
   "main": "lib/index.js",
@@ -22,7 +22,8 @@
     "cordis.patch.yml",
     "README.md",
     "CHANGELOG.md",
-    "LICENSE"
+    "LICENSE",
+    "assets"
   ],
   "dsh": {
     "bundle": {

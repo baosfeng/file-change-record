@@ -2,6 +2,13 @@
 
 本文件记录 dsh-think-zh-expand 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.3.0] - 2026-08-23
+
+### 新增
+
+- **思考块渲染 Markdown / Mermaid 图表**：思考（reasoning）内容此前为纯文本显示，思考里出现的 markdown（`\`\`mermaid`、表格、列表、标题等）会以原始语法文本显示。现让思考块复用正文的轻量 Markdown 渲染器——思考里的代码块 / 标题 / 列表 / 引用 / 表格均正常渲染，`mermaid` 代码块交给 [dsh-mermaid-render](../dsh-mermaid-render/README.md) 渲染成图表卡片。
+- **README 效果图**：顶部新增真实现场效果图（思考块展开 + Markdown/Mermaid 渲染）。
+
 ## [0.2.1] - 2026-08-23
 
 ### 修复

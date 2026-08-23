@@ -223,7 +223,10 @@ window.__ModuleLoader__.load({
           createElement('span', { className: 'tzx-think-title' }, '思考'),
           !open && createElement('span', { className: 'tzx-think-summary' }, firstLine(text)),
         ),
-        open && createElement('div', { className: 'tzx-think-body' }, text),
+        // 思考内容也走轻量 Markdown 渲染（代码块 / mermaid / 表格 / 列表 /
+        // 标题等），否则思考里出现的 markdown 会以原始语法文本显示。
+        open && createElement('div', { className: 'tzx-think-body' },
+          createElement(MarkdownView, { text })),
       )
     }
 

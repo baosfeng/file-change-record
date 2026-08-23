@@ -3,7 +3,9 @@
 [![插件生态](https://img.shields.io/badge/插件生态-topic%20dsh--better--sidebar-4d6bfe)](https://github.com/topics/dsh-better-sidebar)
 
 <div align="center">
-  <img alt="文件活动插件截图" src="./assets/screenshot.png" width="380" />
+  <img alt="文件活动插件截图（最近访问 / 文件统计）" src="./assets/screenshot.png" width="340" />
+  <br />
+  <img alt="浮窗预览：点击文件复用侧边栏内置 Markdown 渲染" src="./assets/preview-float.png" width="340" />
 </div>
 
 **DSH 侧边栏文件活动插件**（基于 [dsh-better-sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) 扩展）

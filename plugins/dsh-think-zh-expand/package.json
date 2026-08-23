@@ -1,6 +1,6 @@
 {
   "name": "dsh-think-zh-expand",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "DSH web plugin: force Chinese in agent thinking/replies via a system-prompt section, render reasoning blocks expanded by default instead of a collapsed single line, and localize hard-coded English UI labels (Thinking/Tool Call/etc.) into Chinese.",
   "type": "module",
   "main": "lib/index.js",
@@ -28,7 +28,8 @@
     "cordis.patch.yml",
     "README.md",
     "CHANGELOG.md",
-    "LICENSE"
+    "LICENSE",
+    "assets"
   ],
   "dsh": {
     "bundle": {
