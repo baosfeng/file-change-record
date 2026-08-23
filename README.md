@@ -4,6 +4,21 @@
 
 **个人 DSH（DeepSeek Harness）插件集合仓库**：轻量多插件目录，每个插件位于 `plugins/<name>/`，自包含、可独立安装与发布。
 
+<div align="center">
+  <table>
+    <tr>
+      <td align="center" style="vertical-align:top"><img src="plugins/dsh-file-activity/assets/screenshot.png" width="230" alt="dsh-file-activity 文件活动侧边栏" /></td>
+      <td align="center" style="vertical-align:top"><img src="plugins/dsh-think-zh-expand/assets/think-markdown.png" width="230" alt="dsh-think-zh-expand 思考块渲染" /></td>
+      <td align="center" style="vertical-align:top"><img src="plugins/dsh-mermaid-render/assets/mermaid-card.png" width="230" alt="dsh-mermaid-render 图表卡片" /></td>
+    </tr>
+    <tr>
+      <td align="center"><sub>dsh-file-activity</sub></td>
+      <td align="center"><sub>dsh-think-zh-expand</sub></td>
+      <td align="center"><sub>dsh-mermaid-render</sub></td>
+    </tr>
+  </table>
+</div>
+
 ## 插件列表
 
 | 插件 | 版本 | 简介 |
