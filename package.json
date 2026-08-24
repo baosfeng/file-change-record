@@ -1,0 +1,27 @@
+{
+  "name": "my-dsh-plugins",
+  "private": true,
+  "type": "module",
+  "description": "DSH 插件集合仓库 —— 根工具链（质量门禁：ESLint 复杂度/行数、dependency-cruiser 依赖分析）。各插件测试在 plugins/<name>/ 内独立运行。",
+  "scripts": {
+    "lint": "eslint plugins/",
+    "lint:size": "eslint plugins/ --rule '{\"complexity\":[\"error\",10],\"max-lines\":[\"error\",300],\"max-lines-per-function\":[\"error\",40]}'",
+    "depcruise": "depcruise plugins/",
+    "test": "bash scripts/test-all.sh"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^13.2.1",
+    "@eslint/js": "^9.0.0",
+    "@stryker-mutator/core": "^10.0.0",
+    "@stryker-mutator/html-reporter": "^3.0.2",
+    "@stryker-mutator/vitest-runner": "^10.0.0",
+    "@vitest/coverage-v8": "^4.1.11",
+    "dependency-cruiser": "^16.0.0",
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0",
+    "vitest": "^4.1.11"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
