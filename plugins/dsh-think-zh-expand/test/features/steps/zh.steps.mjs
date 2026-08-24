@@ -146,6 +146,13 @@ Then('section 文本要求思考与回复使用中文', async function () {
   assert.ok(section.text.includes('回复'), 'covers replies')
 })
 
+Then('section 文本覆盖关键场景与代码术语', async function () {
+  const section = this.sections[0]
+  assert.ok(section.text.includes('错误消息'), 'covers English error-message scenario')
+  assert.ok(section.text.includes('不翻译'), 'keeps code/commands/paths untranslated')
+  assert.ok(section.text.includes('最高优先级'), 'declares top priority over context')
+})
+
 Then('{string} 的卡片标题为 {string}', async function (title, expected) {
   assert.equal(this.exportsObj.zhCardTitle(title), expected)
 })

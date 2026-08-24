@@ -2,7 +2,8 @@
 # roster. The row mounts the (empty) host half; the client half renders
 # mermaid/mmd code blocks in the conversation. Install with:
 #
-#   dsh plugin --profile web add link:/Users/bsfeng/IdeaProjects/my-dsh-plugins/plugins/dsh-mermaid-render
+#   git clone https://github.com/baosfeng/my-dsh-plugins.git
+#   dsh plugin --profile web add link:<仓库路径>/plugins/dsh-mermaid-render
 #
 # NOTE: after install, restart `dsh web` so the bundle layer composes.
 - insert:

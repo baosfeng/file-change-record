@@ -2,7 +2,8 @@
 # roster. The row mounts the host half (file-op tracking + stats API) and the
 # client half (sidebar tab). Install with:
 #
-#   dsh plugin --profile web add link:/Users/bsfeng/IdeaProjects/my-dsh-plugins/plugins/dsh-file-activity
+#   git clone https://github.com/baosfeng/my-dsh-plugins.git
+#   dsh plugin --profile web add link:<仓库路径>/plugins/dsh-file-activity
 #
 # or manually: add the link dependency to the profile package.json, run
 # `pnpm install` in the profile dir, and add this insert row to the profile's

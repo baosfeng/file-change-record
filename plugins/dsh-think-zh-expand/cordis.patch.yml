@@ -3,7 +3,8 @@
 # Chinese-thinking instruction) and the client half (assistant-step renderer
 # replacement that expands thinking blocks by default). Install with:
 #
-#   dsh plugin --profile web add link:/Users/bsfeng/IdeaProjects/my-dsh-plugins/plugins/dsh-think-zh-expand
+#   git clone https://github.com/baosfeng/my-dsh-plugins.git
+#   dsh plugin --profile web add link:<仓库路径>/plugins/dsh-think-zh-expand
 - insert:
     - id: think-zh-expand
       name: 'dsh-think-zh-expand'

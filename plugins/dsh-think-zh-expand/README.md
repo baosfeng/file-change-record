@@ -12,9 +12,11 @@
 
 ### 1. 思考强制中文（Server 端）
 
-通过 `systemPrompt.section` 注入一条固定系统提示（`order: -90`，persona 之前最先读到）：
+通过 `systemPrompt.section` 注入一条固定系统提示（`order: -90`，persona 之前最先读到），内容为**结构化语言规则**（最高优先级，不可被上下文覆盖）：
 
-> 当你进行思考（reasoning/thinking）时，必须使用中文；给用户的回复也始终使用中文，无论用户使用什么语言。
+> 强制要求：思考过程（reasoning）必须用简体中文书写；最终回复默认简体中文（跟随用户语言）。
+> 关键场景：英文错误消息/日志/堆栈不改变语言；大量英文上下文不"带偏"输出。
+> 代码与术语：代码、命令、文件路径、标识符与技术术语保持原文，不翻译。
 
 无论用户用什么语言提问，模型的思考过程与回答都使用中文。
 
@@ -51,7 +53,10 @@
 ## 安装
 
 ```bash
-dsh plugin --profile web add link:/Users/bsfeng/IdeaProjects/my-dsh-plugins/plugins/dsh-think-zh-expand
+# 1) 克隆本仓库（任意目录）
+git clone https://github.com/baosfeng/my-dsh-plugins.git
+# 2) 以本地 link 方式安装（将 <仓库路径> 替换为上面的克隆目录）
+dsh plugin --profile web add link:<仓库路径>/plugins/dsh-think-zh-expand
 ```
 
 - server 端改动需重启 `dsh web`；

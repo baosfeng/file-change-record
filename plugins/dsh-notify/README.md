@@ -70,7 +70,10 @@ curl -X POST http://127.0.0.1:3080/notify/api/trigger \
 ## 安装
 
 ```bash
-dsh plugin --profile web add link:/Users/bsfeng/IdeaProjects/my-dsh-plugins/plugins/dsh-notify
+# 1) 克隆本仓库（任意目录）
+git clone https://github.com/baosfeng/my-dsh-plugins.git
+# 2) 以本地 link 方式安装（将 <仓库路径> 替换为上面的克隆目录）
+dsh plugin --profile web add link:<仓库路径>/plugins/dsh-notify
 ```
 
 - server 端改动需重启 `dsh web`；client 端改动浏览器硬刷新（Cmd/Ctrl+Shift+R）即可。

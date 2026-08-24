@@ -41,7 +41,13 @@ test('registers exactly one system-prompt section with the Chinese instruction',
   assert.ok(section.text.includes('中文'), 'text forces Chinese')
   assert.ok(section.text.includes('回复'), 'text covers replies')
 
-  // 3. exported prompt constant is the same string the plugin injects
+  // 3. structured rules (issue #1): key scenarios + code/term boundary
+  assert.ok(section.text.includes('错误消息'), 'text covers English error-message scenario')
+  assert.ok(section.text.includes('日志'), 'text covers English log/stack scenario')
+  assert.ok(section.text.includes('不翻译'), 'text keeps code/commands/paths untranslated')
+  assert.ok(section.text.includes('最高优先级'), 'text declares top priority over context')
+
+  // 4. exported prompt constant is the same string the plugin injects
   assert.equal(section.text, PROMPT_TEXT, 'PROMPT_TEXT constant matches injected text')
 })
 

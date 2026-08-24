@@ -32,14 +32,17 @@ cordis.staged.json（候选区）
 ### 方式一：dsh plugin（推荐）
 
 ```sh
-dsh plugin --profile web add link:/Users/bsfeng/IdeaProjects/my-dsh-plugins/plugins/dsh-guardian
+# 1) 克隆本仓库（任意目录）
+git clone https://github.com/baosfeng/my-dsh-plugins.git
+# 2) 以本地 link 方式安装（将 <仓库路径> 替换为上面的克隆目录）
+dsh plugin --profile web add link:<仓库路径>/plugins/dsh-guardian
 ```
 
 装完**硬刷新浏览器**（Cmd/Ctrl+Shift+R）。
 
 ### 方式二：手动
 
-1. 在 `~/.dsh/profiles/web/package.json` 的 dependencies 增加 `"dsh-guardian": "link:/Users/bsfeng/IdeaProjects/my-dsh-plugins/plugins/dsh-guardian"`
+1. 克隆本仓库后，在 `~/.dsh/profiles/web/package.json` 的 dependencies 增加 `"dsh-guardian": "link:<仓库路径>/plugins/dsh-guardian"`
 2. `cd ~/.dsh/profiles/web && pnpm install`
 3. 在 `~/.dsh/profiles/web/cordis.patch.yml` 的 insert 列表**第一行**加：
 

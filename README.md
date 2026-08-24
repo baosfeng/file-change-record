@@ -58,7 +58,7 @@ cp -r skills/dsh-plugin-development ~/.dsh/skills/
 新插件骨架：
 
 1. 按技能指引在 `plugins/<新插件名>/` 下创建自包含插件包（package.json + cordis.patch.yml + lib/ + README + CHANGELOG + LICENSE）。
-2. 本地安装验证：`dsh plugin --profile web add link:<绝对路径>/plugins/<新插件名>`。
+2. 本地安装验证：`dsh plugin --profile web add link:<本仓库绝对路径>/plugins/<新插件名>`（对普通用户的安装方式见各插件 README「安装」章节：先 clone 仓库再 link）。
 3. 更新本 README 插件列表与 `plugins/<新插件名>/README.md`（中文 + 截图 + 生态 badge）。
 4. 发版：更新版本号与 CHANGELOG → 推送 tag `<包名>@v<版本>` → GitHub Actions 自动创建 Release。
 

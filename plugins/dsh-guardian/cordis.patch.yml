@@ -5,7 +5,8 @@
 #
 # Install with:
 #
-#   dsh plugin --profile web add link:/Users/bsfeng/IdeaProjects/my-dsh-plugins/plugins/dsh-guardian
+#   git clone https://github.com/baosfeng/my-dsh-plugins.git
+#   dsh plugin --profile web add link:<仓库路径>/plugins/dsh-guardian
 #
 # or manually: add the link dependency to the profile package.json, run
 # `pnpm install` in the profile dir, and add this insert row to the FIRST

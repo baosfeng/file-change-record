@@ -12,6 +12,7 @@
     那么 注册了唯一的 system-prompt section
     并且 section 名为 "dsh-think-zh" 且顺序为 -90
     并且 section 文本要求思考与回复使用中文
+    并且 section 文本覆盖关键场景与代码术语
 
   场景: 工具卡片标题中文化
     假如 客户端模块已加载

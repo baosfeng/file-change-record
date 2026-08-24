@@ -26,7 +26,10 @@
 ## 安装
 
 ```sh
-dsh plugin --profile web add link:/Users/bsfeng/IdeaProjects/my-dsh-plugins/plugins/dsh-mermaid-render
+# 1) 克隆本仓库（任意目录）
+git clone https://github.com/baosfeng/my-dsh-plugins.git
+# 2) 以本地 link 方式安装（将 <仓库路径> 替换为上面的克隆目录）
+dsh plugin --profile web add link:<仓库路径>/plugins/dsh-mermaid-render
 ```
 
 装完后**重启 `dsh web`**（bundle 层在启动时组合），再硬刷新浏览器（Cmd/Ctrl+Shift+R）。

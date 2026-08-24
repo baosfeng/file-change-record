@@ -3,7 +3,8 @@
 # trigger hook) and the client half (browser notification / beep / toast with
 # click-to-focus-session). Install with:
 #
-#   dsh plugin --profile web add link:/Users/bsfeng/IdeaProjects/my-dsh-plugins/plugins/dsh-notify
+#   git clone https://github.com/baosfeng/my-dsh-plugins.git
+#   dsh plugin --profile web add link:<仓库路径>/plugins/dsh-notify
 - insert:
     - id: notify
       name: 'dsh-notify'
