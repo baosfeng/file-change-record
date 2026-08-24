@@ -1,3 +1,4 @@
+import { test } from 'vitest'
 /**
  * Client render-path test for dsh-think-zh-expand: loads the client bundle
  * with a stubbed react (real createElement; hooks stubbed), mounts the plugin
@@ -248,3 +249,5 @@ try {
   delete global.fetch
   delete global.navigator
 }
+
+test('script-style suite (assertions ran at module load)', () => {})

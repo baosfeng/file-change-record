@@ -35,7 +35,7 @@ async function cdpJson(path, timeoutMs = 3000) {
 function connect(wsUrl) {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(wsUrl)
-    const timer = setTimeout(() => { try { ws.close() } catch {} ; reject(new Error('ws connect timeout')) }, 4000)
+    const timer = setTimeout(() => { try { ws.close() } catch { /* already closed */ } ; reject(new Error('ws connect timeout')) }, 4000)
     ws.onopen = () => { clearTimeout(timer); resolve(ws) }
     ws.onerror = () => { clearTimeout(timer); reject(new Error('ws error')) }
   })
@@ -129,6 +129,6 @@ try {
 } catch (error) {
   console.error('[e2e] FAILED:', error.message)
 } finally {
-  try { chrome.kill('SIGKILL') } catch {}
+  try { chrome.kill('SIGKILL') } catch { /* already dead */ }
   process.exit(0)
 }

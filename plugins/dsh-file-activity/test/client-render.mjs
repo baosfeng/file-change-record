@@ -1,3 +1,4 @@
+import { test } from 'vitest'
 /**
  * Client render-path test: loads the client bundle with a stubbed react
  * (real createElement; hooks stubbed to no-ops), registers the tab through a
@@ -229,3 +230,5 @@ assert.equal(dataStore.getSnapshot().preview, null, 'close button dismisses the 
 console.log('ALL CLIENT RENDER-PATH TESTS PASSED')
 console.log('sample output tree (clickable rows):')
 for (const row of rows) console.log('  '.repeat(row.depth) + row.title)
+
+test('script-style suite (assertions ran at module load)', () => {})

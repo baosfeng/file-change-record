@@ -3,7 +3,11 @@
  * mocked context and asserts the system-prompt section registration (Chinese
  * thinking instruction). The client half is browser-only; CI checks its syntax
  * with `node --check`.
+ *
+ * NOTE: assertions live INSIDE test() (not at module top level) so Stryker's
+ * vitest-runner correctly attributes mutant kills to this test file.
  */
+import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import { apply, PROMPT_TEXT } from '../lib/index.js'
 
@@ -22,7 +26,7 @@ function boot() {
   return { sections }
 }
 
-try {
+test('registers exactly one system-prompt section with the Chinese instruction', async () => {
   const { sections } = boot()
 
   // 1. exactly one section registered
@@ -39,14 +43,10 @@ try {
 
   // 3. exported prompt constant is the same string the plugin injects
   assert.equal(section.text, PROMPT_TEXT, 'PROMPT_TEXT constant matches injected text')
+})
 
-  // 4. inject list declares the hard dependency
+test('inject list declares the systemPrompt hard dependency', async () => {
   const mod = await import('../lib/index.js')
   assert.ok(Array.isArray(mod.inject), 'inject is an array')
   assert.ok(mod.inject.includes('systemPrompt'), 'systemPrompt declared as a hard dependency')
-
-  console.log('ALL HOST SMOKE TESTS PASSED')
-} catch (err) {
-  console.error(err)
-  process.exitCode = 1
-}
+})

@@ -1,3 +1,4 @@
+import { test } from 'vitest'
 /**
  * Client render-path test for dsh-mermaid-render: loads lib/client.src.js
  * (the build template, with the mermaid placeholder replaced by an empty
@@ -107,7 +108,7 @@ global.window = {
   location: { href: 'http://127.0.0.1:3080/app', search: '' },
   mermaid: {
     initialize: () => {},
-    render: async (id, src) => ({ svg: `<svg id="${id}" width="100%"></svg>` }),
+    render: async (id, _src) => ({ svg: `<svg id="${id}" width="100%"></svg>` }),
   },
 }
 global.document = {
@@ -181,3 +182,5 @@ try {
   delete global.MutationObserver
   delete global.Node
 }
+
+test('script-style suite (assertions ran at module load)', () => {})

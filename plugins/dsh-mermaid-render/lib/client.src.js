@@ -21,6 +21,7 @@
  * `const MERMAID_UMD = ...` line below) and writes lib/client.js (the file
  * actually served by DSH).
  */
+/* global __MERMAID_UMD_B64__ */
 window.__ModuleLoader__.load({
   id: 'dsh-mermaid-render',
   factory: (require) => {
@@ -49,7 +50,7 @@ window.__ModuleLoader__.load({
       if (typeof window !== 'undefined' && window.mermaid) {
         try {
           window.mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' })
-        } catch (err) { /* already initialized */ }
+        } catch { /* already initialized */ }
         return Promise.resolve(window.mermaid)
       }
       if (mermaidReady) return mermaidReady
@@ -84,7 +85,7 @@ window.__ModuleLoader__.load({
         if (!code) return false
         const cls = String(code.className || '').toLowerCase()
         return cls.includes('language-mermaid') || cls.includes('language-mmd')
-      } catch (err) {
+      } catch {
         return false
       }
     }
@@ -93,7 +94,7 @@ window.__ModuleLoader__.load({
       try {
         const pre = block.querySelector('pre')
         return pre ? pre.textContent || '' : ''
-      } catch (err) {
+      } catch {
         return ''
       }
     }

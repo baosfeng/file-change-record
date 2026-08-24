@@ -248,7 +248,9 @@ export function apply(ctx) {
   }
 
   void loadState(file).then((loaded) => {
-    if (loaded.sessions === undefined || typeof loaded.sessions !== 'object') loaded.sessions = {}
+    // `typeof null === 'object'`：null sessions 必须显式重置，否则
+    // Object.values(null) 抛 TypeError（状态文件损坏降级需求 R 系列）
+    if (loaded.sessions === undefined || loaded.sessions === null || typeof loaded.sessions !== 'object') loaded.sessions = {}
     // Trim pre-existing history to the current cap and drop duplicate paths
     // (LRU semantics: one entry per path, newest occurrence wins — the
     // array is newest-first, so the first occurrence of each path is kept).

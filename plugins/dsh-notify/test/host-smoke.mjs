@@ -1,3 +1,4 @@
+import { test } from 'vitest'
 /**
  * Smoke test for the dsh-notify host half: mounts the plugin against a mocked
  * context and asserts
@@ -124,6 +125,7 @@ async function invoke(api, request, response) {
   return response
 }
 
+test('host smoke suite', async () => {
 try {
   // ── 1. inject 只声明硬依赖 webServer ─────────────────────────────────
   assert.ok(Array.isArray(inject), 'inject is an array')
@@ -354,5 +356,7 @@ try {
   console.error(err)
   // 断言失败也要清理心跳等（否则进程被 interval 挂住不退）。
   for (const disposeAll of disposeAlls.splice(0)) disposeAll()
-  process.exitCode = 1
+  // 抛出而非 exitCode：vitest 与 node --test 都按异常判定失败
+  throw err
 }
+})

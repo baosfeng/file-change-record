@@ -1,3 +1,4 @@
+import { test } from 'vitest'
 /**
  * Smoke test for the dsh-guardian host half: mounts the plugin against a
  * mocked loader tree + context, then drives staged-file scans, failure
@@ -151,6 +152,7 @@ async function shutdown(ctx) {
   await sleep(60)
 }
 
+test('host smoke suite', async () => {
 try {
   // ── 1. staged entry mounts and gets PROMOTED (removed from the file) ────
   {
@@ -390,3 +392,4 @@ try {
 } finally {
   rmSync(dir, { recursive: true, force: true })
 }
+})

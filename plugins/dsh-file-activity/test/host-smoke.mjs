@@ -1,3 +1,4 @@
+import { test } from 'vitest'
 /**
  * Smoke test for the dsh-file-activity host half: mounts the plugin against a
  * mocked context and drives fs/observed events + HTTP routes through it.
@@ -111,6 +112,7 @@ async function callMedia(getMediaRoute, method, url) {
   return { status: res._status, headers: res._headers, body: res._body }
 }
 
+test('host smoke suite', async () => {
 try {
   const { ctx, getRoute } = await boot()
   const sid = 'session-1'
@@ -210,18 +212,23 @@ try {
   emitObserved(ctxRestarted, 'read', sid, '/work/ghost.png')
   const ghost = await callMedia(getMediaRestarted, 'GET', `/file-activity/file?sessionId=${sid}&path=${encodeURIComponent('/work/ghost.png')}`)
   assert.equal(ghost.status, 404, 'recorded but missing file → 404')
+  assert.equal(JSON.parse(ghost.body).ok, false, 'missing file JSON error')
   const noParam = await callMedia(getMediaRestarted, 'GET', '/file-activity/file?sessionId=')
   assert.equal(noParam.status, 400, 'missing path → 400')
+  assert.equal(JSON.parse(noParam.body).ok, false, 'missing path JSON error')
   const foreignSession = await callMedia(getMediaRestarted, 'GET', `/file-activity/file?sessionId=other-session&path=${encodeURIComponent(mediaFile)}`)
   assert.equal(foreignSession.status, 403, 'other session cannot read this session\'s media')
+  assert.equal(JSON.parse(foreignSession.body).ok, false, 'foreign session JSON error')
 
   // 9. unknown route → 404
   const nf = await callRoute(getRouteRestarted, 'GET', '/file-activity/api/nope')
   assert.equal(nf.status, 404)
+  assert.equal(nf.json.ok, false, 'unknown method body ok false')
 
   // 10. clear route
   const clr = await callRoute(getRouteRestarted, 'POST', '/file-activity/api/clear', { sessionId: sid })
   assert.equal(clr.status, 200)
+  assert.equal(clr.json.ok, true, 'clear body ok true')
   const after = await callRoute(getRouteRestarted, 'GET', `/file-activity/api/stats?sessionId=${sid}`)
   assert.deepEqual(after.json.value.counts, {}, 'cleared counts')
 
@@ -252,3 +259,4 @@ try {
 } finally {
   rmSync(dir, { recursive: true, force: true })
 }
+})

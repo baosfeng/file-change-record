@@ -7,6 +7,6 @@
  */
 export const name = 'dsh-mermaid-render'
 
-export function apply(ctx) {
+export function apply() {
   // client-only plugin: no host-side services, events, or routes.
 }

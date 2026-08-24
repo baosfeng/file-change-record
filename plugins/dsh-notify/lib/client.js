@@ -19,11 +19,10 @@
  */
 window.__ModuleLoader__.load({
   id: 'dsh-notify',
-  factory: (require) => {
+  factory: () => {
     var module = { exports: {} }
     var exports = module.exports
     Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' })
-    const { createElement } = require('react')
 
     // ── i18n ──────────────────────────────────────────────────────────────
     function isZh() {
