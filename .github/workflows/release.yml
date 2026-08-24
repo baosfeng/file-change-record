@@ -55,7 +55,7 @@ jobs:
         run: node .github/scripts/extract-release-body.mjs "plugins/$PLUGIN/CHANGELOG.md" "$VERSION" dist/release-body.md
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: dist/*.tgz
           body_path: dist/release-body.md
