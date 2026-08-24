@@ -2,6 +2,16 @@
 
 本文件记录 dsh-file-activity 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.5] - 2026-08-24
+
+### 修复
+
+- **状态文件 `sessions` 为 `null` 时崩溃**：`loadState` 只检查 `typeof sessions !== 'object'`，而 `typeof null === 'object'`——手改/损坏的状态文件若把 `sessions` 写成 `null`，加载后 `Object.values(null)` 抛 TypeError（unhandled rejection）。现在显式把 `null` 一并重置为空对象，降级为全新状态不崩溃（复现测试 `host-mutation.mjs` 已永久保留）。
+
+### 变更
+
+- **质量门禁测试体系接入**：测试框架迁移至 Vitest（node:test → vitest，API 兼容）；覆盖率门禁 `lines≥85 / branches≥75 / functions≥80`（当前实测 99.1/91.8/97.5）；新增边界测试 `host-edge.mjs`（12 用例）与变异定向测试 `host-mutation.mjs`（49 用例）；Stryker 变异测试达标（71.76% ≥ 70%）；Gherkin 验收测试 11 场景/56 步骤（`test/features/`）随 `npm test` 运行。
+
 ## [0.4.4] - 2026-08-24
 
 ### 修复
