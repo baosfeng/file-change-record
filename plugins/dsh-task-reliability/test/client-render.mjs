@@ -1,44 +1,39 @@
 /**
- * Client render-path test: loads the client bundle with a stubbed react
- * (real createElement; hooks stubbed to no-ops), registers the sidebar tab
- * through a mocked betterSidebar service, then invokes the panel component
- * directly to verify the element tree builds without errors and renders the
- * mode switches / task list / pending questions structure.
+ * Client render-path test: loads the client bundle with a self-contained
+ * createElement stub (zero dependencies, platform-independent), registers
+ * the sidebar tab through a mocked betterSidebar service, then invokes the
+ * panel component directly to verify the element tree builds without errors
+ * and renders the mode switches / task list / pending questions structure.
  */
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
+// ── self-contained createElement stub（零依赖，跨平台）────────────────────
+function createElement(type, props, ...children) {
+  return { type, props: { ...(props ?? {}), children } }
+}
 
-test('client bundle registers sidebar tab and renders panel structure', () => {
-  // ── stubbed react ─────────────────────────────────────────────────────
-  const reactPath = '/Users/bsfeng/.npm-global/lib/node_modules/@deepseek-ai/dsh/node_modules/react/index.js'
-  const react = require(reactPath)
+const hookValues = new Map()
+const stubbed = {
+  createElement,
+  useState: (initial) => {
+    const idx = hookValues.size
+    if (!hookValues.has(idx)) {
+      const value = typeof initial === 'function' ? initial() : initial
+      hookValues.set(idx, [value, () => {}])
+    }
+    return hookValues.get(idx)
+  },
+  useEffect: () => {},
+}
 
-  const hookValues = new Map()
-  const stubbed = {
-    createElement: react.createElement,
-    useState: (initial) => {
-      const idx = hookValues.size
-      if (!hookValues.has(idx)) {
-        const value = typeof initial === 'function' ? initial() : initial
-        hookValues.set(idx, [value, () => {}])
-      }
-      return hookValues.get(idx)
-    },
-    useEffect: () => {},
-  }
-
-  // ── browser globals ───────────────────────────────────────────────────
+function loadBundle() {
   let registered = null
   global.window = {
     __ModuleLoader__: { load: (registration) => { registered = registration } },
   }
-  Object.defineProperty(global, 'navigator', { value: { language: 'zh-CN' }, configurable: true })
-
-  // ── load bundle ───────────────────────────────────────────────────────
+  Object.defineProperty(global, 'navigator', { value: { language: 'en-US' }, configurable: true })
   eval(fs.readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8'))
   assert.ok(registered, 'bundle registered')
   assert.equal(registered.id, 'dsh-task-reliability')
@@ -47,6 +42,12 @@ test('client bundle registers sidebar tab and renders panel structure', () => {
     throw new Error('unexpected require: ' + spec)
   })
   assert.equal(typeof exportsObj.apply, 'function')
+  return exportsObj
+}
+
+test('client bundle registers sidebar tab and renders panel structure', () => {
+  hookValues.clear()
+  const exportsObj = loadBundle()
 
   // ── mock betterSidebar service + context ──────────────────────────────
   let capturedTab = null
@@ -101,29 +102,19 @@ test('client bundle registers sidebar tab and renders panel structure', () => {
   walk(tree)
 
   const joined = texts.join('|')
-  assert.ok(joined.includes('可靠性跟踪'), 'tracking switch rendered')
-  assert.ok(joined.includes('完成度校验'), 'verify switch rendered')
-  assert.ok(joined.includes('自主决策'), 'autopilot switch rendered')
-  assert.ok(joined.includes('活动任务'), 'tasks section title')
-  assert.ok(joined.includes('暂无任务'), 'empty tasks state')
-  assert.ok(joined.includes('待确认问题'), 'questions section title')
-  assert.ok(joined.includes('暂无待确认问题'), 'empty questions state')
-  assert.ok(joined.includes('注册任务'), 'register form rendered')
+  assert.ok(joined.includes('Reliability tracking'), 'tracking switch rendered')
+  assert.ok(joined.includes('Completion verify'), 'verify switch rendered')
+  assert.ok(joined.includes('Autopilot'), 'autopilot switch rendered')
+  assert.ok(joined.includes('Active tasks'), 'tasks section title')
+  assert.ok(joined.includes('No tasks'), 'empty tasks state')
+  assert.ok(joined.includes('Pending questions'), 'questions section title')
+  assert.ok(joined.includes('No pending questions'), 'empty questions state')
+  assert.ok(joined.includes('Register task'), 'register form rendered')
 })
 
 test('apply without betterSidebar must not throw', () => {
-  const reactPath = '/Users/bsfeng/.npm-global/lib/node_modules/@deepseek-ai/dsh/node_modules/react/index.js'
-  const react = require(reactPath)
-  let registered = null
-  global.window = {
-    __ModuleLoader__: { load: (registration) => { registered = registration } },
-  }
-  Object.defineProperty(global, 'navigator', { value: { language: 'zh-CN' }, configurable: true })
-  eval(fs.readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8'))
-  const exportsObj = registered.factory((spec) => {
-    if (spec === 'react') return react
-    throw new Error('unexpected require: ' + spec)
-  })
+  hookValues.clear()
+  const exportsObj = loadBundle()
   let error = null
   try {
     exportsObj.apply({
