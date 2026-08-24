@@ -15,7 +15,12 @@ jobs:
         with:
           node-version: 22
 
-      - name: Test all plugins under plugins/
+      - name: Install root toolchain (eslint, dependency-cruiser)
+        run: npm install
+
+      # 质量门禁：单元测试 + 覆盖率（行≥85 / 分支≥75，低于阈值即失败）
+      # 每个插件 npm test 自带 node --test --experimental-test-coverage 阈值参数
+      - name: Test all plugins under plugins/ (unit tests + coverage gates)
         run: |
           set -e
           for d in plugins/*/; do
@@ -26,3 +31,13 @@ jobs:
             done
             (cd "$d" && npm test)
           done
+
+      # 质量门禁：代码质量规则（no-undef / no-unused-vars / no-empty …）。
+      # 复杂度/行数规则（complexity≤10 / 函数≤40行 / 文件≤300行）在 P2 模块拆分
+      # 完成后启用：届时去掉下面 --rule 覆盖即可（见 docs/开发指南/质量门禁差距分析.md）。
+      - name: Lint (quality rules)
+        run: npx eslint plugins/ --rule '{"complexity":"off","max-lines":"off","max-lines-per-function":"off"}'
+
+      # 质量门禁：依赖结构分析（无循环依赖、server/client 不交叉）
+      - name: Dependency analysis
+        run: npx depcruise plugins/

@@ -9,10 +9,10 @@
     "url": "https://github.com/baosfeng/my-dsh-plugins"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
-    "test": "node test/host-smoke.mjs && node test/client-render.mjs"
+    "test": "npx vitest run --coverage && cucumber-js test/features --import 'test/features/steps/*.mjs'"
   },
   "exports": {
     ".": {

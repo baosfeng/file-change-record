@@ -4,9 +4,12 @@
   "description": "DSH web plugin: render mermaid/mmd code blocks in the conversation into diagram cards (preview/code toggle), with a vendored offline mermaid engine — no CDN dependency.",
   "type": "module",
   "main": "lib/index.js",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node test/client-render.mjs"
+    "test": "npx vitest run --coverage && cucumber-js test/features --import 'test/features/steps/*.mjs'"
   },
   "exports": {
     ".": {

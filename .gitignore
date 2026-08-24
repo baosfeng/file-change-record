@@ -51,3 +51,9 @@ reasonix.toml
 # DSH 工具相关目录
 .dsh/
 **/.dsh/
+
+# Stryker 变异测试产物
+.stryker-tmp/
+**/.stryker-tmp/
+reports/
+**/reports/
