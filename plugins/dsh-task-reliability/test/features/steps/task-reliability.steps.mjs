@@ -1,0 +1,432 @@
+/**
+ * Step definitions for dsh-task-reliability Gherkin acceptance tests.
+ * Boots the plugin against a mocked ctx per scenario, drives events + routes
+ * through it, mirroring host-smoke.mjs / host-edge.mjs.
+ */
+import { Given, When, Then, After, setWorldConstructor } from '@cucumber/cucumber'
+import assert from 'node:assert/strict'
+import { mkdtempSync, rmSync, readFileSync, existsSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { apply } from '../../../lib/index.js'
+
+class World {
+  constructor() {
+    this.listeners = {}
+    this.api = null
+    this.dir = ''
+    this.dirs = []
+    this.mainAgent = null
+    this.verifyAgent = null
+    this.verifyIdle = null
+    this.agents = null
+    this.policies = []
+    this.calls = { create: [], resume: [] }
+    this.nextCalled = false
+    this.lastDecision = null
+    this.lastResponse = null
+    this.disposers = []
+    this.oldHome = process.env.DSH_HOME
+  }
+
+  boot(config = {}, dirOverride) {
+    this.dir = dirOverride ?? mkdtempSync(join(tmpdir(), 'dsh-task-rel-feature-'))
+    if (dirOverride === undefined) this.dirs.push(this.dir)
+    process.env.DSH_HOME = this.dir
+    const listeners = this.listeners
+    const disposers = this.disposers
+    this.mainAgent = this.makeAgent('s-1')
+    this.verifyAgent = this.makeAgent('verify-s-1', { origin: 'subagent' })
+    // 校验代理的可控完成点：whenIdle 挂起，直到结论 step resolve
+    this.verifyIdle = Promise.withResolvers()
+    this.verifyAgent.whenIdle = () => this.verifyIdle.promise
+    const calls = this.calls
+    const verifyAgent = this.verifyAgent
+    const mainAgent = this.mainAgent
+    const agents = {
+      get: () => undefined,
+      async create(options) {
+        calls.create.push(options)
+        return { agent: verifyAgent, async dispose() {} }
+      },
+      async resume(options) {
+        calls.resume.push(options)
+        return { agent: mainAgent, async dispose() {} }
+      },
+    }
+    this.agents = agents
+    const ctx = {
+      logger: { warn() {} },
+      on(name, handler) {
+        ;(listeners[name] ??= []).push(handler)
+        return () => {}
+      },
+      effect(fn) {
+        const dispose = fn()
+        disposers.push(dispose)
+        return dispose
+      },
+      webServer: {
+        register: (route) => {
+          if (route.kind === 'prefix' && route.path === '/task-reliability/api') this.api = route
+          return () => {}
+        },
+      },
+      get(name) {
+        if (name === 'agents') return agents
+        if (name === 'sessionQuery') return { async readSession() { return { events: [] } } }
+        if (name === 'goals') return { get() { return undefined } }
+        if (name === 'approval') return { setPolicy(agent, policy) { this.policies.push({ agentId: agent.id, policy }) } }
+        if (name === 'webRuntime') return { trustedHosts: [] }
+        return undefined
+      },
+    }
+    apply(ctx, { saveDebounceMs: 0, resumeGraceMs: 60000, steerCooldownMs: 0, retryBaseMs: 0, ...config })
+  }
+
+  makeAgent(id, opts = {}) {
+    return {
+      id,
+      options: { provider: 'deepseek', model: 'deepseek-chat' },
+      session: {
+        header: { cwd: '/work', ...(opts.origin !== undefined ? { origin: opts.origin } : {}) },
+        events: [],
+      },
+      steered: [],
+      followed: [],
+      steer(message) {
+        this.steered.push(message)
+      },
+      followup(message) {
+        this.followed.push(message)
+      },
+      whenIdle() {
+        return Promise.resolve()
+      },
+    }
+  }
+
+  async callApi(url, method = 'GET', body) {
+    const headers = { host: '127.0.0.1:3080' }
+    if (body !== undefined) headers['content-type'] = 'application/json'
+    const response = {
+      writeHeadStatus: 0,
+      written: [],
+      writeHead(status) {
+        this.writeHeadStatus = status
+      },
+      write(chunk) {
+        this.written.push(String(chunk))
+        return true
+      },
+      end(value) {
+        if (value !== undefined) this.written.push(String(value))
+      },
+    }
+    await this.api.handler({
+      url,
+      method,
+      headers,
+      async *[Symbol.asyncIterator]() {
+        if (body !== undefined) yield JSON.stringify(body)
+      },
+    }, response)
+    this.lastResponse = { status: response.writeHeadStatus, body: JSON.parse(response.written.join('') || 'null') }
+  }
+
+  dispatch(name, ...args) {
+    const handlers = this.listeners[name] ?? []
+    assert.ok(handlers.length > 0, `listener ${name} registered`)
+    return handlers[handlers.length - 1](...args)
+  }
+
+  cleanup() {
+    for (const dispose of this.disposers.splice(0)) dispose()
+    for (const dir of this.dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+    process.env.DSH_HOME = this.oldHome
+  }
+}
+
+setWorldConstructor(World)
+
+After(function () {
+  this.cleanup()
+})
+
+// ── Given ─────────────────────────────────────────────────────────────────
+Given('任务可靠性插件已启动', function () {
+  this.boot()
+})
+
+Given('任务可靠性插件已启动且自主决策开启', function () {
+  this.boot({ autopilot: true })
+})
+
+Given('任务可靠性插件已启动且自主决策关闭', function () {
+  this.boot({ autopilot: false })
+})
+
+Given('任务可靠性插件已启动且配置了 apiToken', function () {
+  this.boot({ apiToken: 'secret' })
+})
+
+Given('会话 {string} 存在活动任务', async function (sessionId) {
+  await this.callApi('/task-reliability/api/tasks', 'POST', {
+    sessionId,
+    description: '开发一个功能',
+  })
+})
+
+Given('会话 {string} 没有活动任务', function (_sessionId) {
+  // 空注册表即无任务
+})
+
+Given('子代理 {string} 有活动任务', async function (sessionId) {
+  await this.callApi('/task-reliability/api/tasks', 'POST', {
+    sessionId,
+    description: '子代理任务',
+  })
+})
+
+Given('会话 {string} 注册了校验模式任务', async function (sessionId) {
+  await this.callApi('/task-reliability/api/tasks', 'POST', {
+    sessionId,
+    description: '开发一个功能',
+    mode: 'verify',
+  })
+})
+
+Given('会话 {string} 注册了活动任务且循环上限为 {int}', async function (sessionId, maxLoop) {
+  this.boot({ maxLoop, steerCooldownMs: 0 })
+  await this.callApi('/task-reliability/api/tasks', 'POST', {
+    sessionId,
+    description: '开发一个功能',
+  })
+})
+
+Given('会话 {string} 注册了活动任务', async function (sessionId) {
+  await this.callApi('/task-reliability/api/tasks', 'POST', {
+    sessionId,
+    description: '开发一个功能',
+  })
+})
+
+// ── When ──────────────────────────────────────────────────────────────────
+When('我注册会话 {string} 的任务 {string}', async function (sessionId, description) {
+  await this.callApi('/task-reliability/api/tasks', 'POST', { sessionId, description })
+})
+
+When('再次为会话 {string} 注册任务 {string}', async function (sessionId, description) {
+  await this.callApi('/task-reliability/api/tasks', 'POST', { sessionId, description })
+})
+
+When('代理 {string} 的模型请求以 TIMEOUT 失败', async function (sessionId) {
+  this.lastDecision = await this.dispatch('agent/request-error', {
+    agent: { id: sessionId },
+    failure: { code: 'TIMEOUT', message: 'timeout' },
+    signal: { aborted: false },
+  }, () => { this.nextCalled = true; return Promise.resolve(undefined) })
+})
+
+When('代理 {string} 的模型请求以 INVALID_ARGUMENT 失败', async function (sessionId) {
+  this.lastDecision = await this.dispatch('agent/request-error', {
+    agent: { id: sessionId },
+    failure: { code: 'INVALID_ARGUMENT', message: 'bad' },
+    signal: { aborted: false },
+  }, () => { this.nextCalled = true; return Promise.resolve(undefined) })
+})
+
+When('代理 {string} 的回合即将结束', async function (_sessionId) {
+  await this.dispatch('agent/turn-stopping', { agent: this.mainAgent, signal: { aborted: false } })
+})
+
+When('子代理 {string} 的回合即将结束', async function (sessionId) {
+  await this.dispatch('agent/turn-stopping', { agent: this.makeAgent(sessionId, { origin: 'subagent' }), signal: { aborted: false } })
+})
+
+When('代理 {string} 回合结束触发 {int} 次', async function (sessionId, count) {
+  for (let i = 0; i < count; i++) {
+    await this.dispatch('agent/turn-stopping', { agent: this.mainAgent, signal: { aborted: false } })
+  }
+})
+
+When('代理 {string} 变为空闲', async function (_sessionId) {
+  // fire-and-forget：校验流程异步挂起在 verifyIdle，等待后续结论 step resolve
+  void this.dispatch('agent/status', { agent: this.mainAgent, status: 'idle' })
+  await new Promise((resolve) => setTimeout(resolve, 20))
+})
+
+When('校验代理结论为已完成', function () {
+  this.verifyAgent.session.events = [
+    { type: 'assistant/message', data: { message: { content: [{ type: 'text', text: '{"done": true, "reason": "全部完成"}' }] } } },
+  ]
+  this.verifyIdle.resolve()
+})
+
+When('校验代理结论为未完成并附原因', function () {
+  this.verifyAgent.session.events = [
+    { type: 'assistant/message', data: { message: { content: [{ type: 'text', text: '{"done": false, "reason": "测试还没写"}' }] } } },
+  ]
+  this.verifyIdle.resolve()
+})
+
+When('代理 {string} 的模型流产生连续重复的思考段落', async function (sessionId) {
+  const long = '反复推敲同一段思考内容及其潜在影响与后续步骤的详细规划与执行细节安排。'.repeat(8)
+  const chunks = []
+  for (let b = 0; b < 5; b++) {
+    chunks.push({ type: 'block-start', index: b, blockType: 'reasoning' })
+    for (const ch of long) chunks.push({ type: 'reasoning-delta', index: b, text: ch })
+    chunks.push({ type: 'block-end', index: b, block: { type: 'reasoning', text: long } })
+  }
+  this.wrapped = await this.dispatch('llm/stream', { sessionId }, async () => (async function* () {
+    for (const c of chunks) yield c
+  })())
+})
+
+When('代理 {string} 调用 ask_user_question 工具', async function (_sessionId) {
+  this.lastDecision = await this.dispatch('tools/pre-execute', {
+    name: 'ask_user_question',
+    agent: this.mainAgent,
+    arguments: { questions: [{ header: '需要确认' }] },
+  }, () => { this.nextCalled = true; return Promise.resolve({ kind: 'allow' }) })
+})
+
+When('插件重新启动', async function () {
+  const dir = this.dir
+  for (const dispose of this.disposers.splice(0)) dispose()
+  this.boot({ resumeGraceMs: 0 }, dir)
+  await new Promise((resolve) => setTimeout(resolve, 30))
+})
+
+When('我通过远程 hook 注册会话 {string} 的任务', async function (sessionId) {
+  await this.callApi('/task-reliability/api/trigger', 'POST', {
+    action: 'register',
+    sessionId,
+    description: '远程任务',
+  })
+})
+
+When('我通过远程 hook 不携带 token 调用', async function () {
+  await this.callApi('/task-reliability/api/trigger', 'POST', { action: 'status' })
+})
+
+// ── Then ──────────────────────────────────────────────────────────────────
+Then('任务列表包含该任务且状态为进行中', async function () {
+  await this.callApi('/task-reliability/api/tasks', 'GET')
+  assert.equal(this.lastResponse.status, 200)
+  assert.ok(this.lastResponse.body.value.some((t) => t.sessionId === 's-1' && t.status === 'active'))
+})
+
+Then('任务注册表已写入持久化文件', async function () {
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  assert.ok(existsSync(join(this.dir, 'task-reliability.json')))
+})
+
+Then('第二次注册返回失败', function () {
+  assert.equal(this.lastResponse.status, 400)
+})
+
+Then('插件返回重试动作且不委托 next', function () {
+  assert.equal(this.lastDecision.kind, 'retry')
+  assert.equal(this.nextCalled, false)
+})
+
+Then('插件委托 next 处理', function () {
+  assert.equal(this.nextCalled, true)
+})
+
+Then('插件向代理注入继续指令（steer）', function () {
+  assert.equal(this.mainAgent.steered.length, 1)
+  assert.ok(this.mainAgent.steered[0].content[0].text.includes('任务自动继续'))
+})
+
+Then('指令包含任务描述', function () {
+  assert.ok(this.mainAgent.steered[0].content[0].text.includes('开发一个功能'))
+})
+
+Then('插件不注入任何指令', function () {
+  assert.equal(this.mainAgent.steered.length, 0)
+})
+
+Then('任务状态变为 failed', async function () {
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  const store = JSON.parse(readFileSync(join(this.dir, 'task-reliability.json'), 'utf8'))
+  assert.equal(store.tasks[0].status, 'failed')
+})
+
+Then('插件创建独立校验代理', async function () {
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  assert.equal(this.calls.create.length, 1)
+  assert.ok(this.calls.create[0].sessionId.startsWith('verify-'))
+})
+
+Then('校验代理收到校验指令', function () {
+  assert.ok(this.verifyAgent.followed.length >= 1)
+  assert.ok(this.verifyAgent.followed[0].content[0].text.includes('任务完成度校验员'))
+})
+
+Then('任务状态变为 done', async function () {
+  await new Promise((resolve) => setTimeout(resolve, 30))
+  const store = JSON.parse(readFileSync(join(this.dir, 'task-reliability.json'), 'utf8'))
+  assert.equal(store.tasks[0].status, 'done')
+})
+
+Then('主代理收到带原因的继续指令', async function () {
+  await new Promise((resolve) => setTimeout(resolve, 30))
+  assert.equal(this.mainAgent.followed.length, 1)
+  assert.ok(this.mainAgent.followed[0].content[0].text.includes('测试还没写'))
+})
+
+Then('流抛出思考循环错误', async function () {
+  let error = null
+  try {
+    for await (const chunk of this.wrapped) { void chunk }
+  } catch (e) {
+    error = e
+  }
+  assert.ok(error instanceof Error)
+  assert.equal(error.code, 'REASONING_LOOP')
+})
+
+Then('插件注入打断指令', function () {
+  assert.equal(this.mainAgent.steered.length, 1)
+  assert.ok(this.mainAgent.steered[0].content[0].text.includes('思考重复'))
+})
+
+Then('工具被拒绝且原因含自主决策说明', function () {
+  assert.equal(this.lastDecision.kind, 'deny')
+  assert.ok(this.lastDecision.reason.includes('自主决策模式'))
+})
+
+Then('问题被记录到待确认列表', async function () {
+  await this.callApi('/task-reliability/api/questions', 'GET')
+  assert.equal(this.lastResponse.body.value.length, 1)
+})
+
+Then('工具流程的 next\\(\\) 未被调用', function () {
+  assert.equal(this.nextCalled, false)
+})
+
+Then('工具流程的 next\\(\\) 被调用', function () {
+  assert.equal(this.nextCalled, true)
+})
+
+Then('代理 {string} 收到系统重启恢复指令', function (_sessionId) {
+  assert.equal(this.mainAgent.followed.length, 1)
+  assert.ok(this.mainAgent.followed[0].content[0].text.includes('系统重启恢复'))
+})
+
+Then('任务记录 resumeAt', async function () {
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  const store = JSON.parse(readFileSync(join(this.dir, 'task-reliability.json'), 'utf8'))
+  assert.ok(store.tasks[0].resumeAt > 0)
+})
+
+Then('任务出现在任务列表', async function () {
+  await this.callApi('/task-reliability/api/tasks', 'GET')
+  assert.ok(this.lastResponse.body.value.some((t) => t.description === '远程任务'))
+})
+
+Then('返回 403', function () {
+  assert.equal(this.lastResponse.status, 403)
+})

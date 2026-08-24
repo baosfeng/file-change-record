@@ -51,3 +51,6 @@ reasonix.toml
 # DSH 工具相关目录
 .dsh/
 **/.dsh/
+
+# Stryker mutation testing sandbox
+.stryker-tmp/
