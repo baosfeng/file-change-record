@@ -21,6 +21,9 @@
     "globals": "^15.0.0",
     "vitest": "^4.1.11"
   },
+  "overrides": {
+    "qs": "6.15.3"
+  },
   "engines": {
     "node": ">=20"
   }

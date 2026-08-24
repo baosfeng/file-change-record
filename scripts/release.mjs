@@ -24,6 +24,12 @@ const args = process.argv.slice(2)
 const name = args.find((a) => !a.startsWith('--'))
 const push = args.includes('--push')
 
+/**
+ * Escape a user-supplied string for safe use inside a RegExp constructor.
+ * `name` comes from the command line and must never alter the match grammar.
+ */
+const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
 if (!name) {
   console.error('usage: node scripts/release.mjs <plugin-name> [--push]')
   process.exit(2)
@@ -92,7 +98,7 @@ let agents = readFileSync(agentsPath, 'utf8')
 let changed = false
 
 // README plugin table: | [<name>](plugins/<name>/README.md) | <old> | ...
-const readmeRe = new RegExp(`(\\| \\[${name}\\]\\(plugins/${name}/README\\.md\\) \\| )\\d+\\.\\d+\\.\\d+( \\|)`)
+const readmeRe = new RegExp(`(\\| \\[${escapeRegExp(name)}\\]\\(plugins/${escapeRegExp(name)}/README\\.md\\) \\| )\\d+\\.\\d+\\.\\d+( \\|)`)
 if (readmeRe.test(readme)) {
   const next = readme.replace(readmeRe, `$1${version}$2`)
   if (next !== readme) {
@@ -107,7 +113,7 @@ if (readmeRe.test(readme)) {
 }
 
 // AGENTS.md: "<name> v<old>" in the 版本 line
-const agentsRe = new RegExp(`(${name} v)\\d+\\.\\d+\\.\\d+`)
+const agentsRe = new RegExp(`(${escapeRegExp(name)} v)\\d+\\.\\d+\\.\\d+`)
 if (agentsRe.test(agents)) {
   const next = agents.replace(agentsRe, `$1${version}`)
   if (next !== agents) {

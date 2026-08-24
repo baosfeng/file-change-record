@@ -5,6 +5,10 @@ on:
     branches: [main, master]
   pull_request:
 
+# 最小权限：CI 只读仓库内容，不需要写 GITHUB_TOKEN
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
