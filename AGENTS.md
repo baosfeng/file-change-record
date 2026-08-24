@@ -75,5 +75,6 @@ docs/
 ## 开发指南
 - [代码规范](.reasonix/skills/coding-standards/SKILL.md) · [文档规范](docs/开发指南/文档规范.md) · [提交规范](.reasonix/skills/commit-standards/SKILL.md)
 - [构建与测试](docs/开发指南/构建与测试.md) · [测试规范](.reasonix/skills/testing-standards/SKILL.md) · [工程规范](.reasonix/skills/engineering-standards/SKILL.md) · [lint 配置建议](docs/开发指南/lint配置建议.md)
+- [质量门禁差距分析](docs/开发指南/质量门禁差距分析.md) · **[P2 模块拆分交接](docs/开发指南/P2模块拆分交接.md)** — 接手剩余工作（G9-G12 拆分 / G3 尺寸门禁）必读
 
 ## 踩坑记录 → [踩坑记录](docs/踩坑/README.md)
