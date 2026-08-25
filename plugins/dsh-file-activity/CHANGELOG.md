@@ -2,6 +2,15 @@
 
 本文件记录 dsh-file-activity 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.6] - 2026-08-25
+
+### 变更
+
+- **Server 端按 P2 模块拆分**：`lib/index.js`（434 行）按职责拆分为 fence/state/store/observer/api-route/media-route 子模块（入口 50 行），覆盖率/变异统计范围同步扩展至全部 server 文件（Stryker 变异 90.91% ≥ 70%）。
+- **Client 端方案 B 拆分**：`client.src.js` 模板 + 13 个片段（`lib/parts/`）经 `scripts/build.mjs` 拼接生成 `client.js`；eslint 尺寸规则覆盖 src/parts 源码、构建产物排除。
+- **client-render 测试零依赖化**：不再硬编码本机 react 绝对路径，改为自写 createElement stub（CI 跨平台可跑）。
+- 行为不变（纯重构）。
+
 ## [0.4.5] - 2026-08-24
 
 ### 修复
