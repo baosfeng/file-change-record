@@ -1,5 +1,5 @@
 /**
- * dsh-guardian — client half (browser).
+ * dsh-guardian — client half (browser). SOURCE TEMPLATE.
  *
  * A dsh-better-sidebar tab ("插件守护 / Plugin Guardian") showing the staged
  * and promoted plugin entries managed by the server half:
@@ -11,6 +11,13 @@
  * Data source: GET/POST /guardian/api/* (server half), polled while the tab
  * is visible. Styling follows the better-sidebar design language: DSH
  * semantic tokens, flat surfaces, hairline borders.
+ *
+ * BUILD NOTE: this file is the SOURCE TEMPLATE. scripts/build.mjs splices the
+ * `lib/parts/*.part.js` pieces into the PART placeholder markers below
+ * (each piece is plain function-declaration text sharing this factory scope;
+ * the browser ModuleLoader does not support relative-path require) and writes
+ * lib/client.js — the file actually served by DSH, which MUST be committed
+ * (CI runs node --check + tests against it, not against this template).
  */
 window.__ModuleLoader__.load({
   id: 'dsh-guardian',
@@ -23,6 +30,9 @@ window.__ModuleLoader__.load({
     const TAB_ID = 'dsh-guardian:panel'
     const POLL_MS = 5000
 
+    // ── parts (injected by scripts/build.mjs; keep this exact order — the
+    //    const initializers below run in splice order) ─────────────────────
+        // ── styles ─────────────────────────────────────────────────────────────
     const STYLES = `
 .dsh-guardian-panel { padding: 8px 10px; font-size: 12px; color: var(--dsw-alias-text-primary, #d6d6d6); display: flex; flex-direction: column; gap: 8px; }
 .dsh-guardian-safemode { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid var(--dsw-alias-border, rgba(128,128,128,.3)); border-radius: 8px; background: var(--dsw-alias-bg-soft, rgba(128,128,128,.08)); }
@@ -51,7 +61,7 @@ window.__ModuleLoader__.load({
 .dsh-guardian-event { font-size: 10px; color: var(--dsw-alias-text-secondary, #9a9a9a); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 `
 
-    // ── i18n ──────────────────────────────────────────────────────────────
+        // ── i18n ──────────────────────────────────────────────────────────────
     function isZh() {
       try {
         return (navigator.language || 'en').toLowerCase().startsWith('zh')
@@ -99,7 +109,6 @@ window.__ModuleLoader__.load({
       return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
     }
 
-    // ── view ──────────────────────────────────────────────────────────────
     function statusLabel(status) {
       switch (status) {
         case 'running': return strings.running()
@@ -110,6 +119,7 @@ window.__ModuleLoader__.load({
       }
     }
 
+        // ── row ────────────────────────────────────────────────────────────────
     function EntryRow({ entry, source, onAction }) {
       const [expanded, setExpanded] = useState(false)
       const hasError = typeof entry.lastError === 'string' && entry.lastError !== ''
@@ -147,7 +157,11 @@ window.__ModuleLoader__.load({
       )
     }
 
-    function GuardianView({ visible }) {
+        // ── view ───────────────────────────────────────────────────────────────
+    /** State + data loading + user actions for the panel. Polls /guardian/api
+     *  while the tab is visible; actions re-fetch on success, flag the load
+     *  error banner on failure. */
+    function useGuardianState(visible) {
       const [state, setState] = useState({ safeMode: false, staged: [], promoted: [], events: [], loaded: false })
       const [loadFailed, setLoadFailed] = useState(false)
 
@@ -175,6 +189,55 @@ window.__ModuleLoader__.load({
         api('safemode', { enabled }).then(() => load()).catch(() => setLoadFailed(true))
       }
 
+      return { state, loadFailed, onAction, onSafeMode }
+    }
+
+    /** Safe-mode switch header: checkbox + hint, wired to the host API. */
+    function SafeModeBar({ safeMode, onSafeMode }) {
+      return createElement('div', { className: 'dsh-guardian-safemode' },
+        createElement('label', null,
+          createElement('input', {
+            type: 'checkbox',
+            checked: safeMode === true,
+            onChange: (event) => onSafeMode(event.target.checked),
+          }),
+          createElement('span', null, strings.safeMode()),
+        ),
+        createElement('div', { className: 'dsh-guardian-hint' }, strings.safeModeDesc()),
+      )
+    }
+
+    /** Staged + promoted entries as rows; empty state when there are none. */
+    function EntryList({ rows, onAction }) {
+      if (rows.length === 0) {
+        return createElement('div', { className: 'dsh-guardian-empty' }, strings.empty())
+      }
+      return createElement('div', { className: 'dsh-guardian-list' },
+        rows.map(({ entry, source }) => createElement(EntryRow, {
+          key: `${source}:${entry.id}`,
+          entry,
+          source,
+          onAction,
+        })),
+      )
+    }
+
+    /** Recent guardian event log lines (time-stamped, one per entry). */
+    function EventList({ events }) {
+      if (events.length === 0) return null
+      return createElement('div', { className: 'dsh-guardian-events' },
+        createElement('div', { className: 'dsh-guardian-events-title' }, strings.events()),
+        events.map((event, index) => createElement('div', {
+          className: 'dsh-guardian-event',
+          key: index,
+          title: event.message,
+        }, `${formatTime(event.time)} [${event.type}] ${event.message}`)),
+      )
+    }
+
+    function GuardianView({ visible }) {
+      const { state, loadFailed, onAction, onSafeMode } = useGuardianState(visible)
+
       if (!state.loaded && !loadFailed) {
         return createElement('div', { className: 'dsh-guardian-styles-placeholder' }, strings.loading())
       }
@@ -185,42 +248,14 @@ window.__ModuleLoader__.load({
       ]
 
       return createElement('div', { className: 'dsh-guardian-panel' },
-        createElement('div', { className: 'dsh-guardian-safemode' },
-          createElement('label', null,
-            createElement('input', {
-              type: 'checkbox',
-              checked: state.safeMode === true,
-              onChange: (event) => onSafeMode(event.target.checked),
-            }),
-            createElement('span', null, strings.safeMode()),
-          ),
-          createElement('div', { className: 'dsh-guardian-hint' }, strings.safeModeDesc()),
-        ),
+        createElement(SafeModeBar, { safeMode: state.safeMode, onSafeMode }),
         loadFailed ? createElement('div', { className: 'dsh-guardian-error' }, strings.loadError()) : null,
-        rows.length === 0
-          ? createElement('div', { className: 'dsh-guardian-empty' }, strings.empty())
-          : createElement('div', { className: 'dsh-guardian-list' },
-              rows.map(({ entry, source }) => createElement(EntryRow, {
-                key: `${source}:${entry.id}`,
-                entry,
-                source,
-                onAction,
-              })),
-            ),
-        state.events.length > 0
-          ? createElement('div', { className: 'dsh-guardian-events' },
-              createElement('div', { className: 'dsh-guardian-events-title' }, strings.events()),
-              state.events.map((event, index) => createElement('div', {
-                className: 'dsh-guardian-event',
-                key: index,
-                title: event.message,
-              }, `${formatTime(event.time)} [${event.type}] ${event.message}`)),
-            )
-          : null,
+        createElement(EntryList, { rows, onAction }),
+        createElement(EventList, { events: state.events }),
       )
     }
 
-    // ── plugin body ───────────────────────────────────────────────────────
+        // ── plugin body ───────────────────────────────────────────────────────
     exports.inject = ['betterSidebar']
 
     exports.apply = function apply(ctx) {
@@ -246,6 +281,7 @@ window.__ModuleLoader__.load({
         component: ({ scope, visible }) => createElement(GuardianView, { sessionId: scope.sessionId, visible }),
       }), 'dsh-guardian: tab registration')
     }
+
 
     return module.exports
   },

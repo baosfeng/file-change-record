@@ -12,6 +12,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "build": "node scripts/build.mjs",
     "test": "npx vitest run --coverage && cucumber-js test/features --import 'test/features/steps/*.mjs'"
   },
   "exports": {
