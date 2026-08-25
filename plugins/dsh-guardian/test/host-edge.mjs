@@ -15,6 +15,25 @@ const dir = mkdtempSync(join(tmpdir(), 'dsh-guardian-edge-'))
 process.env.DSH_HOME = dir
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+/** 轮询等待条件成立（guardian 持久化是异步 promise 链，固定 sleep 在慢 CI 上不稳定，曾致偶发失败）。 */
+async function waitFor(check, timeoutMs = 3000, intervalMs = 25) {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    if (check()) return
+    if (Date.now() > deadline) throw new Error('waitFor timed out')
+    await sleep(intervalMs)
+  }
+}
+
+/** 读取当前持久化的 state.json；文件尚未写入时返回 null。 */
+function readStateOrNull() {
+  try {
+    return JSON.parse(readFileSync(join(dir, 'guardian', 'state.json'), 'utf8'))
+  } catch {
+    return null
+  }
+}
+
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true })
 })
@@ -239,7 +258,13 @@ test('diagnostic events are recorded (entry-init / dispose / update-failed)', as
     if (name === 'loader/partial-dispose') listener({ options: { id: 'e2' } })
     if (name === 'hmr/config-update-failed') listener('cordis.yml', new Error('boom'))
   }
-  await sleep(50)
+  await waitFor(() => {
+    const s = readStateOrNull()
+    return s !== null
+      && s.events.some((e) => e.type === 'entry-init')
+      && s.events.some((e) => e.type === 'entry-dispose')
+      && s.events.some((e) => e.type === 'update-failed')
+  })
   const state = JSON.parse(readFileSync(join(dir, 'guardian', 'state.json'), 'utf8'))
   assert.ok(state.events.some((e) => e.type === 'entry-init'), 'entry-init logged')
   assert.ok(state.events.some((e) => e.type === 'entry-dispose'), 'entry-dispose logged')
@@ -255,7 +280,12 @@ test('staged API rejects missing id/name (400) and conflicts (409)', async () =>
   fake.failMap['dup'] = 'stays staged' // a failed entry REMAINS in the staged file
   writeFileSync(join(dir, 'cordis.staged.json'), JSON.stringify([{ id: 'dup', name: 'dsh-dup' }], null, 2))
   const ctx = boot(fake)
-  await sleep(120)
+  // 等待 initialScan 完成（dup 处理失败后进入 state.staged），避免慢 CI 上
+  // 时序竞态导致重复 id 冲突检测未生效（曾偶发 200 而非 409）
+  await waitFor(() => {
+    const s = readStateOrNull()
+    return s !== null && s.staged !== undefined && s.staged.dup !== undefined
+  })
 
   const missing = await callApi(fake, 'POST', 'staged', { id: '', name: '' })
   assert.equal(missing.status, 400, 'missing id/name → 400')
