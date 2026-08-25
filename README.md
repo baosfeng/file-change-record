@@ -11,12 +11,14 @@
       <td align="center" style="vertical-align:top"><img src="plugins/dsh-think-zh-expand/assets/think-markdown.png" width="230" alt="dsh-think-zh-expand 思考块渲染" /></td>
       <td align="center" style="vertical-align:top"><img src="plugins/dsh-mermaid-render/assets/mermaid-card.png" width="230" alt="dsh-mermaid-render 图表卡片" /></td>
       <td align="center" style="vertical-align:top"><img src="plugins/dsh-notify/assets/notify-toast.png" width="230" alt="dsh-notify 通知提醒 toast" /></td>
+      <td align="center" style="vertical-align:top"><img src="plugins/dsh-task-reliability/assets/screenshot-panel.png" width="230" alt="dsh-task-reliability 任务可靠性面板" /></td>
     </tr>
     <tr>
       <td align="center"><sub>dsh-file-activity</sub></td>
       <td align="center"><sub>dsh-think-zh-expand</sub></td>
       <td align="center"><sub>dsh-mermaid-render</sub></td>
       <td align="center"><sub>dsh-notify</sub></td>
+      <td align="center"><sub>dsh-task-reliability</sub></td>
     </tr>
   </table>
 </div>
@@ -30,6 +32,7 @@
 | [dsh-mermaid-render](plugins/dsh-mermaid-render/README.md) | 0.1.1 | 对话 mermaid/mmd 代码块自动渲染为图表卡片（预览/代码切换），mermaid 引擎内联打包、零 CDN 依赖、完全离线可用；流式渲染稳健（等流式结束渲染，避免残缺态） |
 | [dsh-notify](plugins/dsh-notify/README.md) | 0.1.0 | 通知提醒：会话结束 / agent 询问（ask）/ 等待审批时弹浏览器通知 + 滴声提示，点击通知跳转对应会话；预留远程 hook 触发接口（`POST /notify/api/trigger`，支持可选 token），SSE 实时通道 |
 | [dsh-guardian](plugins/dsh-guardian/README.md) | 0.1.0 | 插件治理：新装/更新插件先进候选区（cordis.staged.json），启动完成后由守护插件逐个热挂载——成功自动转正，失败自动隔离记录，连续失败冻结，一键安全模式，侧边栏诊断面板；守护插件自身永不拖垮进程（看门狗自保） |
+| [dsh-task-reliability](plugins/dsh-task-reliability/README.md) | 0.1.0 | 任务可靠性保障：模型超时/请求失败自动重试、任务未完成自动继续（turn-stopping 注入）、独立完成度校验 agent（会话结束后判断，未完成唤醒继续）、思考重复检测与打断、休眠/重启后任务自动恢复、自主决策模式（出行防 ask 中断，问题收集待确认）、远程触发接口 |
 
 ## 目录结构
 
@@ -39,7 +42,8 @@
 │   ├── dsh-think-zh-expand/
 │   ├── dsh-mermaid-render/
 │   ├── dsh-notify/
-│   └── dsh-guardian/
+│   ├── dsh-guardian/
+│   └── dsh-task-reliability/
 ├── skills/           # 本仓库的开发技能（SKILL.md 格式，可安装到 ~/.dsh/skills/）
 │   └── dsh-plugin-development/
 ├── docs/             # 通用文档与设计文档

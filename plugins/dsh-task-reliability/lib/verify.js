@@ -1,0 +1,178 @@
+/**
+ * dsh-task-reliability — completion verifier & restart resume.
+ *
+ * 依赖 util.js（withTimeout/userMessage）、text.js（lastAssistantText/
+ * summarizeSession）与 constants.js。会话结束后启动独立校验 agent 判断
+ * 任务完成度；插件启动时恢复休眠前未完成的任务。
+ */
+
+import { withTimeout, userMessage } from './util.js'
+import { lastAssistantText, summarizeSession } from './text.js'
+import { DIRECT_CONTINUE_TEXT, RESUME_CONTINUE_TEXT, VERIFY_TIMEOUT_MS } from './constants.js'
+
+function verifyPrompt(task, summary) {
+  return `你是一个任务完成度校验员。请阅读以下任务与当前会话进展，判断任务是否已经真正完成。
+
+任务：${task.description}
+
+会话最近进展：
+${summary}
+
+请严格只输出一个 JSON 对象（不要输出其他内容）：
+{"done": true 或 false, "reason": "完成或未完成的简明原因（50 字以内）"}
+
+判断标准：任务的所有要求是否都已被满足；如果还有未完成、未验证、或中途中断的部分，done 必须为 false。`
+}
+
+function verifyServiceReady(agents) {
+  return agents !== undefined && agents !== null && typeof agents.create === 'function'
+}
+
+/** 校验失败/不可用时的降级路径：直接以继续文本唤醒主 agent。 */
+function continueDirect(task, agent, save) {
+  task.status = 'active'
+  agent.followup(userMessage(DIRECT_CONTINUE_TEXT(task.description)))
+  task.loopCount += 1
+  task.updatedAt = Date.now()
+  save()
+}
+
+async function sessionSummary(ctx, agent, task) {
+  const sessionQuery = ctx.get('sessionQuery')
+  if (sessionQuery === undefined || sessionQuery === null || typeof sessionQuery.readSession !== 'function') return task.description
+  try {
+    const log = await sessionQuery.readSession(agent.id)
+    return summarizeSession(log, task.description)
+  } catch {
+    return task.description
+  }
+}
+
+async function spawnVerifier(agents, task, agent) {
+  try {
+    return await agents.create({
+      sessionId: `verify-${task.id}`,
+      meta: { origin: 'subagent', delegationDepth: 1 },
+      agentOptions: {
+        ...(agent.options?.provider !== undefined ? { provider: agent.options.provider } : {}),
+        ...(agent.options?.model !== undefined ? { model: agent.options.model } : {}),
+      },
+    })
+  } catch {
+    return undefined
+  }
+}
+
+async function collectConclusion(handle, task, summary) {
+  try {
+    handle.agent.followup(userMessage(verifyPrompt(task, summary)))
+    await withTimeout(handle.agent.whenIdle(), VERIFY_TIMEOUT_MS)
+    return parseConclusion(lastAssistantText(handle.agent.session))
+  } catch {
+    return undefined
+  }
+}
+
+async function disposeHandle(handle) {
+  try {
+    await handle.dispose()
+  } catch {
+    // dispose is best-effort
+  }
+}
+
+/** 校验未完成：携带结论（若有）唤醒主 agent 继续。 */
+function continueWithConclusion(task, agent, save, conclusion) {
+  task.status = 'active'
+  const reason = conclusion?.reason !== undefined && conclusion.reason !== '' ? conclusion.reason : ''
+  agent.followup(userMessage(
+    reason !== ''
+      ? `【任务校验】校验员判断任务尚未完成：${reason}。请继续完成剩余部分。`
+      : DIRECT_CONTINUE_TEXT(task.description),
+  ))
+  task.loopCount += 1
+  save()
+}
+
+/** 完整校验流程：创建校验 agent → 收集结论 → done 结案或唤醒继续。 */
+export async function runVerification(ctx, store, task, agent, save) {
+  const agents = ctx.get('agents')
+  if (!verifyServiceReady(agents)) return continueDirect(task, agent, save)
+  const summary = await sessionSummary(ctx, agent, task)
+  const handle = await spawnVerifier(agents, task, agent)
+  if (handle === undefined) return continueDirect(task, agent, save)
+  const conclusion = await collectConclusion(handle, task, summary)
+  await disposeHandle(handle)
+  task.verifyCount += 1
+  task.updatedAt = Date.now()
+  if (conclusion?.done === true) {
+    task.status = 'done'
+    save()
+    return
+  }
+  continueWithConclusion(task, agent, save, conclusion)
+}
+
+export function parseConclusion(text) {
+  if (typeof text !== 'string' || text === '') return undefined
+  try {
+    const start = text.indexOf('{')
+    const end = text.lastIndexOf('}')
+    if (start === -1 || end === -1 || end <= start) return undefined
+    const parsed = JSON.parse(text.slice(start, end + 1))
+    if (parsed === null || typeof parsed !== 'object') return undefined
+    return {
+      done: parsed.done === true,
+      reason: typeof parsed.reason === 'string' ? parsed.reason.slice(0, 200) : '',
+    }
+  } catch {
+    return undefined
+  }
+}
+
+// ── 重启恢复 ───────────────────────────────────────────────────────────────
+
+function resumeServiceReady(agents) {
+  return agents !== undefined && agents !== null && typeof agents.resume === 'function'
+}
+
+/** 取回 agent：live 直接复用，否则 resume；失败标记任务 failed。 */
+async function tryResumeAgent(agents, task) {
+  try {
+    const live = agents.get(task.sessionId)
+    if (live !== undefined) return live
+    const handle = await agents.resume({
+      resumeSessionId: task.sessionId,
+      agentOptions: {},
+    })
+    return handle.agent
+  } catch {
+    task.status = 'failed'
+    task.updatedAt = Date.now()
+    return undefined
+  }
+}
+
+function wakeAgent(task, agent) {
+  try {
+    agent.followup(userMessage(RESUME_CONTINUE_TEXT(task.description)))
+    task.resumeAt = Date.now()
+    task.updatedAt = Date.now()
+  } catch {
+    // followup is best-effort; keep the task active for a later attempt
+  }
+}
+
+/** 扫描活动任务并恢复（resumeAt 幂等，已恢复过的任务跳过）。 */
+export async function resumeActiveTasks(ctx, store, save) {
+  const agents = ctx.get('agents')
+  if (!resumeServiceReady(agents)) return
+  for (const task of store.tasks) {
+    if (task.status !== 'active') continue
+    if (task.resumeAt !== 0) continue
+    const agent = await tryResumeAgent(agents, task)
+    if (agent === undefined) continue
+    wakeAgent(task, agent)
+  }
+  save()
+}
