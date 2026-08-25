@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-08-25
+
+### 变更
+
+- **合并入主仓库 main**（feat/task-reliability 分支，issue #17）。
+- **Server 端按 P2 模式拆分**：`lib/index.js`（1001 行）拆分为 194 行入口 + 9 子模块（constants/util/fence/text/repeat/store/verify/events/api），`apply` 导出与行为不变；vitest 覆盖率与 Stryker 变异统计范围同步扩展至全部 server 文件（变异 70.16% ≥ 70%）。
+- **新增 `test/text.mjs`**（16 用例，text.js 变异分 50.81% → 72.58%）。
+- 一处无测试覆盖的意外错误路径修正：非 `/task-reliability/api/` 前缀 + POST 请求原抛 TypeError 返回 400，现统一返回 404（更合理）。
+
 ## [0.1.0] - 2026-08-24
 
 ### Added

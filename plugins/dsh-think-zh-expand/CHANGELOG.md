@@ -2,6 +2,13 @@
 
 本文件记录 dsh-think-zh-expand 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.1] - 2026-08-25
+
+### 变更
+
+- **Client 端方案 B 拆分**：`client.src.js` 模板 + 5 个片段（`lib/parts/`）经 `scripts/build.mjs` 拼接生成 `client.js`；eslint 尺寸规则覆盖 src/parts 源码、构建产物排除。
+- 行为不变（纯重构）。
+
 ## [0.4.0] - 2026-08-23
 
 ### 新增

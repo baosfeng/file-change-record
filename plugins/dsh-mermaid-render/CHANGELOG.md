@@ -2,6 +2,13 @@
 
 本文件记录 dsh-mermaid-render 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.2] - 2026-08-25
+
+### 变更
+
+- **Client 端方案 B 拆分**：`client.src.js` 模板 + 5 个片段（`lib/parts/`）经 `scripts/build.mjs` 拼接生成 `client.js`（构建脚本同步，产物行数 = 源码总和）；eslint 尺寸规则覆盖 src/parts 源码、构建产物排除。
+- 行为不变（纯重构）。
+
 ## [0.1.1] - 2026-08-23
 
 ### 修复

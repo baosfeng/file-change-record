@@ -2,6 +2,14 @@
 
 本文件记录 dsh-notify 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.2.0] - 2026-08-25
+
+### 变更
+
+- **npm 包名改为 `bsfeng-dsh-notify`**：npm 上 `dsh-notify` 已被他人占用（Pasumao 的 Windows 通知插件），按用户确认改为 bsfeng 前缀。安装命令变为 `dsh plugin --profile web add link:<仓库路径>/plugins/dsh-notify`（link 安装 key 同步）或未来 npm 安装 `bsfeng-dsh-notify`。localStorage 配置 key（`dsh-notify:notify` 等）与 API 路径（`/notify/api/*`）保持旧前缀，兼容既有用户配置。
+- **Server 端按 P2 模块拆分**：`lib/index.js`（349 行）拆分为 fence/session/notice/listeners/routes 子模块；**Client 端方案 B 拆分**（src 模板 + 3 片段 + build 拼接）。
+- 行为不变（重构 + 改名）。
+
 ## [0.1.0] - 2026-08-23
 
 ### 新增

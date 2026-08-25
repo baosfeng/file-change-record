@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-08-25
+
+### 变更
+
+- **npm 包名改为 `bsfeng-dsh-guardian`**：npm 上 `dsh-guardian` 已被他人占用（lss1213 的插件），按用户确认改为 bsfeng 前缀。安装命令变为 `dsh plugin --profile web add link:<仓库路径>/plugins/dsh-guardian`（link 安装 key 同步）。API 路径（`/guardian/api/*`）与状态文件路径（`$DSH_HOME/guardian/state.json`）保持兼容。
+- **Server 端按 P2 模块拆分**：`lib/index.js`（636 行）拆分为 state/fence/events/mount/api 子模块；**Client 端方案 B 拆分**（src 模板 + 5 片段 + build 拼接）。
+- **README 补充真实 DSH 实例效果截图**（assets/panel-main.png + panel-error-detail.png，隔离实例实测）。
+- 行为不变（重构 + 改名）。
+
 ## [0.1.0] - 2026-08-23
 
 ### Added
