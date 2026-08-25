@@ -83,6 +83,16 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-guardian
 | 失败 ×N | 挂载失败 N 次 | 重试 / 移除 |
 | 冻结 | 连续失败 3 次 | 重试（解除冻结）/ 移除 |
 
+### 效果截图（真实 DSH 实例验证）
+
+侧边栏"插件守护"诊断面板（独立 3081 端口隔离 DSH 实例实测）：
+
+![插件守护面板：候选失败隔离 + 转正运行中 + 安全模式开关](docs/panel-main.png)
+
+![失败自动隔离：错误详情可查](docs/panel-error-detail.png)
+
+> 截图环境：隔离 DSH 验证实例（`/tmp/dsh-3081`，端口 3081）。候选区同时写入 `demo-plugin`（挂载成功 → 自动转正"运行中"）与 `dsh-no-such-plugin-xyz`（包不存在 → 挂载失败自动隔离 ×1，错误详情保留可查）。
+
 ## 配置
 
 - **状态文件**：`$DSH_HOME/guardian/state.json`（`~/.dsh/guardian/state.json`）——持久化候选/转正清单、失败次数、安全模式、事件日志。损坏自动降级为空状态，不影响启动。
