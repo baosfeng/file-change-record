@@ -1,0 +1,88 @@
+#!/usr/bin/env node
+/**
+ * Docs consistency check — 防"新插件/新版本未同步文档"复发（审查发现项）。
+ *
+ * 检查（任一失败 exit 1，CI 强制）：
+ *   1. 每个 plugins/<name>/package.json 的插件必须出现在：
+ *      - 根 README.md 插件表（`| [<name>](plugins/<name>/README.md) | <version> |`）
+ *      - AGENTS.md（`plugins/<name>/` 路径引用 + 版本行 `<name> v<version>`）
+ *      - docs/索引.md（模块条目）与 docs/<模块>/概述.md（模块目录）
+ *   2. 根 README 插件表版本 / AGENTS.md 版本行 与 package.json version 一致
+ *   3. 每个 DSH 插件 README 安装章节含 npm 安装方式
+ *      （`dsh plugin --profile web add <npm包名>`；agent preset 除外）
+ *
+ * 用法：node scripts/check-docs.mjs
+ */
+import { readFileSync, existsSync, readdirSync } from 'node:fs'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+const errors = []
+
+// 插件名 → 模块信息：module=docs/ 目录名，display=索引.md 显示名，npm=发布包名
+const MODULES = {
+  'dsh-file-activity': { module: '文件活动追踪', display: '文件活动追踪', npm: 'dsh-file-activity' },
+  'dsh-think-zh-expand': { module: '思考增强', display: '思考增强', npm: 'dsh-think-zh-expand' },
+  'dsh-mermaid-render': { module: 'mermaid渲染', display: 'Mermaid 渲染', npm: 'dsh-mermaid-render' },
+  'dsh-notify': { module: '通知提醒', display: '通知提醒', npm: 'bsfeng-dsh-notify' },
+  'dsh-guardian': { module: '插件治理', display: '插件治理', npm: 'bsfeng-dsh-guardian' },
+  'dsh-task-reliability': { module: '任务可靠性', display: '任务可靠性', npm: 'dsh-task-reliability' },
+  'dsh-plugin-dev-mode': { module: '插件开发模式', display: '插件开发模式', npm: null }, // agent preset，非 npm 插件
+}
+
+const readme = readFileSync(join(root, 'README.md'), 'utf8')
+const agents = readFileSync(join(root, 'AGENTS.md'), 'utf8')
+const index = readFileSync(join(root, 'docs', '索引.md'), 'utf8')
+
+for (const entry of readdirSync(join(root, 'plugins'))) {
+  const pkgPath = join(root, 'plugins', entry, 'package.json')
+  if (!existsSync(pkgPath)) continue
+  const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
+  const meta = MODULES[entry]
+  if (!meta) {
+    errors.push(`✗ plugins/${entry} 未登记到 scripts/check-docs.mjs 的 MODULES 映射表`)
+    continue
+  }
+  const { module, display, npm } = meta
+  const version = pkg.version
+
+  // 1a. 根 README 插件表
+  const rowRe = new RegExp(`\\| \\[${entry}\\]\\(plugins/${entry}/README\\.md\\) \\| ${version} \\|`)
+  if (!rowRe.test(readme)) {
+    errors.push(`✗ 根 README.md 插件表缺少 ${entry} 行（或版本不是 ${version}）`)
+  }
+  // 1b. AGENTS.md 路径引用 + 版本行
+  if (!agents.includes(`plugins/${entry}/`)) {
+    errors.push(`✗ AGENTS.md 缺少 plugins/${entry}/ 引用（功能模块表/文档映射）`)
+  }
+  const verRe = new RegExp(`${entry} v\\d+\\.\\d+\\.\\d+`)
+  const verMatch = agents.match(verRe)
+  if (!verMatch) {
+    errors.push(`✗ AGENTS.md 版本行缺少 ${entry} v…`)
+  } else if (verMatch[0] !== `${entry} v${version}`) {
+    errors.push(`✗ AGENTS.md 版本行 ${verMatch[0]} ≠ package.json ${version}`)
+  }
+  // 1c. docs/索引.md + 模块目录
+  if (!index.includes(`→ [${display}]`)) {
+    errors.push(`✗ docs/索引.md 缺少「${display}」条目`)
+  }
+  if (!existsSync(join(root, 'docs', module, '概述.md'))) {
+    errors.push(`✗ docs/${module}/概述.md 不存在`)
+  }
+  // 3. 安装章节含 npm 方式（agent preset 除外）
+  if (npm) {
+    const plugReadme = readFileSync(join(root, 'plugins', entry, 'README.md'), 'utf8')
+    if (!plugReadme.includes(`dsh plugin --profile web add ${npm}`)) {
+      errors.push(`✗ plugins/${entry}/README.md 安装章节缺少 npm 方式（dsh plugin --profile web add ${npm}）`)
+    }
+  }
+}
+
+if (errors.length > 0) {
+  console.error(`文档一致性检查失败（${errors.length} 项）：`)
+  for (const e of errors) console.error('  ' + e)
+  console.error('修复后重跑：node scripts/check-docs.mjs')
+  process.exit(1)
+}
+console.log('✓ 文档一致性检查通过（插件 ↔ 根 README / AGENTS.md / docs/ 索引与模块 / 安装章节）')
