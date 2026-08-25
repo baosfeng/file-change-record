@@ -80,3 +80,7 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-think-zh-expand
 ```bash
 dsh plugin --profile web remove @max-null/dsh-chinese-thinking
 ```
+
+## 相关文档
+
+→ [思考增强模块文档](../../docs/思考增强/概述.md) · [需求清单](../../docs/思考增强/需求清单.md) · [CHANGELOG](CHANGELOG.md)
