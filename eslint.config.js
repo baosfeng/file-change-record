@@ -18,6 +18,9 @@ export default [
       '**/.stryker-tmp/',
       '**/reports/',
       'plugins/dsh-mermaid-render/lib/client.js',
+      'plugins/dsh-file-activity/lib/client.js',
+      'plugins/dsh-notify/lib/client.js',
+      'plugins/dsh-think-zh-expand/lib/client.js',
     ],
   },
   {
