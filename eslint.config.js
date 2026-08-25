@@ -17,14 +17,21 @@ export default [
       '**/node_modules/',
       '**/.stryker-tmp/',
       '**/reports/',
+      // client.js 构建产物（由 client.src.js 模板 + lib/parts/ 片段经
+      // scripts/build.mjs 拼接生成）：产物行数 = 源码总和，尺寸规则只查源；
+      // mermaid 产物内嵌 8.9MB base64，ESLint 正则规则会崩溃
       'plugins/dsh-mermaid-render/lib/client.js',
       'plugins/dsh-file-activity/lib/client.js',
       'plugins/dsh-notify/lib/client.js',
       'plugins/dsh-think-zh-expand/lib/client.js',
+      'plugins/dsh-guardian/lib/client.js',
     ],
   },
   {
-    files: ['plugins/**/lib/index.js'],
+    // server 端业务代码：lib/ 下除 client 外的所有文件（P2 拆分后 index.js
+    // 拆分为 state/fence/events/mount/api 等子模块，尺寸规则一并覆盖）
+    files: ['plugins/**/lib/*.js'],
+    ignores: ['plugins/**/lib/client.js', 'plugins/**/lib/client.src.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
@@ -38,8 +45,11 @@ export default [
     },
   },
   {
-    // 浏览器端（模块加载器格式，非标准 ESM）
-    files: ['plugins/**/lib/client.js', 'plugins/**/lib/client.src.js'],
+    // 浏览器端源码（模块加载器格式，非标准 ESM）：client.src.js 模板与
+    // lib/parts/ 片段（方案 B 子文件拼接，拼接进 factory 作用域后互相引用，
+    // no-undef/no-unused-vars 关闭）。构建产物 client.js 已在 ignores 排除。
+    // 尺寸规则（复杂度/行数）照常强制。
+    files: ['plugins/**/lib/client.src.js', 'plugins/**/lib/parts/*.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'script',
@@ -50,6 +60,8 @@ export default [
       complexity: ['error', 10],
       'max-lines': ['error', 300],
       'max-lines-per-function': ['error', 40],
+      'no-undef': 'off',
+      'no-unused-vars': 'off',
     },
   },
   {
