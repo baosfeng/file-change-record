@@ -15,7 +15,7 @@
  * Exit codes: 0 ok, 1 validation/test failure (nothing changed).
  */
 import { execSync } from 'node:child_process'
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -49,6 +49,32 @@ if (!/^\d+\.\d+\.\d+$/.test(version)) {
   process.exit(1)
 }
 console.log(`✓ plugin ${name} version ${version}`)
+
+// 1b. peer dependencies: DSH 插件必须声明 cordis peer（npm 分发后缺失会导致
+// dsh plugin add 安装失败），且 cordis major 与仓库内其他插件保持一致。
+const peers = pkg.peerDependencies || {}
+const cordisPeer = peers.cordis
+if (!cordisPeer) {
+  console.error(`✗ ${name}/package.json 缺少 peerDependencies.cordis（DSH 插件必须声明）`)
+  process.exit(1)
+}
+const cordisMajor = String(cordisPeer).match(/^[\^~]?(\d+)/)?.[1]
+if (!cordisMajor) {
+  console.error(`✗ ${name}/package.json peerDependencies.cordis 无法解析 major 版本: ${cordisPeer}`)
+  process.exit(1)
+}
+const mismatched = []
+for (const entry of readdirSync(join(root, 'plugins'))) {
+  if (entry === name || !existsSync(join(root, 'plugins', entry, 'package.json'))) continue
+  const other = JSON.parse(readFileSync(join(root, 'plugins', entry, 'package.json'), 'utf8'))
+  const otherMajor = String(other.peerDependencies?.cordis ?? '').match(/^[\^~]?(\d+)/)?.[1]
+  if (otherMajor && otherMajor !== cordisMajor) mismatched.push(`${entry} (cordis ^${otherMajor})`)
+}
+if (mismatched.length > 0) {
+  console.error(`✗ ${name} peerDependencies.cordis ^${cordisMajor} 与以下插件不一致: ${mismatched.join(', ')}`)
+  process.exit(1)
+}
+console.log(`✓ peerDependencies.cordis ^${cordisMajor} 已声明且与其他插件一致`)
 
 // 2. CHANGELOG section
 const changelog = readFileSync(join(pluginDir, 'CHANGELOG.md'), 'utf8')
