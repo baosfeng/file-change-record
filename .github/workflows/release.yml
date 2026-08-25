@@ -16,9 +16,9 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
 
@@ -54,8 +54,28 @@ jobs:
       - name: Extract the matching CHANGELOG.md section as the release body
         run: node .github/scripts/extract-release-body.mjs "plugins/$PLUGIN/CHANGELOG.md" "$VERSION" dist/release-body.md
 
+      # 可选：自动发布到 npm 官方（issue #12）。
+      # - 需在仓库 secrets 配置 NPM_TOKEN（npm 账号 access token，publish 权限）；
+      # - 未配置 token 时仅警告并跳过，不影响 GitHub Release 主流程；
+      # - 发布失败（包名已被他人占用，如 dsh-notify / dsh-guardian，或版本已存在）
+      #   同样只警告不阻塞——GitHub Release 始终是主交付物。
+      - name: Publish to npm (requires NPM_TOKEN)
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "::warning::NPM_TOKEN secrets 未配置——跳过 npm 发布（GitHub Release 通道不受影响）"
+            exit 0
+          fi
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > "$HOME/.npmrc"
+          if (cd "plugins/$PLUGIN" && npm publish --access public); then
+            echo "::notice::${PLUGIN}@${VERSION} published to npm"
+          else
+            echo "::warning::npm publish failed for ${PLUGIN}@${VERSION} (name taken or version exists); GitHub Release continues"
+          fi
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: dist/*.tgz
           body_path: dist/release-body.md
