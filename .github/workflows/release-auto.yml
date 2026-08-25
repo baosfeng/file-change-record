@@ -1,0 +1,56 @@
+name: Release (auto)
+
+# 自动发版：在 GitHub Actions 页面手动触发（Actions → Release (auto) →
+# Run workflow → 选择插件与 bump 类型）→ 自动：
+#   1. bump 版本（patch/minor/major）+ 从 git log 生成 CHANGELOG 段
+#   2. 提交（package.json/CHANGELOG + 根 README/AGENTS 版本同步）
+#   3. 打 tag <插件>@v<新版本> 并推送 → 触发 release.yml
+#      （自动测试 + GitHub Release + npm 发布，NPM_TOKEN 已配置）
+# 等价手动命令：node scripts/release.mjs <插件> --bump <类型> --push
+
+on:
+  workflow_dispatch:
+    inputs:
+      plugin:
+        description: 插件目录名
+        required: true
+        type: choice
+        options:
+          - dsh-file-activity
+          - dsh-think-zh-expand
+          - dsh-mermaid-render
+          - dsh-notify
+          - dsh-guardian
+          - dsh-task-reliability
+      bump:
+        description: 版本类型（patch=补丁 / minor=次要 / major=主版本）
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write # 提交版本变更 + 推送 tag（release.yml 由 tag 推送自动触发）
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # 需要完整 git 历史 + tags（CHANGELOG 生成依赖 prev-tag..HEAD）
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Auto bump + tag + push
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          node scripts/release.mjs "${{ inputs.plugin }}" --bump "${{ inputs.bump }}" --push

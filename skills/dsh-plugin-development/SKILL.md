@@ -72,7 +72,7 @@ plugins/<name>/                  # 插件目录（小写连字符命名，如 ds
 6. **回归验证（强制）**：跑全部测试 + 对照需求清单逐条验证（尤其与本次改动相邻的功能），确认无回归后再提交。
 7. **本地验证**：`dsh plugin --profile web add link:<路径>` → 浏览器硬刷新（Cmd/Ctrl+Shift+R）。client 改动热加载无需重启；**server 端改动需重启 `dsh web`**。
 8. **清理验证环境（强制）**：验证完成后必须清干净——停掉后台验证实例（job_kill）、删除临时验证目录（`/tmp/dsh-<port>`）、关闭验证用专用浏览器（`browser_close` + 杀 `chrome-cdp-profile` 实例）、确认端口已释放（`curl` 应无响应）、`job_list` 确认无 running 任务。**用户可能同时在开发多个插件，残留环境会互相干扰**。完整清单见 [verifying-dsh-plugins](../../../.dsh/skills/verifying-dsh-plugins/SKILL.md) 的「收尾」章节（全局技能）。
-9. **发布**：更新 `package.json` 版本号（若代码内硬编码了版本常量，一并同步）→ CHANGELOG 加段落 → 推 tag `<包名>@v<版本>`（如 `dsh-server-status@v0.1.0`）→ 根 `.github/workflows/release.yml` 自动打包 + 创建 GitHub Release。
+9. **发布**：（自动 bump 版本 + 生成 CHANGELOG + 同步文档 + 推 tag `<包名>@v<版本>`）→ `.github/workflows/release.yml` 自动测试 + 创建 GitHub Release + npm 发布（NPM_TOKEN 已配置）。详见 [发布流程](#发布流程自动--手动)。
 
 ## Client 端文件形态（必须用这个格式）
 
@@ -189,18 +189,15 @@ export function apply(ctx) {
 - **官方仓库写法（最高权威）**：DeepSeek-Harness 仓库 `packages/` 实际代码——工具型看 `workflow/tool-workflow`（schemastery Config、prompt section、ToolCallView），UI 型看 `client/ui-workflow-run`（slots.inject/register keyed slot、locale.register、conversationEvents），组合看 `bundle/web-app/cordis.patch.yml`（`!!js` 表达式、行覆盖），打包看 `client/tsdown.client.ts`（__ModuleLoader__ 协议、纯度门）。完整提炼见 [references/dsh-official-writing.md](references/dsh-official-writing.md)。
 - **UI 插件实现思路**：调研了 dsh-web-ui 全家桶（18+ 包）、better-sidebar、open-design、reactive-resume 等 5 个项目——官方 Slot 系统 / settings 分区 / 全局挂载三种注册方式、host 安全双层（loopback + workspace 门）、SSE/轮询通信。完整分析见 [references/ui-plugin-patterns.md](references/ui-plugin-patterns.md)。
 - **市场收录**：给公开仓库打 GitHub topic `dsh-plugin` 即被 dshfind.com 与 DSH 1024Store（deepseek1024.com，4100+ 插件）自动聚合收录；1024Store 收录前静态校验 `package.json` + `dsh.bundle.patch` + patch 文件齐备。
-- **本仓库分发约定不变**：只发 GitHub Release（tag `<包名>@v<版本>`）；若未来插件需进 npm/市场，再按生态通道补充。
+- **本仓库分发约定（双通道）**：GitHub Release + **npm 官方 registry**（release.yml 读仓库 `NPM_TOKEN` secret 自动发布；未配置时仅警告跳过）。完整流程见 [docs/开发指南/发版流程.md](../../docs/开发指南/发版流程.md)。
 
-## 发布流程（GitHub Release only）
+## 发布流程（自动 / 手动）
 
-仓库只发 GitHub Release，**不发布 npm**。
+**方式 A（推荐，全自动）**：仓库 Actions → **Release (auto)** workflow（选插件 + bump 类型）→ 自动 bump 版本、生成 CHANGELOG（git log 提取）、同步文档、打 tag、触发 GitHub Release + npm 发布。
 
-1. `plugins/<name>/package.json` 里 `version` 递增（semver）。
-2. 在 `plugins/<name>/CHANGELOG.md` 顶部加对应 `## [x.y.z]` 段落。
-3. **先推送 main**（tag 需指向已推送的提交，确保 workflow 与版本改动在远程）→ 打 tag 并推送：`git push origin main && git tag <包名>@v<版本> && git push origin <包名>@v<版本>`。
-4. 根 `.github/workflows/release.yml` 自动：解析 tag → 校验插件目录与版本一致 → 跑测试 → `npm pack` 打 tarball → 提取该插件 CHANGELOG 段落 → 创建 GitHub Release（附件 tarball）。
-5. 更新根 README 插件列表条目（版本、简介）——**发版时同步提交**。
-6. **验证发布结果**：GitHub Releases 页面或 API 确认 Release + `.tgz` 附件已生成；失败时去 Actions 页看失败步骤（2026-08-23 实测 workflow 校验 bug 见 [踩坑：release 版本校验失败](../../docs/踩坑/github-release版本校验失败.md)）。
+**方式 B（本地手动，等价）**：`node scripts/release.mjs <插件名> --bump patch --push`（bump 版本 + CHANGELOG 生成 + 根 README/AGENTS 版本同步 + tag + push）。版本已手动改好时省略 `--bump`。
+
+发版门禁（release.mjs 自动校验）：`peerDependencies.cordis` 已声明且 major 一致 → CHANGELOG 有当前版本段 → npm test 全绿 → README 效果截图引用有效（`./assets/` 或 unpkg URL）→ 文档版本同步 → tag。**验证发布结果**：GitHub Releases 页面确认 Release + `.tgz` 附件、npmjs.com 确认新版本（或 `npm view <包名> version --registry=https://registry.npmjs.org`）；失败时去 Actions 页看失败步骤（历史校验 bug 见 [踩坑：release 版本校验失败](../../docs/踩坑/github-release版本校验失败.md)）。
 
 ## 常见错误
 
