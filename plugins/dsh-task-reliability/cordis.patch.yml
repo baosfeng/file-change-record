@@ -1,0 +1,9 @@
+# dsh-task-reliability bundle patch: inserts the plugin row into the profile
+# roster. The row mounts the host half (task registry + reliability guards +
+# verifier agent + autopilot + remote trigger) and the client half (sidebar
+# panel with mode switches / task list / pending questions). Install with:
+#
+#   dsh plugin --profile web add link:<仓库路径>/plugins/dsh-task-reliability
+- insert:
+    - id: task-reliability
+      name: 'dsh-task-reliability'
