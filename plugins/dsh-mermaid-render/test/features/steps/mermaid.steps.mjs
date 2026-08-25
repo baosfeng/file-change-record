@@ -1,7 +1,7 @@
 /**
  * Step definitions for dsh-mermaid-render Gherkin acceptance tests.
- * Loads lib/client.src.js (build template, mermaid placeholder emptied so the
- * vendored engine is not evaluated) against stubbed react + a fake DOM,
+ * Loads the BUILT bundle lib/client.js (parts spliced + base64 engine
+ * injected by scripts/build.mjs) against stubbed react + a fake DOM,
  * mirroring client-render.mjs: card mount, loading state, toggle, non-mermaid
  * ignore and stylesheet injection.
  */
@@ -127,9 +127,8 @@ class World {
     global.MutationObserver = class { constructor() {} observe() {} disconnect() {} }
     global.NodeFilter = { SHOW_TEXT: 4 }
 
-    const src = fs.readFileSync(new URL('../../../lib/client.src.js', import.meta.url), 'utf8')
-    const withPlaceholder = src.replaceAll('__MERMAID_UMD_B64__', '""')
-    eval(withPlaceholder)
+    // P2 parts 化后 client.src.js 是含占位符的模板，改为加载构建产物。
+    eval(fs.readFileSync(new URL('../../../lib/client.js', import.meta.url), 'utf8'))
     assert.ok(registered, 'bundle registered')
     const exportsObj = registered.factory((spec) => {
       if (spec === 'react') return stubbed

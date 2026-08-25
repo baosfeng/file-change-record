@@ -1,9 +1,9 @@
 import { test } from 'vitest'
 /**
- * Client render-path test for dsh-mermaid-render: loads lib/client.src.js
- * (the build template, with the mermaid placeholder replaced by an empty
- * string so the vendored 3.3MB engine is not evaluated) against stubbed
- * react + a fake DOM, then verifies:
+ * Client render-path test for dsh-mermaid-render: loads the BUILT bundle
+ * lib/client.js (lib/parts/*.part.js spliced + vendored base64 engine
+ * injected by scripts/build.mjs) against stubbed react + a fake DOM, then
+ * verifies:
  *  - the bundle registers and apply() injects the stylesheet,
  *  - the scanner detects a mermaid md-code-block and mounts a card
  *    (react-dom/client.createRoot captured),
@@ -127,9 +127,10 @@ global.NodeFilter = { SHOW_TEXT: 4 }
 let registered = null
 global.window.__ModuleLoader__ = { load: (reg) => { registered = reg } }
 
-const src = fs.readFileSync(new URL('../lib/client.src.js', import.meta.url), 'utf8')
-const withPlaceholder = src.replaceAll('__MERMAID_UMD_B64__', '""')
-eval(withPlaceholder)
+// P2 parts 化后 client.src.js 是含 __PART_*__ 占位符的模板，不可直接
+// eval；这里加载构建产物 lib/client.js（与 dsh-file-activity /
+// dsh-think-zh-expand 的 client-render 测试一致）。
+eval(fs.readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8'))
 assert.ok(registered, 'bundle registered')
 const exportsObj = registered.factory((spec) => {
   if (spec === 'react') return stubbed
