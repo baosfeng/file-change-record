@@ -1,0 +1,27 @@
+{
+  "name": "dsh-plugin-dev-mode",
+  "version": "0.1.0",
+  "description": "DSH agent preset 资产包：插件开发模式（plugin-dev）。唯一的 Cordis 工具集启用模式，含精简工具组合与配套技能，一键安装到 $DSH_HOME/.agent-presets/。",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baosfeng/my-dsh-plugins"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "install:preset": "node scripts/install.mjs",
+    "test": "node --check scripts/install.mjs"
+  },
+  "files": [
+    "agent.cordis.yml",
+    "preset.yml",
+    "skills",
+    "scripts",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "license": "MIT"
+}
