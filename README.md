@@ -30,7 +30,7 @@
 | [dsh-file-activity](plugins/dsh-file-activity/README.md) | 0.4.6 | 侧边栏文件活动页签：记录文件读取 / 新增 / 修改历史与统计，按文件夹树形展示，点击文件即浮窗预览（复用侧边栏内置渲染）；按会话隔离、重启后恢复 |
 | [dsh-think-zh-expand](plugins/dsh-think-zh-expand/README.md) | 0.4.1 | 思考增强：通过 system-prompt 注入让思考与回复强制使用中文；对话中思考内容默认展开显示（替代内置单行折叠），可点击收起、流式中保持展开；文本块与**思考块**都支持 Markdown 渲染（含表格 / Mermaid 图表）；界面英文标签中文化 |
 | [dsh-mermaid-render](plugins/dsh-mermaid-render/README.md) | 0.1.2 | 对话 mermaid/mmd 代码块自动渲染为图表卡片（预览/代码切换），mermaid 引擎内联打包、零 CDN 依赖、完全离线可用；流式渲染稳健（等流式结束渲染，避免残缺态） |
-| [dsh-notify](plugins/dsh-notify/README.md) | 0.1.0 | 通知提醒：会话结束 / agent 询问（ask）/ 等待审批时弹浏览器通知 + 滴声提示，点击通知跳转对应会话；预留远程 hook 触发接口（`POST /notify/api/trigger`，支持可选 token），SSE 实时通道 |
+| [dsh-notify](plugins/dsh-notify/README.md) | 0.2.0 | 通知提醒：会话结束 / agent 询问（ask）/ 等待审批时弹浏览器通知 + 滴声提示，点击通知跳转对应会话；预留远程 hook 触发接口（`POST /notify/api/trigger`，支持可选 token），SSE 实时通道 |
 | [dsh-guardian](plugins/dsh-guardian/README.md) | 0.1.0 | 插件治理：新装/更新插件先进候选区（cordis.staged.json），启动完成后由守护插件逐个热挂载——成功自动转正，失败自动隔离记录，连续失败冻结，一键安全模式，侧边栏诊断面板；守护插件自身永不拖垮进程（看门狗自保） |
 | [dsh-task-reliability](plugins/dsh-task-reliability/README.md) | 0.1.0 | 任务可靠性保障：模型超时/请求失败自动重试、任务未完成自动继续（turn-stopping 注入）、独立完成度校验 agent（会话结束后判断，未完成唤醒继续）、思考重复检测与打断、休眠/重启后任务自动恢复、自主决策模式（出行防 ask 中断，问题收集待确认）、远程触发接口 |
 
