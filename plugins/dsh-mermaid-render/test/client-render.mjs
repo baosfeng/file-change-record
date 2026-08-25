@@ -21,10 +21,19 @@ function createElement(type, props, ...children) {
   return { type, props: { ...(props || {}), children: children.flat() } }
 }
 
+// useState 按组件调用顺序维护状态槽（支持 setter 更新后重渲染验证）；
+// useEffect 同步执行回调（promise 链仍走微任务，同步 walk 时状态不变）。
+let hookCall = 0
+const hookSlots = []
 const stubbed = {
   createElement,
-  useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
-  useEffect: () => {},
+  useState: (initial) => {
+    const i = hookCall++
+    if (hookSlots[i] === undefined) hookSlots[i] = typeof initial === 'function' ? initial() : initial
+    const set = (v) => { hookSlots[i] = typeof v === 'function' ? v(hookSlots[i]) : v }
+    return [hookSlots[i], set]
+  },
+  useEffect: (fn) => fn(),
   useMemo: (fn) => fn(),
   useSyncExternalStore: (_s, get) => get(),
 }
@@ -76,8 +85,17 @@ function makeElement(tag, attrs = {}) {
       if (sel === 'pre') return this.tagName === 'PRE'
       if (sel === 'code') return this.tagName === 'CODE'
       if (sel === '[data-conversation-scroll]') return this.dataset.conversationScroll === '1'
+      if (sel === '[data-streaming]') return this.dataset.streaming === '1'
       if (sel === 'div.md-code-block') return this.tagName === 'DIV' && this.className === 'md-code-block'
       return false
+    },
+    closest(sel) {
+      let node = this
+      while (node) {
+        if (node.matchesSel && node.matchesSel(sel)) return node
+        node = node.parentNode
+      }
+      return null
     },
   }
   return el
@@ -100,6 +118,18 @@ jsPre.appendChild(jsCode)
 jsBlock.appendChild(jsPre)
 scrollEl.appendChild(mermaidBlock)
 scrollEl.appendChild(jsBlock)
+// streaming 中的 mermaid 块（祖先带 data-streaming）：scanner 应跳过，
+// 等流式结束（observer 重扫）才挂载——此处验证初始不挂载
+const streamingRow = makeElement('div')
+streamingRow.dataset.streaming = '1'
+const streamingBlock = makeElement('div', { className: 'md-code-block' })
+const streamingPre = makeElement('pre')
+const streamingCode = makeElement('code', { className: 'language-mermaid' })
+streamingCode.textContent = 'flowchart TD\n  A --> B'
+streamingPre.appendChild(streamingCode)
+streamingBlock.appendChild(streamingPre)
+streamingRow.appendChild(streamingBlock)
+scrollEl.appendChild(streamingRow)
 
 const styleTags = []
 const bodyEl = makeElement('body')
@@ -161,6 +191,10 @@ try {
 
   // non-mermaid md-code-block was NOT mounted (only one card captured)
   // (scanner ran synchronously over the fake DOM before the card render)
+  assert.equal(jsPre.style.display, undefined, '非 mermaid 块的 pre 未被隐藏')
+  // streaming 中的 mermaid 块不挂载（等流式结束才渲染）
+  assert.equal(streamingPre.style.display, undefined, '流式中的 mermaid 块 pre 未被隐藏')
+  assert.equal(streamingBlock.querySelector('.dmr-card-host'), null, '流式中的 mermaid 块未挂载卡片')
   const cardTree = cardEl.type(cardEl.props)
   const texts = []
   function walk(node) {
@@ -174,6 +208,17 @@ try {
   walk(cardTree)
   assert.ok(texts.includes('渲染中…'), 'loading state shown initially')
   assert.ok(texts.includes('预览') && texts.includes('代码'), 'preview/code toggle present')
+
+  // 错误渲染兜底：mermaid.render 失败 → 卡片显示错误横幅（不崩溃、保留原始块）
+  hookCall = 0
+  global.window.mermaid.render = async () => { throw new Error('render boom') }
+  cardEl.type(cardEl.props) // 第二次渲染：effect 同步执行 → render reject（微任务）
+  await new Promise((r) => setTimeout(r, 0)) // 等 catch 回调（setError/setStatus）执行
+  hookCall = 0
+  const errorTree = cardEl.type(cardEl.props) // 第三次渲染：error 状态
+  walk(errorTree) // walk 闭包写入 texts（与 cardTree 同一数组）
+  assert.ok(texts.some((t) => t.includes('render boom')), '错误信息显示在卡片中')
+  assert.ok(texts.some((t) => t.includes('渲染失败') || t.includes('失败')), '错误横幅出现')
 
   console.log('ALL CLIENT RENDER-PATH TESTS PASSED')
 } finally {

@@ -23,6 +23,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2)
 const name = args.find((a) => !a.startsWith('--'))
 const push = args.includes('--push')
+const bumpIdx = args.indexOf('--bump')
+const bump = bumpIdx >= 0 ? (args[bumpIdx + 1] || '') : ''
+const BUMP_TYPES = new Set(['patch', 'minor', 'major'])
 
 /**
  * Escape a user-supplied string for safe use inside a RegExp constructor.
@@ -31,7 +34,11 @@ const push = args.includes('--push')
 const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 if (!name) {
-  console.error('usage: node scripts/release.mjs <plugin-name> [--push]')
+  console.error('usage: node scripts/release.mjs <plugin-name> [--bump patch|minor|major] [--push]')
+  process.exit(2)
+}
+if (bump !== '' && !BUMP_TYPES.has(bump)) {
+  console.error(`✗ --bump 必须是 patch | minor | major，收到: ${bump}`)
   process.exit(2)
 }
 
@@ -41,13 +48,54 @@ if (!existsSync(pluginDir)) {
   process.exit(1)
 }
 
-// 1. version from package.json
-const pkg = JSON.parse(readFileSync(join(pluginDir, 'package.json'), 'utf8'))
-const version = pkg.version
-if (!/^\d+\.\d+\.\d+$/.test(version)) {
-  console.error(`✗ invalid version in plugins/${name}/package.json: ${version}`)
-  process.exit(1)
+// 0. --bump：自动升级版本 + 生成 CHANGELOG 段（提交信息从 git log 提取）
+const pkgPath = join(pluginDir, 'package.json')
+const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
+let bumped = false
+let version = pkg.version
+if (bump !== '') {
+  if (!/^\d+\.\d+\.\d+$/.test(version)) {
+    console.error(`✗ invalid version in plugins/${name}/package.json: ${version}`)
+    process.exit(1)
+  }
+  const [maj, min, pat] = version.split('.').map(Number)
+  const next = bump === 'major' ? `${maj + 1}.0.0`
+    : bump === 'minor' ? `${maj}.${min + 1}.0`
+    : `${maj}.${min}.${pat + 1}`
+  // 最近一个 <name>@v* tag（按版本倒序），用于提取自上次发版以来的提交
+  const tags = execSync(`git tag --list "${name}@v*" --sort=-v:refname`, { cwd: root, encoding: 'utf8' })
+    .split('\n').map((t) => t.trim()).filter(Boolean)
+  const prevTag = tags[0] || null
+  let logLines = []
+  if (prevTag) {
+    logLines = execSync(`git log ${prevTag}..HEAD --oneline -- plugins/${name}/`, { cwd: root, encoding: 'utf8' })
+      .split('\n').map((l) => l.trim()).filter(Boolean)
+  }
+  if (logLines.length === 0) {
+    console.error(`✗ --bump 需要至少一个自上次 tag（${prevTag ?? '无'}）以来的提交（git log 为空）`)
+    process.exit(1)
+  }
+  const date = new Date().toISOString().slice(0, 10)
+  const section = [
+    `## [${next}] - ${date}`,
+    '',
+    '### 变更',
+    '',
+    ...logLines.map((l) => `- ${l.replace(/^\w+\s+/, '')}`),
+    '',
+  ].join('\n')
+  const changelogPath = join(pluginDir, 'CHANGELOG.md')
+  const changelog = readFileSync(changelogPath, 'utf8')
+  const idx = changelog.indexOf('## [')
+  writeFileSync(changelogPath, changelog.slice(0, idx) + section + '\n' + changelog.slice(idx))
+  pkg.version = next
+  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n')
+  version = next
+  bumped = true
+  console.log(`✓ --bump ${bump}: ${prevTag ?? '(无 tag)'} → ${next}（CHANGELOG 已生成 ${logLines.length} 条提交记录）`)
 }
+
+// 1. version from package.json
 console.log(`✓ plugin ${name} version ${version}`)
 
 // 1b. peer dependencies: DSH 插件必须声明 cordis peer（npm 分发后缺失会导致
@@ -164,9 +212,15 @@ if (changed) {
 
 // 5. push flow
 if (push) {
-  if (changed) {
-    execSync('git add README.md AGENTS.md', { cwd: root, stdio: 'inherit' })
-    execSync(`git commit -m "docs: 同步 ${name} 版本号至 ${version}（发版）"`, { cwd: root, stdio: 'inherit' })
+  if (changed || bumped) {
+    const files = bumped
+      ? `README.md AGENTS.md plugins/${name}/package.json plugins/${name}/CHANGELOG.md`
+      : 'README.md AGENTS.md'
+    const msg = bumped
+      ? `chore(release): ${name} v${version}（自动 bump ${bump} + CHANGELOG 生成）`
+      : `docs: 同步 ${name} 版本号至 ${version}（发版）`
+    execSync(`git add ${files}`, { cwd: root, stdio: 'inherit' })
+    execSync(`git commit -m "${msg}"`, { cwd: root, stdio: 'inherit' })
     execSync('git push origin main', { cwd: root, stdio: 'inherit' })
   }
   const tag = `${name}@v${version}`

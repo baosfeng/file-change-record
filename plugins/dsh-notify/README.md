@@ -69,6 +69,9 @@ curl -X POST http://127.0.0.1:3080/notify/api/trigger \
 
 ## 安装
 
+> 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add bsfeng-dsh-notify`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。
+
+
 ```bash
 # 1) 克隆本仓库（任意目录）
 git clone https://github.com/baosfeng/my-dsh-plugins.git

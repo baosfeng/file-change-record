@@ -19,6 +19,9 @@
 
 ## 安装
 
+> 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-task-reliability`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。
+
+
 ```bash
 dsh plugin --profile web add link:<本目录绝对路径>
 ```

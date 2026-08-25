@@ -33,6 +33,7 @@
 | [dsh-notify](plugins/dsh-notify/README.md) | 0.2.1 | 通知提醒：会话结束 / agent 询问（ask）/ 等待审批时弹浏览器通知 + 滴声提示，点击通知跳转对应会话；预留远程 hook 触发接口（`POST /notify/api/trigger`，支持可选 token），SSE 实时通道 |
 | [dsh-guardian](plugins/dsh-guardian/README.md) | 0.2.1 | 插件治理：新装/更新插件先进候选区（cordis.staged.json），启动完成后由守护插件逐个热挂载——成功自动转正，失败自动隔离记录，连续失败冻结，一键安全模式，侧边栏诊断面板；守护插件自身永不拖垮进程（看门狗自保） |
 | [dsh-task-reliability](plugins/dsh-task-reliability/README.md) | 0.1.2 | 任务可靠性保障：模型超时/请求失败自动重试、任务未完成自动继续（turn-stopping 注入）、独立完成度校验 agent（会话结束后判断，未完成唤醒继续）、思考重复检测与打断、休眠/重启后任务自动恢复、自主决策模式（出行防 ask 中断，问题收集待确认）、远程触发接口 |
+| [dsh-plugin-dev-mode](plugins/dsh-plugin-dev-mode/README.md) | 0.1.0 | 插件开发模式 **agent preset**（非运行时插件）：唯一启用 Cordis 工具集（cordis_inspect_*/define/run/stop/undefine）的 Agent 预设，精简工具组合 + 随包技能，一键安装到 `$DSH_HOME/.agent-presets/` |
 
 ## 目录结构
 
@@ -43,7 +44,8 @@
 │   ├── dsh-mermaid-render/
 │   ├── dsh-notify/
 │   ├── dsh-guardian/
-│   └── dsh-task-reliability/
+│   ├── dsh-task-reliability/
+│   └── dsh-plugin-dev-mode/   # agent preset 资产包（非运行时插件）
 ├── skills/           # 本仓库的开发技能（SKILL.md 格式，可安装到 ~/.dsh/skills/）
 │   └── dsh-plugin-development/
 ├── docs/             # 通用文档与设计文档
@@ -68,8 +70,9 @@ cp -r skills/dsh-plugin-development ~/.dsh/skills/
 
 ## 发布约定
 
-- 只发布 **GitHub Release**（不发布 npm）。
-- tag 格式：`<包名>@v<版本>`（如 `dsh-file-activity@v0.1.0`），由 [release.yml](.github/workflows/release.yml) 自动打包并创建 Release。
+- **双通道发布**：GitHub Release（tag 触发自动打包）+ **npm 官方 registry**（[release.yml](.github/workflows/release.yml) 读取仓库 `NPM_TOKEN` secret 自动 `npm publish`；未配置时仅警告跳过）。
+- **自动发版**：仓库 Actions → **Release (auto)** workflow（选择插件 + bump 类型）→ 自动 bump 版本、生成 CHANGELOG（git log 提取）、打 tag → 触发自动发布 GitHub Release + npm。手动发版：`node scripts/release.mjs <插件名> --bump patch --push`。
+- tag 格式：`<包名>@v<版本>`（如 `dsh-file-activity@v0.1.0`）。
 - 每个插件独立版本号（semver）、独立 CHANGELOG（Keep a Changelog 格式）。
 
 ## 许可
