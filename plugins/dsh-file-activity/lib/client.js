@@ -24,6 +24,13 @@
  * borders, 28px circular icon controls with hover fills, and 8px-radius rows
  * with hover fills. The stylesheet is injected once per activation and torn
  * down with the fiber, so HMR/disable leaves no residue.
+ *
+ * BUILD NOTE: this file is the SOURCE TEMPLATE. scripts/build.mjs splices the
+ * `lib/parts/*.part.js` pieces into the PART placeholder markers below (each
+ * piece is plain function-declaration text sharing this factory scope; the
+ * browser ModuleLoader does not support relative-path require) and writes
+ * lib/client.js — the file actually served by DSH, which MUST be committed
+ * (CI runs node --check + tests against it, not against this template).
  */
 window.__ModuleLoader__.load({
   id: 'dsh-file-activity',
@@ -37,7 +44,9 @@ window.__ModuleLoader__.load({
     const AUTO_OPEN_KEY = 'dsh-file-activity:auto-opened:'
     const POLL_MS = 6000
 
-    // ── i18n ──────────────────────────────────────────────────────────────
+    // ── parts (injected by scripts/build.mjs; keep this exact order — the
+    //    const initializers below run in splice order) ─────────────────────
+        // ── i18n ──────────────────────────────────────────────────────────────
     function isZh() {
       try {
         const lang = (navigator.language || 'en').toLowerCase()
@@ -78,7 +87,7 @@ window.__ModuleLoader__.load({
       downloadToView: () => (isZh() ? '下载查看' : 'download to view'),
     }
 
-    // ── path helpers ──────────────────────────────────────────────────────
+        // ── path / time formatting helpers ────────────────────────────────────
     function basenameOf(path) {
       const norm = path.split('\\').join('/')
       const idx = norm.lastIndexOf('/')
@@ -107,6 +116,7 @@ window.__ModuleLoader__.load({
       return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
     }
 
+        // ── directory tree construction ───────────────────────────────────────
     /**
      * Collapse chain directories: a directory whose only child is another
      * directory merges into it (a → a.b → a.b.c …). Deep single-child paths
@@ -124,6 +134,23 @@ window.__ModuleLoader__.load({
         node.name = `${node.name}.${only.name}`
         node.children = only.children
         node.compressed = true
+      }
+    }
+
+    /**
+     * Sort a directory node: directories first (alphabetically), then files
+     * (by total activity, then name); recurse into directories.
+     */
+    function sortNode(node) {
+      node.children.sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'dir' ? -1 : 1
+        if (a.type === 'dir') return a.name < b.name ? -1 : a.name > b.name ? 1 : 0
+        const ta = a.read + a.create + a.modify
+        const tb = b.read + b.create + b.modify
+        return tb - ta || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
+      })
+      for (const child of node.children) {
+        if (child.type === 'dir') sortNode(child)
       }
     }
 
@@ -156,24 +183,12 @@ window.__ModuleLoader__.load({
           firstSeen: counter.firstSeen, lastSeen: counter.lastSeen,
         })
       }
-      const sortNode = (node) => {
-        node.children.sort((a, b) => {
-          if (a.type !== b.type) return a.type === 'dir' ? -1 : 1
-          if (a.type === 'dir') return a.name < b.name ? -1 : a.name > b.name ? 1 : 0
-          const ta = a.read + a.create + a.modify
-          const tb = b.read + b.create + b.modify
-          return tb - ta || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
-        })
-        for (const child of node.children) {
-          if (child.type === 'dir') sortNode(child)
-        }
-      }
       sortNode(root)
       compressChains(root, true)
       return root
     }
 
-    // ── tiny external store ───────────────────────────────────────────────
+        // ── tiny external store ───────────────────────────────────────────────
     function createStore(initial) {
       let state = initial
       const listeners = new Set()
@@ -190,7 +205,7 @@ window.__ModuleLoader__.load({
       }
     }
 
-    // ── data access (host routes) ─────────────────────────────────────────
+        // ── data access (host routes) ─────────────────────────────────────────
     async function fetchStats(sessionId) {
       const response = await fetch(`/file-activity/api/stats?sessionId=${encodeURIComponent(sessionId)}`)
       const json = await response.json()
@@ -231,7 +246,48 @@ window.__ModuleLoader__.load({
       }).catch(() => {})
     }
 
-    // ── fetch interception: sidebar file operations ───────────────────────
+    /** Plugin media route URL for a recorded path (authorized per session). */
+    function mediaUrlOf(sessionId, path) {
+      return `/file-activity/file?${new URLSearchParams({ sessionId, path })}`
+    }
+
+        // ── fetch interception: sidebar file operations ───────────────────────
+    function methodOf(init) {
+      return (init?.method ?? 'GET').toUpperCase()
+    }
+
+    /** POST body as a plain object (non-string bodies are ignored). */
+    function parseBody(init) {
+      return typeof init?.body === 'string' ? JSON.parse(init.body) : {}
+    }
+
+    /** Record fs.read / fs.write POSTs observed on the sidebar API. */
+    function recordSidebarFs(url, init) {
+      if (url.pathname !== '/sidebar/api/fs.read' && url.pathname !== '/sidebar/api/fs.write') return
+      if (methodOf(init) !== 'POST') return
+      const body = parseBody(init)
+      if (typeof body.sessionId !== 'string' || typeof body.path !== 'string') return
+      postRecord(body.sessionId, body.path, url.pathname === '/sidebar/api/fs.write' ? 'write' : 'read')
+    }
+
+    /** Record sidebar media opens (/sidebar/file?sessionId=...&path=...). */
+    function recordMediaOpen(url, init) {
+      if (url.pathname !== '/sidebar/file' || methodOf(init) !== 'GET') return
+      const sessionId = url.searchParams.get('sessionId')
+      const path = url.searchParams.get('path')
+      if (sessionId !== null && path !== null) postRecord(sessionId, path, 'read')
+    }
+
+    /** Observe a resolved fetch URL and record sidebar file operations. */
+    function observeSidebarFetch(url, init) {
+      try {
+        recordSidebarFs(url, init)
+        recordMediaOpen(url, init)
+      } catch {
+        // observation must never break the underlying call
+      }
+    }
+
     function installFetchInterceptor() {
       const original = window.fetch.bind(window)
       window.fetch = (input, init) => {
@@ -244,26 +300,7 @@ window.__ModuleLoader__.load({
         } catch {
           return result
         }
-        try {
-          const pathname = url.pathname
-          const method = (init?.method ?? 'GET').toUpperCase()
-          if (pathname === '/sidebar/api/fs.read' || pathname === '/sidebar/api/fs.write') {
-            if (method === 'POST') {
-              const body = typeof init?.body === 'string' ? JSON.parse(init.body) : {}
-              const sessionId = body.sessionId
-              const path = body.path
-              if (typeof sessionId === 'string' && typeof path === 'string') {
-                postRecord(sessionId, path, pathname === '/sidebar/api/fs.write' ? 'write' : 'read')
-              }
-            }
-          } else if (pathname === '/sidebar/file' && method === 'GET') {
-            const sessionId = url.searchParams.get('sessionId')
-            const path = url.searchParams.get('path')
-            if (sessionId !== null && path !== null) postRecord(sessionId, path, 'read')
-          }
-        } catch {
-          // observation must never break the underlying call
-        }
+        observeSidebarFetch(url, init)
         return result
       }
       return () => {
@@ -271,7 +308,7 @@ window.__ModuleLoader__.load({
       }
     }
 
-    // ── auto-open (enabled by default) ────────────────────────────────────
+        // ── auto-open (enabled by default) ────────────────────────────────────
     function findTabIn(state, tabId) {
       const leaves = (node) => (node.kind === 'leaf' ? [node] : (node.children ?? []).flatMap(leaves))
       for (const node of [state?.splits, state?.bottomSplits]) {
@@ -283,50 +320,71 @@ window.__ModuleLoader__.load({
       return false
     }
 
+    /** Current sidebar snapshot, or null when the service is not ready. */
+    function sidebarSnapshot(service) {
+      try {
+        return service.getSnapshot?.()
+      } catch {
+        return null
+      }
+    }
+
+    /** The user disabled auto-open for this tab in the sidebar settings. */
+    function isAutoOpenDisabled(snapshot, tabId) {
+      const settings = snapshot.prefs?.pluginSettings?.[tabId]
+      return settings !== undefined && settings.autoOpen === false
+    }
+
+    /** Whether this session was already auto-opened (localStorage marker). */
+    function isAutoOpenMarked(sessionId) {
+      try {
+        return Boolean(window.localStorage.getItem(AUTO_OPEN_KEY + sessionId))
+      } catch {
+        return true
+      }
+    }
+
+    /** Persist the auto-opened marker for this session. */
+    function markAutoOpened(sessionId) {
+      try {
+        window.localStorage.setItem(AUTO_OPEN_KEY + sessionId, '1')
+      } catch {
+        // ignore
+      }
+    }
+
+    /** Open the tab once per session unless disabled in the plugin settings. */
+    function tryAutoOpen(service, tabId) {
+      const snapshot = sidebarSnapshot(service)
+      if (snapshot === undefined || snapshot === null || snapshot.sessionId === undefined || snapshot.state === undefined) return
+      const sessionId = snapshot.sessionId
+      if (isAutoOpenDisabled(snapshot, tabId)) return
+      if (isAutoOpenMarked(sessionId)) return
+      if (findTabIn(snapshot.state, tabId)) {
+        markAutoOpened(sessionId)
+        return
+      }
+      try {
+        service.openTab({ type: tabId, title: strings.title(), path: '' })
+        markAutoOpened(sessionId)
+      } catch (error) {
+        console.error('[dsh-file-activity] auto-open failed:', error)
+      }
+    }
+
     function installAutoOpen(ctx, tabId) {
       const service = ctx.betterSidebar
-      const tryOpen = () => {
-        let snapshot
-        try {
-          snapshot = service.getSnapshot?.()
-        } catch {
-          return
-        }
-        if (snapshot === undefined || snapshot === null || snapshot.sessionId === undefined || snapshot.state === undefined) return
-        const sessionId = snapshot.sessionId
-        const settings = snapshot.prefs?.pluginSettings?.[tabId]
-        if (settings !== undefined && settings.autoOpen === false) return
-        try {
-          if (window.localStorage.getItem(AUTO_OPEN_KEY + sessionId)) return
-        } catch {
-          return
-        }
-        if (findTabIn(snapshot.state, tabId)) {
-          try {
-            window.localStorage.setItem(AUTO_OPEN_KEY + sessionId, '1')
-          } catch {
-            // ignore
-          }
-          return
-        }
-        try {
-          service.openTab({ type: tabId, title: strings.title(), path: '' })
-          window.localStorage.setItem(AUTO_OPEN_KEY + sessionId, '1')
-        } catch (error) {
-          console.error('[dsh-file-activity] auto-open failed:', error)
-        }
-      }
-      tryOpen()
+      tryAutoOpen(service, tabId)
       let off = () => {}
       try {
-        off = service.subscribeState?.(() => tryOpen()) ?? off
+        off = service.subscribeState?.(() => tryAutoOpen(service, tabId)) ?? off
       } catch {
         // service may lack subscribeState on older versions
       }
       return off
     }
 
-    // ── icons (inline, stroke=currentColor, matching better-sidebar) ──────
+        // ── icons (inline, stroke=currentColor, matching better-sidebar) ──────
     const ICON_STROKE = 1.8
     const iconSvg = (children, size) =>
       createElement('svg', {
@@ -375,7 +433,7 @@ window.__ModuleLoader__.load({
       ], size),
     }
 
-    // ── themed stylesheet (injected once per activation) ──────────────────
+        // ── themed stylesheet (injected once per activation) ──────────────────
     // Mirrors the better-sidebar explorer surface: tight 2px 6px 8px body,
     // 30px rows, box-sizing border-box indentation, folder rows use the
     // strong type face to read as directories, files stay regular.
@@ -452,26 +510,139 @@ window.__ModuleLoader__.load({
 @keyframes dfa-row-in { from { opacity:0; transform:translateY(1px); } to { opacity:1; transform:none; } }
 `
 
-    // ── view component ────────────────────────────────────────────────────
+        // ── row rendering helpers (recent list & stats tree) ──────────────────
+    const opClass = (op) => (op === 'create' ? 'dfa-op-create' : op === 'modify' ? 'dfa-op-modify' : 'dfa-op-read')
+    const opLabel = (op) => (op === 'create' ? strings.create() : op === 'modify' ? strings.modify() : strings.read())
+
+    /** Tooltip for a stats file row: absolute path + created / last-seen times. */
+    const fileTitle = (abs, firstSeen, lastSeen) => {
+      const times = []
+      if (typeof firstSeen === 'number') times.push(`${strings.created()} ${formatTime(firstSeen)}`)
+      if (typeof lastSeen === 'number') times.push(`${strings.lastSeen()} ${formatTime(lastSeen)}`)
+      return times.length > 0 ? `${abs}\n${times.join(' · ')}` : abs
+    }
+
+    /** Three colored count pills for a file/dir node (read/create/modify). */
+    const countPills = (node) =>
+      createElement('span', { className: 'dfa-counts', style: { paddingLeft: '6px' } },
+        createElement('span', { className: 'dfa-count dfa-count-read' }, `${strings.readShort()} ${node.read}`),
+        createElement('span', { className: 'dfa-count dfa-count-create' }, `${strings.createShort()} ${node.create}`),
+        createElement('span', { className: 'dfa-count dfa-count-modify' }, `${strings.modifyShort()} ${node.modify}`),
+      )
+
+    /** A stats-tree file row: icon + name + count pills + relative time. */
+    const fileRow = (file, depth, onOpen) =>
+      createElement(
+        'div',
+        {
+          key: file.abs,
+          className: 'dfa-row',
+          onClick: () => onOpen(file.abs),
+          style: { paddingLeft: 8 + depth * 20 },
+          title: fileTitle(file.abs, file.firstSeen, file.lastSeen),
+        },
+        createElement('span', { className: 'dfa-row-icon dfa-icon-file' }, icon.file(14)),
+        createElement('span', { className: 'dfa-row-name dfa-name-file' }, file.name),
+        countPills(file),
+        file.lastSeen
+          ? createElement('span', { className: 'dfa-time' }, formatRelative(file.lastSeen))
+          : null,
+      )
+
+    /** One stats-tree node: file rows render inline, dirs toggle collapse. */
+    function renderTreeNode(node, depth, collapsedDirs, onToggleDir, onOpen) {
+      if (node.type === 'file') return fileRow(node, depth, onOpen)
+      const collapsed = collapsedDirs.has(node.path)
+      return createElement(
+        'div',
+        { key: node.path },
+        createElement(
+          'div',
+          {
+            className: 'dfa-row dfa-row-dir',
+            onClick: () => onToggleDir(node.path),
+            style: { paddingLeft: 8 + depth * 20 },
+            title: `${node.path}/`,
+          },
+          createElement('span', { className: 'dfa-chevron' },
+            collapsed ? icon.chevronRight(13) : icon.chevronDown(13),
+          ),
+          createElement('span', { className: 'dfa-row-icon dfa-icon-folder' }, icon.folder(14)),
+          createElement('span', { className: 'dfa-row-name' },
+            node.compressed ? node.name : node.name + '/',
+          ),
+          countPills(node),
+        ),
+        collapsed ? null : node.children.map((child) => renderTreeNode(child, depth + 1, collapsedDirs, onToggleDir, onOpen)),
+      )
+    }
+
+    /** A recent-list row: op badge + basename + relative time. */
+    const recentEntry = (entry, onOpen) =>
+      createElement(
+        'div',
+        {
+          key: `${entry.path}:${entry.time}:${entry.op}`,
+          className: 'dfa-row',
+          onClick: () => onOpen(entry.path),
+          title: entry.path,
+        },
+        createElement('span', { className: `dfa-op ${opClass(entry.op)}` }, opLabel(entry.op)),
+        createElement('span', { className: 'dfa-row-name' }, basenameOf(entry.path)),
+        createElement('span', { className: 'dfa-time' }, formatRelative(entry.time)),
+      )
+
+    /** Toggle a key in a Set (directory collapse state). */
+    function toggleInSet(set, key) {
+      const next = new Set(set)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    }
+
+    /** Clear the current session's records host-side and reset its bucket. */
+    function clearSessionData(dataStore, sessionId) {
+      if (!window.confirm(strings.clearConfirm())) return
+      postClear(sessionId)
+      const current = dataStore.getSnapshot()
+      dataStore.set({
+        bySession: {
+          ...(current.bySession ?? {}),
+          [sessionId]: { recent: [], counts: {}, loading: false },
+        },
+      })
+    }
+
+    /** Manual refresh: fetch stats + the authoritative cwd for this session. */
+    function refreshSessionData(dataStore, sessionId, setCwd, setError) {
+      if (sessionId === '') return
+      void fetchStats(sessionId).then((value) => {
+        if (value === null) return
+        setCwd((prev) => prev || value.cwd || '')
+        const current = dataStore.getSnapshot()
+        dataStore.set({
+          bySession: {
+            ...(current.bySession ?? {}),
+            [sessionId]: { recent: value.recent ?? [], counts: value.counts ?? {}, loading: false },
+          },
+        })
+        setError(false)
+      }).catch(() => setError(true))
+      void fetchSessionCwd(sessionId).then((cwd) => {
+        if (cwd !== '') setCwd(cwd)
+      })
+    }
+
+        // ── view component ────────────────────────────────────────────────────
     /** Shared empty bucket for sessions that have never loaded data (stable ref). */
     const EMPTY_SESSION = { recent: [], counts: {}, loading: true }
 
-    function FileActivityView({ ctx, store, scope, visible, dataStore }) {
-      const data = useSyncExternalStore(dataStore.subscribe, dataStore.getSnapshot)
-      const [, setCwd] = useState(scope?.cwd || '')
-      const [error, setError] = useState(false)
-      const [recentOpen, setRecentOpen] = useState(true)
-      const [collapsedDirs, setCollapsedDirs] = useState(() => new Set())
-
-      const sessionId = scope?.sessionId ?? ''
-      // Each session renders only its own bucket: a fresh conversation shows
-      // an empty list immediately, no residue from the previous session.
-      const sessionData = (data.bySession ?? {})[sessionId] ?? EMPTY_SESSION
-
-      useEffect(() => {
-        if (scope?.cwd) setCwd(scope.cwd)
-      }, [scope?.cwd])
-
+    /**
+     * Polling loader for one session: fetches stats on mount and on a fixed
+     * interval while visible, prefers the sidebar's authoritative session.cwd
+     * for relative display, and writes results into the per-session bucket.
+     */
+    function useSessionLoader(visible, sessionId, scope, dataStore, setCwd, setError) {
       useEffect(() => {
         if (!visible || sessionId === '') return
         let cancelled = false
@@ -492,7 +663,6 @@ window.__ModuleLoader__.load({
           })
         }
         load()
-        // Prefer the sidebar's authoritative session.cwd for relative display.
         void fetchSessionCwd(sessionId).then((cwd) => {
           if (!cancelled && cwd !== '') setCwd(cwd)
         })
@@ -502,192 +672,201 @@ window.__ModuleLoader__.load({
           window.clearInterval(timer)
         }
       }, [visible, sessionId, dataStore])
+    }
 
+    /** Error banner element, or null when the last load succeeded. */
+    function renderError(error) {
+      if (!error) return null
+      return createElement('div', { style: { color: 'var(--dsw-alias-state-error-primary)', padding: '4px 6px', font: 'var(--dsw-font-xxs-12)' } }, strings.loadError())
+    }
+
+    /** "最近访问" section: collapsible head with refresh/clear actions. */
+    function renderRecentSection(recent, recentOpen, onToggle, onRefresh, onClear, onOpen) {
+      return createElement(
+        'div',
+        { className: 'dfa-section' },
+        createElement(
+          'div',
+          { className: 'dfa-section-head' },
+          createElement(
+            'button',
+            { className: 'dfa-section-head-toggle', onClick: onToggle },
+            recentOpen ? icon.chevronDown(13) : icon.chevronRight(13),
+            strings.recent(),
+          ),
+          createElement('span', { className: 'dfa-section-head-actions' },
+            createElement('button', { className: 'dfa-iconbtn dfa-iconbtn-xs', onClick: onRefresh, title: strings.refresh(), 'aria-label': strings.refresh() }, icon.refresh(14)),
+            createElement('button', { className: 'dfa-iconbtn dfa-iconbtn-xs dfa-iconbtn-danger', onClick: onClear, title: strings.clear(), 'aria-label': strings.clear() }, icon.trash(14)),
+          ),
+        ),
+        !recentOpen ? null : recent.length === 0
+          ? createElement(
+              'div',
+              { className: 'dfa-empty' },
+              strings.empty(),
+              createElement('span', { className: 'dfa-empty-hint' }, strings.emptyHint()),
+            )
+          : createElement('div', { className: 'dfa-list' }, recent.map((entry) => recentEntry(entry, onOpen))),
+      )
+    }
+
+    /** "文件统计" section: the directory tree, or an empty hint. */
+    function renderStatsSection(tree, collapsedDirs, onToggleDir, onOpen) {
+      return createElement(
+        'div',
+        { className: 'dfa-section' },
+        createElement('div', { className: 'dfa-section-head' }, strings.stats()),
+        tree.children.length === 0
+          ? createElement('div', { className: 'dfa-empty' }, strings.empty())
+          : createElement('div', { className: 'dfa-list' }, tree.children.map((child) => renderTreeNode(child, 0, collapsedDirs, onToggleDir, onOpen))),
+      )
+    }
+
+    /**
+     * The file-activity tab. Each session renders only its own store bucket:
+     * a fresh conversation shows an empty list immediately, with no residue
+     * from the previous session. Clicking any file opens a FLOATING preview
+     * that reuses the sidebar's NATIVE viewer via matchFileViewer.
+     */
+    function FileActivityView({ ctx, store, scope, visible, dataStore }) {
+      const data = useSyncExternalStore(dataStore.subscribe, dataStore.getSnapshot)
+      const [cwd, setCwd] = useState(scope?.cwd || '')
+      const [error, setError] = useState(false)
+      const [recentOpen, setRecentOpen] = useState(true)
+      const [collapsedDirs, setCollapsedDirs] = useState(() => new Set())
+      const sessionId = scope?.sessionId ?? ''
+      const sessionData = (data.bySession ?? {})[sessionId] ?? EMPTY_SESSION
+      const tree = useMemo(() => buildTree(sessionData.counts ?? {}), [sessionData.counts])
+      useEffect(() => {
+        if (scope?.cwd) setCwd(scope.cwd)
+      }, [scope?.cwd])
+      useSessionLoader(visible, sessionId, scope, dataStore, setCwd, setError)
       // Switching conversations closes any floating preview left open by the
-      // previous session (preview is shared UI state; the session data itself
-      // never crosses sessions anymore).
+      // previous session (preview is shared UI state; session data never
+      // crosses sessions anymore).
       useEffect(() => {
         dataStore.set({ preview: null })
       }, [sessionId, dataStore])
-
-      const tree = useMemo(() => buildTree(sessionData.counts ?? {}), [sessionData.counts])
-
-      const toggleDir = (path) => {
-        setCollapsedDirs((prev) => {
-          const next = new Set(prev)
-          if (next.has(path)) next.delete(path)
-          else next.add(path)
-          return next
-        })
-      }
-
-      /** Default file action: open a floating preview that reuses the
-       *  sidebar's NATIVE viewer (built-in syntax highlighting / Markdown
-       *  rendering / images / PDF / HTML). */
-      const openPreview = (path) => {
-        dataStore.set({ preview: { abs: path, name: basenameOf(path) } })
-      }
+      const toggleDir = (path) => setCollapsedDirs((prev) => toggleInSet(prev, path))
+      const openPreview = (path) => dataStore.set({ preview: { abs: path, name: basenameOf(path) } })
       const closePreview = () => dataStore.set({ preview: null })
-
-      const onClear = () => {
-        if (window.confirm(strings.clearConfirm())) {
-          postClear(sessionId)
-          const current = dataStore.getSnapshot()
-          dataStore.set({
-            bySession: {
-              ...(current.bySession ?? {}),
-              [sessionId]: { recent: [], counts: {}, loading: false },
-            },
-          })
-        }
-      }
-
-      const onRefresh = () => {
-        if (sessionId === '') return
-        void fetchStats(sessionId).then((value) => {
-          if (value === null) return
-          setCwd((prev) => prev || value.cwd || '')
-          const current = dataStore.getSnapshot()
-          dataStore.set({
-            bySession: {
-              ...(current.bySession ?? {}),
-              [sessionId]: { recent: value.recent ?? [], counts: value.counts ?? {}, loading: false },
-            },
-          })
-          setError(false)
-        }).catch(() => setError(true))
-        void fetchSessionCwd(sessionId).then((cwd) => {
-          if (cwd !== '') setCwd(cwd)
-        })
-      }
-
+      const onClear = () => clearSessionData(dataStore, sessionId)
+      const onRefresh = () => refreshSessionData(dataStore, sessionId, setCwd, setError)
       const recent = sessionData.recent ?? []
-
-      /** Three colored count pills for a file/dir node (read/create/modify). */
-      const countPills = (node) =>
-        createElement('span', { className: 'dfa-counts', style: { paddingLeft: '6px' } },
-          createElement('span', { className: 'dfa-count dfa-count-read' }, `${strings.readShort()} ${node.read}`),
-          createElement('span', { className: 'dfa-count dfa-count-create' }, `${strings.createShort()} ${node.create}`),
-          createElement('span', { className: 'dfa-count dfa-count-modify' }, `${strings.modifyShort()} ${node.modify}`),
-        )
-
-      const fileRow = (file, depth) =>
-        createElement(
-          'div',
-          {
-            key: file.abs,
-            className: 'dfa-row',
-            onClick: () => openPreview(file.abs),
-            style: { paddingLeft: 8 + depth * 20 },
-            title: fileTitle(file.abs, file.firstSeen, file.lastSeen),
-          },
-          createElement('span', { className: 'dfa-row-icon dfa-icon-file' }, icon.file(14)),
-          createElement('span', { className: 'dfa-row-name dfa-name-file' }, file.name),
-          countPills(file),
-          file.lastSeen
-            ? createElement('span', { className: 'dfa-time' }, formatRelative(file.lastSeen))
-            : null,
-        )
-
-      const renderTreeNode = (node, depth) => {
-        if (node.type === 'file') return fileRow(node, depth)
-        const collapsed = collapsedDirs.has(node.path)
-        return createElement(
-          'div',
-          { key: node.path },
-          createElement(
-            'div',
-            {
-              className: 'dfa-row dfa-row-dir',
-              onClick: () => toggleDir(node.path),
-              style: { paddingLeft: 8 + depth * 20 },
-              title: `${node.path}/`,
-            },
-            createElement('span', { className: 'dfa-chevron' },
-              collapsed ? icon.chevronRight(13) : icon.chevronDown(13),
-            ),
-            createElement('span', { className: 'dfa-row-icon dfa-icon-folder' }, icon.folder(14)),
-            createElement('span', { className: 'dfa-row-name' },
-              node.compressed ? node.name : node.name + '/',
-            ),
-            countPills(node),
-          ),
-          collapsed ? null : node.children.map((child) => renderTreeNode(child, depth + 1)),
-        )
-      }
-
-      return createElement(
-        'div',
-        { className: 'dfa' },
-        error
-          ? createElement('div', { style: { color: 'var(--dsw-alias-state-error-primary)', padding: '4px 6px', font: 'var(--dsw-font-xxs-12)' } }, strings.loadError())
-          : null,
-        // ── recent ──
-        createElement(
-          'div',
-          { className: 'dfa-section' },
-          createElement(
-            'div',
-            { className: 'dfa-section-head' },
-            createElement(
-              'button',
-              { className: 'dfa-section-head-toggle', onClick: () => setRecentOpen((v) => !v) },
-              recentOpen ? icon.chevronDown(13) : icon.chevronRight(13),
-              strings.recent(),
-            ),
-            createElement('span', { className: 'dfa-section-head-actions' },
-              createElement('button', { className: 'dfa-iconbtn dfa-iconbtn-xs', onClick: onRefresh, title: strings.refresh(), 'aria-label': strings.refresh() }, icon.refresh(14)),
-              createElement('button', { className: 'dfa-iconbtn dfa-iconbtn-xs dfa-iconbtn-danger', onClick: onClear, title: strings.clear(), 'aria-label': strings.clear() }, icon.trash(14)),
-            ),
-          ),
-          !recentOpen ? null : recent.length === 0
-            ? createElement(
-                'div',
-                { className: 'dfa-empty' },
-                strings.empty(),
-                createElement('span', { className: 'dfa-empty-hint' }, strings.emptyHint()),
-              )
-            : createElement(
-                'div',
-                { className: 'dfa-list' },
-                recent.map((entry) =>
-                  createElement(
-                    'div',
-                    {
-                      key: `${entry.path}:${entry.time}:${entry.op}`,
-                      className: 'dfa-row',
-                      onClick: () => openPreview(entry.path),
-                      title: entry.path,
-                    },
-                    createElement('span', { className: `dfa-op ${opClass(entry.op)}` }, opLabel(entry.op)),
-                    createElement('span', { className: 'dfa-row-name' }, basenameOf(entry.path)),
-                    createElement('span', { className: 'dfa-time' }, formatRelative(entry.time)),
-                  ),
-                ),
-              ),
-        ),
-        // ── stats as a directory tree ──
-        createElement(
-          'div',
-          { className: 'dfa-section' },
-          createElement('div', { className: 'dfa-section-head' }, strings.stats()),
-          tree.children.length === 0
-            ? createElement('div', { className: 'dfa-empty' }, strings.empty())
-            : createElement('div', { className: 'dfa-list' }, tree.children.map((child) => renderTreeNode(child, 0))),
-        ),
+      return createElement('div', { className: 'dfa' },
+        renderError(error),
+        renderRecentSection(recent, recentOpen, () => setRecentOpen((v) => !v), onRefresh, onClear, openPreview),
+        renderStatsSection(tree, collapsedDirs, toggleDir, openPreview),
         data.preview
           ? createElement(FloatingPreview, { ctx, store, scope, preview: data.preview, onClose: closePreview })
           : null,
       )
     }
 
-    // ── floating preview window (reuses the sidebar's native viewer) ──────
+        // ── floating preview window (reuses the sidebar's native viewer) ──────
     /** Resolve a possibly-relative path against the session cwd. */
     function resolvePath(path, cwd) {
       if (typeof path !== 'string' || path === '') return path
       if (path.startsWith('/')) return path
       if (typeof cwd === 'string' && cwd !== '') return `${cwd.replace(/\/+$/, '')}/${path}`
       return path
+    }
+
+    /** Whether the fs.read API response carries a text content payload. */
+    function isFsReadOk(json) {
+      return json !== null && typeof json === 'object' && json.ok === true && typeof json.value?.content === 'string'
+    }
+
+    /** Error load state from an fs.read API response (or a generic message). */
+    function fsReadError(json, viewer) {
+      return { status: 'error', viewer, message: json?.error?.message ?? strings.previewFailed() }
+    }
+
+    /**
+     * Load fsRead content through the sidebar API and resolve the viewer's
+     * load state (ready with text, or error with the API message).
+     */
+    async function loadFsReadContent(viewer, path, scope, sessionId) {
+      const target = resolvePath(path, scope?.cwd ?? '')
+      const response = await fetch('/sidebar/api/fs.read', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sessionId, path: target }),
+      })
+      const json = await response.json()
+      if (isFsReadOk(json)) return { status: 'ready', viewer, content: json.value.content }
+      return fsReadError(json, viewer)
+    }
+
+    /**
+     * Fetch the bytes the viewer's fetchStrategy needs (fsRead text /
+     * mediaUrl / customData) and resolve its load state.
+     */
+    async function fetchPreviewLoad(viewer, path, scope, sessionId) {
+      const strategy = viewer.fetchStrategy
+      if (strategy === 'fsRead') return loadFsReadContent(viewer, path, scope, sessionId)
+      if (strategy === 'mediaUrl') {
+        return { status: 'ready', viewer, mediaUrl: mediaUrlOf(sessionId, path) }
+      }
+      if (strategy === 'custom') {
+        const data = await (viewer.load?.(path, scope) ?? Promise.resolve(undefined))
+        return { status: 'ready', viewer, customData: data }
+      }
+      // 'binary-download' and anything else: mount the viewer's own
+      // component (it handles the download / media itself).
+      return { status: 'ready', viewer }
+    }
+
+    /**
+     * Resolve the file's viewer through the sidebar registry and load the
+     * bytes it needs; failures become an error state shown in the window.
+     */
+    function usePreviewLoader(service, path, sessionId, scope) {
+      const [load, setLoad] = useState({ status: 'loading', viewer: null })
+      useEffect(() => {
+        let cancelled = false
+        const viewer = service?.matchFileViewer?.(path)
+        if (!viewer) {
+          setLoad({ status: 'error', viewer: null, message: strings.previewUnsupported() })
+          return () => { cancelled = true }
+        }
+        setLoad({ status: 'loading', viewer })
+        fetchPreviewLoad(viewer, path, scope, sessionId)
+          .then((next) => {
+            if (!cancelled) setLoad(next)
+          })
+          .catch((error) => {
+            if (!cancelled) setLoad({ status: 'error', viewer, message: error instanceof Error ? error.message : String(error) })
+          })
+        return () => { cancelled = true }
+      }, [path, sessionId, scope])
+      return load
+    }
+
+    /** Preview window body: loading note / error panel / viewer mount. */
+    function renderPreviewBody(load, ctx, store, scope, path, title, sessionId) {
+      if (load.status === 'loading') {
+        return createElement('div', { className: 'dfa-fp-note' }, strings.loading())
+      }
+      if (load.status === 'error') {
+        return createElement('div', { className: 'dfa-fp-err' },
+          strings.previewFailed(),
+          load.message
+            ? createElement('div', { style: { marginTop: '6px', fontSize: '11px', opacity: 0.85 } }, load.message)
+            : null,
+        )
+      }
+      if (load.viewer.id === 'pdf') {
+        const url = mediaUrlOf(sessionId, path)
+        return createElement(PdfPreview, { src: url, download: `${url}&download=1`, title })
+      }
+      return createElement(load.viewer.component, {
+        ctx, store, scope, path, title,
+        viewerId: load.viewer.id,
+        content: load.content,
+        mediaUrl: load.mediaUrl,
+        customData: load.customData,
+      })
     }
 
     /**
@@ -711,54 +890,7 @@ window.__ModuleLoader__.load({
       const path = preview.abs
       const title = preview.name
       const service = ctx.betterSidebar
-      const [load, setLoad] = useState({ status: 'loading', viewer: null })
-      const mediaUrlOf = () => `/file-activity/file?${new URLSearchParams({ sessionId, path })}`
-
-      useEffect(() => {
-        let cancelled = false
-        const viewer = service?.matchFileViewer?.(path)
-        if (!viewer) {
-          setLoad({ status: 'error', viewer: null, message: strings.previewUnsupported() })
-          return () => { cancelled = true }
-        }
-        const strategy = viewer.fetchStrategy
-        setLoad({ status: 'loading', viewer })
-        if (strategy === 'fsRead') {
-          const target = resolvePath(path, scope?.cwd ?? '')
-          void fetch('/sidebar/api/fs.read', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ sessionId, path: target }),
-          }).then((response) => response.json())
-            .then((json) => {
-              if (cancelled) return
-              if (json !== null && typeof json === 'object' && json.ok === true && typeof json.value?.content === 'string') {
-                setLoad({ status: 'ready', viewer, content: json.value.content })
-              } else {
-                setLoad({ status: 'error', viewer, message: json?.error?.message ?? strings.previewFailed() })
-              }
-            }).catch((error) => {
-              if (!cancelled) setLoad({ status: 'error', viewer, message: error instanceof Error ? error.message : String(error) })
-            })
-          return () => { cancelled = true }
-        }
-        if (strategy === 'mediaUrl') {
-          setLoad({ status: 'ready', viewer, mediaUrl: mediaUrlOf() })
-          return () => { cancelled = true }
-        }
-        if (strategy === 'custom') {
-          void (viewer.load?.(path, scope) ?? Promise.resolve(undefined)).then((data) => {
-            if (!cancelled) setLoad({ status: 'ready', viewer, customData: data })
-          }).catch((error) => {
-            if (!cancelled) setLoad({ status: 'error', viewer, message: error instanceof Error ? error.message : String(error) })
-          })
-          return () => { cancelled = true }
-        }
-        // 'binary-download' and anything else: mount the viewer's own
-        // component (it handles the download / media itself).
-        setLoad({ status: 'ready', viewer })
-        return () => { cancelled = true }
-      }, [path, sessionId, scope])
+      const load = usePreviewLoader(service, path, sessionId, scope)
 
       // Clicking outside is the primary dismiss (the overlay's onClick);
       // Escape is a keyboard affordance. Both call onClose.
@@ -768,32 +900,6 @@ window.__ModuleLoader__.load({
         document.addEventListener('keydown', handler)
         return () => document.removeEventListener('keydown', handler)
       }, [onClose])
-
-      let body
-      if (load.status === 'loading') {
-        body = createElement('div', { className: 'dfa-fp-note' }, strings.loading())
-      } else if (load.status === 'error') {
-        body = createElement('div', { className: 'dfa-fp-err' },
-          strings.previewFailed(),
-          load.message
-            ? createElement('div', { style: { marginTop: '6px', fontSize: '11px', opacity: 0.85 } }, load.message)
-            : null,
-        )
-      } else {
-        body = load.viewer.id === 'pdf'
-          ? createElement(PdfPreview, {
-              src: mediaUrlOf(),
-              download: `${mediaUrlOf()}&download=1`,
-              title,
-            })
-          : createElement(load.viewer.component, {
-              ctx, store, scope, path, title,
-              viewerId: load.viewer.id,
-              content: load.content,
-              mediaUrl: load.mediaUrl,
-              customData: load.customData,
-            })
-      }
 
       return createElement(
         'div',
@@ -813,7 +919,7 @@ window.__ModuleLoader__.load({
               ),
             ),
           ),
-          createElement('div', { className: 'dfa-fp-body' }, body),
+          createElement('div', { className: 'dfa-fp-body' }, renderPreviewBody(load, ctx, store, scope, path, title, sessionId)),
         ),
       )
     }
@@ -836,28 +942,17 @@ window.__ModuleLoader__.load({
       )
     }
 
-    // helpers used by the view
-    const opClass = (op) => (op === 'create' ? 'dfa-op-create' : op === 'modify' ? 'dfa-op-modify' : 'dfa-op-read')
-    const opLabel = (op) => (op === 'create' ? strings.create() : op === 'modify' ? strings.modify() : strings.read())
-    /** Tooltip for a stats file row: absolute path + created / last-seen times. */
-    const fileTitle = (abs, firstSeen, lastSeen) => {
-      const times = []
-      if (typeof firstSeen === 'number') times.push(`${strings.created()} ${formatTime(firstSeen)}`)
-      if (typeof lastSeen === 'number') times.push(`${strings.lastSeen()} ${formatTime(lastSeen)}`)
-      return times.length > 0 ? `${abs}\n${times.join(' · ')}` : abs
-    }
-
-    // ── plugin body ───────────────────────────────────────────────────────
-    exports.inject = ['betterSidebar']
-
-    exports.apply = function apply(ctx) {
-      // The stylesheet is pure static CSS and must NOT depend on the
-      // betterSidebar service: inject it first, unconditionally. If it lived
-      // behind the `service === undefined` early return, an HMR rebuild or
-      // service reload could leave the already-rendered tab WITHOUT its
-      // stylesheet — the raw white-text list you see when the CSS is gone.
-      // Each fiber owns its own <style> element and the disposer removes
-      // only that element, so a rebuild always keeps at least one copy.
+        // ── plugin body ───────────────────────────────────────────────────────
+    /**
+     * The stylesheet is pure static CSS and must NOT depend on the
+     * betterSidebar service: inject it first, unconditionally. If it lived
+     * behind the `service === undefined` early return, an HMR rebuild or
+     * service reload could leave the already-rendered tab WITHOUT its
+     * stylesheet — the raw white-text list you see when the CSS is gone.
+     * Each fiber owns its own <style> element and the disposer removes
+     * only that element, so a rebuild always keeps at least one copy.
+     */
+    function injectStyles(ctx) {
       ctx.effect(() => {
         if (typeof document === 'undefined' || document === null || typeof document.head === 'undefined') return () => {}
         const style = document.createElement('style')
@@ -868,28 +963,22 @@ window.__ModuleLoader__.load({
           if (style.parentNode) style.parentNode.removeChild(style)
         }
       }, 'dsh-file-activity: styles')
+    }
 
-      const service = ctx.betterSidebar
-      if (service === undefined) return
-
-      // Per-session data store: { bySession: { [sessionId]: { recent, counts, loading } }, preview }
-      // Each conversation reads/writes only its own bucket, so switching
-      // sessions never leaks another session's file activity into the view.
-      const dataStore = createStore({ bySession: {}, preview: null })
-
-      // Mount probe: report client activation to the host state (synthetic
-      // session id, invisible in the UI — used to confirm the client half
-      // actually loaded after a page refresh).
+    /** Mount probe: report client activation to the host state (synthetic
+     *  session id, invisible in the UI — confirms the client half actually
+     *  loaded after a page refresh). */
+    function mountProbe() {
       void fetch('/file-activity/api/record', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ sessionId: '__probe__', path: 'mounted', op: 'read' }),
       }).catch(() => {})
+    }
 
-      // sidebar operations → host record route
-      ctx.effect(() => installFetchInterceptor(), 'dsh-file-activity: sidebar fetch observation')
-
-      // register the tab (enabled by default in the Side card settings)
+    /** Register the tab (enabled by default in the Side card settings). */
+    function registerTab(ctx, dataStore) {
+      const service = ctx.betterSidebar
       ctx.effect(() => service.registerTab({
         id: TAB_ID,
         title: () => strings.title(),
@@ -906,10 +995,30 @@ window.__ModuleLoader__.load({
         },
         component: (props) => createElement(FileActivityView, { ...props, dataStore }),
       }), 'dsh-file-activity: tab registration')
+    }
+
+    exports.inject = ['betterSidebar']
+
+    exports.apply = function apply(ctx) {
+      // Stylesheet first, unconditionally (HMR pitfall — see injectStyles).
+      injectStyles(ctx)
+      const service = ctx.betterSidebar
+      if (service === undefined) return
+
+      // Per-session data store: { bySession: { [sessionId]: { recent, counts, loading } }, preview }
+      // Each conversation reads/writes only its own bucket, so switching
+      // sessions never leaks another session's file activity into the view.
+      const dataStore = createStore({ bySession: {}, preview: null })
+      mountProbe()
+
+      // sidebar operations → host record route
+      ctx.effect(() => installFetchInterceptor(), 'dsh-file-activity: sidebar fetch observation')
+      registerTab(ctx, dataStore)
 
       // auto-open once per session (default on)
       ctx.effect(() => installAutoOpen(ctx, TAB_ID), 'dsh-file-activity: auto-open')
     }
+
 
     return module.exports
   },
