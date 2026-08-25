@@ -14,11 +14,11 @@
 #
 #   - insert:
 #       - id: guardian
-#         name: 'dsh-guardian'
+#         name: 'bsfeng-dsh-guardian'
 #
 # After the guardian is mounted, new plugins go into the staged file
 # `cordis.staged.json` next to cordis.patch.yml (see README.md) instead of
 # straight into the boot path.
 - insert:
     - id: guardian
-      name: 'dsh-guardian'
+      name: 'bsfeng-dsh-guardian'

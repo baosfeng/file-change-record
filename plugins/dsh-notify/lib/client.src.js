@@ -25,7 +25,7 @@
  * 注入、fiber teardown 卸载（HMR/禁用无残留）。
  */
 window.__ModuleLoader__.load({
-  id: 'dsh-notify',
+  id: 'bsfeng-dsh-notify',
   factory: () => {
     var module = { exports: {} }
     var exports = module.exports

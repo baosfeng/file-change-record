@@ -20,7 +20,7 @@
  * (CI runs node --check + tests against it, not against this template).
  */
 window.__ModuleLoader__.load({
-  id: 'dsh-guardian',
+  id: 'bsfeng-dsh-guardian',
   factory: (require) => {
     var module = { exports: {} }
     var exports = module.exports

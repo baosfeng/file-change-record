@@ -38,7 +38,7 @@ import { findRootTree, createMountOps, initialScan } from './mount.js'
 import { createApi } from './api.js'
 import { attachEventListeners, logEvent } from './events.js'
 
-export const name = 'dsh-guardian'
+export const name = 'bsfeng-dsh-guardian'
 
 export const inject = ['loader', 'timer']
 

@@ -1,4 +1,4 @@
-# dsh-notify
+# bsfeng-dsh-notify
 
 [![插件生态](https://img.shields.io/badge/插件生态-topic%20dsh-4d6bfe)](https://github.com/topics/dsh)
 
@@ -85,7 +85,7 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-notify
 ```yaml
 - insert:
     - id: notify
-      name: 'dsh-notify'
+      name: 'bsfeng-dsh-notify'
     - config:            # 传给 apply(ctx, config)
         end: true        # 会话结束提醒（默认 true）
         ask: true        # 询问提醒（默认 true）

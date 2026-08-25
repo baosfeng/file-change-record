@@ -1,5 +1,5 @@
 {
-  "name": "dsh-notify",
+  "name": "bsfeng-dsh-notify",
   "version": "0.1.0",
   "description": "DSH web plugin: browser notification + beep when a session finishes, asks a question (ask_user_question), or requests an approval — with a remote webhook trigger hook.",
   "type": "module",

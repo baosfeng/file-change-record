@@ -38,7 +38,7 @@ import { createNoticeBus } from './notice.js'
 import { attachListeners } from './listeners.js'
 import { registerNotifyRoutes } from './routes.js'
 
-export const name = 'dsh-notify'
+export const name = 'bsfeng-dsh-notify'
 
 export const inject = ['webServer']
 

@@ -1,5 +1,5 @@
 {
-  "name": "dsh-guardian",
+  "name": "bsfeng-dsh-guardian",
   "version": "0.1.0",
   "description": "DSH web plugin: plugin guardian — staged loading for new/updated plugins (mount after boot, promote on success, auto-disable on failure), safe mode and a sidebar diagnostic panel.",
   "type": "module",
