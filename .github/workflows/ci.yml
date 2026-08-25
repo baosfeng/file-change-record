@@ -36,11 +36,11 @@ jobs:
             (cd "$d" && npm test)
           done
 
-      # 质量门禁：代码质量规则（no-undef / no-unused-vars / no-empty …）。
-      # 复杂度/行数规则（complexity≤10 / 函数≤40行 / 文件≤300行）在 P2 模块拆分
-      # 完成后启用：届时去掉下面 --rule 覆盖即可（见 docs/开发指南/质量门禁差距分析.md）。
-      - name: Lint (quality rules)
-        run: npx eslint plugins/ --rule '{"complexity":"off","max-lines":"off","max-lines-per-function":"off"}'
+      # 质量门禁：代码质量规则 + 尺寸规则（complexity≤10 / 函数≤40行 / 文件≤300行）。
+      # P2 模块拆分（G9-G12）完成后启用尺寸规则强制（client 构建产物已在
+      # eslint.config.js ignores 排除，src/parts 模板与片段照常检查）。
+      - name: Lint (quality rules + size gates)
+        run: npx eslint plugins/
 
       # 质量门禁：依赖结构分析（无循环依赖、server/client 不交叉）
       - name: Dependency analysis
