@@ -87,9 +87,9 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-guardian
 
 侧边栏"插件守护"诊断面板（独立 3081 端口隔离 DSH 实例实测）：
 
-![插件守护面板：候选失败隔离 + 转正运行中 + 安全模式开关](./assets/panel-main.png)
+![插件守护面板：候选失败隔离 + 转正运行中 + 安全模式开关](https://unpkg.com/bsfeng-dsh-guardian/assets/panel-main.png)
 
-![失败自动隔离：错误详情可查](./assets/panel-error-detail.png)
+![失败自动隔离：错误详情可查](https://unpkg.com/bsfeng-dsh-guardian/assets/panel-error-detail.png)
 
 > 截图环境：隔离 DSH 验证实例（`/tmp/dsh-3081`，端口 3081）。候选区同时写入 `demo-plugin`（挂载成功 → 自动转正"运行中"）与 `dsh-no-such-plugin-xyz`（包不存在 → 挂载失败自动隔离 ×1，错误详情保留可查）。
 

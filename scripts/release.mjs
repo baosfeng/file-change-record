@@ -94,15 +94,19 @@ try {
 }
 
 // 3b. README 效果图校验：发版前必须引用真实截图（见效果图规范）
+// 支持两种引用形态：相对路径 ./assets/<file>（GitHub 渲染）与
+// https://unpkg.com/<pkg>/assets/<file> 绝对 URL（npm 包页面显示图片）。
+// 两者均提取文件名，校验 assets/ 目录下真实存在。
 const plugReadmePath = join(pluginDir, 'README.md')
 const assetsDir = join(pluginDir, 'assets')
 let screenshotRefs = 0
 if (existsSync(plugReadmePath)) {
   const plugReadme = readFileSync(plugReadmePath, 'utf8')
-  // 同时匹配 markdown 图片（![…](./assets/…)）与 HTML <img src="./assets/…">
-  const imgRe = /(?:!\[[^\]]*\]\(\.\/assets\/([^)]+)\)|<img[^>]*src="\.\/assets\/([^"]+)")/g
+  // markdown 图片（![…](./assets/…) 或 ![…](https://unpkg.com/…/assets/…)）与
+  // HTML <img src="./assets/…" / src="https://unpkg.com/…/assets/…">
+  const imgRe = /(?:!\[[^\]]*\]\((?:\.\/assets\/([^)]+)|https:\/\/unpkg\.com\/[^"/]+\/assets\/([^)]+))\)|<img[^>]*src="(?:\.\/assets\/([^"]+)|https:\/\/unpkg\.com\/[^"/]+\/assets\/([^"]+))")/g
   const refs = []
-  for (const m of plugReadme.matchAll(imgRe)) refs.push(m[1] || m[2])
+  for (const m of plugReadme.matchAll(imgRe)) refs.push(m[1] || m[2] || m[3] || m[4])
   screenshotRefs = refs.length
   const missingFiles = refs.filter((f) => !existsSync(join(assetsDir, f)))
   if (refs.length > 0 && missingFiles.length > 0) {
@@ -111,7 +115,7 @@ if (existsSync(plugReadmePath)) {
   }
 }
 if (screenshotRefs === 0) {
-  console.error(`✗ ${name}/README.md has no real screenshot reference (./assets/...) — update README + assets/ per the 效果图规范`)
+  console.error(`✗ ${name}/README.md has no real screenshot reference (./assets/... or unpkg URL) — update README + assets/ per the 效果图规范`)
   process.exit(1)
 }
 console.log(`✓ README references ${screenshotRefs} screenshot(s) under assets/`)

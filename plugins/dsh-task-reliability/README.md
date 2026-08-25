@@ -2,7 +2,7 @@
 
 > DSH 插件：任务可靠性保障 —— 模型超时/请求失败自动重试、任务未完成自动继续、思考重复检测干预、休眠/重启后任务恢复、独立完成度校验 agent、自主决策模式（出行防中断）、远程触发接口。
 
-![任务可靠性面板](./assets/screenshot-panel.png)
+![任务可靠性面板](https://unpkg.com/dsh-task-reliability/assets/screenshot-panel.png)
 
 ## 功能
 

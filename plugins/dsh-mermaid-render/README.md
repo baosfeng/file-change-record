@@ -3,7 +3,7 @@
 [![插件生态](https://img.shields.io/badge/插件生态-topic%20dsh-4d6bfe)](https://github.com/topics/dsh)
 
 <div align="center">
-  <img alt="mermaid 代码块自动渲染为图表卡片（预览 / 代码切换）" src="./assets/mermaid-card.png" width="360" />
+  <img alt="mermaid 代码块自动渲染为图表卡片（预览 / 代码切换）" src="https://unpkg.com/dsh-mermaid-render/assets/mermaid-card.png" width="360" />
 </div>
 
 **DSH 对话 Mermaid 图表渲染插件**：把对话消息里的 `mermaid` / `mmd` 代码块自动渲染成**图表卡片**（预览 / 代码切换），**mermaid 引擎内联打包、完全离线**，不依赖任何 CDN。

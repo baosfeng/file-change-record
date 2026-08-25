@@ -3,9 +3,9 @@
 [![插件生态](https://img.shields.io/badge/插件生态-topic%20dsh--better--sidebar-4d6bfe)](https://github.com/topics/dsh-better-sidebar)
 
 <div align="center">
-  <img alt="文件活动插件截图（最近访问 / 文件统计）" src="./assets/screenshot.png" width="340" />
+  <img alt="文件活动插件截图（最近访问 / 文件统计）" src="https://unpkg.com/dsh-file-activity/assets/screenshot.png" width="340" />
   <br />
-  <img alt="浮窗预览：点击文件复用侧边栏内置 Markdown 渲染" src="./assets/preview-float.png" width="340" />
+  <img alt="浮窗预览：点击文件复用侧边栏内置 Markdown 渲染" src="https://unpkg.com/dsh-file-activity/assets/preview-float.png" width="340" />
 </div>
 
 **DSH 侧边栏文件活动插件**（基于 [dsh-better-sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) 扩展）：在 better-sidebar 中新增「文件活动」页签，记录 agent 工具与侧边栏自身的文件读取/新增/修改事件，提供**最近访问**（LRU）与**文件统计**（树形目录）两块视图，点击文件弹出浮窗预览。

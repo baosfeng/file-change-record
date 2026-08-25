@@ -3,7 +3,7 @@
 [![插件生态](https://img.shields.io/badge/插件生态-topic%20dsh-4d6bfe)](https://github.com/topics/dsh)
 
 <div align="center">
-  <img alt="思考块默认展开并渲染 Markdown 与 Mermaid 图表" src="./assets/think-markdown.png" width="340" />
+  <img alt="思考块默认展开并渲染 Markdown 与 Mermaid 图表" src="https://unpkg.com/dsh-think-zh-expand/assets/think-markdown.png" width="340" />
 </div>
 
 **DSH 思考增强插件**：让 agent 的思考（reasoning）与回复强制使用中文，对话里的思考内容**默认展开显示**（替代内置的单行折叠），并把界面残留的硬编码英文（Thinking / Tool Call 等）**中文化**。

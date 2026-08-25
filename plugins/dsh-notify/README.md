@@ -3,7 +3,7 @@
 [![插件生态](https://img.shields.io/badge/插件生态-topic%20dsh-4d6bfe)](https://github.com/topics/dsh)
 
 <div align="center">
-  <img alt="远程触发通知：页面右下角 toast 卡片（通知权限未授予时的兜底呈现）" src="./assets/notify-toast.png" width="640" />
+  <img alt="远程触发通知：页面右下角 toast 卡片（通知权限未授予时的兜底呈现）" src="https://unpkg.com/bsfeng-dsh-notify/assets/notify-toast.png" width="640" />
 </div>
 
 **DSH 通知提醒插件**：在**会话（本轮对话）结束**、**agent 询问问题**（`ask_user_question`）、**等待你要批准**（审批请求）时，发出**浏览器系统通知 + 提示音（滴一声）**；点击通知直接**跳转到对应会话**。预留了**远程 hook 触发接口**——任意进程 / cron / CI / webhook 都能推送自定义通知。
