@@ -2,6 +2,13 @@
 
 本文件记录 dsh-file-activity 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.5.0] - 2026-08-26
+
+### 变更
+
+- feat(file-activity): bash 命令文件操作识别（rm/touch/mv/cp/tee/重定向）+ 0 值计数徽标过滤
+- docs+test: 全面审查修复——文档同步补全 + mermaid 测试增强
+
 ## [0.4.7] - 2026-08-25
 
 ### 变更
