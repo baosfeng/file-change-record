@@ -58,11 +58,15 @@
 
 ## 开发新插件
 
-仓库内自带插件开发技能（[skills/dsh-plugin-development/SKILL.md](skills/dsh-plugin-development/SKILL.md)）：
+仓库内自带开发技能（SKILL.md 格式，安装方式见下）：
+
+- [skills/dsh-plugin-development/SKILL.md](skills/dsh-plugin-development/SKILL.md) — 插件开发/修改/调试/发布
+- [skills/dsh-issue-request/SKILL.md](skills/dsh-issue-request/SKILL.md) — 把新需求整理成规范 issue 提交到本仓库（需求追踪）
 
 ```sh
 # 将技能安装到个人技能目录（可选，便于 DSH 会话自动加载）
 cp -r skills/dsh-plugin-development ~/.dsh/skills/
+cp -r skills/dsh-issue-request ~/.dsh/skills/
 ```
 
 新插件骨架：
