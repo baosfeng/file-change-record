@@ -35,12 +35,13 @@ export async function loadState(file) {
   return createState()
 }
 
-/** Map a raw operation kind (tool name or client op) to 'read' | 'write' | 'edit'. */
+/** Map a raw operation kind (tool name or client op) to 'read' | 'write' | 'edit' | 'delete'. */
 export function mapOp(op) {
   switch (op) {
     case 'write': return 'write'
     case 'edit':
     case 'str_replace_editor': return 'edit'
+    case 'delete': return 'delete'
     case 'read':
     case 'read_image':
     default: return 'read'
@@ -51,26 +52,41 @@ export function mapOp(op) {
  * Fold one observed operation into the state.
  * 'write' is classified create vs modify through the per-session known-file
  * registry (first contact = create, later writes = modify); edits are always
- * modifies. Each file's counters also track firstSeen (first contact time,
- * i.e. creation time) and lastSeen (most recent activity time).
+ * modifies. 'delete' removes the file from stats entirely (disk state is the
+ * truth: the file no longer exists) and records a single delete history entry.
+ * Each file's counters also track firstSeen (first contact time, i.e.
+ * creation time) and lastSeen (most recent activity time).
  * Returns true when a record was produced.
  */
 export function applyRecord(state, sessionId, path, op, time) {
   if (!isValidRecordTarget(sessionId, path)) return false
   const session = state.sessions[sessionId] ?? (state.sessions[sessionId] = { known: {}, counts: {}, recent: [] })
   const timestamp = typeof time === 'number' ? time : Date.now()
+  if (op === 'delete') return applyDelete(session, path, timestamp)
   const firstSeen = typeof session.known[path] === 'number' ? session.known[path] : timestamp
   const finalOp = classifyOp(op, session.known[path])
   session.known[path] = firstSeen
   const counts = session.counts[path] ?? (session.counts[path] = { read: 0, create: 0, modify: 0 })
   bumpCount(counts, finalOp, firstSeen, timestamp)
-  // Newest-first LRU history: revisiting a path moves it to the front
-  // instead of appending a duplicate; cap at RECENT_LIMIT entries.
-  const existing = session.recent.findIndex((entry) => entry.path === path)
-  if (existing !== -1) session.recent.splice(existing, 1)
-  session.recent.unshift({ path, op: finalOp, time: timestamp })
-  if (session.recent.length > RECENT_LIMIT) session.recent.length = RECENT_LIMIT
+  pushRecent(session.recent, path, finalOp, timestamp)
   return true
+}
+
+/** 'delete': the file no longer exists on disk — drop it from stats and the
+ *  known-file registry, and record a single delete history entry. */
+function applyDelete(session, path, timestamp) {
+  delete session.counts[path]
+  delete session.known[path]
+  pushRecent(session.recent, path, 'delete', timestamp)
+  return true
+}
+
+/** Newest-first LRU history: one entry per path, cap at RECENT_LIMIT. */
+function pushRecent(recent, path, op, time) {
+  const existing = recent.findIndex((entry) => entry.path === path)
+  if (existing !== -1) recent.splice(existing, 1)
+  recent.unshift({ path, op, time })
+  if (recent.length > RECENT_LIMIT) recent.length = RECENT_LIMIT
 }
 
 /** A record target is valid when both ids are non-empty strings (no NUL). */
@@ -135,6 +151,8 @@ export function isRecordedPath(state, sessionId, path) {
   const session = state.sessions[sessionId]
   if (session === undefined) return false
   if (session.counts !== undefined && typeof session.counts[path] === 'object' && session.counts[path] !== null) return true
-  if (Array.isArray(session.recent)) return session.recent.some((entry) => entry.path === path)
+  // Deleted files no longer exist on disk — a delete history entry must not
+  // authorize media preview for them.
+  if (Array.isArray(session.recent)) return session.recent.some((entry) => entry.path === path && entry.op !== 'delete')
   return false
 }

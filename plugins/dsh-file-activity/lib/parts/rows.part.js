@@ -1,6 +1,6 @@
     // ── row rendering helpers (recent list & stats tree) ──────────────────
-    const opClass = (op) => (op === 'create' ? 'dfa-op-create' : op === 'modify' ? 'dfa-op-modify' : 'dfa-op-read')
-    const opLabel = (op) => (op === 'create' ? strings.create() : op === 'modify' ? strings.modify() : strings.read())
+    const opClass = (op) => (op === 'create' ? 'dfa-op-create' : op === 'modify' ? 'dfa-op-modify' : op === 'delete' ? 'dfa-op-delete' : 'dfa-op-read')
+    const opLabel = (op) => (op === 'create' ? strings.create() : op === 'modify' ? strings.modify() : op === 'delete' ? strings.delete() : strings.read())
 
     /** Tooltip for a stats file row: absolute path + created / last-seen times. */
     const fileTitle = (abs, firstSeen, lastSeen) => {
@@ -10,13 +10,17 @@
       return times.length > 0 ? `${abs}\n${times.join(' · ')}` : abs
     }
 
-    /** Three colored count pills for a file/dir node (read/create/modify). */
-    const countPills = (node) =>
-      createElement('span', { className: 'dfa-counts', style: { paddingLeft: '6px' } },
-        createElement('span', { className: 'dfa-count dfa-count-read' }, `${strings.readShort()} ${node.read}`),
-        createElement('span', { className: 'dfa-count dfa-count-create' }, `${strings.createShort()} ${node.create}`),
-        createElement('span', { className: 'dfa-count dfa-count-modify' }, `${strings.modifyShort()} ${node.modify}`),
-      )
+    /** Count pills for a file/dir node — only actions that actually happened are
+     *  shown (a zero count renders no pill; all-zero nodes render no pill group,
+     *  keeping untouched files visually quiet). */
+    const countPills = (node) => {
+      const pills = []
+      if (node.read > 0) pills.push(createElement('span', { className: 'dfa-count dfa-count-read' }, `${strings.readShort()} ${node.read}`))
+      if (node.create > 0) pills.push(createElement('span', { className: 'dfa-count dfa-count-create' }, `${strings.createShort()} ${node.create}`))
+      if (node.modify > 0) pills.push(createElement('span', { className: 'dfa-count dfa-count-modify' }, `${strings.modifyShort()} ${node.modify}`))
+      if (pills.length === 0) return null
+      return createElement('span', { className: 'dfa-counts', style: { paddingLeft: '6px' } }, ...pills)
+    }
 
     /** A stats-tree file row: icon + name + count pills + relative time. */
     const fileRow = (file, depth, onOpen) =>

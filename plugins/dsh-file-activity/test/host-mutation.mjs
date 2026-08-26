@@ -646,3 +646,97 @@ test('records drained before state load are persisted to disk', async () => {
   const persisted = JSON.parse((await import('node:fs')).readFileSync(statePath, 'utf8'))
   assert.equal(persisted.sessions['drain-s'].counts['/work/drained.txt'].read, 1, 'drained record persisted')
 })
+
+// ── tools/pre-execute: bash command file ops (issue #19) ──────────────────
+
+function emitPreExecute(ctx, name, sessionId, command, extraArgs) {
+  const { listener } = ctx.events.find((e) => e.name === 'tools/pre-execute')
+  const exec = { name, agent: { id: sessionId }, arguments: { command, ...(extraArgs ?? {}) } }
+  return listener(exec, () => Promise.resolve({ kind: 'allow' }))
+}
+
+test('tools/pre-execute: bash rm records a delete and drops the file from stats', async () => {
+  const { ctx, getRoute } = await boot()
+  emitObserved(ctx, 'read', 'bash-s', '/work/gone.js')
+  await new Promise((resolve) => setTimeout(resolve, 600))
+  await emitPreExecute(ctx, 'bash', 'bash-s', 'rm -f /work/gone.js')
+  await new Promise((resolve) => setTimeout(resolve, 600))
+  const stats = await callRoute(getRoute, 'GET', '/file-activity/api/stats?sessionId=bash-s')
+  assert.equal(stats.json.value.counts['/work/gone.js'], undefined, 'deleted file removed from stats')
+  assert.ok(stats.json.value.recent.some((e) => e.path === '/work/gone.js' && e.op === 'delete'), 'delete history entry present')
+})
+
+test('tools/pre-execute: touch/redirect create; mv maps source delete + dest create', async () => {
+  const { ctx, getRoute } = await boot()
+  await emitPreExecute(ctx, 'bash', 'bash-s2', 'touch /work/new.txt && echo hi > /work/out.txt')
+  await emitPreExecute(ctx, 'bash', 'bash-s2', 'mv /work/a.js /work/b.js')
+  await new Promise((resolve) => setTimeout(resolve, 600))
+  const stats = await callRoute(getRoute, 'GET', '/file-activity/api/stats?sessionId=bash-s2')
+  const counts = stats.json.value.counts
+  assert.equal(counts['/work/new.txt'].create, 1, 'touch maps to create')
+  assert.equal(counts['/work/out.txt'].create, 1, 'redirect maps to create')
+  assert.equal(counts['/work/b.js'].create, 1, 'mv destination maps to create')
+  assert.equal(counts['/work/a.js'], undefined, 'mv source removed from stats')
+})
+
+test('tools/pre-execute: non-bash tools and unsafe/unknown commands record nothing', async () => {
+  const { ctx, getRoute } = await boot()
+  await emitPreExecute(ctx, 'bash', 'bash-s3', 'cat /work/x.txt')
+  await emitPreExecute(ctx, 'bash', 'bash-s3', 'rm $FILE')
+  await emitPreExecute(ctx, 'bash', 'bash-s3', 'npm install')
+  await emitPreExecute(ctx, 'read_file', 'bash-s3', 'rm -f /work/ignored.js')
+  await new Promise((resolve) => setTimeout(resolve, 600))
+  const stats = await callRoute(getRoute, 'GET', '/file-activity/api/stats?sessionId=bash-s3')
+  assert.deepEqual(stats.json.value.counts, {}, 'no phantom counts')
+  assert.deepEqual(stats.json.value.recent, [], 'no phantom recent entries')
+})
+
+test('tools/pre-execute: relative paths resolve against the session cwd', async () => {
+  const apiHolder5 = captureRoute('/file-activity/api')
+  const mediaHolder5 = captureRoute('/file-activity/file')
+  const ctx5 = {
+    logger: { warn: () => {} },
+    webRuntime: { trustedHosts: [] },
+    sessions: { get: () => ({ header: { cwd: '/proj' } }) },
+    webServer: { register: (route) => { apiHolder5.set(route); mediaHolder5.set(route); return () => {} } },
+    events: [],
+    effectCallbacks: [],
+    on(name, listener) {
+      this.events.push({ name, listener })
+    },
+    effect(callback) {
+      callback()
+      return () => {}
+    },
+  }
+  apply(ctx5)
+  await new Promise((resolve) => setTimeout(resolve, 50))
+  await emitPreExecute(ctx5, 'bash', 'rel-s', 'rm -f tmp/old.txt')
+  await new Promise((resolve) => setTimeout(resolve, 600))
+  const stats = await callRoute(() => apiHolder5.get(), 'GET', '/file-activity/api/stats?sessionId=rel-s')
+  assert.ok(stats.json.value.recent.some((e) => e.path === '/proj/tmp/old.txt' && e.op === 'delete'), 'relative path resolved against session cwd')
+})
+
+test('media route denies a path whose only record is a delete', async () => {
+  const { ctx, getMediaRoute } = await boot()
+  emitObserved(ctx, 'read', 'gone-s', '/work/byebye.txt')
+  await new Promise((resolve) => setTimeout(resolve, 600))
+  await emitPreExecute(ctx, 'bash', 'gone-s', 'rm /work/byebye.txt')
+  await new Promise((resolve) => setTimeout(resolve, 600))
+  const res = makeResponse()
+  await getMediaRoute().handler(makeRequest('GET', '/file-activity/file?sessionId=gone-s&path=%2Fwork%2Fbyebye.txt'), res)
+  assert.equal(res._status, 403, 'deleted file no longer authorizes media preview')
+})
+
+test('tools/pre-execute: non-string command and workdir branch coverage', async () => {
+  const { ctx, getRoute } = await boot()
+  // command 缺失/非字符串 → 不解析不记录
+  await emitPreExecute(ctx, 'bash', 'bash-s4', undefined)
+  await emitPreExecute(ctx, 'bash', 'bash-s4', 42)
+  // workdir 参数优先于会话 cwd
+  await emitPreExecute(ctx, 'bash', 'bash-s4', 'rm -f tmp/x.txt', { workdir: '/wd' })
+  await new Promise((resolve) => setTimeout(resolve, 600))
+  const stats = await callRoute(getRoute, 'GET', '/file-activity/api/stats?sessionId=bash-s4')
+  assert.ok(stats.json.value.recent.some((e) => e.path === '/wd/tmp/x.txt' && e.op === 'delete'), 'workdir overrides session cwd')
+  assert.equal(stats.json.value.recent.length, 1, 'only the workdir-resolved op recorded')
+})

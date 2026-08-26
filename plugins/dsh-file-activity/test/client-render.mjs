@@ -108,6 +108,7 @@ dataStore.set({
         { path: '/work/a/b/c/d/e.txt', op: 'read', time: Date.now() },
         { path: '/work/src/components/ui/Button.tsx', op: 'modify', time: Date.now() },
         { path: '/work/README.md', op: 'read', time: Date.now() },
+        { path: '/work/legacy/old.txt', op: 'delete', time: Date.now() },
       ],
       counts: {
         '/work/a/b/c/d/e.txt': { read: 1, create: 2, modify: 0 },
@@ -174,10 +175,10 @@ assert.ok(!joined.includes('根目录'), 'no root group label (root files shown 
 
 // File rows carry the absolute path as title (native preview targets);
 // directory rows end with '/' and toggle collapse instead:
-// 4 stats rows + 4 recent rows = 8 file rows. (Icon-only header actions carry
+// 4 stats rows + 5 recent rows = 9 file rows. (Icon-only header actions carry
 // a chinese tooltip title, so identify real rows by the leading '/' path.)
 const fileRows = rows.filter((r) => typeof r.title === 'string' && r.title.startsWith('/') && !r.title.endsWith('/'))
-assert.equal(fileRows.length, 8, `expected 8 file rows, got ${fileRows.length}`)
+assert.equal(fileRows.length, 9, `expected 9 file rows, got ${fileRows.length}`)
 const titles = fileRows.map((r) => r.title)
 assert.ok(titles.includes('/work/a/b/c/d/e.txt'), 'nested file row present')
 assert.ok(titles.includes('/work/README.md'), 'root file row present')
@@ -193,6 +194,23 @@ assert.ok(recentRows.length >= 4, 'recent entries clickable')
 
 // the nested-tree example: a/b/c/d/e.txt renders as dirs a/ b/ c/ d/ with e.txt
 assert.ok(texts.includes('e.txt'), 'nested file name present')
+
+// ── zero-count pills are NOT rendered (issue #18) ─────────────────────────
+// 0 值动作不渲染对应徽标；从未触碰的动作（读 0 / 增 0 / 改 0）不出现在树中。
+for (const zero of ['读 0', '增 0', '改 0', 'R 0', 'C 0', 'M 0']) {
+  assert.ok(!texts.includes(zero), `zero pill "${zero}" must not be rendered`)
+}
+// 有值的动作仍正常显示（e.txt: read1/create2/modify0 → 只显示 读 1 / 增 2）
+assert.ok(texts.includes('读 1'), 'read pill rendered for counted read')
+assert.ok(texts.includes('增 2'), 'create pill rendered for counted create')
+assert.ok(texts.includes('改 5'), 'modify pill rendered for counted modify')
+// 目录行同理：只渲染有值的汇总徽标（src/ 子树 read 5 + modify 6，无 create）
+assert.ok(texts.includes('读 5'), 'dir subtree read pill rendered')
+assert.ok(texts.includes('改 6'), 'dir subtree modify pill rendered')
+
+// ── delete op badge (issue #19): recent delete entries render a 删除 badge ─
+assert.ok(texts.includes('删除'), 'delete badge rendered for recent delete entry')
+assert.ok(texts.includes('old.txt'), 'deleted file name still visible in recent')
 
 // ── click behavior: every clickable file row opens the FLOATING preview ──
 // (which reuses the sidebar's native viewer), NOT the sidebar editor tab.

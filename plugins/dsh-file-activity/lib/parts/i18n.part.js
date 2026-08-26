@@ -22,6 +22,7 @@
       read: () => (isZh() ? '读取' : 'read'),
       create: () => (isZh() ? '新增' : 'create'),
       modify: () => (isZh() ? '修改' : 'modify'),
+      delete: () => (isZh() ? '删除' : 'delete'),
       readShort: () => (isZh() ? '读' : 'R'),
       createShort: () => (isZh() ? '增' : 'C'),
       modifyShort: () => (isZh() ? '改' : 'M'),
