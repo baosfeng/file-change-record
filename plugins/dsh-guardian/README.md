@@ -111,7 +111,7 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-guardian
 | 依赖 | 用途 | 可选 |
 |---|---|---|
 | `cordis` | 插件运行时 | 是（宿主提供） |
-| `dsh-better-sidebar` | 侧边栏「插件守护」诊断面板 | 是（无面板时仅 API / 候选区治理仍可用） |
+| `dsh-better-sidebar` | 侧边栏「插件守护」诊断面板（**可选增强，不参与依赖声明**：未安装时自动跳过面板注册，API / 候选区治理不受影响） | 否（可选增强） |
 | `react` | client 端组件 | 是（宿主提供） |
 | `bsfeng-dsh-notify` | 失败 / 冻结事件浏览器通知 | 是 |
 
