@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-08-26
+
+### 变更
+
+- fix(task-reliability): 任务状态徽章文本永远显示「进行中」（盲测发现）
+- fix(plugin): 修复 llm/stream 包装 handler 误用 async 导致 yield* 委托崩溃
+- docs+test: 全面审查修复——文档同步补全 + mermaid 测试增强
+
 ## [0.1.2] - 2026-08-25
 
 ### 变更
