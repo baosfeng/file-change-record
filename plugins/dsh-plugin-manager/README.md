@@ -4,6 +4,10 @@
 
 [![npm](https://img.shields.io/npm/v/dsh-plugin-manager)](https://www.npmjs.com/package/dsh-plugin-manager)
 
+![插件管理面板：已安装列表 + 卸载/更新检查](./assets/screenshot.png)
+
+![插件管理面板：市场搜索区块](./assets/market.png)
+
 ## 功能
 
 - **市场浏览/搜索**：输入关键词搜索 npm 插件市场（名称 / 版本 / 描述 / 作者），一键安装；

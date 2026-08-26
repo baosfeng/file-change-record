@@ -4,6 +4,8 @@
 
 [![npm](https://img.shields.io/npm/v/dsh-skill-manager)](https://www.npmjs.com/package/dsh-skill-manager)
 
+![Skill 管理面板：全局 / 项目分区 + 启用/禁用开关](./assets/screenshot.png)
+
 ## 功能
 
 - **Skill 列表（分「全局 / 项目」两维度显示）**：每个 skill 显示名称、描述、来源（`user-dsh` / `user-agents` / `custom` / `bundled` / `project-dsh` / `project-agents`）、状态（启用/已禁用）。
