@@ -29,6 +29,7 @@ const MODULES = {
   'dsh-guardian': { module: '插件治理', display: '插件治理', npm: 'bsfeng-dsh-guardian' },
   'dsh-task-reliability': { module: '任务可靠性', display: '任务可靠性', npm: 'dsh-task-reliability' },
   'dsh-skill-manager': { module: 'Skill管理', display: 'Skill 管理', npm: 'dsh-skill-manager' },
+  'dsh-plugin-manager': { module: '插件管理', display: '插件管理', npm: 'dsh-plugin-manager' },
   'dsh-plugin-dev-mode': { module: '插件开发模式', display: '插件开发模式', npm: null }, // agent preset，非 npm 插件
 }
 
