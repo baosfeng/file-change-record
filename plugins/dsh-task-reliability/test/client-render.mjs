@@ -15,10 +15,12 @@ function createElement(type, props, ...children) {
 }
 
 const hookValues = new Map()
+let hookIndex = 0
 const stubbed = {
   createElement,
   useState: (initial) => {
-    const idx = hookValues.size
+    const idx = hookIndex
+    hookIndex += 1
     if (!hookValues.has(idx)) {
       const value = typeof initial === 'function' ? initial() : initial
       hookValues.set(idx, [value, () => {}])
@@ -29,6 +31,7 @@ const stubbed = {
 }
 
 function loadBundle() {
+  hookIndex = 0
   let registered = null
   global.window = {
     __ModuleLoader__: { load: (registration) => { registered = registration } },
@@ -125,4 +128,65 @@ test('apply without betterSidebar must not throw', () => {
     error = caught
   }
   assert.equal(error, null, 'apply without betterSidebar must not throw')
+})
+
+test('task status badge shows the correct label per status (regression: statusLabel(task))', () => {
+  hookValues.clear()
+  const exportsObj = loadBundle()
+
+  let capturedTab = null
+  const mockService = {
+    registerTab: (descriptor) => {
+      capturedTab = descriptor
+      return () => {}
+    },
+  }
+  const ctx = {
+    betterSidebar: mockService,
+    effect: (fn) => fn(),
+    get(name) {
+      if (name === 'betterSidebar') return mockService
+      return undefined
+    },
+  }
+  exportsObj.apply(ctx)
+  assert.ok(capturedTab, 'tab registered')
+
+  // 预置 tasks state（idx=1）：Panel 渲染时 useState 按 hookIndex 取 idx，
+  // 命中预置的任务列表；其余 state（info/questions/loadError）由渲染默认创建。
+  hookValues.set(1, [
+    [
+      { id: 't-active', description: 'a', status: 'active' },
+      { id: 't-paused', description: 'b', status: 'paused' },
+      { id: 't-done', description: 'c', status: 'done' },
+    ],
+    () => {},
+  ])
+
+  const element = capturedTab.component({ ctx, scope: { sessionId: 'sess-test' }, visible: true })
+  const tree = element.type(element.props)
+
+  const texts = []
+  function walk(node) {
+    if (node === null || node === undefined || typeof node === 'boolean') return
+    if (typeof node === 'string' || typeof node === 'number') {
+      texts.push(String(node))
+      return
+    }
+    if (Array.isArray(node)) {
+      for (const child of node) walk(child)
+      return
+    }
+    if (typeof node.type === 'function') {
+      walk(node.type(node.props))
+      return
+    }
+    walk(node.props?.children)
+  }
+  walk(tree)
+
+  const joined = texts.join('|')
+  assert.ok(joined.includes('Active'), 'active task badge label')
+  assert.ok(joined.includes('Paused'), 'paused task badge label (regression)')
+  assert.ok(joined.includes('Done'), 'done task badge label (regression)')
 })

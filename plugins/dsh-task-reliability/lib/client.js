@@ -163,7 +163,7 @@ window.__ModuleLoader__.load({
       if (task.verifyCount > 0) meta.push(strings.verifies(task.verifyCount))
       return createElement('div', { className: 'dtr-task' },
         createElement('div', { className: 'dtr-task-head' },
-          createElement('span', { className: `dtr-badge ${statusClass(task.status)}` }, statusLabel(task)),
+          createElement('span', { className: `dtr-badge ${statusClass(task.status)}` }, statusLabel(task.status)),
         ),
         createElement('div', { className: 'dtr-desc' }, task.description),
         meta.length > 0 ? createElement('div', { className: 'dtr-task-meta' }, meta.join(' · ')) : null,
