@@ -178,10 +178,19 @@ async function handleStatus(agent, status, shared) {
 
 // ── 5. 思考重复检测（llm/stream 包装） ───────────────────────────────────
 
-async function handleStream(options, next, shared) {
+/**
+ * 包装 `llm/stream`：返回包装后的流。
+ *
+ * 必须保持为**同步函数**：cordis waterfall 不 await listener 的返回值，
+ * `next()` 同步返回流；若这里是 async function，waterfall 拿到的就是
+ * `Promise<流>`——`for await` 消费方尚可容忍（自动展开 Promise），但
+ * vision-toolkit 等适配器用 `yield*` 委托流，`yield*` 不接受 Promise，
+ * 会抛 `yield* (intermediate value) is not async iterable`。
+ */
+function handleStream(options, next, shared) {
   const sessionId = typeof options?.sessionId === 'string' ? options.sessionId : ''
   if (sessionId === '') return next()
-  const stream = await next()
+  const stream = next()
   return wrapStreamForLoop(stream, repeatStateOf(sessionId, shared))
 }
 

@@ -553,7 +553,7 @@ test('第二次重复打断使用更强文本', async () => {
     for (const ch of long) chunks.push({ type: 'reasoning-delta', index: b, text: ch })
     chunks.push({ type: 'block-end', index: b, block: { type: 'reasoning', text: long } })
   }
-  const makeStream = async () => (async function* () { for (const c of chunks) yield c })()
+  const makeStream = () => (async function* () { for (const c of chunks) yield c })()
   const w1 = await dispatchOne(env.listeners, 'llm/stream', { sessionId: 'session-mut' }, makeStream)
   await collectStream(w1)
   await dispatchOne(env.listeners, 'agent/turn-stopping', { agent: env.mainAgent, signal: { aborted: false } })

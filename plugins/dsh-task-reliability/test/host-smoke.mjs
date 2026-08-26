@@ -485,10 +485,54 @@ async function collect(stream) {
   }
 }
 
+/** 模拟 vision-toolkit 式委托消费：yield* 直接展开 waterfall 返回值（同步链）。 */
+async function collectViaYieldStar(stream) {
+  const out = []
+  try {
+    const delegated = (async function* () {
+      yield* stream
+    })()
+    for await (const chunk of delegated) out.push(chunk)
+    return { chunks: out, error: undefined }
+  } catch (error) {
+    return { chunks: out, error }
+  }
+}
+
+test('llm/stream 返回值可被 yield* 委托消费（防 Promise 包装回归）', async () => {
+  const env = boot()
+  const chunks = normalChunks('这是完全不同的正常思考内容。')
+  // 真实链路：cordis waterfall 不 await listener 返回值，next() 同步返回流
+  // （adapterStream 是 async*，调用即得 generator）。若 handler 是 async
+  // function，waterfall 拿到 Promise<流>，vision-toolkit 用 yield* 委托时
+  // 抛 "yield* (intermediate value) is not async iterable"。
+  const wrapped = dispatchOne(env.listeners, 'llm/stream', { sessionId: 'session-main' }, () => {
+    return (async function* () {
+      for (const chunk of chunks) yield chunk
+    })()
+  })
+  const { chunks: out, error } = await collectViaYieldStar(wrapped)
+  assert.equal(error, undefined, `yield* 委托不应报错: ${error?.message ?? ''}`)
+  assert.equal(out.length, chunks.length, '全部 chunk 透传')
+})
+
+test('回归：重复检测在 yield* 委托消费下仍抛 REASONING_LOOP', async () => {
+  const env = boot()
+  const long = '思考任务执行的每一个细节并反复推敲其中的潜在问题与更优的解决路径方案。'.repeat(8)
+  const wrapped = dispatchOne(env.listeners, 'llm/stream', { sessionId: 'session-main' }, () => {
+    return (async function* () {
+      for (const chunk of reasoningChunks(long)) yield chunk
+    })()
+  })
+  const { error } = await collectViaYieldStar(wrapped)
+  assert.ok(error instanceof Error)
+  assert.equal(error.code, 'REASONING_LOOP')
+})
+
 test('流中连续重复 reasoning 段落触发检测抛错', async () => {
   const env = boot()
   const long = '思考任务执行的每一个细节并反复推敲其中的潜在问题与更优的解决路径方案。'.repeat(8)
-  const wrapped = await dispatchOne(env.listeners, 'llm/stream', { sessionId: 'session-main' }, async () => {
+  const wrapped = dispatchOne(env.listeners, 'llm/stream', { sessionId: 'session-main' }, () => {
     return (async function* () {
       for (const chunk of reasoningChunks(long)) yield chunk
     })()
@@ -501,7 +545,7 @@ test('流中连续重复 reasoning 段落触发检测抛错', async () => {
 test('正常流透传全部 chunk 不抛错', async () => {
   const env = boot()
   const chunks = normalChunks('这是完全不同的正常思考内容。')
-  const wrapped = await dispatchOne(env.listeners, 'llm/stream', { sessionId: 'session-main' }, async () => {
+  const wrapped = await dispatchOne(env.listeners, 'llm/stream', { sessionId: 'session-main' }, () => {
     return (async function* () {
       for (const chunk of chunks) yield chunk
     })()
@@ -514,7 +558,7 @@ test('正常流透传全部 chunk 不抛错', async () => {
 test('短 reasoning 段落不参与重复检测', async () => {
   const env = boot()
   const short = '好的'.repeat(4)
-  const wrapped = await dispatchOne(env.listeners, 'llm/stream', { sessionId: 'session-main' }, async () => {
+  const wrapped = await dispatchOne(env.listeners, 'llm/stream', { sessionId: 'session-main' }, () => {
     return (async function* () {
       for (const chunk of reasoningChunks(short)) yield chunk
     })()
@@ -526,7 +570,7 @@ test('短 reasoning 段落不参与重复检测', async () => {
 test('重复干预达上限后放弃（不再抛错）', async () => {
   const env = boot({})
   const long = '反复思考同样的问题细节与可能的影响因素以及下一步应该采取的具体行动方案。'.repeat(8)
-  const makeStream = async () => (async function* () {
+  const makeStream = () => (async function* () {
     for (const chunk of reasoningChunks(long)) yield chunk
   })()
   for (let i = 0; i < 3; i++) {
@@ -542,7 +586,7 @@ test('重复干预达上限后放弃（不再抛错）', async () => {
 test('turn-stopping 检测到重复后注入打断指令', async () => {
   const env = boot()
   const long = '反复推敲同一段思考内容及其潜在影响与后续步骤的详细规划与执行细节安排。'.repeat(8)
-  const wrapped = await dispatchOne(env.listeners, 'llm/stream', { sessionId: 'session-main' }, async () => {
+  const wrapped = await dispatchOne(env.listeners, 'llm/stream', { sessionId: 'session-main' }, () => {
     return (async function* () {
       for (const chunk of reasoningChunks(long)) yield chunk
     })()

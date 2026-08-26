@@ -278,7 +278,7 @@ When('代理 {string} 的模型流产生连续重复的思考段落', async func
     for (const ch of long) chunks.push({ type: 'reasoning-delta', index: b, text: ch })
     chunks.push({ type: 'block-end', index: b, block: { type: 'reasoning', text: long } })
   }
-  this.wrapped = await this.dispatch('llm/stream', { sessionId }, async () => (async function* () {
+  this.wrapped = this.dispatch('llm/stream', { sessionId }, () => (async function* () {
     for (const c of chunks) yield c
   })())
 })
