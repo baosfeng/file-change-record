@@ -2,6 +2,13 @@
 
 本文件记录 dsh-file-activity 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.5.1] - 2026-08-27
+
+### 变更
+
+- feat(file-activity): 侧边栏页签选中态改用品牌蓝，三态一眼可分（issue #25）
+- feat(file-activity): 文件活动列表按文件类型显示专属彩色图标（issue #24）
+
 ## [0.5.0] - 2026-08-26
 
 ### 变更
