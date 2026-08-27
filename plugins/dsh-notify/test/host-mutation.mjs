@@ -55,7 +55,8 @@ function mockRequest({ url, method = 'GET', host = '127.0.0.1:3080', secFetchSit
   }
 }
 
-function boot(config = {}, opts = {}) {
+function boot(config, opts = {}) {
+  // config 显式 undefined 时原样传给 apply（杀 config?.x 的 OptionalChaining 变异）
   const listeners = {}
   const routes = []
   const disposers = []
@@ -256,6 +257,34 @@ test('null req passes through without notifying', async () => {
   assert.equal(noticesOf(res).length, 0, 'null req not notified')
 })
 
+// ── config 为 undefined：默认配置生效（杀 config?.x 的 OptionalChaining 变异）─
+
+test('apply with an undefined config keeps every default', async () => {
+  const { listeners, api } = boot(undefined)
+  const res = mockResponse()
+  await invoke(api, mockRequest({ url: '/notify/api/stream' }), res)
+  // 默认全开：顶层 end 通知照常推送
+  await dispatchEvent(listeners, 'agent/status', { agent: topAgent('def1'), status: 'idle' })
+  const frame = res.written.join('')
+  const notice = JSON.parse(frame.slice(frame.indexOf('data: ') + 6))
+  assert.equal(notice.kind, 'end')
+  assert.equal(notice.agentType, 'top')
+  // 默认 subagentEnd 关闭：子代理不推送
+  const before = res.written.length
+  await dispatchEvent(listeners, 'agent/status', {
+    agent: { id: 'def2', options: { subagentDepth: 1 }, session: { header: { cwd: '/x' } } },
+    status: 'idle',
+  })
+  assert.equal(res.written.length, before, 'subagentEnd defaults to off')
+  // info 反映默认开关
+  const infoRes = mockResponse()
+  await invoke(api, mockRequest({ url: '/notify/api/info' }), infoRes)
+  const info = JSON.parse(infoRes.written.join(''))
+  assert.deepEqual(info.value, {
+    end: true, ask: true, approval: true, subagentEnd: false, remoteEnabled: true, apiToken: false, dedupeMs: 3000,
+  }, 'defaults mirrored in info')
+})
+
 // ── titleOf：非空 snapshot title 优先于 cwd（杀 L128）────────────────────
 
 test('a non-empty session title beats the cwd fallback', async () => {
@@ -269,4 +298,101 @@ test('a non-empty session title beats the cwd fallback', async () => {
   const frame = res.written.join('')
   const notice = JSON.parse(frame.slice(frame.indexOf('data: ') + 6))
   assert.equal(notice.title, '我的会话', 'snapshot title preferred')
+})
+
+// ── issue #26：五类子代理形态判定（白名单化 + 运行时深度兜底）────────────
+
+test('five subagent shapes are all filtered (issue #26 whitelist)', async () => {
+  const { listeners, api } = boot({})
+  const res = mockResponse()
+  await invoke(api, mockRequest({ url: '/notify/api/stream' }), res)
+  const before = res.written.length
+  const shapes = [
+    // 1. header 缺 origin（delegationDepth 存在）
+    { id: 'shape-1', session: { header: { cwd: '/x', delegationDepth: 2 } } },
+    // 2. header 缺 delegationDepth（origin 存在）
+    { id: 'shape-2', session: { header: { cwd: '/x', origin: 'subagent' } } },
+    // 3. 两者皆缺（运行时 options.subagentDepth 兜底 —— 漏网形态）
+    { id: 'shape-3', options: { subagentDepth: 1 }, session: { header: { cwd: '/x' } } },
+    // 4. origin: 'subagent'
+    { id: 'shape-4', session: { header: { cwd: '/x', origin: 'subagent', delegationDepth: 0 } } },
+    // 5. delegationDepth > 0
+    { id: 'shape-5', session: { header: { cwd: '/x', delegationDepth: 3 } } },
+  ]
+  for (const agent of shapes) {
+    await dispatchEvent(listeners, 'agent/status', { agent, status: 'idle' })
+  }
+  assert.equal(res.written.length, before, 'no subagent shape may notify')
+})
+
+test('top-level end notice carries agentType top', async () => {
+  const { listeners, api } = boot({})
+  const res = mockResponse()
+  await invoke(api, mockRequest({ url: '/notify/api/stream' }), res)
+  await dispatchEvent(listeners, 'agent/status', { agent: topAgent('top1'), status: 'idle' })
+  const frame = res.written.join('')
+  const notice = JSON.parse(frame.slice(frame.indexOf('data: ') + 6))
+  assert.equal(notice.kind, 'end')
+  assert.equal(notice.agentType, 'top', 'top-level notice is marked top')
+})
+
+// ── issue #26：subagentEnd 开关 ─────────────────────────────────────────
+
+test('subagentEnd defaults to off: subagent idle does not notify', async () => {
+  const { listeners, api } = boot({})
+  const res = mockResponse()
+  await invoke(api, mockRequest({ url: '/notify/api/stream' }), res)
+  const before = res.written.length
+  await dispatchEvent(listeners, 'agent/status', {
+    agent: { id: 'sub-off', options: { subagentDepth: 1 }, session: { header: { cwd: '/x' } } },
+    status: 'idle',
+  })
+  assert.equal(res.written.length, before, 'subagent idle must not notify by default')
+})
+
+test('subagentEnd true notifies subagent end with a marked title', async () => {
+  const { listeners, api } = boot({ subagentEnd: true })
+  const res = mockResponse()
+  await invoke(api, mockRequest({ url: '/notify/api/stream' }), res)
+  await dispatchEvent(listeners, 'agent/status', {
+    agent: { id: 'sub-x', options: { subagentDepth: 1 }, session: { header: { cwd: '/work/sub' }, __title: '子任务' } },
+    status: 'idle',
+  })
+  const frame = res.written.join('')
+  const notice = JSON.parse(frame.slice(frame.indexOf('data: ') + 6))
+  assert.equal(notice.kind, 'end')
+  assert.equal(notice.agentType, 'subagent', 'subagent notice is marked subagent')
+  assert.ok(notice.title.startsWith('子代理'), 'subagent title carries the marker')
+  assert.ok(notice.title.includes('子任务'), 'subagent title carries the session title')
+})
+
+test('subagentEnd only affects end notices; ask/approval stay top-level only', async () => {
+  const { listeners, api } = boot({ subagentEnd: true })
+  const res = mockResponse()
+  await invoke(api, mockRequest({ url: '/notify/api/stream' }), res)
+  const before = res.written.length
+  await dispatchEvent(listeners, 'tools/pre-execute',
+    { name: 'ask_user_question', agent: { id: 'sub-ask', options: { subagentDepth: 1 }, session: { header: { cwd: '/x' } } } },
+    async () => {})
+  await dispatchEvent(listeners, 'approval/request',
+    { agent: { id: 'sub-ap', options: { subagentDepth: 1 }, session: { header: { cwd: '/x' } } } },
+    async () => {})
+  assert.equal(res.written.length, before, 'subagent ask/approval never notify')
+})
+
+test('ask and approval notices carry agentType top', async () => {
+  const { listeners, api } = boot({})
+  const res = mockResponse()
+  await invoke(api, mockRequest({ url: '/notify/api/stream' }), res)
+  await dispatchEvent(listeners, 'tools/pre-execute',
+    { name: 'ask_user_question', agent: topAgent('ask-top'), arguments: { questions: [{ header: '确认' }] } },
+    async () => {})
+  await dispatchEvent(listeners, 'approval/request',
+    { agent: topAgent('ap-top'), toolName: 'bash' },
+    async () => {})
+  const frames = res.written.filter((c) => c.includes('data: '))
+  const notices = frames.map((f) => JSON.parse(f.slice(f.indexOf('data: ') + 6)))
+  assert.equal(notices.length, 2, 'both notices emitted')
+  assert.equal(notices[0].agentType, 'top', 'ask notice marked top')
+  assert.equal(notices[1].agentType, 'top', 'approval notice marked top')
 })

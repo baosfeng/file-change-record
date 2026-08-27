@@ -148,10 +148,11 @@ try {
     assert.equal(notice.kind, 'end')
     assert.equal(notice.sessionId, 's1')
     assert.equal(notice.title, '标题-s1', 'title comes from sessionTitle snapshot')
+    assert.equal(notice.agentType, 'top', 'top-level notice is marked top')
     assert.equal(typeof notice.time, 'number')
   }
 
-  // ── 3. 子代理过滤：subagent / delegationDepth 不通知 ──────────────────
+  // ── 3. 子代理过滤：subagent / delegationDepth / 运行时深度不通知 ────────
   {
     const { listeners, api } = boot({})
     const res = mockResponse()
@@ -163,6 +164,11 @@ try {
     })
     await dispatchEvent(listeners, 'agent/status', {
       agent: topAgent('sub2', { delegationDepth: 2 }),
+      status: 'idle',
+    })
+    // 漏网形态：header 无 origin/delegationDepth，但运行时 options.subagentDepth 兜底
+    await dispatchEvent(listeners, 'agent/status', {
+      agent: { id: 'sub3', options: { subagentDepth: 1 }, session: { header: { cwd: '/work/alpha' }, __title: '标题-sub3' } },
       status: 'idle',
     })
     assert.equal(res.written.length, before, 'subagent idle must not notify')
@@ -247,7 +253,7 @@ try {
     await invoke(api, mockRequest({ url: '/notify/api/info' }), infoRes)
     const info = JSON.parse(infoRes.written.join(''))
     assert.deepEqual(info.value, {
-      end: false, ask: false, approval: false, remoteEnabled: true, apiToken: false, dedupeMs: 3000,
+      end: false, ask: false, approval: false, subagentEnd: false, remoteEnabled: true, apiToken: false, dedupeMs: 3000,
     }, 'info mirrors config')
   }
 

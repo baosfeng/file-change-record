@@ -110,6 +110,7 @@ function infoValue(options) {
     end: options.end,
     ask: options.ask,
     approval: options.approval,
+    subagentEnd: options.subagentEnd,
     remoteEnabled: true,
     apiToken: options.apiToken !== '',
     dedupeMs: options.dedupeMs,

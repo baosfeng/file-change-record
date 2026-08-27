@@ -48,6 +48,7 @@ export function apply(ctx, config) {
     end: config?.end !== false,
     ask: config?.ask !== false,
     approval: config?.approval !== false,
+    subagentEnd: config?.subagentEnd === true,
     apiToken: typeof config?.apiToken === 'string' ? config.apiToken : '',
     dedupeMs: Number.isFinite(config?.dedupeMs) ? config.dedupeMs : 3000,
   }

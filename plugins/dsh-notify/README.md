@@ -18,7 +18,7 @@
 | **询问**（`ask`） | agent 调用 `ask_user_question` 工具 | 会话标题 + 「需要你回答」+ 问题摘要 |
 | **审批**（`approval`） | 出现需要用户批准的请求（如沙箱、文件操作） | 会话标题 + 「等待你的批准」+ 工具名 / 原因 |
 
-- **自动过滤子代理（subagent）会话**：只提醒用户直接查看的顶层会话，不打扰子代理批量完成。
+- **自动过滤子代理（subagent）会话**：只提醒用户直接查看的顶层会话，不打扰子代理批量完成；判定白名单化（`origin` / `delegationDepth` / 运行时 `subagentDepth` 任一命中即子代理，无法确认的会话保守视为子代理）。配置 `subagentEnd: true` 后子代理完成也提醒，通知标题带「子代理」前缀，与主会话一眼区分。
 - **同类去重**：同一会话同一类型 3 秒内只提醒一次，避免重复弹窗。
 
 ### 2. 通知呈现（Client 端）
@@ -93,6 +93,7 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-notify
         end: true        # 会话结束提醒（默认 true）
         ask: true        # 询问提醒（默认 true）
         approval: true   # 审批提醒（默认 true）
+        subagentEnd: false  # 子代理完成也提醒（默认 false；开启后标题带「子代理」前缀）
         apiToken: ''     # 远程触发 token；非空时 trigger 需 x-notify-token 头
         dedupeMs: 3000   # 同类去重窗口（毫秒，默认 3000）
 ```

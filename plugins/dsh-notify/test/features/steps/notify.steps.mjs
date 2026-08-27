@@ -133,6 +133,10 @@ Given('通知插件已启动且配置关闭了 end\\/ask\\/approval', async func
   this.boot({ end: false, ask: false, approval: false })
 })
 
+Given('通知插件已启动且开启了 subagentEnd', async function () {
+  this.boot({ subagentEnd: true })
+})
+
 Given('通知插件已启动且配置了 apiToken', async function () {
   this.boot({ apiToken: 'secret-token' })
 })
@@ -151,6 +155,13 @@ When('顶层代理 {string} 变为空闲', async function (id) {
 When('子代理 {string} 变为空闲', async function (id) {
   await this.dispatch('agent/status', {
     agent: { id, session: { header: { origin: 'subagent' } } },
+    status: 'idle',
+  })
+})
+
+When('无标记子代理 {string} 变为空闲', async function (id) {
+  await this.dispatch('agent/status', {
+    agent: { id, options: { subagentDepth: 1 }, session: { header: { cwd: '/work/sub' } } },
     status: 'idle',
   })
 })
@@ -242,6 +253,18 @@ Then('通知标题为 {string}', async function (title) {
   const frame = this.noticesOf(this.clients[0]).join('')
   const notice = JSON.parse(frame.slice(frame.indexOf('data: ') + 6))
   assert.equal(notice.title, title)
+})
+
+Then('通知标记为 {string}', async function (agentType) {
+  const frame = this.noticesOf(this.clients[0]).join('')
+  const notice = JSON.parse(frame.slice(frame.indexOf('data: ') + 6))
+  assert.equal(notice.agentType, agentType)
+})
+
+Then('通知标题以 {string} 开头', async function (prefix) {
+  const frame = this.noticesOf(this.clients[0]).join('')
+  const notice = JSON.parse(frame.slice(frame.indexOf('data: ') + 6))
+  assert.ok(notice.title.startsWith(prefix), `title starts with ${prefix}`)
 })
 
 Then('客户端未收到任何通知', async function () {

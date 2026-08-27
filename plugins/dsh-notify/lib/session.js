@@ -6,13 +6,39 @@
  * 尽力而为——任何失败都降级为安全默认值，绝不打断通知路径。
  */
 
-/** 顶层会话判定：跳过子代理（subagent）会话，只提醒用户直接查看的会话。 */
+/**
+ * 顶层会话判定（白名单化）：只有明确无任何子代理标记的会话才视为顶层。
+ *
+ * 子代理标记分两层：
+ *  - 持久化 header：`origin === 'subagent'`、`delegationDepth > 0`；
+ *  - 运行时 `agent.options.subagentDepth > 0`：DSH 官方所有子代理形态
+ *    （subagent / subagent_fork / workflow worker / ralph worker）创建时都
+ *    经 dsh-subagent 服务设置该字段，即使 header 未持久化 origin /
+ *    delegationDepth（fork 继承、工作流 worker 等漏网形态）也能识别。
+ *
+ * 结构不完整（无 session/header）无法确认 → 保守视为子代理，不通知。
+ */
 export function isTopLevelAgent(agent) {
-  const header = agent?.session?.header
+  if (agent === null || typeof agent !== 'object') return false
+  const header = agent.session?.header
   if (header === undefined || header === null) return false
-  if (header.origin === 'subagent') return false
-  if (typeof header.delegationDepth === 'number' && header.delegationDepth > 0) return false
-  return true
+  return !hasSubagentMarker(header, agent.options)
+}
+
+/** 任一子代理标记命中即子代理（header 持久化标记 + 运行时深度）。 */
+function hasSubagentMarker(header, options) {
+  if (header.origin === 'subagent') return true
+  if (typeof header.delegationDepth === 'number' && header.delegationDepth > 0) return true
+  return typeof options?.subagentDepth === 'number' && options.subagentDepth > 0
+}
+
+/** 子代理通知标题：前缀「子代理」+ 会话标题/短 id（尽力而为，绝不空串）。 */
+export function subagentTitleOf(ctx, agent) {
+  const base = titleOf(ctx, agent)
+  const id = typeof agent?.id === 'string' ? agent.id : ''
+  const short = id.length > 8 ? id.slice(0, 8) : id
+  const label = base !== '' ? base : short
+  return label !== '' ? `子代理 ${label}` : '子代理'
 }
 
 /** 会话标题：优先 sessionTitle 快照，回退 cwd 末段，再回退空串（由 client 显示短 id）。 */

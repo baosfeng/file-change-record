@@ -52,7 +52,7 @@ function evictStale(state, options, now) {
   }
 }
 
-/** 构造 SSE 通知帧（字段规整，缺失回退空串）。 */
+/** 构造 SSE 通知帧（字段规整，缺失回退空串；agentType 默认 top）。 */
 function noticeFrame(notice, now) {
   return {
     type: 'notice',
@@ -61,6 +61,7 @@ function noticeFrame(notice, now) {
     title: typeof notice.title === 'string' ? notice.title : '',
     note: typeof notice.note === 'string' ? notice.note : '',
     toolName: typeof notice.toolName === 'string' ? notice.toolName : '',
+    agentType: notice.agentType === 'subagent' ? 'subagent' : 'top',
     time: now,
   }
 }
