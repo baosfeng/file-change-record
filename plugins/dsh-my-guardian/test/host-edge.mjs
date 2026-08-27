@@ -16,7 +16,7 @@ process.env.DSH_HOME = dir
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /** 轮询等待条件成立（guardian 持久化是异步 promise 链，固定 sleep 在慢 CI 上不稳定，曾致偶发失败）。 */
-async function waitFor(check, timeoutMs = 3000, intervalMs = 25) {
+async function waitFor(check, timeoutMs = 10000, intervalMs = 25) {
   const deadline = Date.now() + timeoutMs
   for (;;) {
     if (check()) return

@@ -6,7 +6,9 @@ for d in plugins/*/; do
   [ -f "$d/package.json" ] || continue
   echo "== $d =="
   for f in lib/index.js lib/client.js; do
-    [ -f "$d$f" ] && node --check "$d$f"
+    if [ -f "$d$f" ]; then
+      node --check "$d$f"
+    fi
   done
   (cd "$d" && npm test)
 done

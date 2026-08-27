@@ -63,7 +63,9 @@ jobs:
       - name: Syntax check (node --check)
         run: |
           for f in lib/index.js lib/client.js; do
-            [ -f "plugins/${{ matrix.plugin }}/$f" ] && node --check "plugins/${{ matrix.plugin }}/$f"
+            if [ -f "plugins/${{ matrix.plugin }}/$f" ]; then
+              node --check "plugins/${{ matrix.plugin }}/$f"
+            fi
           done
 
       - name: Test ${{ matrix.plugin }} (unit tests + coverage gates)
