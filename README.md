@@ -10,14 +10,14 @@
       <td align="center" style="vertical-align:top"><img src="plugins/dsh-file-activity/assets/screenshot.png" width="230" alt="dsh-file-activity 文件活动侧边栏" /></td>
       <td align="center" style="vertical-align:top"><img src="plugins/dsh-think-zh-expand/assets/think-markdown.png" width="230" alt="dsh-think-zh-expand 思考块渲染" /></td>
       <td align="center" style="vertical-align:top"><img src="plugins/dsh-mermaid-render/assets/mermaid-card.png" width="230" alt="dsh-mermaid-render 图表卡片" /></td>
-      <td align="center" style="vertical-align:top"><img src="plugins/dsh-notify/assets/notify-toast.png" width="230" alt="dsh-notify 通知提醒 toast" /></td>
+      <td align="center" style="vertical-align:top"><img src="plugins/dsh-my-notify/assets/notify-toast.png" width="230" alt="dsh-my-notify 通知提醒 toast" /></td>
       <td align="center" style="vertical-align:top"><img src="plugins/dsh-task-reliability/assets/screenshot-panel.png" width="230" alt="dsh-task-reliability 任务可靠性面板" /></td>
     </tr>
     <tr>
       <td align="center"><sub>dsh-file-activity</sub></td>
       <td align="center"><sub>dsh-think-zh-expand</sub></td>
       <td align="center"><sub>dsh-mermaid-render</sub></td>
-      <td align="center"><sub>dsh-notify</sub></td>
+      <td align="center"><sub>dsh-my-notify</sub></td>
       <td align="center"><sub>dsh-task-reliability</sub></td>
     </tr>
   </table>
@@ -31,8 +31,8 @@
 | [dsh-think-zh-expand](plugins/dsh-think-zh-expand/README.md) | 0.4.3 | 思考增强：通过 system-prompt 注入让思考与回复强制使用中文；对话中思考内容默认展开显示（替代内置单行折叠），可点击收起、流式中保持展开；文本块与**思考块**都支持 Markdown 渲染（含表格 / Mermaid 图表）；界面英文标签中文化 |
 | [dsh-mermaid-render](plugins/dsh-mermaid-render/README.md) | 0.1.3 | 对话 mermaid/mmd 代码块自动渲染为图表卡片（预览/代码切换），mermaid 引擎内联打包、零 CDN 依赖、完全离线可用；流式渲染稳健（等流式结束渲染，避免残缺态） |
 | [dsh-md-render](plugins/dsh-md-render/README.md) | 0.1.1 | 非思考模式 markdown 表格渲染增强：模型输出的表格（含无首尾管道符、分隔行变体等不标准格式）自动识别并渲染为表格（表头/边框/对齐），宽表格横向滚动；兼容 dsh-think-zh-expand（tzx-md 容器）与内置 MarkdownText（md-table-wide 容器），思考模式表格渲染不受影响 |
-| [dsh-notify](plugins/dsh-notify/README.md) | 0.3.0 | 通知提醒：会话结束 / agent 询问（ask）/ 等待审批时弹浏览器通知 + 滴声提示，点击通知跳转对应会话；预留远程 hook 触发接口（`POST /notify/api/trigger`，支持可选 token），SSE 实时通道 |
-| [dsh-guardian](plugins/dsh-guardian/README.md) | 0.3.0 | 插件治理：新装/更新插件先进候选区（cordis.staged.json），启动完成后由守护插件逐个热挂载——成功自动转正，失败自动隔离记录，连续失败冻结，一键安全模式，侧边栏诊断面板；守护插件自身永不拖垮进程（看门狗自保） |
+| [dsh-my-notify](plugins/dsh-my-notify/README.md) | 0.3.1 | 通知提醒：会话结束 / agent 询问（ask）/ 等待审批时弹浏览器通知 + 滴声提示，点击通知跳转对应会话；预留远程 hook 触发接口（`POST /notify/api/trigger`，支持可选 token），SSE 实时通道 |
+| [dsh-my-guardian](plugins/dsh-my-guardian/README.md) | 0.3.1 | 插件治理：新装/更新插件先进候选区（cordis.staged.json），启动完成后由守护插件逐个热挂载——成功自动转正，失败自动隔离记录，连续失败冻结，一键安全模式，侧边栏诊断面板；守护插件自身永不拖垮进程（看门狗自保） |
 | [dsh-task-reliability](plugins/dsh-task-reliability/README.md) | 0.4.0 | 任务可靠性保障：模型超时/请求失败自动重试、任务未完成自动继续（turn-stopping 注入）、独立完成度校验 agent（会话结束后判断，未完成唤醒继续）、思考重复检测与打断、休眠/重启后任务自动恢复、锁屏/休眠唤醒自动恢复（停滞看门狗）、ask 超时自动继续（问题记录待确认）、自主决策模式（出行防 ask 中断）、远程触发接口 |
 | [dsh-my-skill-manager](plugins/dsh-my-skill-manager/README.md) | 0.1.1 | Skill 管理：分「全局 / 项目」查看 skill 列表（名称/描述/来源/状态），按项目启用/禁用——禁用的 skill 不再注入该项目会话（模型不可见、不可加载）；全局配置 `$DSH_HOME`，项目配置随仓库版本化；设置页面板（官方扩展点，纯官方依赖） |
 | [dsh-my-memory](plugins/dsh-my-memory/README.md) | 0.1.0 | 记忆：全局/项目两级记忆持久化（全局 `$DSH_HOME/memory.json` + 项目 `<项目根>/.dsh/memory.json`），会话开始时全局记忆注入系统提示词（agent 始终携带关键偏好，条数/长度上限防膨胀）；设置页面板（全局/项目分区 + 自定义确认 UI：删除红色、保存绿色，写操作必须用户确认）；`memory_query` 只读查询工具 |
@@ -47,8 +47,8 @@
 │   ├── dsh-think-zh-expand/
 │   ├── dsh-mermaid-render/
 │   ├── dsh-md-render/
-│   ├── dsh-notify/
-│   ├── dsh-guardian/
+│   ├── dsh-my-notify/
+│   ├── dsh-my-guardian/
 │   ├── dsh-task-reliability/
 │   ├── dsh-my-skill-manager/
 │   ├── dsh-my-memory/

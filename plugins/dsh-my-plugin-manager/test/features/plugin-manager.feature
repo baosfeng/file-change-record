@@ -26,7 +26,7 @@
     那么 该插件被判定为官方
     假如 插件名为 "@koishijs/plugin-x"
     那么 该插件被判定为官方
-    假如 插件名为 "bsfeng-dsh-notify"
+    假如 插件名为 "dsh-my-notify"
     那么 该插件不被判定为官方
     假如 插件名为 "@anionex/dsh-vision-toolkit"
     那么 该插件不被判定为官方

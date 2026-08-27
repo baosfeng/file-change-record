@@ -22,9 +22,9 @@ export default [
       // mermaid 产物内嵌 8.9MB base64，ESLint 正则规则会崩溃
       'plugins/dsh-mermaid-render/lib/client.js',
       'plugins/dsh-file-activity/lib/client.js',
-      'plugins/dsh-notify/lib/client.js',
+      'plugins/dsh-my-notify/lib/client.js',
       'plugins/dsh-think-zh-expand/lib/client.js',
-      'plugins/dsh-guardian/lib/client.js',
+      'plugins/dsh-my-guardian/lib/client.js',
       'plugins/dsh-my-skill-manager/lib/client.js',
       'plugins/dsh-my-memory/lib/client.js',
     ],

@@ -41,7 +41,7 @@ test('config-store suite', async () => {
 
     // ── 2. extractConfig：无条目 → undefined ────────────────────────────
     {
-      const text = '# comment\n- id: notify\n  name: bsfeng-dsh-notify\n'
+      const text = '# comment\n- id: notify\n  name: dsh-my-notify\n'
       assert.equal(extractConfig(text, 'task-reliability'), undefined, 'missing row yields undefined')
     }
 
@@ -214,7 +214,7 @@ test('config-store suite', async () => {
         '  config:',
         '    retryMax: 1',
         '- id: guardian',
-        '  name: bsfeng-dsh-guardian',
+        '  name: dsh-my-guardian',
       ].join('\n'), 'utf8')
       await writePatchConfig(file, 'task-reliability', { retryMax: 6 })
       const text = readFileSync(file, 'utf8')

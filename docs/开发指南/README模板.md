@@ -32,10 +32,10 @@
 
 | 插件 | 截图 | 功能 | 配置 | 依赖 | 相关文档 |
 |---|---|---|---|---|---|
-| bsfeng-dsh-file-activity | ✅ 2 | ✅ | ✅ | ✅ | ✅ |
-| bsfeng-dsh-think-zh-expand | ✅ 1 | ✅ | ✅ | ✅ | ✅ |
-| bsfeng-dsh-mermaid-render | ✅ 1 | ✅ | ✅ | ✅ | ✅ |
-| bsfeng-dsh-notify | ✅ 1 | ✅ | ✅ | ✅ | ✅ |
-| bsfeng-dsh-guardian | ✅ 2 | ✅ | ✅ | ✅ | ✅ |
+| dsh-file-activity | ✅ 2 | ✅ | ✅ | ✅ | ✅ |
+| dsh-think-zh-expand | ✅ 1 | ✅ | ✅ | ✅ | ✅ |
+| dsh-mermaid-render | ✅ 1 | ✅ | ✅ | ✅ | ✅ |
+| dsh-my-notify | ✅ 1 | ✅ | ✅ | ✅ | ✅ |
+| dsh-my-guardian | ✅ 2 | ✅ | ✅ | ✅ | ✅ |
 
-> 表格中显示名沿用模块名（dsh-file-activity 等），npm 包名为 `bsfeng-*` 前缀。
+> 表格中显示名沿用模块名（dsh-file-activity 等），npm 包名与插件目录名一致（`dsh-*` / `dsh-my-*`，无额外前缀）。

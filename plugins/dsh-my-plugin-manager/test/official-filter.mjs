@@ -20,7 +20,7 @@ test('isOfficialModule flags official namespaces', () => {
 test('isOfficialModule keeps user namespaces', () => {
   assert.equal(isOfficialModule('dsh-a'), false, 'plain user package')
   assert.equal(isOfficialModule('@scope/dsh-b'), false, 'user scoped package')
-  assert.equal(isOfficialModule('bsfeng-dsh-notify'), false, 'user personal namespace')
+  assert.equal(isOfficialModule('dsh-my-notify'), false, 'user personal namespace')
   assert.equal(isOfficialModule('@anionex/dsh-vision-toolkit'), false, 'third-party scoped package')
   assert.equal(isOfficialModule('dsh-think-zh-expand'), false, 'link-installed local plugin')
 })
