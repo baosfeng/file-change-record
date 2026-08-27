@@ -10,7 +10,10 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  # 质量门禁：依赖漏洞审计（issue #16 建议点 2）
+  # 高/严重漏洞即阻断（本地 npmmirror 不支持 audit API，CI 默认官方 registry 可用）
+  # 独立 job：与测试/质量检查并行，不阻塞主流程
+  audit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -18,45 +21,98 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          cache: npm # 缓存 npm 缓存目录（key 基于 package-lock.json hash），加速 npm ci
 
       - name: Install root toolchain (eslint, dependency-cruiser)
-        run: npm install
+        run: npm ci
 
-      # 质量门禁：依赖漏洞审计（issue #16 建议点 2）
-      # 高/严重漏洞即阻断（本地 npmmirror 不支持 audit API，CI 默认官方 registry 可用）
       - name: Audit dependencies (npm audit, high+ blocks)
         run: npm audit --audit-level=high
 
-      # 质量门禁：单元测试 + 覆盖率（行≥85 / 分支≥75，低于阈值即失败）
-      # 每个插件 npm test 自带 node --test --experimental-test-coverage 阈值参数
-      - name: Test all plugins under plugins/ (unit tests + coverage gates)
+  # 质量门禁：单元测试 + 覆盖率（行≥85 / 分支≥75，低于阈值即失败）
+  # matrix 并行：每个插件一个独立 job（11 个并行），墙钟时间 ≈ 单个插件测试时长
+  # 新增插件时在此列表追加（check-docs.mjs 会强制提醒文档同步）
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # 一个插件失败不取消其他插件的测试
+      matrix:
+        plugin:
+          - dsh-file-activity
+          - dsh-think-zh-expand
+          - dsh-mermaid-render
+          - dsh-md-render
+          - dsh-my-guardian
+          - dsh-my-memory
+          - dsh-my-notify
+          - dsh-my-plugin-manager
+          - dsh-my-skill-manager
+          - dsh-plugin-dev-mode
+          - dsh-task-reliability
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install root toolchain (eslint, dependency-cruiser)
+        run: npm ci
+
+      - name: Syntax check (node --check)
         run: |
-          set -e
-          for d in plugins/*/; do
-            [ -f "$d/package.json" ] || continue
-            echo "== $d =="
-            for f in lib/index.js lib/client.js; do
-              [ -f "$d$f" ] && node --check "$d$f"
-            done
-            (cd "$d" && npm test)
+          for f in lib/index.js lib/client.js; do
+            [ -f "plugins/${{ matrix.plugin }}/$f" ] && node --check "plugins/${{ matrix.plugin }}/$f"
           done
 
-      # 质量门禁：变异测试（issue #13 试点：dsh-file-activity）
-      # 本地实测 20s（90.91% 变异分 ≥ break 70）；试点确认 CI 时长可接受后推广到全部插件
+      - name: Test ${{ matrix.plugin }} (unit tests + coverage gates)
+        run: (cd "plugins/${{ matrix.plugin }}" && npm test)
+
+  # 质量门禁：变异测试（issue #13 试点：dsh-file-activity）
+  # 本地实测 20s（90.91% 变异分 ≥ break 70）；独立 job 与测试并行
+  mutation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install root toolchain (eslint, dependency-cruiser)
+        run: npm ci
+
       - name: "Mutation testing (stryker pilot: dsh-file-activity)"
         run: (cd plugins/dsh-file-activity && npx stryker run)
 
-      # 质量门禁：代码质量规则 + 尺寸规则（complexity≤10 / 函数≤40行 / 文件≤300行）。
+  # 质量门禁：代码质量规则 + 尺寸规则 + 依赖结构 + 文档一致性
+  # 三者都很快（秒级），合并一个 job 与测试并行
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install root toolchain (eslint, dependency-cruiser)
+        run: npm ci
+
+      # 代码质量规则 + 尺寸规则（complexity≤10 / 函数≤40行 / 文件≤300行）。
       # P2 模块拆分（G9-G12）完成后启用尺寸规则强制（client 构建产物已在
       # eslint.config.js ignores 排除，src/parts 模板与片段照常检查）。
       - name: Lint (quality rules + size gates)
         run: npx eslint plugins/
 
-      # 质量门禁：依赖结构分析（无循环依赖、server/client 不交叉）
+      # 依赖结构分析（无循环依赖、server/client 不交叉）
       - name: Dependency analysis
         run: npx depcruise plugins/
 
-      # 质量门禁：文档一致性（新插件/新版本必须同步根 README / AGENTS.md /
+      # 文档一致性（新插件/新版本必须同步根 README / AGENTS.md /
       # docs/ 索引与模块文档 / 安装章节 npm 方式——防"插件没部署/文档没更新"复发）
       - name: Docs consistency check
         run: node scripts/check-docs.mjs

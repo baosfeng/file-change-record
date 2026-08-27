@@ -22,9 +22,10 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          cache: npm # 缓存 npm 缓存目录（key 基于 package-lock.json hash），加速 npm ci
 
       - name: Install root test toolchain
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Parse plugin and version from tag
         run: |
@@ -63,6 +64,7 @@ jobs:
       # - 未配置 token 时仅警告并跳过，不影响 GitHub Release 主流程；
       # - 发布失败（包名已被他人占用，如 dsh-notify / dsh-guardian，或版本已存在）
       #   同样只警告不阻塞——GitHub Release 始终是主交付物。
+      #   （本仓库撞名插件已统一 dsh-my-* 前缀：dsh-my-notify / dsh-my-guardian）
       - name: Publish to npm (requires NPM_TOKEN)
         run: |
           if [ -z "$NPM_TOKEN" ]; then
