@@ -36,6 +36,23 @@ description: 在本仓库（my-dsh-plugins）中新建、修改、调试或发�
 
 > `ctx.betterSidebar` **只存在于 client 端**。server 端需要侧边栏数据时走 `/sidebar/api/*` HTTP 路由，不要假设服务存在。
 
+### 命名阶段：先检索 npm 包名（强制）
+
+> 背景：`dsh-notify`、`dsh-guardian`、`dsh-skill-manager`、`dsh-plugin-manager` 等包名已被其他开发者的同名插件占用（maintainers 分别为 pasumao / lss1213 / gohana / ruihuahe，均为 DSH 生态独立项目），`dsh plugin add <包名>` 会装到别人的包、功能完全不同。包名撞名必须在**命名阶段**检索规避，而不是发布时才发现再被迫改名。
+
+1. **列候选名**：按「目录结构规范」的命名规则（`dsh-<功能>`，目录名 = 包名）列出 1–3 个候选包名。
+2. **逐个检索**（npm 官方 registry）：
+
+   ```bash
+   npm view <候选包名> --registry=https://registry.npmjs.org
+   ```
+
+   - **可用**：输出 `npm error code E404` / `404 Not Found`（无版本信息）→ 包名未被占用。
+   - **被占用**：输出版本号、maintainers 等元数据 → 已被占用；`npm view <包名> maintainers` 可查看占用者。
+   - 想发现近似名/同功能包：`npm search <关键词> --registry=https://registry.npmjs.org`。
+3. **被占用 → 改名**：统一加 `my-` 前缀为 `dsh-my-<功能>`，参考本仓库改名先例 `dsh-my-skill-manager`（原 `dsh-skill-manager` 被占）、`dsh-my-plugin-manager`（原 `dsh-plugin-manager` 被占）。改名后重新执行第 2 步确认新名可用再继续。
+4. **记录检索结果（强制）**：候选名 + 占用情况记入插件需求清单 `docs/<模块>/需求清单.md`（如 `R1 包名 dsh-my-xxx：候选 dsh-xxx 已被 maintainer xxx 占用（2026-xx 检索）`），发布前复查一次。
+
 ## 目录结构规范
 
 ```
@@ -63,7 +80,7 @@ plugins/<name>/                  # 插件目录（小写连字符命名，如 ds
 
 ## 开发流程
 
-0. **先建/读需求清单**：`docs/<模块>/需求清单.md` 不存在则先建（把用户提出的需求逐条列进去），存在则通读——本次改动涉及哪些条目、可能影响哪些条目，先想清楚。
+0. **先建/读需求清单**：`docs/<模块>/需求清单.md` 不存在则先建（把用户提出的需求逐条列进去），存在则通读——本次改动涉及哪些条目、可能影响哪些条目，先想清楚。**新建插件时先做命名阶段 npm 包名检索**（见「插件形态 · 命名阶段」），候选名与占用情况记入需求清单。
 1. **搭骨架**：按上面目录结构创建 `plugins/<name>/`，复制现有插件（`plugins/dsh-file-activity/`）的 `cordis.patch.yml`、LICENSE 作参照。
 2. **写 package.json**（见下方字段说明）。
 3. **写 server 端** `lib/index.js`：`export const name / inject / apply(ctx)`。用 `ctx.on(...)` 监听事件、`ctx.effect(() => ...)` 注册副作用（返回 disposer）。HTTP 路由注入 `webServer`：`ctx.webServer.register({ kind: 'prefix', path: '/<插件名>/api', handler: async (request, response) => {...} })`，handler 内先做 loopback 信任围栏（参考现有插件的 `fence(request)`，403 拒绝非本机来源）。
