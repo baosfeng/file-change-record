@@ -13,7 +13,7 @@
 - **市场浏览/搜索**：输入关键词搜索 npm 插件市场（名称 / 版本 / 描述 / 作者），一键安装；
 - **一键安装/卸载**：走 `dsh plugin --profile <p> add|remove`（与 CLI 同一数据源，自动维护 profile package.json 与 bundle patch），无需手工编辑 `cordis.patch.yml`；
 - **更新检查**：`pnpm outdated` 检测已安装插件是否有新版本（插件独立于 dsh 主程序发版节奏）；
-- **已安装插件管理**：官方 loader 清单（名称 / 版本 / 启用状态 / 运行相位）+ 卸载入口。
+- **已安装插件管理**：只显示用户安装的插件（官方/内置命名空间自动过滤），名称 / 版本 / 启用状态 / 运行相位 + 卸载入口。
 
 ## 安装
 
@@ -36,7 +36,7 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-plugin-manager
 ## 实现要点
 
 - **数据源**：安装/卸载/更新检查全部走 `dsh plugin --profile web`（pnpm）命令，与官方 CLI 同一数据源，不做手写 patch 编辑；
-- **已安装清单**：官方 `pluginInventory` 服务（loader 条目）+ profile `node_modules` 版本读取（支持 scoped 包）；
+- **已安装清单**：官方 `pluginInventory` 服务（loader 条目）+ profile `node_modules` 版本读取（支持 scoped 包）；只列出用户安装的插件，官方命名空间（`@deepseek-ai/*`、`cordis`/`cordis:*`、`@koishijs/*`）过滤（issue #28）；
 - **市场搜索**：npm registry search API（`keywords:dsh` 全覆盖）；
 - **profile 名**：进程参数 `--profile` 优先，默认 `web`。
 

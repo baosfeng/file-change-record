@@ -85,6 +85,9 @@ async function boot(overrides) {
       list: () => ({ entries: [
         { moduleName: 'dsh-a', enabled: true, fiberPhase: 'ready' },
         { moduleName: '@scope/dsh-b', enabled: false, fiberPhase: null },
+        { moduleName: '@deepseek-ai/dsh-base', enabled: true, fiberPhase: 'active' },
+        { moduleName: 'cordis:include', enabled: true, fiberPhase: 'active' },
+        { moduleName: '@koishijs/plugin-xxx', enabled: true, fiberPhase: 'active' },
       ] }),
     },
     webServer: { register: (route) => { apiHolder.set(route); return () => {} } },
@@ -137,6 +140,16 @@ test('GET /installed merges inventory + versions', async () => {
   assert.equal(entries[0].moduleName, 'dsh-a')
   assert.equal(entries[0].enabled, true)
   assert.equal(entries[0].version, '0.1.0', 'version resolved via manage.installedVersionOf')
+})
+
+test('GET /installed filters official modules and marks user entries', async () => {
+  const { getRoute } = await boot()
+  const r = await callRoute(getRoute, 'GET', '/plugin-manager/api/installed')
+  assert.equal(r.status, 200)
+  const entries = r.json.value.entries
+  assert.deepEqual(entries.map((e) => e.moduleName), ['dsh-a', '@scope/dsh-b'], 'official modules filtered out')
+  assert.ok(entries.every((e) => e.official === false), 'user entries carry official: false')
+  assert.ok(entries.every((e) => e.version === '0.1.0'), 'versions still resolved for user entries')
 })
 
 test('GET /search calls the npm registry and clamps size', async () => {

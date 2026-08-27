@@ -47,15 +47,31 @@ function apiMethodOf(url) {
   return pathname.startsWith('/plugin-manager/api/') ? pathname.slice('/plugin-manager/api/'.length) : undefined
 }
 
-/** GET /installed — loader entries with resolved versions. */
+/**
+ * 官方/内置包命名空间（issue #28）：DSH 官方 bundle（@deepseek-ai/*）、
+ * Cordis 核心 loader 条目（cordis / cordis:*）、Cordis 官方生态组织
+ * （@koishijs/*）。其余命名空间一律视为用户安装的插件。
+ */
+const OFFICIAL_PREFIXES = ['@deepseek-ai/', '@koishijs/']
+
+/** 判断 moduleName 是否为官方/内置插件（用于「已安装」列表过滤）。 */
+export function isOfficialModule(moduleName) {
+  if (moduleName === 'cordis' || moduleName.startsWith('cordis:')) return true
+  return OFFICIAL_PREFIXES.some((prefix) => moduleName.startsWith(prefix))
+}
+
+/** GET /installed — user-installed loader entries with resolved versions. */
 function handleInstalled(ctx, profileDir, response) {
   const inventory = ctx.pluginInventory.list()
-  const entries = inventory.entries.map((entry) => ({
-    moduleName: entry.moduleName,
-    enabled: entry.enabled,
-    fiberPhase: entry.fiberPhase,
-    version: installedVersionOf(profileDir, entry.moduleName),
-  }))
+  const entries = inventory.entries
+    .map((entry) => ({
+      moduleName: entry.moduleName,
+      enabled: entry.enabled,
+      fiberPhase: entry.fiberPhase,
+      version: installedVersionOf(profileDir, entry.moduleName),
+      official: isOfficialModule(entry.moduleName),
+    }))
+    .filter((entry) => !entry.official)
   writeJson(response, 200, { ok: true, value: { entries } })
 }
 
