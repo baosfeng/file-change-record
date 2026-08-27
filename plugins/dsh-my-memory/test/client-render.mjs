@@ -303,7 +303,6 @@ editInput.onChange({ target: { value: '回复必须使用中文' } })
 const tree10 = renderView()
 const buttons10 = []
 collectButtons(tree10, buttons10)
-const saveEditBtn = buttons10.find((b) => b.label === undefined && b.onClick !== undefined)
 // 编辑模式的保存按钮没有 aria-label，直接找 dmm-btn-save
 const saveEdit = findSaveButton(tree10)
 assert.ok(saveEdit, 'edit save button found')

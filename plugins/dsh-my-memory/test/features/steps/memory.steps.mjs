@@ -5,7 +5,7 @@
  * section and the memory_query tool — mirroring test/host-api.mjs,
  * test/prompt.mjs and test/tool.mjs.
  */
-import { Given, When, Then, After, setWorldConstructor } from '@cucumber/cucumber'
+import { When, Then, After, setWorldConstructor } from '@cucumber/cucumber'
 import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
