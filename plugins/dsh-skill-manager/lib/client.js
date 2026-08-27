@@ -47,6 +47,7 @@ window.__ModuleLoader__.load({
         ? '输入项目根路径以查看 / 编辑该项目级启用/禁用配置（写入 <项目根>/.dsh/skills.enabled.json，随仓库版本化）'
         : 'Enter a project root to view/edit its per-project skill config (stored in <projectRoot>/.dsh/skills.enabled.json)'),
       loadProject: () => (isZh() ? '加载' : 'Load'),
+      refresh: () => (isZh() ? '刷新' : 'Refresh'),
       enabled: () => (isZh() ? '启用' : 'Enabled'),
       disabled: () => (isZh() ? '已禁用' : 'Disabled'),
       loading: () => (isZh() ? '加载中…' : 'Loading…'),
@@ -54,6 +55,10 @@ window.__ModuleLoader__.load({
       empty: () => (isZh() ? '暂无 skill' : 'No skills yet'),
       sourceProject: (source) => (isZh() ? `项目（${source}）` : `project (${source})`),
       sourceGlobal: (source) => (isZh() ? `全局（${source}）` : `global (${source})`),
+      notCataloged: () => (isZh() ? '未收录' : 'Not cataloged'),
+      notCatalogedHint: () => (isZh()
+        ? '该 skill 存在于目录但未被官方目录收录（不注入会话）；可能是 filesystem 发现未启用或扫描器跳过'
+        : 'This skill exists on disk but is not in the official catalog (not injected); filesystem discovery may be disabled or the scanner skipped it'),
       disabledHint: () => (isZh()
         ? '禁用的 skill 不再注入本项目/全局会话：模型不可见、不可加载（占位覆盖）'
         : 'A disabled skill is no longer injected into this scope: the model cannot see or load it (placeholder override)'),
@@ -63,6 +68,18 @@ window.__ModuleLoader__.load({
         : 'Project config travels with the repo; global config lives in $DSH_HOME'),
       saved: () => (isZh() ? '已保存' : 'Saved'),
       saveFailed: () => (isZh() ? '保存失败' : 'Save failed'),
+      diagnosticsTitle: () => (isZh() ? '扫描诊断' : 'Scan diagnostics'),
+      diagnosticsHint: () => (isZh()
+        ? '以下条目存在于 skill 目录但未被收录（可能被官方扫描器跳过）：'
+        : 'These entries exist in a skill directory but were not cataloged (likely skipped by the scanner):'),
+      diagReason: (reason) => (isZh() ? ({
+        'broken-symlink': '符号链接无法解析（目标不存在）',
+        'missing-skills-md': '目录缺少 SKILL.md',
+        'missing-frontmatter': '缺少 YAML frontmatter',
+        'missing-name-description': 'frontmatter 缺少 name 或 description',
+        'invalid-name': 'skill 名称不符合 kebab-case 规范',
+        'unparseable': 'frontmatter 解析失败或字段异常（官方扫描器未收录）',
+      }[reason] ?? reason) : reason),
     }
 
         // ── styles (DSH semantic tokens, injected on activate, removed on teardown) ──
@@ -97,6 +114,8 @@ window.__ModuleLoader__.load({
   flex:none; max-width:45%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .dsm-src { flex:none; font:var(--dsw-font-xxxs-11, 11px sans-serif); color:var(--dsw-alias-label-tertiary, #888);
   padding:1px 6px; border-radius:4px; background:var(--dsw-alias-surface-hover, rgba(128,128,128,.12)); }
+.dsm-src-warn { color:var(--dsw-alias-state-warning-primary, #c90);
+  border:1px solid color-mix(in srgb, var(--dsw-alias-state-warning-primary, #c90) 45%, transparent); }
 .dsm-desc { font:var(--dsw-font-xxxs-11, 11px sans-serif); color:var(--dsw-alias-label-secondary, #666); }
 .dsm-toggle { flex:none; height:22px; padding:0 8px; border-radius:5px; cursor:pointer;
   border:1px solid var(--dsw-alias-line-border-strong, rgba(128,128,128,.4));
@@ -106,6 +125,13 @@ window.__ModuleLoader__.load({
 .dsm-toggle-on { color:var(--dsw-alias-state-danger-primary, #d33);
   border-color:color-mix(in srgb, var(--dsw-alias-state-danger-primary, #d33) 45%, transparent); }
 .dsm-toggle:disabled { opacity:.45; cursor:not-allowed; }
+.dsm-diag-row { display:flex; align-items:center; gap:8px; padding:4px 8px; border-radius:6px;
+  border:1px solid var(--dsw-alias-line-border-soft, rgba(128,128,128,.18));
+  background:var(--dsw-alias-surface, transparent); }
+.dsm-diag-reason { flex:none; font:var(--dsw-font-xxxs-11, 11px sans-serif);
+  color:var(--dsw-alias-state-warning-primary, #c90); }
+.dsm-diag-path { flex:1; min-width:0; font:var(--dsw-font-xxxs-11, 11px sans-serif);
+  color:var(--dsw-alias-label-tertiary, #888); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 `.trim()
 
     const STYLE_TAG = 'data-dsh-skill-manager'
@@ -113,7 +139,7 @@ window.__ModuleLoader__.load({
         // ── api: fetch helpers for the Skill Manager views ─────────────────────
     const API_BASE = '/skill-manager/api'
 
-    /** One GET list payload into { skills, globalDisabled, projectDisabled, cwd, projectRoot }. */
+    /** One GET list payload into { skills, globalDisabled, projectDisabled, cwd, projectRoot, diagnostics }. */
     function normalizeList(value) {
       return {
         skills: Array.isArray(value.skills) ? value.skills : [],
@@ -121,6 +147,7 @@ window.__ModuleLoader__.load({
         projectDisabled: Array.isArray(value.project) ? value.project : [],
         cwd: value.cwd ?? '',
         projectRoot: value.projectRoot ?? '',
+        diagnostics: value.diagnostics ?? { missing: [] },
       }
     }
 
@@ -131,6 +158,17 @@ window.__ModuleLoader__.load({
         .then((res) => res.json())
         .then((body) => {
           if (body === null || body.ok !== true) throw new Error('bad list response')
+          return normalizeList(body.value)
+        })
+    }
+
+    /** GET /skill-manager/api/rescan → invalidate + fresh normalized value. */
+    function rescanCatalog(cwd) {
+      const query = cwd.trim() === '' ? '' : `?cwd=${encodeURIComponent(cwd.trim())}`
+      return fetch(`${API_BASE}/rescan${query}`)
+        .then((res) => res.json())
+        .then((body) => {
+          if (body === null || body.ok !== true) throw new Error('rescan failed')
           return normalizeList(body.value)
         })
     }
@@ -160,20 +198,23 @@ window.__ModuleLoader__.load({
 
     /** Data actions bound to the state setters (created once per component). */
     function createActions({ setData, setLoading, setError, setSaved }) {
-      const load = (cwd) => {
+      const applyValue = (value) => {
+        setData(value)
+        setLoading(false)
+      }
+      const refreshWith = (fetcher, cwd) => {
         setLoading(true)
         setError(false)
         setSaved(false)
-        fetchList(cwd)
-          .then((value) => {
-            setData(value)
-            setLoading(false)
-          })
+        fetcher(cwd)
+          .then(applyValue)
           .catch(() => {
             setLoading(false)
             setError(true)
           })
       }
+      const load = (cwd) => refreshWith(fetchList, cwd)
+      const rescan = (cwd) => refreshWith(rescanCatalog, cwd)
       const save = (scope, disabled, cwd) => {
         setSaved(false)
         setError(false)
@@ -186,6 +227,7 @@ window.__ModuleLoader__.load({
       }
       return {
         load,
+        rescan,
         toggle: (data, scope, name, isDisabled) => {
           if (scope === 'project' && data.cwd === '') return
           const list = scope === 'global' ? data.globalDisabled : data.projectDisabled
@@ -207,7 +249,7 @@ window.__ModuleLoader__.load({
       }, [])
 
       return createElement('div', { className: 'dsm-root' },
-        createElement(Toolbar, { pathInput, onInput: setPathInput, onLoad: actions.load }),
+        createElement(Toolbar, { pathInput, onInput: setPathInput, onLoad: actions.load, onRescan: actions.rescan }),
         error ? createElement('div', { className: 'dsm-error' }, strings.loadError()) : null,
         loading ? createElement('div', { className: 'dsm-status' }, strings.loading())
           : data === null ? null : createElement(Sections, {
@@ -218,8 +260,8 @@ window.__ModuleLoader__.load({
       )
     }
 
-    /** Path input + project config note. */
-    function Toolbar({ pathInput, onInput, onLoad }) {
+    /** Path input + refresh button + project config note. */
+    function Toolbar({ pathInput, onInput, onLoad, onRescan }) {
       return createElement('div', null,
         createElement('div', { className: 'dsm-pathbar' },
           createElement('input', {
@@ -231,31 +273,57 @@ window.__ModuleLoader__.load({
               if (event.key === 'Enter') onLoad(pathInput)
             },
           }),
-          createElement('button', { className: 'dsm-btn', onClick: () => onLoad(pathInput) }, strings.loadProject()),
+          createElement('button', {
+            className: 'dsm-btn',
+            'aria-label': strings.loadProject(),
+            onClick: () => onLoad(pathInput),
+          }, strings.loadProject()),
+          createElement('button', {
+            className: 'dsm-btn',
+            'aria-label': strings.refresh(),
+            onClick: () => onRescan(pathInput),
+          }, strings.refresh()),
         ),
         createElement('div', { className: 'dsm-note' }, strings.projectConfigNote()),
       )
     }
 
-    /** The global + project toggle sections and the saved indicator. */
+    /** The toggle section for the current view (global or project) + diagnostics. */
     function Sections({ data, saved, onToggle }) {
+      const projectMode = data.cwd !== ''
       return createElement('div', null,
-        createElement(SectionBlock, {
-          title: strings.globalSection(),
-          hint: strings.disabledHint(),
-          skills: data.skills,
-          disabledNames: data.globalDisabled,
-          onToggle: (name, isDisabled) => onToggle('global', name, isDisabled),
-        }),
-        createElement(SectionBlock, {
-          title: projectTitleOf(data),
-          hint: data.cwd === '' ? strings.projectHint() : strings.disabledHint(),
-          skills: data.skills,
-          disabledNames: data.projectDisabled,
-          onToggle: (name, isDisabled) => onToggle('project', name, isDisabled),
-          locked: data.cwd === '',
-        }),
+        projectMode
+          ? createElement(SectionBlock, {
+            title: projectTitleOf(data),
+            hint: strings.disabledHint(),
+            skills: data.skills,
+            disabledNames: data.projectDisabled,
+            onToggle: (name, isDisabled) => onToggle('project', name, isDisabled),
+          })
+          : createElement(SectionBlock, {
+            title: strings.globalSection(),
+            hint: strings.disabledHint(),
+            skills: data.skills,
+            disabledNames: data.globalDisabled,
+            onToggle: (name, isDisabled) => onToggle('global', name, isDisabled),
+          }),
+        createElement(DiagnosticsBlock, { diagnostics: data.diagnostics }),
         saved ? createElement('div', { className: 'dsm-status dsm-saved' }, strings.saved()) : null,
+      )
+    }
+
+    /** Skipped skill entries reported by the server-side directory scan. */
+    function DiagnosticsBlock({ diagnostics }) {
+      const missing = diagnostics?.missing ?? []
+      if (missing.length === 0) return null
+      return createElement('div', { className: 'dsm-section' },
+        createElement('div', { className: 'dsm-section-title' }, strings.diagnosticsTitle()),
+        createElement('div', { className: 'dsm-hint' }, strings.diagnosticsHint()),
+        missing.map((item) => createElement('div', { key: item.path, className: 'dsm-diag-row' },
+          createElement('span', { className: 'dsm-name' }, item.name),
+          createElement('span', { className: 'dsm-diag-reason' }, strings.diagReason(item.reason)),
+          createElement('span', { className: 'dsm-diag-path' }, item.path),
+        )),
       )
     }
 
@@ -287,6 +355,9 @@ window.__ModuleLoader__.load({
       return createElement('div', { className: `dsm-row${disabled ? ' dsm-row-disabled' : ''}` },
         createElement('div', { className: 'dsm-row-head' },
           createElement('span', { className: 'dsm-name' }, skill.name),
+          skill.cataloged === false
+            ? createElement('span', { className: 'dsm-src dsm-src-warn', title: strings.notCatalogedHint() }, strings.notCataloged())
+            : null,
           createElement('span', { className: 'dsm-src' },
             isProjectSource(skill.source) ? strings.sourceProject(skill.source) : strings.sourceGlobal(skill.source)),
           createElement('button', {

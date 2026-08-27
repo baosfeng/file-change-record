@@ -6,14 +6,15 @@
  */
 import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { apply } from '../lib/index.js'
+import { apply, inject } from '../lib/index.js'
 import { globalConfigFile } from '../lib/config.js'
 
 const dir = mkdtempSync(join(tmpdir(), 'dsm-api-test-'))
 process.env.DSH_HOME = dir
+process.env.DSH_AGENTS_HOME = join(dir, 'agents')
 
 afterAll(() => {
   rmSync(dir, { recursive: true, force: true })
@@ -66,6 +67,7 @@ function fakeSkills() {
   const catalog = new Map([
     ['web-search', { name: 'web-search', description: '搜索', source: 'user-dsh', provider: 'filesystem' }],
     ['codebase-memory', { name: 'codebase-memory', description: '图查询', source: 'project-dsh', provider: 'filesystem' }],
+    ['teach', { name: 'teach', description: '教学', source: 'user-agents', provider: 'filesystem' }],
   ])
   let providers = []
   return {
@@ -122,6 +124,13 @@ test('apply registers the provider and the API route', async () => {
   assert.ok(getRoute(), '/skill-manager/api route registered')
 })
 
+test('apply declares the required injects and returns effect disposers', async () => {
+  const { ctx } = await boot()
+  assert.deepEqual(inject, ['skills', 'webServer', 'webRuntime'], 'inject list intact')
+  const disposers = ctx.effectCallbacks.filter((e) => typeof e.disposer === 'function')
+  assert.ok(disposers.length >= 2, 'provider and route effects return disposers')
+})
+
 test('API refuses requests outside the fence (403)', async () => {
   const { getRoute } = await boot()
   const res = makeResponse()
@@ -168,6 +177,30 @@ test('PUT /config rejects unknown scope (400) and unknown methods 404', async ()
   assert.equal(bad.status, 400)
   const unknown = await callRoute(getRoute, 'GET', '/skill-manager/api/nope')
   assert.equal(unknown.status, 404)
+})
+
+test('wrong HTTP methods on known paths answer 404', async () => {
+  const { getRoute } = await boot()
+  const getConfig = await callRoute(getRoute, 'GET', '/skill-manager/api/config')
+  assert.equal(getConfig.status, 404, 'GET /config is not a config save')
+  const putList = await callRoute(getRoute, 'PUT', '/skill-manager/api/list', {})
+  assert.equal(putList.status, 404, 'PUT /list is not a list read')
+  const postRescan = await callRoute(getRoute, 'POST', '/skill-manager/api/rescan')
+  assert.equal(postRescan.status, 404, 'POST /rescan is not a rescan')
+})
+
+test('fence 403 and success responses carry the ok flag', async () => {
+  const { getRoute } = await boot()
+  const res = makeResponse()
+  await getRoute().handler(makeRequest('GET', '/skill-manager/api/list', undefined, {
+    headers: { host: 'evil.example', 'sec-fetch-site': 'cross-site' },
+  }), res)
+  assert.equal(res._status, 403)
+  assert.equal(JSON.parse(res._body).ok, false, '403 body marks ok:false')
+  const ok = await callRoute(getRoute, 'GET', '/skill-manager/api/list?cwd=')
+  assert.equal(ok.json.ok, true, 'list body marks ok:true')
+  const rescan = await callRoute(getRoute, 'GET', '/skill-manager/api/rescan?cwd=')
+  assert.equal(rescan.json.ok, true, 'rescan body marks ok:true')
 })
 
 test('corrupt config file still yields a usable list (defensive read)', async () => {
@@ -264,4 +297,101 @@ test('handler errors are answered with a 400 JSON body', async () => {
   const body = JSON.parse(res._body)
   assert.equal(body.ok, false)
   assert.ok(typeof body.error.message === 'string')
+})
+
+test('GET /list with a cwd returns only project-sourced skills', async () => {
+  const { getRoute } = await boot()
+  const r = await callRoute(getRoute, 'GET', `/skill-manager/api/list?cwd=${encodeURIComponent(join(dir, 'proj'))}`)
+  assert.equal(r.status, 200)
+  const names = r.json.value.skills.map((s) => s.name)
+  assert.ok(names.includes('codebase-memory'), 'project skill present in project view')
+  assert.ok(!names.includes('web-search'), 'user-dsh skill filtered out in project view')
+  assert.ok(!names.includes('teach'), 'user-agents skill filtered out in project view')
+  assert.ok(r.json.value.skills.every((s) => s.source.startsWith('project-')), 'only project sources remain')
+})
+
+test('GET /rescan invalidates the catalog and returns fresh data', async () => {
+  let invalidated = 0
+  const holder = captureRoute('/skill-manager/api')
+  const ctx = {
+    logger: { warn: () => {} },
+    webRuntime: { trustedHosts: [] },
+    webServer: { register: (route) => { holder.set(route); return () => {} } },
+    events: [],
+    effectCallbacks: [],
+    on() {},
+    effect(callback) {
+      callback()
+      return () => {}
+    },
+    skills: {
+      registerProvider(create) {
+        create({ invalidate: () => { invalidated += 1 } })
+        return () => {}
+      },
+      async list() {
+        return [{ name: 'fresh', description: '新', source: 'user-dsh', provider: 'filesystem' }]
+      },
+    },
+  }
+  apply(ctx)
+  const res = makeResponse()
+  await holder.get().handler(makeRequest('GET', '/skill-manager/api/rescan?cwd='), res)
+  assert.equal(res._status, 200)
+  assert.ok(invalidated >= 1, 'rescan invalidates the skill catalog')
+  const body = JSON.parse(res._body)
+  assert.equal(body.ok, true)
+  assert.ok(body.value.skills.some((s) => s.name === 'fresh'), 'rescan returns the fresh catalog')
+})
+
+test('GET /list reports missing skill entries with reasons', async () => {
+  const { getRoute } = await boot()
+  const skillsDir = join(dir, 'skills')
+  mkdirSync(skillsDir, { recursive: true })
+  // 1. broken symlink → broken-symlink
+  symlinkSync(join(skillsDir, 'nowhere'), join(skillsDir, 'broken-link'))
+  // 2. .md without frontmatter → missing-frontmatter
+  writeFileSync(join(skillsDir, 'no-frontmatter.md'), 'hello')
+  // 3. directory without SKILL.md → missing-skills-md
+  mkdirSync(join(skillsDir, 'empty-dir'))
+  // 4. valid frontmatter but absent from the catalog → listed as not cataloged
+  mkdirSync(join(skillsDir, 'good-skill'))
+  writeFileSync(join(skillsDir, 'good-skill', 'SKILL.md'), '---\nname: good-skill\ndescription: 好\n---\nbody')
+  // 5. frontmatter without name → missing-name-description
+  writeFileSync(join(skillsDir, 'no-name.md'), '---\ndescription: 缺名字\n---\nbody')
+  // 6. invalid kebab-case name → invalid-name
+  writeFileSync(join(skillsDir, 'Bad_Name.md'), '---\nname: Bad_Name\ndescription: 非法\n---\nbody')
+
+  const r = await callRoute(getRoute, 'GET', '/skill-manager/api/list?cwd=')
+  assert.equal(r.status, 200)
+  const missing = r.json.value.diagnostics.missing
+  const byName = Object.fromEntries(missing.map((m) => [m.name, m]))
+  assert.equal(byName['broken-link'].reason, 'broken-symlink')
+  assert.equal(byName['no-frontmatter'].reason, 'missing-frontmatter')
+  assert.equal(byName['empty-dir'].reason, 'missing-skills-md')
+  assert.equal(byName['no-name'].reason, 'missing-name-description')
+  assert.equal(byName['Bad_Name'].reason, 'invalid-name')
+  assert.equal(byName['good-skill'], undefined, 'valid frontmatter is not a diagnostic issue')
+  const good = r.json.value.skills.find((s) => s.name === 'good-skill')
+  assert.ok(good, 'valid directory skill is listed')
+  assert.equal(good.cataloged, false, 'directory skill absent from the catalog is marked not cataloged')
+  assert.equal(good.source, 'user-dsh')
+})
+
+test('project view diagnostics only scan the project roots', async () => {
+  const { getRoute } = await boot()
+  // 全局 root 下的坏条目：项目视图不应报告它（catalog 已过滤为项目条目）
+  const skillsDir = join(dir, 'skills')
+  mkdirSync(skillsDir, { recursive: true })
+  symlinkSync(join(skillsDir, 'nowhere'), join(skillsDir, 'global-broken'))
+  // 项目 root 下的坏条目：项目视图应报告它
+  const projSkills = join(dir, 'proj', '.dsh', 'skills')
+  mkdirSync(projSkills, { recursive: true })
+  writeFileSync(join(projSkills, 'proj-no-frontmatter.md'), 'hello')
+
+  const r = await callRoute(getRoute, 'GET', `/skill-manager/api/list?cwd=${encodeURIComponent(join(dir, 'proj'))}`)
+  assert.equal(r.status, 200)
+  const names = r.json.value.diagnostics.missing.map((m) => m.name)
+  assert.ok(names.includes('proj-no-frontmatter'), 'project-root issue reported in project view')
+  assert.ok(!names.includes('global-broken'), 'global-root issue not reported in project view')
 })

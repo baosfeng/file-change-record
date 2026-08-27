@@ -134,7 +134,7 @@ const joined = texts.join('|')
 
 assert.ok(joined.includes('加载'), 'load button rendered')
 assert.ok(joined.includes('全局'), 'global section present')
-assert.ok(joined.includes('项目'), 'project section present')
+assert.equal(countSections(tree2), 1, 'global view renders exactly one section (no project section)')
 assert.ok(joined.includes('web-search'), 'skill name rendered')
 assert.ok(joined.includes('codebase-memory'), 'second skill rendered')
 assert.ok(joined.includes('网络搜索'), 'skill description rendered')
@@ -157,6 +157,26 @@ function collectButtons(node) {
   if (typeof node.type === 'function') { collectButtons(node.type(node.props)); return }
   collectButtons(props.children)
 }
+
+/** Count rendered `.dsm-section` blocks (global view = 1, project view = 1). */
+function countSections(node) {
+  if (node === null || typeof node !== 'object') return 0
+  const props = node.props ?? {}
+  let count = props.className === 'dsm-section' ? 1 : 0
+  if (Array.isArray(node)) { for (const c of node) count += countSections(c); return count }
+  if (typeof node.type === 'function') return count + countSections(node.type(node.props))
+  return count + countSections(props.children)
+}
+
+/** Collect the path input element props (className dsm-path-input). */
+function collectInputs(node, out) {
+  if (node === null || typeof node !== 'object') return
+  const props = node.props ?? {}
+  if (props.className === 'dsm-path-input') out.push(props)
+  if (Array.isArray(node)) { for (const c of node) collectInputs(c, out); return }
+  if (typeof node.type === 'function') { collectInputs(node.type(node.props), out); return }
+  collectInputs(props.children, out)
+}
 collectButtons(tree2)
 const toggle = toggles.find((t) => t.label.includes('codebase-memory') && t.label.includes('启用'))
 assert.ok(toggle, 'toggle for the enabled skill found')
@@ -173,6 +193,69 @@ const payload = JSON.parse(putCall.options.body)
 assert.equal(payload.scope, 'global')
 assert.deepEqual(payload.disabled, ['web-search', 'codebase-memory'], 'disabled list extended')
 assert.equal(payload.cwd, '', 'global scope saves without cwd')
+
+// ── refresh button: click triggers a rescan fetch and shows new skills ─────
+const refreshBtn = toggles.find((t) => t.label.includes('刷新'))
+assert.ok(refreshBtn, 'refresh button rendered')
+cannedResponses.push({
+  ok: true,
+  value: {
+    ...catalog.value,
+    skills: [
+      ...catalog.value.skills,
+      { name: 'dsh-issue-request', description: '新需求', source: 'user-dsh', provider: 'filesystem' },
+      { name: 'teach', description: '教学', source: 'user-dsh', provider: 'filesystem', cataloged: false },
+    ],
+    diagnostics: { missing: [{ name: 'ego-browser', path: '/home/u/.agents/skills/ego-browser', reason: 'broken-symlink' }] },
+  },
+})
+refreshBtn.onClick()
+await new Promise((resolve) => setTimeout(resolve, 0))
+
+const rescanCall = fetchCalls.find((c) => c.url.startsWith('/skill-manager/api/rescan'))
+assert.ok(rescanCall, 'refresh issues a rescan call')
+const tree3 = renderView()
+const texts3 = []
+walkText(tree3, texts3)
+const joined3 = texts3.join('|')
+assert.ok(joined3.includes('dsh-issue-request'), 'new skill visible after rescan')
+assert.ok(joined3.includes('未收录'), 'not-cataloged badge rendered')
+assert.ok(joined3.includes('扫描诊断'), 'diagnostics section rendered after rescan')
+assert.ok(joined3.includes('ego-browser'), 'missing entry name rendered')
+assert.ok(joined3.includes('符号链接'), 'missing entry reason rendered')
+
+// ── project view: load a project path, only the project section renders ────
+const inputProps = []
+collectInputs(tree3, inputProps)
+assert.equal(inputProps.length, 1, 'path input rendered')
+inputProps[0].onChange({ target: { value: '/proj' } })
+const tree4 = renderView()
+collectButtons(tree4)
+const loadBtn = toggles.find((b) => b.label.includes('加载'))
+assert.ok(loadBtn, 'load button rendered')
+cannedResponses.push({
+  ok: true,
+  value: {
+    cwd: '/proj',
+    projectRoot: '/proj',
+    skills: [{ name: 'codebase-memory', description: '图查询', source: 'project-dsh', provider: 'filesystem' }],
+    global: { disabled: [] },
+    project: [],
+    diagnostics: { missing: [] },
+  },
+})
+loadBtn.onClick()
+await new Promise((resolve) => setTimeout(resolve, 0))
+
+const tree5 = renderView()
+const texts5 = []
+walkText(tree5, texts5)
+const joined5 = texts5.join('|')
+assert.ok(joined5.includes('项目'), 'project section present in project view')
+assert.ok(!joined5.includes('全局（'), 'no global-sourced skill rows in project view')
+assert.equal(countSections(tree5), 1, 'project view renders exactly one section')
+assert.ok(joined5.includes('codebase-memory'), 'project skill rendered in project view')
+assert.ok(!joined5.includes('web-search'), 'global skill not rendered in project view')
 
 console.log('ALL SKILL-MANAGER CLIENT RENDER-PATH TESTS PASSED')
 

@@ -1,6 +1,6 @@
 # dsh-skill-manager
 
-> DSH（DeepSeek Harness）Skill 管理插件：分「全局 / 项目」查看 skill 列表，按项目启用/禁用。**禁用的 skill 不再注入该项目会话：模型不可见、不可加载。** 纯官方依赖（面板挂在官方设置页扩展点，不依赖第三方插件）。
+> DSH（DeepSeek Harness）Skill 管理插件：分「全局 / 项目」查看 skill 列表，按项目启用/禁用，支持手动刷新与扫描诊断。**禁用的 skill 不再注入该项目会话：模型不可见、不可加载。** 纯官方依赖（面板挂在官方设置页扩展点，不依赖第三方插件）。
 
 [![npm](https://img.shields.io/npm/v/dsh-skill-manager)](https://www.npmjs.com/package/dsh-skill-manager)
 
@@ -8,11 +8,13 @@
 
 ## 功能
 
-- **Skill 列表（分「全局 / 项目」两维度显示）**：每个 skill 显示名称、描述、来源（`user-dsh` / `user-agents` / `custom` / `bundled` / `project-dsh` / `project-agents`）、状态（启用/已禁用）。
+- **Skill 列表（分「全局 / 项目」两维度显示）**：每个 skill 显示名称、描述、来源（`user-dsh` / `user-agents` / `custom` / `bundled` / `project-dsh` / `project-agents`）、状态（启用/已禁用）。**项目视角只显示该项目的 skill**（`project-dsh` / `project-agents`），全局 skill 只在全局视角查看。列表 = 官方 catalog + 目录扫描补充：目录中存在但官方 catalog 未收录的条目显示「未收录」徽标（host 层 filesystem 发现被官方禁用时，filesystem skills 均以此形式展示，列表与实际目录一致）。
 - **按项目启用/禁用**：
   - 全局禁用：所有项目生效（配置存 `$DSH_HOME/skills.enabled.json`）；
   - 项目禁用：仅当前项目生效，**也可在项目内禁用全局 skill**（配置存 `<项目根>/.dsh/skills.enabled.json`，随仓库提交、可版本化）；
   - 禁用的 skill 在合并目录中被「已禁用」占位覆盖（rank-0 provider），模型侧不可见、`get()` 拒绝加载正文。
+- **手动刷新**：新建 skill 后点「刷新」立即可见（`GET /skill-manager/api/rescan` 失效官方目录缓存后重扫），无需重启。
+- **扫描诊断**：目录中 frontmatter 异常 / 符号链接异常的条目（缺 SKILL.md、缺 name/description、非法名字等）在面板「扫描诊断」区块显示缺失名单 + 原因。
 - **设置页面板**：设置 → 插件 → 「Skill 管理」页签（官方 slots 扩展点，无需 dsh-better-sidebar）。
 
 ## 安装
@@ -30,8 +32,9 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-skill-manager
 
 1. 打开 DSH Web 设置 → 插件 → **Skill 管理**；
 2. 「全局」区块：切换任意 skill 的全局启用/禁用；
-3. 「项目」区块：在顶部输入**项目根路径**后点「加载」，即可切换该项目内的启用/禁用（含全局 skill 的项目内禁用）；
-4. 修改即时生效（catalog 自动失效重算），无需重启。
+3. 在顶部输入**项目根路径**后点「加载」，即进入该项目视角——**只显示该项目的 skill**，可切换该项目内的启用/禁用（含全局 skill 的项目内禁用）；
+4. 新建 skill 后点「刷新」立即可见；若出现「扫描诊断」区块，说明有 skill 目录条目未被收录（如符号链接异常、frontmatter 缺失），按提示修复后刷新即可；
+5. 修改即时生效（catalog 自动失效重算），无需重启。
 
 ## 配置格式
 

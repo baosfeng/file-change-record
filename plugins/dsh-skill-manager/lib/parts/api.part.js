@@ -1,7 +1,7 @@
     // ── api: fetch helpers for the Skill Manager views ─────────────────────
     const API_BASE = '/skill-manager/api'
 
-    /** One GET list payload into { skills, globalDisabled, projectDisabled, cwd, projectRoot }. */
+    /** One GET list payload into { skills, globalDisabled, projectDisabled, cwd, projectRoot, diagnostics }. */
     function normalizeList(value) {
       return {
         skills: Array.isArray(value.skills) ? value.skills : [],
@@ -9,6 +9,7 @@
         projectDisabled: Array.isArray(value.project) ? value.project : [],
         cwd: value.cwd ?? '',
         projectRoot: value.projectRoot ?? '',
+        diagnostics: value.diagnostics ?? { missing: [] },
       }
     }
 
@@ -19,6 +20,17 @@
         .then((res) => res.json())
         .then((body) => {
           if (body === null || body.ok !== true) throw new Error('bad list response')
+          return normalizeList(body.value)
+        })
+    }
+
+    /** GET /skill-manager/api/rescan → invalidate + fresh normalized value. */
+    function rescanCatalog(cwd) {
+      const query = cwd.trim() === '' ? '' : `?cwd=${encodeURIComponent(cwd.trim())}`
+      return fetch(`${API_BASE}/rescan${query}`)
+        .then((res) => res.json())
+        .then((body) => {
+          if (body === null || body.ok !== true) throw new Error('rescan failed')
           return normalizeList(body.value)
         })
     }
