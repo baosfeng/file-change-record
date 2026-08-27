@@ -2,6 +2,14 @@
 
 本文件记录 dsh-think-zh-expand 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.3] - 2026-08-27
+
+### 变更
+
+- docs(think-zh-expand): README 移除 @max-null/dsh-chinese-thinking 提及（issue #33）
+- refactor(md-render,think-zh-expand): 渲染职责迁移——MarkdownView 迁至 dsh-md-render（issue #31）
+- docs+test: 全面审查修复——文档同步补全 + mermaid 测试增强
+
 ## [Unreleased]
 
 ### 变更
