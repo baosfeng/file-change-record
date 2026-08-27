@@ -1,20 +1,13 @@
     // ── 统一 MarkdownView：行内 + 块级渲染（issue #31 从
     //    dsh-think-zh-expand 迁移，行为等价 + 新增公式渲染）────────────
-    // 由 scripts/build.mjs 拼入 lib/client.js 的 factory 作用域——本文件是
-    // 纯函数声明文本（无 import/export），依赖 factory 内的 createElement。
-    // 输出结构保持迁移前约定：容器 div.tzx-md、段落 p.tzx-p、代码块
-    // div.md-code-block（dsh-mermaid-render 扫描）、标准表格
-    // table.tzx-table（scanner 跳过已渲染表格）。新增：行内公式
-    // span.dmr-math 与块级公式 div.dmr-math-block（自实现，零依赖）。
+    // 由 scripts/build.mjs 拼入 lib/client.js 的 factory 作用域（纯函数
+    // 声明文本，依赖 factory 内 createElement）；输出结构保持迁移前约定
+    // （div.tzx-md / p.tzx-p / table.tzx-table / div.md-code-block）。
 
     // ── 轻量行内 Markdown：行内代码 / 粗体 / 斜体 / 链接 / 公式 ──────
     // 行内代码按 CommonMark 语义：N 个反引号开闭配对（\1 回声闭合串），
-    // 内容允许含单个反引号（如 `` `agent/status` `` → <code>`agent/status`</code>）；
-    // 仅支持单反引号配对的实现会在双反引号输入上错位解析，把内容切成
-    // 裸文本。闭合串后不能紧跟反引号（(?!`)，避免把更长的 run 误当闭合。
-    // 行内公式 $...$：内容非空且不以空白开头/结尾；开 $ 前一个字符与闭
-    // $ 后一个字符不得是字母数字或 $（货币 $5 / 变量 a$b / 块级 $$ 保护）。
-    // CommonMark：内容以空格开头且以空格结尾、且不只含空格时，去首尾各一个空格。
+    // 内容允许含单个反引号（`` `agent/status` `` → <code>`agent/status`</code>）；
+    // 闭合串后不能紧跟反引号（(?!`)。行内公式 $...$：内容非空且不以空白开头/结尾，开 $ 前与闭 $ 后不得是字母数字或 $（货币/变量/块级保护）。
     function trimCode(raw) {
       if (raw.length > 1 && raw[0] === ' ' && raw[raw.length - 1] === ' ' && raw.trim() !== '') {
         return raw.slice(1, -1)
@@ -33,16 +26,60 @@
       return true
     }
 
+    // 公式错误提示（issue #32）：异常公式 → 错误标记（原文保留 + 错误样式，
+    // 参考内置 katex-error 语义）；货币/变量/块级 `$$` 保护不误报。
+    const MATH_ERROR_TITLES = {
+      malformed: '公式内容异常',
+      unclosed: '未闭合的公式',
+      multiline: '公式内容含换行',
+      empty: '公式内容为空',
+    }
+
+    function isMathError(m) {
+      const content = m[5].slice(1, -1)
+      return content[0] === ' ' || content[0] === '\t'
+    }
+
+    function mathSkip(text, i) {
+      const before = text[i - 1]
+      const after = text[i + 1]
+      if (before !== undefined && /[\w$]/.test(before)) return i + 1
+      if (after === '$') return i + 2
+      if (after !== undefined && /\d/.test(after)) return i + 1
+      return i
+    }
+
+    /** 在正则未匹配区间 [start, end) 中扫描疑似公式的 `$`（未闭合/跨行 → 错误标记）。 */
+    function scanMathErrors(text, start, end, key, k, out) {
+      let i = start
+      let segStart = start
+      while (i < end) {
+        if (text[i] !== '$') { i += 1; continue }
+        const skip = mathSkip(text, i)
+        if (skip !== i) { i = skip; continue }
+        if (i > segStart) out.push(text.slice(segStart, i))
+        let j = i + 1
+        while (j < end && text[j] !== '$') j += 1
+        if (j >= end) {
+          out.push(createElement('span', { key: key + '-e' + k, className: 'dmr-math-error', title: MATH_ERROR_TITLES.unclosed }, text.slice(i, end)))
+          return k + 1
+        }
+        out.push(createElement('span', { key: key + '-e' + k, className: 'dmr-math-error', title: MATH_ERROR_TITLES.multiline }, text.slice(i, j + 1)))
+        k += 1
+        i = j + 1
+        segStart = i
+      }
+      if (end > segStart) out.push(text.slice(segStart, end))
+      return k
+    }
+
     function mdInline(text, key) {
       const out = []
-      // content 首字符禁反引号（[^`\n]）："````"（4 连反引号）这类无内容的
-      // 反引号串保持原样，不会被拆成 code"``"。
       const re = /(`+)([^`\n][^\n]*?)\1(?!`)|(\*\*[^*]+\*\*)|(\[[^\]]+\]\([^)]+\))|(\$[^$\n]+?\$)|(\*[^*]+\*)/g
       let last = 0
-      let m
-      let k = 0
+      let m, k = 0
       while ((m = re.exec(text)) !== null) {
-        if (m.index > last) out.push(text.slice(last, m.index))
+        k = scanMathErrors(text, last, m.index, key, k, out)
         const kk = key + '-i' + k
         if (m[1] !== undefined) {
           out.push(createElement('code', { key: kk }, trimCode(m[2])))
@@ -58,6 +95,8 @@
         } else if (m[5] !== undefined) {
           if (isMathSpan(text, m)) {
             out.push(createElement('span', { key: kk, className: 'dmr-math' }, m[5].slice(1, -1)))
+          } else if (isMathError(m)) {
+            out.push(createElement('span', { key: kk, className: 'dmr-math-error', title: MATH_ERROR_TITLES.malformed }, m[5]))
           } else {
             out.push(m[5])
           }
@@ -67,14 +106,13 @@
         k += 1
         last = m.index + m[0].length
       }
-      if (last < text.length) out.push(text.slice(last))
+      scanMathErrors(text, last, text.length, key, k, out)
       return out
     }
 
     // ── 轻量块级 Markdown：代码块 / 标题 / 列表 / 引用 / 表格 / 公式 ──
-    // 每个 tryXxx 尝试从 lines[i] 消费一类块：成功则把渲染元素 push 进 out
-    // （key 与迁移前一致：'b' + out.length，push 前求值）并返回下一行下标，
-    // 失败返回 0（不消费、不动 out）。主循环（MarkdownView）按原顺序调度。
+    // 每个 tryXxx 尝试从 lines[i] 消费一类块：成功则 push 元素（key 与迁移
+    // 前一致：'b' + out.length）并返回下一行下标，失败返回 0（不消费）。
     function tryFence(lines, i, out) {
       const fence = lines[i].match(/^```(\w*)\s*$/)
       if (!fence) return 0
@@ -85,11 +123,7 @@
         i += 1
       }
       i += 1
-      // Keep the fence language (```mermaid / ```dsh-ui / ```js ...) on the
-      // <code> element and wrap the block in the host's `md-code-block`
-      // container so third-party renderers that scan the stock DOM
-      // structure (dsh-mermaid-render finds `div.md-code-block`,
-      // dsh-genui matches the md-code-block surface) can detect it.
+      // Keep the fence language on <code> and wrap in the host's `md-code-block` container.
       out.push(createElement('div', { key: 'b' + out.length, className: 'md-code-block' },
         createElement('pre', { className: 'tzx-pre' },
           createElement('code', { className: fence[1] ? 'language-' + fence[1] : '' }, buf.join('\n')))))
@@ -191,26 +225,35 @@
       return i
     }
 
-    // ── 块级公式：$$...$$ 独立行（单行）或 $$ 开闭块（多行）──────────
+    // ── 块级公式：$$...$$ 单行或 $$ 开闭块；异常（未闭合/空）→ 错误标记 ──
+    function mathErrorEl(out, title, content) {
+      return createElement('div', { key: 'b' + out.length, className: 'dmr-math-error', title }, content)
+    }
+
     function tryMath(lines, i, out) {
-      const line = lines[i]
-      const single = line.match(/^\$\$([^$]+)\$\$\s*$/)
+      const single = lines[i].match(/^\$\$([^$]*)\$\$\s*$/)
       if (single) {
-        out.push(createElement('div', { key: 'b' + out.length, className: 'dmr-math-block' }, single[1].trim()))
+        const content = single[1].trim()
+        out.push(content === ''
+          ? mathErrorEl(out, MATH_ERROR_TITLES.empty, lines[i].trim())
+          : createElement('div', { key: 'b' + out.length, className: 'dmr-math-block' }, content))
         return i + 1
       }
-      if (/^\$\$\s*$/.test(line)) {
-        const buf = []
+      if (!/^\$\$\s*$/.test(lines[i])) return 0
+      const buf = []
+      i += 1
+      while (i < lines.length && !/^\$\$\s*$/.test(lines[i])) {
+        buf.push(lines[i])
         i += 1
-        while (i < lines.length && !/^\$\$\s*$/.test(lines[i])) {
-          buf.push(lines[i])
-          i += 1
-        }
-        i += 1
-        out.push(createElement('div', { key: 'b' + out.length, className: 'dmr-math-block' }, buf.join('\n').trim()))
-        return i
       }
-      return 0
+      const closed = i < lines.length
+      i += 1
+      const content = buf.join('\n').trim()
+      const err = !closed ? MATH_ERROR_TITLES.unclosed : content === '' ? MATH_ERROR_TITLES.empty : null
+      out.push(err
+        ? mathErrorEl(out, err, !closed ? '$$\n' + buf.join('\n') : '$$\n$$')
+        : createElement('div', { key: 'b' + out.length, className: 'dmr-math-block' }, content))
+      return i
     }
 
     function tryParagraph(lines, i, out) {

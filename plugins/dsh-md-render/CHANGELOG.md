@@ -8,8 +8,9 @@
 
 - **统一 MarkdownView（issue #31 渲染职责迁移）**：承接 dsh-think-zh-expand 迁出的渲染职责——`lib/parts/markdown.part.js` 提供统一 MarkdownView 组件（`mdInline` + 块级 `tryXxx` 管线），输出结构保持迁移前约定（`div.tzx-md` / `p.tzx-p` / `table.tzx-table` / `div.md-code-block`）；`exports.MarkdownView` 供 think-zh-expand 跨插件 require（其 `dsh.client.external` 声明依赖本插件）。
 - **公式渲染（自实现零依赖）**：行内 `$...$` 渲染为 `span.dmr-math`（货币 `$5` / 变量 `a$b` / 块级 `$$` 保护），块级 `$$...$$`（单行/多行）渲染为 `div.dmr-math-block`。
+- **公式错误提示（issue #32）**：公式内容异常（行内未闭合 `$`、内容以空白开头/空公式、跨行、块级未闭合/空）渲染为 `span.dmr-math-error` / `div.dmr-math-error`——显示原文 + 错误样式（DSH 语义 token `--dsw-alias-state-error-primary`，参考内置 `katex-error` 语义），不破坏整体布局；货币/变量/块级保护不误报。
 - **md-code-block 容器归属**：代码块容器 `div.md-code-block`（含 `pre.tzx-pre` > `code.language-*`）由本插件 MarkdownView 产出，dsh-mermaid-render 无需改动即可扫描。
-- **测试**：新增 `test/markdown-view.mjs`（表格/公式/代码块容器/回退/多反引号断言）；Gherkin 新增统一渲染器场景（标准表格/代码块容器/公式）。
+- **测试**：新增 `test/markdown-view.mjs`（表格/公式/代码块容器/回退/多反引号断言）；Gherkin 新增统一渲染器场景（标准表格/代码块容器/公式/公式错误提示）。
 
 ## [0.1.0] - 2026-08-27
 

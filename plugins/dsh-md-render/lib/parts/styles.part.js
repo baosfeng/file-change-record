@@ -20,6 +20,8 @@
 .tzx-md a{color:var(--dsw-alias-accent-primary)}
 .dmr-math{font:var(--dsw-font-markdown-code-block-small);font-style:italic;color:var(--dsw-alias-label-primary)}
 .dmr-math-block{margin:0;text-align:center;font:var(--dsw-font-markdown-code-block-small);font-style:italic;color:var(--dsw-alias-label-primary);padding:4px 0}
+.dmr-math-error{font:var(--dsw-font-markdown-code-block-small);font-style:italic;color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);border-radius:4px;padding:0 4px}
+div.dmr-math-error{margin:0;text-align:center;padding:4px 8px}
 .dmr-table-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;margin:0}
 .dmr-table{border-collapse:collapse;width:max-content;max-width:max-content;font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary)}
 .dmr-table th,.dmr-table td{padding:8px 14px;border-bottom:1px solid var(--dsw-alias-border-l2);max-width:min(30vw,320px);min-width:100px}

@@ -142,6 +142,8 @@ class World {
     const codeLangs = []
     let mdCodeBlockWrappers = 0
     let mathSpans = 0
+    let mathErrorSpans = 0
+    let mathErrorBlocks = 0
     function walk(node) {
       if (node === null || node === undefined || typeof node === 'boolean') return
       if (typeof node === 'string' || typeof node === 'number') { texts.push(String(node)); return }
@@ -152,6 +154,8 @@ class World {
         if (node.type === 'div' && props.className === 'md-code-block') mdCodeBlockWrappers += 1
         if (node.type === 'code' && typeof props.className === 'string') codeLangs.push(props.className)
         if (node.type === 'span' && props.className === 'dmr-math') mathSpans += 1
+        if (node.type === 'span' && props.className === 'dmr-math-error') mathErrorSpans += 1
+        if (node.type === 'div' && props.className === 'dmr-math-error') mathErrorBlocks += 1
       } else if (typeof node.type === 'function') {
         walk(node.type(node.props))
         return
@@ -159,7 +163,7 @@ class World {
       walk(props.children)
     }
     walk(this.markdownView({ text }))
-    this.lastMarkdown = { tags, texts, codeLangs, mdCodeBlockWrappers, mathSpans }
+    this.lastMarkdown = { tags, texts, codeLangs, mdCodeBlockWrappers, mathSpans, mathErrorSpans, mathErrorBlocks }
   }
 
   buildDom() {
@@ -287,6 +291,14 @@ When('渲染含行内公式的文本块', async function () {
   this.renderMarkdown('公式 $x^2 + y^2$ 测试')
 })
 
+When('渲染含未闭合公式的文本块', async function () {
+  this.renderMarkdown('公式 $x^2 测试')
+})
+
+When('渲染含空公式的文本块', async function () {
+  this.renderMarkdown('$$\n$$')
+})
+
 // ── Then ──────────────────────────────────────────────────────────────────
 Then('段落被替换为表格元素', async function () {
   assert.equal(this.pNonStd.parentNode, null, 'original paragraph detached')
@@ -351,4 +363,15 @@ Then('代码块保留语言标记', async function () {
 Then('输出包含公式元素', async function () {
   assert.equal(this.lastMarkdown.mathSpans, 1, 'inline math span rendered')
   assert.ok(this.lastMarkdown.texts.includes('x^2 + y^2'), 'math content kept')
+})
+
+Then('输出包含公式错误标记', async function () {
+  assert.ok(
+    this.lastMarkdown.mathErrorSpans > 0 || this.lastMarkdown.mathErrorBlocks > 0,
+    `math error marker rendered (spans=${this.lastMarkdown.mathErrorSpans}, blocks=${this.lastMarkdown.mathErrorBlocks})`,
+  )
+})
+
+Then('原始公式文本保留', async function () {
+  assert.ok(this.lastMarkdown.texts.some((t) => t.includes('$x^2 测试')), 'original formula text kept')
 })

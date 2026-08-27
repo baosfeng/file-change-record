@@ -63,6 +63,9 @@ function render(text) {
   let mdCodeBlockWrappers = 0
   let mathSpans = 0
   let mathBlocks = 0
+  let mathErrorSpans = 0
+  let mathErrorBlocks = 0
+  const mathErrorTitles = []
   function walk(node) {
     if (node === null || node === undefined || typeof node === 'boolean') return
     if (typeof node === 'string' || typeof node === 'number') { texts.push(String(node)); return }
@@ -77,6 +80,14 @@ function render(text) {
       if (node.type === 'code' && typeof props.className === 'string') codeLangs.push(props.className)
       if (node.type === 'span' && props.className === 'dmr-math') mathSpans += 1
       if (node.type === 'div' && props.className === 'dmr-math-block') mathBlocks += 1
+      if (node.type === 'span' && props.className === 'dmr-math-error') {
+        mathErrorSpans += 1
+        if (typeof props.title === 'string') mathErrorTitles.push(props.title)
+      }
+      if (node.type === 'div' && props.className === 'dmr-math-error') {
+        mathErrorBlocks += 1
+        if (typeof props.title === 'string') mathErrorTitles.push(props.title)
+      }
     } else if (typeof node.type === 'function') {
       walk(node.type(node.props))
       return
@@ -84,7 +95,7 @@ function render(text) {
     walk(props.children)
   }
   walk(tree)
-  return { tags, texts, thStyles, codeLangs, mdCodeBlockWrappers, mathSpans, mathBlocks }
+  return { tags, texts, thStyles, codeLangs, mdCodeBlockWrappers, mathSpans, mathBlocks, mathErrorSpans, mathErrorBlocks, mathErrorTitles }
 }
 
 // ── assertions ──────────────────────────────────────────────────────────────
@@ -142,6 +153,48 @@ test('块级公式 $$ 开闭块（多行）渲染为 div.dmr-math-block', () => 
   const r = render('$$\nE = mc^2\n\\int_0^1 x dx\n$$')
   assert.equal(r.mathBlocks, 1, 'multi-line block math rendered')
   assert.ok(r.texts.some((t) => t.includes('E = mc^2')), 'multi-line content kept')
+})
+
+// ── 公式错误提示（issue #32）：异常公式 → 错误标记 + 原文保留 ──────────
+test('未闭合的行内公式 $ 渲染为错误标记（原文保留）', () => {
+  const r = render('公式 $x^2 测试')
+  assert.equal(r.mathErrorSpans, 1, 'unclosed inline math marked as error')
+  assert.ok(r.mathErrorTitles.includes('未闭合的公式'), 'error title set')
+  assert.ok(r.texts.some((t) => t.includes('$x^2 测试')), 'original text kept')
+})
+
+test('空公式（内容为空白）渲染为错误标记（原文保留）', () => {
+  const r = render('公式 $ $ 测试')
+  assert.equal(r.mathErrorSpans, 1, 'empty inline math marked as error')
+  assert.ok(r.mathErrorTitles.includes('公式内容异常'), 'error title set')
+  assert.ok(r.texts.some((t) => t.includes('$ $')), 'original text kept')
+})
+
+test('异常内容（以空白开头）渲染为错误标记（原文保留）', () => {
+  const r = render('公式 $ x^2$ 测试')
+  assert.equal(r.mathErrorSpans, 1, 'malformed inline math marked as error')
+  assert.ok(r.texts.some((t) => t.includes('$ x^2$')), 'original text kept')
+})
+
+test('未闭合的块级公式 $$ 渲染为错误标记（原文保留）', () => {
+  const r = render('$$\nE = mc^2')
+  assert.equal(r.mathErrorBlocks, 1, 'unclosed block math marked as error')
+  assert.ok(r.mathErrorTitles.includes('未闭合的公式'), 'error title set')
+  assert.ok(r.texts.some((t) => t.includes('E = mc^2')), 'original content kept')
+})
+
+test('空块级公式（$$ 开闭块 / $$$$ 单行）渲染为错误标记', () => {
+  const r1 = render('$$\n$$')
+  assert.equal(r1.mathErrorBlocks, 1, 'empty $$..$$ block marked as error')
+  const r2 = render('$$$$')
+  assert.equal(r2.mathErrorBlocks, 1, 'empty $$$$ single-line block marked as error')
+})
+
+test('货币/变量/块级保护不误报公式错误', () => {
+  const r = render('价格 $5 和 $10 元，变量 a$b$c，行内 $$x$$')
+  assert.equal(r.mathErrorSpans, 0, 'currency/variable/block-guard not error')
+  assert.equal(r.mathErrorBlocks, 0, 'no block error')
+  assert.ok(r.texts.some((t) => t.includes('$5')), 'currency text kept literal')
 })
 
 test('标题/列表/引用/段落仍正常渲染', () => {
