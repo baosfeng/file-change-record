@@ -33,7 +33,7 @@
 | [dsh-notify](plugins/dsh-notify/README.md) | 0.3.0 | 通知提醒：会话结束 / agent 询问（ask）/ 等待审批时弹浏览器通知 + 滴声提示，点击通知跳转对应会话；预留远程 hook 触发接口（`POST /notify/api/trigger`，支持可选 token），SSE 实时通道 |
 | [dsh-guardian](plugins/dsh-guardian/README.md) | 0.3.0 | 插件治理：新装/更新插件先进候选区（cordis.staged.json），启动完成后由守护插件逐个热挂载——成功自动转正，失败自动隔离记录，连续失败冻结，一键安全模式，侧边栏诊断面板；守护插件自身永不拖垮进程（看门狗自保） |
 | [dsh-task-reliability](plugins/dsh-task-reliability/README.md) | 0.2.0 | 任务可靠性保障：模型超时/请求失败自动重试、任务未完成自动继续（turn-stopping 注入）、独立完成度校验 agent（会话结束后判断，未完成唤醒继续）、思考重复检测与打断、休眠/重启后任务自动恢复、自主决策模式（出行防 ask 中断，问题收集待确认）、远程触发接口 |
-| [dsh-skill-manager](plugins/dsh-skill-manager/README.md) | 0.1.0 | Skill 管理：分「全局 / 项目」查看 skill 列表（名称/描述/来源/状态），按项目启用/禁用——禁用的 skill 不再注入该项目会话（模型不可见、不可加载）；全局配置 `$DSH_HOME`，项目配置随仓库版本化；设置页面板（官方扩展点，纯官方依赖） |
+| [dsh-skill-manager](plugins/dsh-skill-manager/README.md) | 0.1.1 | Skill 管理：分「全局 / 项目」查看 skill 列表（名称/描述/来源/状态），按项目启用/禁用——禁用的 skill 不再注入该项目会话（模型不可见、不可加载）；全局配置 `$DSH_HOME`，项目配置随仓库版本化；设置页面板（官方扩展点，纯官方依赖） |
 | [dsh-plugin-manager](plugins/dsh-plugin-manager/README.md) | 0.1.1 | 公共插件管理面板：市场浏览/搜索（npm registry）、一键安装/卸载（`dsh plugin` CLI 同一数据源）、更新检查（pnpm outdated）、已安装插件清单（官方 pluginInventory + 版本）；设置页面板（官方扩展点，纯官方依赖） |
 | [dsh-plugin-dev-mode](plugins/dsh-plugin-dev-mode/README.md) | 0.1.0 | 插件开发模式 **agent preset**（非运行时插件）：唯一启用 Cordis 工具集（cordis_inspect_*/define/run/stop/undefine）的 Agent 预设，精简工具组合 + 随包技能，一键安装到 `$DSH_HOME/.agent-presets/` |
 
