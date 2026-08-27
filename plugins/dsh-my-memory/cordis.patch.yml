@@ -1,0 +1,3 @@
+- insert:
+    - id: my-memory
+      name: 'dsh-my-memory'

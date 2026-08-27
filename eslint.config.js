@@ -26,6 +26,7 @@ export default [
       'plugins/dsh-think-zh-expand/lib/client.js',
       'plugins/dsh-guardian/lib/client.js',
       'plugins/dsh-my-skill-manager/lib/client.js',
+      'plugins/dsh-my-memory/lib/client.js',
     ],
   },
   {

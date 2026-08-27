@@ -35,6 +35,7 @@
 | [dsh-guardian](plugins/dsh-guardian/README.md) | 0.3.0 | 插件治理：新装/更新插件先进候选区（cordis.staged.json），启动完成后由守护插件逐个热挂载——成功自动转正，失败自动隔离记录，连续失败冻结，一键安全模式，侧边栏诊断面板；守护插件自身永不拖垮进程（看门狗自保） |
 | [dsh-task-reliability](plugins/dsh-task-reliability/README.md) | 0.4.0 | 任务可靠性保障：模型超时/请求失败自动重试、任务未完成自动继续（turn-stopping 注入）、独立完成度校验 agent（会话结束后判断，未完成唤醒继续）、思考重复检测与打断、休眠/重启后任务自动恢复、锁屏/休眠唤醒自动恢复（停滞看门狗）、ask 超时自动继续（问题记录待确认）、自主决策模式（出行防 ask 中断）、远程触发接口 |
 | [dsh-my-skill-manager](plugins/dsh-my-skill-manager/README.md) | 0.1.1 | Skill 管理：分「全局 / 项目」查看 skill 列表（名称/描述/来源/状态），按项目启用/禁用——禁用的 skill 不再注入该项目会话（模型不可见、不可加载）；全局配置 `$DSH_HOME`，项目配置随仓库版本化；设置页面板（官方扩展点，纯官方依赖） |
+| [dsh-my-memory](plugins/dsh-my-memory/README.md) | 0.1.0 | 记忆：全局/项目两级记忆持久化（全局 `$DSH_HOME/memory.json` + 项目 `<项目根>/.dsh/memory.json`），会话开始时全局记忆注入系统提示词（agent 始终携带关键偏好，条数/长度上限防膨胀）；设置页面板（全局/项目分区 + 自定义确认 UI：删除红色、保存绿色，写操作必须用户确认）；`memory_query` 只读查询工具 |
 | [dsh-my-plugin-manager](plugins/dsh-my-plugin-manager/README.md) | 0.1.1 | 公共插件管理面板：市场浏览/搜索（npm registry）、一键安装/卸载（`dsh plugin` CLI 同一数据源）、更新检查（pnpm outdated）、已安装插件清单（官方 pluginInventory + 版本）；设置页面板（官方扩展点，纯官方依赖） |
 | [dsh-plugin-dev-mode](plugins/dsh-plugin-dev-mode/README.md) | 0.1.0 | 插件开发模式 **agent preset**（非运行时插件）：唯一启用 Cordis 工具集（cordis_inspect_*/define/run/stop/undefine）的 Agent 预设，精简工具组合 + 随包技能，一键安装到 `$DSH_HOME/.agent-presets/` |
 
@@ -50,6 +51,7 @@
 │   ├── dsh-guardian/
 │   ├── dsh-task-reliability/
 │   ├── dsh-my-skill-manager/
+│   ├── dsh-my-memory/
 │   ├── dsh-my-plugin-manager/
 │   └── dsh-plugin-dev-mode/   # agent preset 资产包（非运行时插件）
 ├── skills/           # 本仓库的开发技能（SKILL.md 格式，可安装到 ~/.dsh/skills/）

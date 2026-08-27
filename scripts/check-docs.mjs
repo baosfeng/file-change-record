@@ -25,10 +25,12 @@ const MODULES = {
   'dsh-file-activity': { module: '文件活动追踪', display: '文件活动追踪', npm: 'dsh-file-activity' },
   'dsh-think-zh-expand': { module: '思考增强', display: '思考增强', npm: 'dsh-think-zh-expand' },
   'dsh-mermaid-render': { module: 'mermaid渲染', display: 'Mermaid 渲染', npm: 'dsh-mermaid-render' },
+  'dsh-md-render': { module: 'md渲染', display: 'md 渲染', npm: 'dsh-md-render' },
   'dsh-notify': { module: '通知提醒', display: '通知提醒', npm: 'bsfeng-dsh-notify' },
   'dsh-guardian': { module: '插件治理', display: '插件治理', npm: 'bsfeng-dsh-guardian' },
   'dsh-task-reliability': { module: '任务可靠性', display: '任务可靠性', npm: 'dsh-task-reliability' },
   'dsh-my-skill-manager': { module: 'Skill管理', display: 'Skill 管理', npm: 'dsh-my-skill-manager' },
+  'dsh-my-memory': { module: '记忆', display: '记忆', npm: 'dsh-my-memory' },
   'dsh-my-plugin-manager': { module: '插件管理', display: '插件管理', npm: 'dsh-my-plugin-manager' },
   'dsh-plugin-dev-mode': { module: '插件开发模式', display: '插件开发模式', npm: null }, // agent preset，非 npm 插件
 }
