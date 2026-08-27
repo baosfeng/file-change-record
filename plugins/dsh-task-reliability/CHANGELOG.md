@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-08-29
+
+### 新增
+
+- **/task 斜杠命令（issue #35）**：参考官方 `/goal` 的 `ctx.commands.register` 模式注册 `/task` 命令（name 与 /goal 不冲突），任何时候可查看/继续任务：
+  - 无参数 → 显示任务状态（活动任务列表、待确认问题数、模式状态）；
+  - `continue` → 唤醒当前会话活动任务继续（复用 `wakeStalledTask` 恢复逻辑，与看门狗同一实现，无 `resumeAt` 幂等限制）；
+  - `answer <id> <text>` → 回答待确认问题（复用 `answerQuestion`，与 HTTP API 同一函数）；
+  - `autopilot on|off` → 切换自主决策模式（复用 `applyMode`，与 `/mode`、trigger mode 同一函数）；
+  - `register <描述>` → 注册任务到当前会话（复用 `registerTask`，与 `/tasks`、trigger register 同一函数）。
+- **commands 服务判空降级**：`ctx.get('commands')` 判空，宿主未提供 commands 服务时插件其余能力（HTTP API/事件监听）照常工作；注册包 `ctx.effect`（disposer 被 fiber 持有，卸载无残留）。
+- **测试**：`test/host-command.mjs`（34 用例：命令注册/与 /goal 不冲突/解析/各子命令/复用断言/降级/持久化）、Gherkin `task-reliability-command.feature`（10 场景）。
+
 ## [0.3.0] - 2026-08-28
 
 ### 新增

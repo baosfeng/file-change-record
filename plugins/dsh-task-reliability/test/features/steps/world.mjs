@@ -31,6 +31,8 @@ class World {
     this.lastDecision = null
     this.lastResponse = null
     this.lastConfig = null
+    this.commandDefs = []
+    this.lastCommandResult = null
     this.disposers = []
     this.oldHome = process.env.DSH_HOME
   }
@@ -61,6 +63,13 @@ class World {
       },
     }
     this.agents = agents
+    const commandDefs = this.commandDefs
+    const commands = {
+      register(def) {
+        commandDefs.push(def)
+        return () => {}
+      },
+    }
     const ctx = {
       logger: { warn() {} },
       on(name, handler) {
@@ -83,6 +92,7 @@ class World {
         if (name === 'sessionQuery') return { async readSession() { return { events: [] } } }
         if (name === 'goals') return { get() { return undefined } }
         if (name === 'approval') return { setPolicy(agent, policy) { this.policies.push({ agentId: agent.id, policy }) } }
+        if (name === 'commands') return commands
         if (name === 'webRuntime') return { trustedHosts: [] }
         return undefined
       },

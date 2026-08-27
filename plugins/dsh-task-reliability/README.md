@@ -18,6 +18,7 @@
 | **ask 超时自动继续** | `ask_user_question` 长时间无响应（默认 30 分钟）自动降级：记录待确认问题 + 注入继续指令 + 模拟回答（推荐选项/模型自行决策），任务不挂起 |
 | **自主决策模式** | 出行模式：拦截 `ask_user_question` 自动决策，问题收集到待确认列表（回来后可批量回答）；审批策略切换为自动批准 |
 | **远程触发接口** | `POST /task-reliability/api/trigger`（loopback 信任围栏 + 可选 token），支持注册任务 / 切换模式 / 回答待确认问题 / 查询状态 |
+| **/task 斜杠命令** | 任何时候输入 `/task` 查看任务状态（活动任务/待确认问题/模式）、`/task continue` 唤醒活动任务继续、`/task answer <id> <text>` 回答待确认问题、`/task autopilot on|off` 切换自主决策模式、`/task register <描述>` 注册任务——与 HTTP API 共享同一套 store/API 逻辑 |
 
 ## 安装
 
@@ -39,6 +40,16 @@ dsh plugin --profile web add link:<本目录绝对路径>
 curl -X POST http://127.0.0.1:3080/task-reliability/api/trigger \
   -H "Content-Type: application/json" \
   -d '{"action":"mode","autopilot":true}'
+```
+
+5. **/task 斜杠命令**（任何会话随时可用，参考官方 `/goal`）：
+
+```
+/task                          # 查看任务状态（活动任务/待确认问题/模式）
+/task continue                 # 唤醒活动任务继续执行
+/task answer <id> <text>       # 回答待确认问题（id 见 /task 状态输出）
+/task autopilot on|off         # 切换自主决策模式
+/task register <描述>          # 注册任务到当前会话
 ```
 
 ## 配置

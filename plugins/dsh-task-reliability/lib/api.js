@@ -158,8 +158,8 @@ function applyApprovalPolicy(sessionId, enabled, shared) {
   }
 }
 
-/** mode 更新（/mode 与 trigger mode 共用）。 */
-function applyMode(body, shared) {
+/** mode 更新（/mode 与 trigger mode 共用；/task 命令复用）。 */
+export function applyMode(body, shared) {
   if (typeof body.tracking === 'boolean') shared.store.mode.tracking = body.tracking
   if (typeof body.verify === 'boolean') shared.store.mode.verify = body.verify
   if (typeof body.autopilot === 'boolean') shared.store.mode.autopilot = body.autopilot

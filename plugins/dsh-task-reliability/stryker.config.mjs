@@ -7,7 +7,7 @@
 export default {
   testRunner: 'vitest',
   vitest: { configFile: 'vitest.config.mjs' },
-  mutate: ['lib/index.js', 'lib/constants.js', 'lib/util.js', 'lib/fence.js', 'lib/text.js', 'lib/repeat.js', 'lib/store.js', 'lib/verify.js', 'lib/events.js', 'lib/api.js', 'lib/config-store.js'],
+  mutate: ['lib/index.js', 'lib/constants.js', 'lib/util.js', 'lib/fence.js', 'lib/text.js', 'lib/repeat.js', 'lib/store.js', 'lib/verify.js', 'lib/events.js', 'lib/api.js', 'lib/config-store.js', 'lib/command.js'],
   mutator: {
     excludedMutations: ['StringLiteral', 'TemplateLiteral'],
   },

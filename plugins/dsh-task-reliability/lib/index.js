@@ -27,19 +27,22 @@
  *     切换为 never（自动批准工具执行）。
  *  8. 远程触发接口：POST /task-reliability/api/trigger（loopback 信任围栏
  *     + 可选 apiToken），支持 mode/register/answer/status 动作。
+ *  9. /task 斜杠命令（issue #35）：任何时候可查看任务状态、继续任务、
+ *     回答待确认问题、切换自主决策模式、注册任务（复用 store/API 逻辑）。
  *
  * 安全约定：所有 HTTP 路由先做 loopback 信任围栏；apiToken 配置后要求
  * `x-task-reliability-token` 头。
  *
- * 注意：可选服务（agents/sessionQuery/goals/approval）一律经 ctx.get 读取
- * 并处理 undefined；事件监听全部经 ctx.on 注册、路由经 ctx.effect 注册，
- * 卸载无残留。
+ * 注意：可选服务（agents/sessionQuery/goals/approval/commands）一律经
+ * ctx.get 读取并处理 undefined；事件监听全部经 ctx.on 注册、路由经
+ * ctx.effect 注册，卸载无残留。
  *
  * 模块：constants.js（常量）· util.js（工具）· fence.js（HTTP 围栏）·
  * text.js（会话文本）· repeat.js（思考重复）· store.js（持久化任务注册表）·
- * verify.js（校验 + 恢复）· events.js（事件监听）· api.js（HTTP 路由）。
+ * verify.js（校验 + 恢复）· events.js（事件监听）· api.js（HTTP 路由）·
+ * command.js（/task 斜杠命令）。
  * 本文件只做装配：构建 options → 加载 store → 创建 shared 状态 →
- * 注册监听/API → 启动恢复 → 注册 teardown。
+ * 注册监听/API/命令 → 启动恢复 → 注册 teardown。
  */
 
 import { join } from 'node:path'
@@ -50,6 +53,7 @@ import { isTrustedApiRequest } from './fence.js'
 import { resumeActiveTasks, runWatchdog } from './verify.js'
 import { registerListeners } from './events.js'
 import { createApi } from './api.js'
+import { registerTaskCommand } from './command.js'
 import { currentProfile, patchFileOf, writePatchConfig } from './config-store.js'
 import {
   RETRYABLE_CODES, RETRY_MAX, MAX_LOOP, MAX_VERIFY, RETRY_BASE_MS,
@@ -73,6 +77,7 @@ export function apply(ctx, config) {
   }
   registerListeners(ctx, shared)
   registerApi(ctx, shared)
+  registerTaskCommand(ctx, shared)
   scheduleResume(ctx, shared)
   scheduleWatchdog(ctx, shared)
   registerTeardown(ctx, shared)
