@@ -49,7 +49,7 @@
 
 ## 工作原理
 
-- **Server 端**（`lib/index.js`）：`inject: ['systemPrompt']`，`apply` 里调用 `ctx.systemPrompt.section({ name: 'dsh-think-zh', order: -90, text })`。section 名避开 `@max-null/dsh-chinese-thinking` 已占用的 `chinese-thinking`（同一层重复 name 会抛错）。
+- **Server 端**（`lib/index.js`）：`inject: ['systemPrompt']`，`apply` 里调用 `ctx.systemPrompt.section({ name: 'dsh-think-zh', order: -90, text })`。section 名 `dsh-think-zh`（order -90）。
 - **Client 端**（`lib/client.js`）：`inject: ['slots']`，三个职责——① `ctx.slots.inject('conversation.chat.node', ...)` + `ctx.slots.register({ key: 'assistant-step', priority: -1, registrant: 'dsh-think-zh-expand' }, ...)` 以更低优先级覆盖内置渲染器（与 dsh-better-sidebar 覆盖内置席位的方式一致）；② `systemPrompt` 与渲染器之外，`ctx.effect` 注入样式表（随 fiber 卸载）；③ `ctx.effect` 安装界面中文化（MutationObserver 文本节点精准替换，随 fiber 卸载断开）。渲染器内的 MarkdownView 组件经 `require('dsh-md-render')` 跨插件取得（`dsh.client.external: ["dsh-md-render"]` 声明，ModuleLoader 保证 dsh-md-render 先于本插件 materialize）。
 
 ## 安装
@@ -78,14 +78,6 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-md-render
 | `@deepseek-ai/dsh-system-prompt` | host 端 systemPrompt 服务 | 是（缺省时 server 端不注入） |
 | `react` | client 端组件 | — |
 | `dsh-md-render` | client 端统一 MarkdownView（跨插件 require，`dsh.client.external`） | 否（须同时启用） |
-
-## 与 @max-null/dsh-chinese-thinking 的关系
-
-如果同时安装了 `@max-null/dsh-chinese-thinking`，两插件会各自注入一条中文提示（内容相近但不冲突，section 名不同）。若只想要本插件的提示，可卸载前者：
-
-```bash
-dsh plugin --profile web remove @max-null/dsh-chinese-thinking
-```
 
 ## 相关文档
 
