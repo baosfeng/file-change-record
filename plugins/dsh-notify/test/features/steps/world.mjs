@@ -9,11 +9,10 @@
  *  - 配置读写方法（GET/PUT /notify/api/config）。
  */
 import { setWorldConstructor, After } from '@cucumber/cucumber'
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { apply } from '../../../lib/index.js'
-import { extractConfig, patchFileOf } from '../../../lib/config-store.js'
 
 /** 解析 "key=value key2=value2" 为对象（布尔/数字/字符串）。 */
 export function parsePairs(text) {

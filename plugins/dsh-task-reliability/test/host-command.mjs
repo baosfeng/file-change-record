@@ -84,7 +84,7 @@ function boot(config = {}, services = {}) {
     get(id) {
       return services.liveAgentId === id ? mainAgent : undefined
     },
-    async resume(options) {
+    async resume(_options) {
       return { agent: mainAgent, async dispose() {} }
     },
   }

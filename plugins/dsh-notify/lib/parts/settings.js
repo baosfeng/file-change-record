@@ -53,6 +53,46 @@
       )
     }
 
+    /** 设置表单渲染（触发开关 + 高级项 + 保存动作）。 */
+    function renderSettingsForm(draft, patch, save, saved, error) {
+      return createElement('div', { className: 'dns-settings' },
+        createElement('div', { className: 'dns-section' },
+          createElement('div', { className: 'dns-section-title' }, strings.settingsTriggers()),
+          createElement(SwitchRow, { label: strings.settingsEnd(), hint: strings.settingsEndHint(), on: draft.end === true, onChange: (v) => patch('end', v) }),
+          createElement(SwitchRow, { label: strings.settingsAsk(), hint: strings.settingsAskHint(), on: draft.ask === true, onChange: (v) => patch('ask', v) }),
+          createElement(SwitchRow, { label: strings.settingsApproval(), hint: strings.settingsApprovalHint(), on: draft.approval === true, onChange: (v) => patch('approval', v) }),
+          createElement(SwitchRow, { label: strings.settingsSubagentEnd(), hint: strings.settingsSubagentEndHint(), on: draft.subagentEnd === true, onChange: (v) => patch('subagentEnd', v) }),
+        ),
+        createElement('div', { className: 'dns-section' },
+          createElement('div', { className: 'dns-section-title' }, strings.settingsAdvanced()),
+          createElement(TextRow, { label: strings.settingsApiToken(), hint: strings.settingsApiTokenHint(), value: draft.apiToken ?? '', onChange: (v) => patch('apiToken', v) }),
+          createElement(TextRow, { label: strings.settingsDedupeMs(), hint: strings.settingsDedupeMsHint(), value: String(draft.dedupeMs ?? 3000), type: 'number', onChange: (v) => patch('dedupeMs', Number(v)) }),
+        ),
+        createElement('div', { className: 'dns-actions' },
+          createElement('button', { className: 'dns-btn', onClick: save }, strings.save()),
+          saved ? createElement('span', { className: 'dns-saved' }, strings.saved()) : null,
+          error ? createElement('span', { className: 'dns-error' }, strings.saveFailed()) : null,
+        ),
+      )
+    }
+
+    /** 保存配置（PUT /notify/api/config），成功/失败更新状态。 */
+    function saveConfig(draft, setSaved, setError) {
+      setSaved(false)
+      setError(false)
+      fetch('/notify/api/config', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(draft),
+      })
+        .then((res) => res.json())
+        .then((body) => {
+          if (body === null || body.ok !== true) throw new Error('save failed')
+          setSaved(true)
+        })
+        .catch(() => setError(true))
+    }
+
     /** 设置页主视图：加载当前配置 → 表单编辑 → 保存（PUT /notify/api/config）。 */
     function NotifySettingsView() {
       const [config, setConfig] = useState(null)
@@ -76,22 +116,6 @@
           })
       }, [])
 
-      const save = () => {
-        setSaved(false)
-        setError(false)
-        fetch('/notify/api/config', {
-          method: 'PUT',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(draft),
-        })
-          .then((res) => res.json())
-          .then((body) => {
-            if (body === null || body.ok !== true) throw new Error('save failed')
-            setSaved(true)
-          })
-          .catch(() => setError(true))
-      }
-
       if (loading) {
         return createElement('div', { className: 'dns-settings' }, createElement('div', { className: 'dns-status' }, strings.loading()))
       }
@@ -99,25 +123,8 @@
         return createElement('div', { className: 'dns-settings' }, createElement('div', { className: 'dns-error' }, strings.loadError()))
       }
       const patch = (key, value) => setDraft({ ...draft, [key]: value })
-      return createElement('div', { className: 'dns-settings' },
-        createElement('div', { className: 'dns-section' },
-          createElement('div', { className: 'dns-section-title' }, strings.settingsTriggers()),
-          createElement(SwitchRow, { label: strings.settingsEnd(), hint: strings.settingsEndHint(), on: draft.end === true, onChange: (v) => patch('end', v) }),
-          createElement(SwitchRow, { label: strings.settingsAsk(), hint: strings.settingsAskHint(), on: draft.ask === true, onChange: (v) => patch('ask', v) }),
-          createElement(SwitchRow, { label: strings.settingsApproval(), hint: strings.settingsApprovalHint(), on: draft.approval === true, onChange: (v) => patch('approval', v) }),
-          createElement(SwitchRow, { label: strings.settingsSubagentEnd(), hint: strings.settingsSubagentEndHint(), on: draft.subagentEnd === true, onChange: (v) => patch('subagentEnd', v) }),
-        ),
-        createElement('div', { className: 'dns-section' },
-          createElement('div', { className: 'dns-section-title' }, strings.settingsAdvanced()),
-          createElement(TextRow, { label: strings.settingsApiToken(), hint: strings.settingsApiTokenHint(), value: draft.apiToken ?? '', onChange: (v) => patch('apiToken', v) }),
-          createElement(TextRow, { label: strings.settingsDedupeMs(), hint: strings.settingsDedupeMsHint(), value: String(draft.dedupeMs ?? 3000), type: 'number', onChange: (v) => patch('dedupeMs', Number(v)) }),
-        ),
-        createElement('div', { className: 'dns-actions' },
-          createElement('button', { className: 'dns-btn', onClick: save }, strings.save()),
-          saved ? createElement('span', { className: 'dns-saved' }, strings.saved()) : null,
-          error ? createElement('span', { className: 'dns-error' }, strings.saveFailed()) : null,
-        ),
-      )
+      const save = () => saveConfig(draft, setSaved, setError)
+      return renderSettingsForm(draft, patch, save, saved, error)
     }
 
     /** 设置页 tab 注册（官方 slots 扩展点；服务缺省时静默跳过）。 */

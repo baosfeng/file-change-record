@@ -1,4 +1,4 @@
-import { test, expect } from 'vitest'
+import { test } from 'vitest'
 /**
  * Table-detection unit tests for dsh-md-render.
  *

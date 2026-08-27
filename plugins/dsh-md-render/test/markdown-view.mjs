@@ -206,7 +206,6 @@ test('标题/列表/引用/段落仍正常渲染', () => {
 })
 
 test('CommonMark 多反引号行内代码仍正常（迁移回归）', () => {
-  const r = render('`` `agent/status` `` 与 `mdInline`')
   const codeTexts = []
   function collect(node) {
     if (node === null || node === undefined || typeof node === 'boolean') return
