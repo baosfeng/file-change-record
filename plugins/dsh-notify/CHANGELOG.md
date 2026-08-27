@@ -6,6 +6,7 @@
 
 ### 新增
 
+- **子代理完成通知开关（issue #26）**：`subagentEnd` 配置项（默认 `false`）控制子代理完成是否推送；子代理判定白名单化（`origin === 'subagent'` / `delegationDepth > 0` / 运行时 `options.subagentDepth > 0` 任一命中即子代理，结构不完整保守视为子代理，修复 fork 继承/工作流 worker 等漏网形态误弹）；子代理通知带 `agentType: 'subagent'` 标记与「子代理」标题前缀；ask/approval 始终只推顶层。
 - **配置可视化（issue #27）**：设置 → 插件 → 通知提醒 页签（官方 slots 扩展点），end/ask/approval/subagentEnd 开关 + apiToken/dedupeMs 输入，保存即生效、重启不丢。
 - **配置 API**：`GET /notify/api/config`（当前生效配置）、`PUT /notify/api/config`（保存配置，写入 `$DSH_HOME/profiles/<profile>/cordis.patch.yml`，DSH watchUserPatches 热重载 + 内存即时更新 + 监听器按新开关重载）。
 - **配置持久化模块**：`lib/config-store.js`（profile patch 文件读写，YAML 子集解析/序列化，原子写 tmp+rename，不破坏其他条目）。
