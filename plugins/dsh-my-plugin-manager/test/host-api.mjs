@@ -1,0 +1,279 @@
+/**
+ * dsh-my-plugin-manager — API route + apply() integration tests.
+ *
+ * manage.js / registry.js are mocked: install/uninstall/updates exercise the
+ * route wiring without spawning real CLI or hitting the npm registry.
+ */
+import { test } from 'vitest'
+import { vi } from 'vitest'
+import assert from 'node:assert/strict'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+const dir = mkdtempSync(join(tmpdir(), 'dpm-api-test-'))
+
+// ── mocks ──────────────────────────────────────────────────────────────────
+const manageMock = vi.hoisted(() => ({
+  installedVersionOf: vi.fn(() => '0.1.0'),
+  installPlugin: vi.fn(async () => ({ ok: true, code: 0, stdout: 'added', stderr: '' })),
+  uninstallPlugin: vi.fn(async () => ({ ok: true, code: 0, stdout: '', stderr: '' })),
+  outdatedPlugins: vi.fn(async () => ({ ok: true, outdated: [] })),
+}))
+vi.mock('../lib/manage.js', () => manageMock)
+
+const registryMock = vi.hoisted(() => ({
+  searchNpmPlugins: vi.fn(async () => [{ name: 'dsh-x', version: '1.0.0', description: 'desc', author: 'a', date: '', homepage: '', repository: '' }]),
+}))
+vi.mock('../lib/registry.js', () => registryMock)
+
+const { apply, currentProfile, profileDirOf } = await import('../lib/index.js')
+
+test('currentProfile / profileDirOf resolve defaults', () => {
+  assert.equal(currentProfile(), 'web')
+  process.env.DSH_HOME = dir
+  assert.equal(profileDirOf('web'), join(dir, 'profiles', 'web'))
+})
+
+function makeResponse() {
+  return {
+    _status: 0,
+    _body: '',
+    writeHead(status) {
+      this._status = status
+    },
+    end(body) {
+      this._body = body ?? ''
+    },
+  }
+}
+
+function makeRequest(method, url, body, overrides) {
+  const req = {
+    method,
+    url,
+    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://127.0.0.1:3080' },
+    ...(overrides ?? {}),
+    [Symbol.asyncIterator]() {
+      const chunks = body === undefined ? [] : [JSON.stringify(body)]
+      let i = 0
+      return {
+        next: () => Promise.resolve(i < chunks.length ? { value: chunks[i++], done: false } : { done: true }),
+      }
+    },
+  }
+  return req
+}
+
+function captureRoute(prefix) {
+  let captured
+  const holder = {
+    set: (route) => {
+      if (route.kind === 'prefix' && route.path === prefix) captured = route
+    },
+    get: () => captured,
+  }
+  return holder
+}
+
+async function boot(overrides) {
+  const apiHolder = captureRoute('/my-plugin-manager/api')
+  const ctx = {
+    logger: { warn: () => {} },
+    webRuntime: { trustedHosts: [] },
+    pluginInventory: {
+      list: () => ({ entries: [
+        { moduleName: 'dsh-a', enabled: true, fiberPhase: 'ready' },
+        { moduleName: '@scope/dsh-b', enabled: false, fiberPhase: null },
+        { moduleName: '@deepseek-ai/dsh-base', enabled: true, fiberPhase: 'active' },
+        { moduleName: 'cordis:include', enabled: true, fiberPhase: 'active' },
+        { moduleName: '@koishijs/plugin-xxx', enabled: true, fiberPhase: 'active' },
+      ] }),
+    },
+    webServer: { register: (route) => { apiHolder.set(route); return () => {} } },
+    events: [],
+    effectCallbacks: [],
+    on(name, listener) {
+      this.events.push({ name, listener })
+    },
+    effect(callback, label) {
+      this.effectCallbacks.push({ callback, label })
+      const disposer = callback()
+      if (typeof disposer === 'function') this.effectCallbacks.push({ disposer, label: `${label}:disposer` })
+      return disposer
+    },
+    ...(overrides ?? {}),
+  }
+  process.env.DSH_HOME = dir
+  apply(ctx)
+  return { ctx, getRoute: () => apiHolder.get() }
+}
+
+async function callRoute(getRoute, method, url, body, overrides) {
+  const route = getRoute()
+  assert.ok(route, 'route registered')
+  const res = makeResponse()
+  await route.handler(makeRequest(method, url, body, overrides), res)
+  return { status: res._status, json: res._body === '' ? null : JSON.parse(res._body) }
+}
+
+test('apply registers the API route', async () => {
+  const { getRoute } = await boot()
+  assert.ok(getRoute(), '/my-plugin-manager/api route registered')
+})
+
+test('API refuses requests outside the fence (403)', async () => {
+  const { getRoute } = await boot()
+  const res = makeResponse()
+  await getRoute().handler(makeRequest('GET', '/my-plugin-manager/api/installed', undefined, {
+    headers: { host: 'evil.example', 'sec-fetch-site': 'cross-site' },
+  }), res)
+  assert.equal(res._status, 403, 'fenced')
+})
+
+test('GET /installed merges inventory + versions', async () => {
+  const { getRoute } = await boot()
+  const r = await callRoute(getRoute, 'GET', '/my-plugin-manager/api/installed')
+  assert.equal(r.status, 200)
+  const entries = r.json.value.entries
+  assert.equal(entries.length, 2)
+  assert.equal(entries[0].moduleName, 'dsh-a')
+  assert.equal(entries[0].enabled, true)
+  assert.equal(entries[0].version, '0.1.0', 'version resolved via manage.installedVersionOf')
+})
+
+test('GET /installed filters official modules and marks user entries', async () => {
+  const { getRoute } = await boot()
+  const r = await callRoute(getRoute, 'GET', '/my-plugin-manager/api/installed')
+  assert.equal(r.status, 200)
+  const entries = r.json.value.entries
+  assert.deepEqual(entries.map((e) => e.moduleName), ['dsh-a', '@scope/dsh-b'], 'official modules filtered out')
+  assert.ok(entries.every((e) => e.official === false), 'user entries carry official: false')
+  assert.ok(entries.every((e) => e.version === '0.1.0'), 'versions still resolved for user entries')
+})
+
+test('GET /search calls the npm registry and clamps size', async () => {
+  const { getRoute } = await boot()
+  const r = await callRoute(getRoute, 'GET', '/my-plugin-manager/api/search?q=dsh-file&size=999')
+  assert.equal(r.status, 200)
+  assert.equal(r.json.value.results[0].name, 'dsh-x')
+  const empty = await callRoute(getRoute, 'GET', '/my-plugin-manager/api/search?q=')
+  assert.deepEqual(empty.json.value.results, [], 'blank query returns no results')
+})
+
+test('GET /updates surfaces outdated entries', async () => {
+  manageMock.outdatedPlugins.mockResolvedValueOnce({
+    ok: true,
+    outdated: [{ name: 'dsh-a', current: '1.0.0', latest: '1.1.0' }],
+  })
+  const { getRoute } = await boot()
+  const r = await callRoute(getRoute, 'GET', '/my-plugin-manager/api/updates')
+  assert.equal(r.status, 200)
+  assert.equal(r.json.value.outdated[0].latest, '1.1.0')
+})
+
+test('POST /install and /uninstall route through the CLI wrapper', async () => {
+  const { getRoute } = await boot()
+  const bad = await callRoute(getRoute, 'POST', '/my-plugin-manager/api/install', { source: '  ' })
+  assert.equal(bad.status, 400, 'blank source rejected')
+
+  const ok = await callRoute(getRoute, 'POST', '/my-plugin-manager/api/install', { source: 'dsh-x' })
+  assert.equal(ok.status, 200)
+  assert.equal(ok.json.ok, true)
+  assert.ok(manageMock.installPlugin.mock.calls.some((call) => call[0] === 'web' && call[1] === 'dsh-x'))
+
+  const un = await callRoute(getRoute, 'POST', '/my-plugin-manager/api/uninstall', { name: 'dsh-x' })
+  assert.equal(un.status, 200)
+  assert.ok(manageMock.uninstallPlugin.mock.calls.some((call) => call[0] === 'web' && call[1] === 'dsh-x'))
+})
+
+test('install/uninstall failures carry an error message', async () => {
+  manageMock.installPlugin.mockResolvedValueOnce({ ok: false, code: 1, stdout: '', stderr: 'ERESOLVE' })
+  const { getRoute } = await boot()
+  const r = await callRoute(getRoute, 'POST', '/my-plugin-manager/api/install', { source: 'dsh-bad' })
+  assert.equal(r.status, 200)
+  assert.equal(r.json.ok, false)
+  assert.ok(r.json.error.message.includes('ERESOLVE'))
+})
+
+test('unknown API methods return 404', async () => {
+  const { getRoute } = await boot()
+  const r = await callRoute(getRoute, 'GET', '/my-plugin-manager/api/nope')
+  assert.equal(r.status, 404)
+})
+
+test('profileDirOf uses DSH_HOME', () => {
+  process.env.DSH_HOME = dir
+  assert.equal(profileDirOf('web'), join(dir, 'profiles', 'web'))
+})
+
+test('fence: non-loopback hosts, origin mismatch and trusted hosts', async () => {
+  const { getRoute } = await boot()
+  const res1 = makeResponse()
+  await getRoute().handler(makeRequest('GET', '/my-plugin-manager/api/installed', undefined, {
+    headers: { host: '192.168.1.10:3080', 'sec-fetch-site': 'same-origin' },
+  }), res1)
+  assert.equal(res1._status, 403, 'non-loopback host refused')
+
+  const res2 = makeResponse()
+  await getRoute().handler(makeRequest('GET', '/my-plugin-manager/api/installed', undefined, {
+    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://evil.example' },
+  }), res2)
+  assert.equal(res2._status, 403, 'origin mismatch refused')
+
+  const holder = captureRoute('/my-plugin-manager/api')
+  const ctx = {
+    logger: { warn: () => {} },
+    webRuntime: { trustedHosts: ['dsh.internal:3080'] },
+    pluginInventory: { list: () => ({ entries: [] }) },
+    webServer: { register: (route) => { holder.set(route); return () => {} } },
+    events: [],
+    effectCallbacks: [],
+    on() {},
+    effect(callback) {
+      callback()
+      return () => {}
+    },
+  }
+  apply(ctx)
+  const res3 = makeResponse()
+  await holder.get().handler(makeRequest('GET', '/my-plugin-manager/api/installed', undefined, {
+    headers: { host: 'dsh.internal:3080', 'sec-fetch-site': 'same-origin', origin: 'http://dsh.internal:3080' },
+  }), res3)
+  assert.equal(res3._status, 200, 'trusted host allowed')
+})
+
+test('handler errors are answered with a 400 JSON body', async () => {
+  const { getRoute } = await boot()
+  const huge = 'x'.repeat(1_100_000)
+  const res = makeResponse()
+  await getRoute().handler(makeRequest('POST', '/my-plugin-manager/api/install', { source: huge }), res)
+  assert.equal(res._status, 400)
+  const body = JSON.parse(res._body)
+  assert.equal(body.ok, false)
+  assert.ok(typeof body.error.message === 'string')
+})
+
+test('currentProfile honors --profile and profileDirOf falls back to home', () => {
+  const saved = process.argv
+  process.argv = ['node', 'dsh', '--profile', 'custom', 'web']
+  assert.equal(currentProfile(), 'custom')
+  process.argv = saved
+  const home = process.env.DSH_HOME
+  delete process.env.DSH_HOME
+  assert.ok(profileDirOf('web').endsWith('.dsh/profiles/web'), 'fallback to ~/.dsh/profiles')
+  if (home !== undefined) process.env.DSH_HOME = home
+})
+
+test('updates failure and uninstall failure carry error details', async () => {
+  manageMock.outdatedPlugins.mockResolvedValueOnce({ ok: false, error: 'registry unreachable' })
+  const { getRoute } = await boot()
+  const r = await callRoute(getRoute, 'GET', '/my-plugin-manager/api/updates')
+  assert.equal(r.status, 200)
+  assert.equal(r.json.value.error, 'registry unreachable')
+
+  manageMock.uninstallPlugin.mockResolvedValueOnce({ ok: false, code: 1, stdout: '', stderr: 'EBADPKG' })
+  const un = await callRoute(getRoute, 'POST', '/my-plugin-manager/api/uninstall', { name: 'dsh-x' })
+  assert.equal(un.json.ok, false)
+  assert.ok(un.json.error.message.includes('EBADPKG'))
+})

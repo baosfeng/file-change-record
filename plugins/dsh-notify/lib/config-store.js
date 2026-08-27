@@ -18,7 +18,7 @@ import { readFile, rename, writeFile, mkdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-/** Profile 名：进程参数 --profile 优先，否则默认 web（与 dsh-plugin-manager 同契约）。 */
+/** Profile 名：进程参数 --profile 优先，否则默认 web（与 dsh-my-plugin-manager 同契约）。 */
 export function currentProfile() {
   const argv = process.argv
   const idx = argv.indexOf('--profile')

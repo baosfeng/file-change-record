@@ -15,7 +15,7 @@
  *
  * 用法：
  *   node scripts/verify-real-profile.mjs [--profile web] [--port 3087]
- *        [--addons plugins/dsh-skill-manager]... [--api-path /skill-manager/api/list]...
+ *        [--addons plugins/dsh-my-skill-manager]... [--api-path /my-skill-manager/api/list]...
  *        [--timeout 90] [--skip] [--keep] [--help]
  *
  * 退出码：0 = 全部通过；1 = 任一环节失败。
