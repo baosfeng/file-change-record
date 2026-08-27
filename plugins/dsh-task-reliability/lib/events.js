@@ -12,8 +12,11 @@ import { isTopLevelAgent } from './text.js'
 import { wrapStreamForLoop } from './repeat.js'
 import { runVerification } from './verify.js'
 import {
-  AUTOPILOT_DENY_REASON, DIRECT_CONTINUE_TEXT, REPEAT_BREAK_TEXT, RETRY_MAX_DELAY_MS, RATE_WINDOW_MS,
+  ASK_TIMEOUT_CONTINUE_TEXT, AUTOPILOT_DENY_REASON, DIRECT_CONTINUE_TEXT, REPEAT_BREAK_TEXT, RETRY_MAX_DELAY_MS, RATE_WINDOW_MS,
 } from './constants.js'
+
+/** ask 超时竞争标记（Promise.race 胜出方）。 */
+const ASK_TIMEOUT = Symbol('dsh-task-reliability.ask-timeout')
 
 // ── 状态辅助 ───────────────────────────────────────────────────────────────
 
@@ -233,6 +236,48 @@ async function handlePreExecute(exec, next, shared) {
   return { kind: 'deny', reason: AUTOPILOT_DENY_REASON }
 }
 
+// ── ask 超时自动继续（issue #34）──────────────────────────────────────────
+
+/** 超时后的模拟回答：有推荐选项（第一个）则选中，否则空回答由模型自行决策。 */
+function simulatedAskAnswer(argumentsValue) {
+  const questions = argumentsValue?.questions
+  if (!Array.isArray(questions)) return { value: { answers: [] } }
+  const answers = []
+  for (const question of questions) {
+    if (question === null || typeof question !== 'object' || typeof question.id !== 'string') continue
+    const options = Array.isArray(question.options)
+      ? question.options.filter((option) => option !== null && typeof option === 'object' && typeof option.label === 'string')
+      : []
+    answers.push(options.length > 0 ? { id: question.id, selected: [options[0].label] } : { id: question.id, selected: [] })
+  }
+  return { value: { answers } }
+}
+
+/**
+ * 包装 `tools/execute`：ask_user_question 启动空闲计时器（Promise.race），
+ * 超时后记录待确认问题 + 注入继续指令 + 返回模拟回答，任务不挂起；用户
+ * 回答时 next() 先 resolve，真实结果透传。
+ */
+async function handleToolExecute(exec, next, shared) {
+  if (exec === undefined || exec === null || exec.name !== 'ask_user_question') return next()
+  if (shared.options.askTimeoutMs <= 0) return next()
+  const agent = exec.agent
+  if (!isTopLevelAgent(agent)) return next()
+  const result = await Promise.race([
+    next(),
+    sleep(shared.options.askTimeoutMs).then(() => ASK_TIMEOUT),
+  ])
+  if (result !== ASK_TIMEOUT) return result
+  addQuestion(shared.store, agent.id, askNoteOf(exec.arguments))
+  shared.save()
+  try {
+    agent.followup(userMessage(ASK_TIMEOUT_CONTINUE_TEXT))
+  } catch {
+    // followup is best-effort; the simulated answer still unblocks the turn
+  }
+  return simulatedAskAnswer(exec.arguments)
+}
+
 // ── 注册 ───────────────────────────────────────────────────────────────────
 
 /** 注册全部事件监听（每个事件一个 handler，全部经 shared 共享状态）。 */
@@ -242,4 +287,5 @@ export function registerListeners(ctx, shared) {
   ctx.on('agent/status', ({ agent, status }) => handleStatus(agent, status, shared))
   ctx.on('llm/stream', (options, next) => handleStream(options, next, shared))
   ctx.on('tools/pre-execute', (exec, next) => handlePreExecute(exec, next, shared))
+  ctx.on('tools/execute', (exec, next) => handleToolExecute(exec, next, shared))
 }

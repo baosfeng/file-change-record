@@ -81,6 +81,13 @@ window.__ModuleLoader__.load({
       settingsMaxVerifyHint: () => (isZh() ? '完成度校验 agent 的校验次数上限' : 'Cap for completion-verification runs'),
       settingsSteerCooldownMs: () => (isZh() ? '继续冷却（毫秒）' : 'Continue cooldown (ms)'),
       settingsSteerCooldownMsHint: () => (isZh() ? '两次自动继续之间的最小间隔' : 'Min interval between auto-continues'),
+      settingsAskTimeoutMs: () => (isZh() ? 'ask 超时（毫秒）' : 'Ask timeout (ms)'),
+      settingsAskTimeoutMsHint: () => (isZh() ? '询问用户超时后自动继续，问题记录待确认（0 = 禁用）' : 'Auto-continue after ask timeout, question queued (0 = disabled)'),
+      settingsWatchdog: () => (isZh() ? '停滞看门狗' : 'Stall watchdog'),
+      settingsWatchdogIntervalMs: () => (isZh() ? '看门狗检查间隔（毫秒）' : 'Watchdog interval (ms)'),
+      settingsWatchdogIntervalMsHint: () => (isZh() ? '定期检查活动任务是否停滞（0 = 禁用）' : 'Periodic stall check (0 = disabled)'),
+      settingsStallTimeoutMs: () => (isZh() ? '停滞判定阈值（毫秒）' : 'Stall threshold (ms)'),
+      settingsStallTimeoutMsHint: () => (isZh() ? '任务超过该时长无进展则自动唤醒' : 'Wake tasks idle longer than this'),
       settingsPersist: () => (isZh() ? '持久化与速率' : 'Persistence & rate'),
       settingsSaveDebounceMs: () => (isZh() ? '落盘防抖（毫秒）' : 'Save debounce (ms)'),
       settingsSaveDebounceMsHint: () => (isZh() ? '任务状态写入磁盘的防抖窗口' : 'Debounce window for state writes'),
@@ -404,6 +411,76 @@ window.__ModuleLoader__.load({
       )
     }
 
+    /** 设置页表单字段数据（label/hint/key/fallback/类型），驱动渲染。 */
+    const SETTINGS_SECTIONS = [
+      {
+        title: () => strings.settingsRetry(),
+        rows: [
+          { label: () => strings.settingsRetryMax(), hint: () => strings.settingsRetryMaxHint(), key: 'retryMax', fallback: 3, numeric: true },
+          { label: () => strings.settingsRetryBaseMs(), hint: () => strings.settingsRetryBaseMsHint(), key: 'retryBaseMs', fallback: 1000, numeric: true },
+          { label: () => strings.settingsRetryableCodes(), hint: () => strings.settingsRetryableCodesHint(), key: 'retryableCodesText', fallback: '' },
+        ],
+      },
+      {
+        title: () => strings.settingsLoop(),
+        rows: [
+          { label: () => strings.settingsMaxLoop(), hint: () => strings.settingsMaxLoopHint(), key: 'maxLoop', fallback: 8, numeric: true },
+          { label: () => strings.settingsMaxVerify(), hint: () => strings.settingsMaxVerifyHint(), key: 'maxVerify', fallback: 3, numeric: true },
+          { label: () => strings.settingsSteerCooldownMs(), hint: () => strings.settingsSteerCooldownMsHint(), key: 'steerCooldownMs', fallback: 8000, numeric: true },
+          { label: () => strings.settingsAskTimeoutMs(), hint: () => strings.settingsAskTimeoutMsHint(), key: 'askTimeoutMs', fallback: 1800000, numeric: true },
+        ],
+      },
+      {
+        title: () => strings.settingsPersist(),
+        rows: [
+          { label: () => strings.settingsSaveDebounceMs(), hint: () => strings.settingsSaveDebounceMsHint(), key: 'saveDebounceMs', fallback: 500, numeric: true },
+          { label: () => strings.settingsResumeGraceMs(), hint: () => strings.settingsResumeGraceMsHint(), key: 'resumeGraceMs', fallback: 2000, numeric: true },
+          { label: () => strings.settingsRateMaxActions(), hint: () => strings.settingsRateMaxActionsHint(), key: 'rateMaxActions', fallback: 12, numeric: true },
+        ],
+      },
+      {
+        title: () => strings.settingsWatchdog(),
+        rows: [
+          { label: () => strings.settingsWatchdogIntervalMs(), hint: () => strings.settingsWatchdogIntervalMsHint(), key: 'watchdogIntervalMs', fallback: 300000, numeric: true },
+          { label: () => strings.settingsStallTimeoutMs(), hint: () => strings.settingsStallTimeoutMsHint(), key: 'stallTimeoutMs', fallback: 600000, numeric: true },
+        ],
+      },
+      {
+        title: () => strings.settingsSecurity(),
+        rows: [
+          { label: () => strings.settingsAutopilot(), hint: () => strings.settingsAutopilotHint(), key: 'autopilot', fallback: false, switch: true },
+          { label: () => strings.settingsApiToken(), hint: () => strings.settingsApiTokenHint(), key: 'apiToken', fallback: '' },
+        ],
+      },
+    ]
+
+    /** 渲染单个设置行（switch 或 text/number 输入）。 */
+    function settingsRow(row, draft, patch, num) {
+      if (row.switch === true) {
+        return createElement(SettingsSwitchRow, {
+          label: row.label(),
+          hint: row.hint(),
+          on: draft[row.key] === true,
+          onChange: (v) => patch(row.key, v),
+        })
+      }
+      return createElement(SettingsTextRow, {
+        label: row.label(),
+        hint: row.hint(),
+        value: String(draft[row.key] ?? row.fallback),
+        type: row.numeric === true ? 'number' : 'text',
+        onChange: row.numeric === true ? num(row.key) : (v) => patch(row.key, v),
+      })
+    }
+
+    /** 渲染设置分组（标题 + 字段行）。 */
+    function settingsSection(section, draft, patch, num) {
+      return createElement('div', { className: 'dtr-settings-section' },
+        createElement('div', { className: 'dtr-settings-title' }, section.title()),
+        ...section.rows.map((row) => settingsRow(row, draft, patch, num)),
+      )
+    }
+
     /** 设置页主视图：加载当前配置 → 表单编辑 → 保存（PUT /task-reliability/api/config）。 */
     function TaskReliabilitySettingsView() {
       const [config, setConfig] = useState(null)
@@ -460,29 +537,7 @@ window.__ModuleLoader__.load({
       const patch = (key, value) => setDraft({ ...draft, [key]: value })
       const num = (key) => (value) => patch(key, Number(value))
       return createElement('div', { className: 'dtr-settings' },
-        createElement('div', { className: 'dtr-settings-section' },
-          createElement('div', { className: 'dtr-settings-title' }, strings.settingsRetry()),
-          createElement(SettingsTextRow, { label: strings.settingsRetryMax(), hint: strings.settingsRetryMaxHint(), value: String(draft.retryMax ?? 3), type: 'number', onChange: num('retryMax') }),
-          createElement(SettingsTextRow, { label: strings.settingsRetryBaseMs(), hint: strings.settingsRetryBaseMsHint(), value: String(draft.retryBaseMs ?? 1000), type: 'number', onChange: num('retryBaseMs') }),
-          createElement(SettingsTextRow, { label: strings.settingsRetryableCodes(), hint: strings.settingsRetryableCodesHint(), value: draft.retryableCodesText ?? '', onChange: (v) => patch('retryableCodesText', v) }),
-        ),
-        createElement('div', { className: 'dtr-settings-section' },
-          createElement('div', { className: 'dtr-settings-title' }, strings.settingsLoop()),
-          createElement(SettingsTextRow, { label: strings.settingsMaxLoop(), hint: strings.settingsMaxLoopHint(), value: String(draft.maxLoop ?? 8), type: 'number', onChange: num('maxLoop') }),
-          createElement(SettingsTextRow, { label: strings.settingsMaxVerify(), hint: strings.settingsMaxVerifyHint(), value: String(draft.maxVerify ?? 3), type: 'number', onChange: num('maxVerify') }),
-          createElement(SettingsTextRow, { label: strings.settingsSteerCooldownMs(), hint: strings.settingsSteerCooldownMsHint(), value: String(draft.steerCooldownMs ?? 8000), type: 'number', onChange: num('steerCooldownMs') }),
-        ),
-        createElement('div', { className: 'dtr-settings-section' },
-          createElement('div', { className: 'dtr-settings-title' }, strings.settingsPersist()),
-          createElement(SettingsTextRow, { label: strings.settingsSaveDebounceMs(), hint: strings.settingsSaveDebounceMsHint(), value: String(draft.saveDebounceMs ?? 500), type: 'number', onChange: num('saveDebounceMs') }),
-          createElement(SettingsTextRow, { label: strings.settingsResumeGraceMs(), hint: strings.settingsResumeGraceMsHint(), value: String(draft.resumeGraceMs ?? 2000), type: 'number', onChange: num('resumeGraceMs') }),
-          createElement(SettingsTextRow, { label: strings.settingsRateMaxActions(), hint: strings.settingsRateMaxActionsHint(), value: String(draft.rateMaxActions ?? 12), type: 'number', onChange: num('rateMaxActions') }),
-        ),
-        createElement('div', { className: 'dtr-settings-section' },
-          createElement('div', { className: 'dtr-settings-title' }, strings.settingsSecurity()),
-          createElement(SettingsSwitchRow, { label: strings.settingsAutopilot(), hint: strings.settingsAutopilotHint(), on: draft.autopilot === true, onChange: (v) => patch('autopilot', v) }),
-          createElement(SettingsTextRow, { label: strings.settingsApiToken(), hint: strings.settingsApiTokenHint(), value: draft.apiToken ?? '', onChange: (v) => patch('apiToken', v) }),
-        ),
+        ...SETTINGS_SECTIONS.map((section) => settingsSection(section, draft, patch, num)),
         createElement('div', { className: 'dtr-settings-actions' },
           createElement('button', { className: 'dtr-btn', onClick: save }, strings.save()),
           saved ? createElement('span', { className: 'dtr-settings-saved' }, strings.saved()) : null,

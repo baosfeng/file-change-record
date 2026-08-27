@@ -23,6 +23,9 @@ export const VERIFY_TIMEOUT_MS = 60000
 export const RESUME_GRACE_MS = 2000
 export const SAVE_DEBOUNCE_MS = 500
 export const SUMMARY_MAX_CHARS = 8000
+export const ASK_TIMEOUT_MS = 30 * 60 * 1000
+export const WATCHDOG_INTERVAL_MS = 5 * 60 * 1000
+export const STALL_TIMEOUT_MS = 10 * 60 * 1000
 
 export const RETRYABLE_CODES = new Set([
   'TIMEOUT', 'ETIMEDOUT', 'ECONNRESET', 'ECONNABORTED', 'STREAM_IDLE_TIMEOUT',
@@ -46,4 +49,12 @@ export const AUTOPILOT_DENY_REASON =
 
 export const RESUME_CONTINUE_TEXT = (desc) =>
   `【系统重启恢复】系统此前在任务执行中被中断（休眠/重启），请继续完成之前的任务：${desc}。` +
+  '先回顾当前进度，然后继续执行剩余部分，直到任务完成。'
+
+export const ASK_TIMEOUT_CONTINUE_TEXT =
+  '【用户长时间未响应】你之前询问用户的问题长时间未得到回答，请基于已有信息和上下文自行决策并继续执行任务，' +
+  '不要再次询问用户。被跳过的询问已记录，用户回来后统一处理。'
+
+export const WAKE_CONTINUE_TEXT = (desc) =>
+  `【系统唤醒恢复】系统此前因锁屏/休眠/网络中断而停滞，请继续完成之前的任务：${desc}。` +
   '先回顾当前进度，然后继续执行剩余部分，直到任务完成。'

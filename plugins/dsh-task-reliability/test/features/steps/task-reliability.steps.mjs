@@ -289,3 +289,60 @@ Then('任务出现在任务列表', async function () {
 Then('返回 403', function () {
   assert.equal(this.lastResponse.status, 403)
 })
+
+// ── issue #34：ask 超时自动继续 + 任务停滞看门狗 ─────────────────────────
+Given('任务可靠性插件已启动且 ask 超时为 {int} 毫秒', function (ms) {
+  this.boot({ askTimeoutMs: ms })
+})
+
+Given('任务可靠性插件已启动且 ask 超时禁用', function () {
+  this.boot({ askTimeoutMs: 0 })
+})
+
+Given('任务可靠性插件已启动且看门狗间隔为 {int} 毫秒', function (ms) {
+  this.boot({ watchdogIntervalMs: ms, stallTimeoutMs: 1000 })
+})
+
+When('代理 {string} 调用 ask_user_question 且用户长时间未回答', async function (_sessionId) {
+  this.lastDecision = await this.dispatch('tools/execute', {
+    name: 'ask_user_question',
+    agent: this.mainAgent,
+    arguments: { questions: [{ id: 'q1', question: 'A 还是 B？', options: [{ label: '方案A' }, { label: '方案B' }] }] },
+  }, () => new Promise(() => {}))
+})
+
+When('代理 {string} 调用 ask_user_question 且用户回答 {string}', async function (_sessionId, answer) {
+  this.lastDecision = await this.dispatch('tools/execute', {
+    name: 'ask_user_question',
+    agent: this.mainAgent,
+    arguments: { questions: [{ id: 'q1', question: 'A 还是 B？' }] },
+  }, () => Promise.resolve({ value: { answers: [{ id: 'q1', selected: [answer] }] } }))
+})
+
+When('任务停滞超过阈值', async function () {
+  this.store.tasks[0].updatedAt = Date.now() - 60000 // 模拟停滞 60 秒
+  await new Promise((resolve) => setTimeout(resolve, 60))
+})
+
+Then('插件返回模拟回答且推荐选项被选中', function () {
+  assert.equal(this.lastDecision.value.answers[0].id, 'q1')
+  assert.deepEqual(this.lastDecision.value.answers[0].selected, ['方案A'])
+})
+
+Then('代理收到用户长时间未响应继续指令', function () {
+  assert.equal(this.mainAgent.followed.length, 1)
+  assert.ok(this.mainAgent.followed[0].content[0].text.includes('用户长时间未响应'))
+})
+
+Then('插件返回用户的真实回答', function () {
+  assert.deepEqual(this.lastDecision.value.answers[0].selected, ['B'])
+})
+
+Then('代理未收到继续指令', function () {
+  assert.equal(this.mainAgent.followed.length, 0)
+})
+
+Then('代理 {string} 收到系统唤醒恢复指令', function (_sessionId) {
+  assert.equal(this.mainAgent.followed.length, 1)
+  assert.ok(this.mainAgent.followed[0].content[0].text.includes('系统唤醒'))
+})

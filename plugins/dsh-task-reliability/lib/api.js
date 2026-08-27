@@ -76,6 +76,9 @@ function configValue(options) {
     saveDebounceMs: options.saveDebounceMs,
     resumeGraceMs: options.resumeGraceMs,
     rateMaxActions: options.rateMaxActions,
+    askTimeoutMs: options.askTimeoutMs,
+    watchdogIntervalMs: options.watchdogIntervalMs,
+    stallTimeoutMs: options.stallTimeoutMs,
   }
 }
 

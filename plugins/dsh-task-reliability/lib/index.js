@@ -47,13 +47,14 @@ import { homedir } from 'node:os'
 
 import { loadStore, saveStore } from './store.js'
 import { isTrustedApiRequest } from './fence.js'
-import { resumeActiveTasks } from './verify.js'
+import { resumeActiveTasks, runWatchdog } from './verify.js'
 import { registerListeners } from './events.js'
 import { createApi } from './api.js'
 import { currentProfile, patchFileOf, writePatchConfig } from './config-store.js'
 import {
   RETRYABLE_CODES, RETRY_MAX, MAX_LOOP, MAX_VERIFY, RETRY_BASE_MS,
   STEER_COOLDOWN_MS, SAVE_DEBOUNCE_MS, RESUME_GRACE_MS, RATE_MAX_ACTIONS,
+  ASK_TIMEOUT_MS, WATCHDOG_INTERVAL_MS, STALL_TIMEOUT_MS,
 } from './constants.js'
 
 export const name = 'dsh-task-reliability'
@@ -73,7 +74,10 @@ export function apply(ctx, config) {
   registerListeners(ctx, shared)
   registerApi(ctx, shared)
   scheduleResume(ctx, shared)
+  scheduleWatchdog(ctx, shared)
   registerTeardown(ctx, shared)
+  // 返回 shared 供测试/宿主检查（Cordis 忽略普通对象返回值）。
+  return shared
 }
 
 // ── options 构建 ───────────────────────────────────────────────────────────
@@ -111,6 +115,9 @@ function buildOptionsFrom(c) {
     saveDebounceMs: nonNegInt(c.saveDebounceMs, SAVE_DEBOUNCE_MS),
     resumeGraceMs: nonNegInt(c.resumeGraceMs, RESUME_GRACE_MS),
     rateMaxActions: positiveInt(c.rateMaxActions, RATE_MAX_ACTIONS),
+    askTimeoutMs: nonNegInt(c.askTimeoutMs, ASK_TIMEOUT_MS),
+    watchdogIntervalMs: nonNegInt(c.watchdogIntervalMs, WATCHDOG_INTERVAL_MS),
+    stallTimeoutMs: positiveInt(c.stallTimeoutMs, STALL_TIMEOUT_MS),
   }
 }
 
@@ -128,6 +135,9 @@ function configToPlain(options) {
     saveDebounceMs: options.saveDebounceMs,
     resumeGraceMs: options.resumeGraceMs,
     rateMaxActions: options.rateMaxActions,
+    askTimeoutMs: options.askTimeoutMs,
+    watchdogIntervalMs: options.watchdogIntervalMs,
+    stallTimeoutMs: options.stallTimeoutMs,
   }
 }
 
@@ -181,6 +191,8 @@ function createShared(ctx, options) {
     retryBuckets: new Map(),
     repeatStates: new Map(),
     actionLog: [],
+    resumeTimer: null,
+    watchdogTimer: null,
   }
 }
 
@@ -202,12 +214,24 @@ function scheduleResume(ctx, shared) {
   }, shared.options.resumeGraceMs)
 }
 
+/** 任务停滞看门狗（issue #34）：定期扫描活动任务，长时间无进展自动唤醒。 */
+function scheduleWatchdog(ctx, shared) {
+  if (shared.options.watchdogIntervalMs <= 0) return
+  shared.watchdogTimer = setInterval(() => {
+    void runWatchdog(ctx, shared.store, shared.save, shared.options)
+  }, shared.options.watchdogIntervalMs)
+}
+
 /** 卸载清理：定时器 + 立即落盘。 */
 function registerTeardown(ctx, shared) {
   ctx.effect(() => () => {
     if (shared.resumeTimer !== null) {
       clearTimeout(shared.resumeTimer)
       shared.resumeTimer = null
+    }
+    if (shared.watchdogTimer !== null) {
+      clearInterval(shared.watchdogTimer)
+      shared.watchdogTimer = null
     }
     shared.saver.cancel()
     try {

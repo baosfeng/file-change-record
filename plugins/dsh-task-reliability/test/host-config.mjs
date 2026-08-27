@@ -144,6 +144,9 @@ const DEFAULTS = {
   saveDebounceMs: 0,
   resumeGraceMs: 60000,
   rateMaxActions: 12,
+  askTimeoutMs: 1800000,
+  watchdogIntervalMs: 300000,
+  stallTimeoutMs: 600000,
 }
 
 test('config API suite', async () => {
@@ -171,7 +174,7 @@ test('config API suite', async () => {
     // ── 3. PUT /config 保存 → GET 读取 → 值正确 ────────────────────────
     {
       const { api } = boot({})
-      const saved = { apiToken: 'tok-1', retryMax: 5, maxLoop: 10, maxVerify: 2, retryableCodes: ['TIMEOUT', 'SERVER'], retryBaseMs: 2000, autopilot: true, steerCooldownMs: 5000, saveDebounceMs: 300, resumeGraceMs: 1000, rateMaxActions: 20 }
+      const saved = { apiToken: 'tok-1', retryMax: 5, maxLoop: 10, maxVerify: 2, retryableCodes: ['TIMEOUT', 'SERVER'], retryBaseMs: 2000, autopilot: true, steerCooldownMs: 5000, saveDebounceMs: 300, resumeGraceMs: 1000, rateMaxActions: 20, askTimeoutMs: 900000, watchdogIntervalMs: 120000, stallTimeoutMs: 300000 }
       const put = mockResponse()
       await invoke(api, mockRequest({ url: '/task-reliability/api/config', method: 'PUT', body: JSON.stringify(saved) }), put)
       assert.equal(put.writeHeadStatus, 200, 'PUT config is 200')
@@ -184,7 +187,7 @@ test('config API suite', async () => {
     // ── 4. 保存后 options 立即生效（retryMax 影响重试上限） ────────────
     {
       const { api, listeners } = boot({})
-      const saved = { apiToken: '', retryMax: 1, maxLoop: 8, maxVerify: 3, retryableCodes: ['TIMEOUT'], retryBaseMs: 0, autopilot: false, steerCooldownMs: 0, saveDebounceMs: 0, resumeGraceMs: 60000, rateMaxActions: 12 }
+      const saved = { apiToken: '', retryMax: 1, maxLoop: 8, maxVerify: 3, retryableCodes: ['TIMEOUT'], retryBaseMs: 0, autopilot: false, steerCooldownMs: 0, saveDebounceMs: 0, resumeGraceMs: 60000, rateMaxActions: 12, askTimeoutMs: 1800000, watchdogIntervalMs: 300000, stallTimeoutMs: 600000 }
       const put = mockResponse()
       await invoke(api, mockRequest({ url: '/task-reliability/api/config', method: 'PUT', body: JSON.stringify(saved) }), put)
       assert.equal(put.writeHeadStatus, 200, 'save ok')
@@ -203,7 +206,7 @@ test('config API suite', async () => {
     // ── 5. 持久化：保存 → 模拟重启（重新 apply）→ 配置生效 ────────────
     {
       const { api, home, disposeAll } = boot({})
-      const saved = { apiToken: 'persist-tok', retryMax: 9, maxLoop: 15, maxVerify: 5, retryableCodes: ['TIMEOUT', 'NETWORK'], retryBaseMs: 300, autopilot: true, steerCooldownMs: 4000, saveDebounceMs: 250, resumeGraceMs: 800, rateMaxActions: 25 }
+      const saved = { apiToken: 'persist-tok', retryMax: 9, maxLoop: 15, maxVerify: 5, retryableCodes: ['TIMEOUT', 'NETWORK'], retryBaseMs: 300, autopilot: true, steerCooldownMs: 4000, saveDebounceMs: 250, resumeGraceMs: 800, rateMaxActions: 25, askTimeoutMs: 600000, watchdogIntervalMs: 60000, stallTimeoutMs: 120000 }
       const put = mockResponse()
       await invoke(api, mockRequest({ url: '/task-reliability/api/config', method: 'PUT', body: JSON.stringify(saved) }), put)
       assert.equal(put.writeHeadStatus, 200, 'save ok')

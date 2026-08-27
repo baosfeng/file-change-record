@@ -169,7 +169,7 @@ function boot(config = {}, services = {}, dirOverride) {
       return undefined
     },
   }
-  apply(ctx, { saveDebounceMs: 0, resumeGraceMs: 60000, steerCooldownMs: 0, retryBaseMs: 0, ...config })
+  const shared = apply(ctx, { saveDebounceMs: 0, resumeGraceMs: 60000, steerCooldownMs: 0, retryBaseMs: 0, ...config })
   const api = routes.find((r) => r.path === '/task-reliability/api' && r.kind === 'prefix')
   assert.ok(api, 'prefix route /task-reliability/api registered')
   const disposeAll = () => {
@@ -177,7 +177,7 @@ function boot(config = {}, services = {}, dirOverride) {
     process.env.DSH_HOME = oldHome
   }
   disposeAlls.push(disposeAll)
-  return { ctx, listeners, api, mainAgent, verifyAgent, agents, policies, calls, dir, disposeAll }
+  return { ctx, listeners, api, mainAgent, verifyAgent, agents, policies, calls, dir, disposeAll, store: shared.store }
 }
 
 const tick = (ms = 10) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -660,6 +660,126 @@ test('会话级 autopilot 开启后问题可远程回答', async () => {
   const after = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
   assert.equal(after.body.value[0].answer, '选 B')
   assert.ok(env.policies.some((p) => p.agentId === 'session-main' && p.policy === 'never'), '审批策略切换 never')
+})
+
+// ── ask 超时自动继续（issue #34）─────────────────────────────────────────
+test('ask 超时后注入继续指令并返回模拟回答', async () => {
+  const env = boot({ askTimeoutMs: 20 })
+  const result = await dispatchOne(env.listeners, 'tools/execute', {
+    name: 'ask_user_question',
+    agent: env.mainAgent,
+    arguments: { questions: [{ id: 'q1', question: 'A 还是 B？', options: [{ label: '方案A' }, { label: '方案B' }] }] },
+  }, () => new Promise(() => {})) // 永不 resolve，模拟用户长时间不回答
+  assert.ok(result.value.answers.length === 1, '返回模拟回答')
+  assert.equal(result.value.answers[0].id, 'q1')
+  assert.deepEqual(result.value.answers[0].selected, ['方案A'], '推荐选项被选中')
+  assert.equal(env.mainAgent.followed.length, 1, '注入继续指令')
+  assert.ok(env.mainAgent.followed[0].content[0].text.includes('长时间未响应'))
+  const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
+  assert.equal(body.value.length, 1, '被跳过的 ask 记录到待确认列表')
+  assert.equal(body.value[0].question, 'A 还是 B？')
+  // 被跳过的 ask 可事后回答（复用需求 9 的 answer 机制）
+  const answered = await callApi(env.api, mockRequest({
+    url: `/task-reliability/api/questions/${body.value[0].id}/answer`,
+    method: 'POST',
+    body: JSON.stringify({ answer: '事后选 B' }),
+  }))
+  assert.equal(answered.body.ok, true)
+  const after = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
+  assert.equal(after.body.value[0].answer, '事后选 B')
+})
+
+test('ask 超时后无推荐选项时返回空回答由模型自行决策', async () => {
+  const env = boot({ askTimeoutMs: 20 })
+  const result = await dispatchOne(env.listeners, 'tools/execute', {
+    name: 'ask_user_question',
+    agent: env.mainAgent,
+    arguments: { questions: [{ id: 'q2', question: '请自行决定' }] },
+  }, () => new Promise(() => {}))
+  assert.deepEqual(result.value.answers[0].selected, [], '无推荐选项时 selected 为空')
+  assert.equal(env.mainAgent.followed.length, 1)
+})
+
+test('ask 用户回答后返回真实结果不超时', async () => {
+  const env = boot({ askTimeoutMs: 60000 })
+  const result = await dispatchOne(env.listeners, 'tools/execute', {
+    name: 'ask_user_question',
+    agent: env.mainAgent,
+    arguments: { questions: [{ id: 'q1', question: 'A 还是 B？' }] },
+  }, () => Promise.resolve({ value: { answers: [{ id: 'q1', selected: ['B'] }] } }))
+  assert.deepEqual(result.value.answers[0].selected, ['B'], '真实回答透传')
+  assert.equal(env.mainAgent.followed.length, 0, '不注入继续指令')
+  const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
+  assert.equal(body.value.length, 0, '不记录问题')
+})
+
+test('askTimeoutMs=0 时 ask 超时禁用', async () => {
+  const env = boot({ askTimeoutMs: 0 })
+  const result = await dispatchOne(env.listeners, 'tools/execute', {
+    name: 'ask_user_question',
+    agent: env.mainAgent,
+    arguments: { questions: [{ id: 'q1', question: 'A 还是 B？' }] },
+  }, () => Promise.resolve({ value: { answers: [{ id: 'q1', selected: ['B'] }] } }))
+  assert.deepEqual(result.value.answers[0].selected, ['B'])
+  assert.equal(env.mainAgent.followed.length, 0)
+})
+
+test('非 ask 工具不受 ask 超时影响', async () => {
+  const env = boot({ askTimeoutMs: 20 })
+  let nextCalled = false
+  const result = await dispatchOne(env.listeners, 'tools/execute', {
+    name: 'bash',
+    agent: env.mainAgent,
+    arguments: { command: 'ls' },
+  }, () => { nextCalled = true; return Promise.resolve({ value: { output: 'ok' } }) })
+  assert.equal(nextCalled, true, '直接透传 next')
+  assert.deepEqual(result.value, { output: 'ok' })
+})
+
+// ── 任务停滞看门狗（issue #34）───────────────────────────────────────────
+test('看门狗唤醒停滞的活动任务', async () => {
+  const env = boot({ watchdogIntervalMs: 20, stallTimeoutMs: 1000 })
+  await registerTask(env)
+  env.store.tasks[0].updatedAt = Date.now() - 60000 // 模拟停滞 60 秒
+  await tick(60) // 等看门狗触发
+  assert.equal(env.mainAgent.followed.length, 1, '唤醒指令注入')
+  assert.ok(env.mainAgent.followed[0].content[0].text.includes('系统唤醒'))
+  const store = await storeOf(env)
+  assert.equal(store.tasks[0].status, 'active')
+})
+
+test('看门狗不唤醒未停滞的任务', async () => {
+  const env = boot({ watchdogIntervalMs: 20, stallTimeoutMs: 1000 })
+  await registerTask(env)
+  await tick(60)
+  assert.equal(env.mainAgent.followed.length, 0, '未停滞不唤醒')
+})
+
+test('watchdogIntervalMs=0 时看门狗禁用', async () => {
+  const env = boot({ watchdogIntervalMs: 0, stallTimeoutMs: 10 })
+  await registerTask(env)
+  await tick(60)
+  assert.equal(env.mainAgent.followed.length, 0)
+})
+
+test('看门狗唤醒后更新活动时间避免重复唤醒', async () => {
+  const env = boot({ watchdogIntervalMs: 20, stallTimeoutMs: 1000 })
+  await registerTask(env)
+  env.store.tasks[0].updatedAt = Date.now() - 60000
+  await tick(60)
+  assert.equal(env.mainAgent.followed.length, 1, '第一次唤醒')
+  await tick(60)
+  assert.equal(env.mainAgent.followed.length, 1, '不重复唤醒')
+})
+
+test('看门狗唤醒失败不标记任务失败', async () => {
+  const env = boot({ watchdogIntervalMs: 20, stallTimeoutMs: 1000 })
+  await registerTask(env)
+  env.store.tasks[0].updatedAt = Date.now() - 60000
+  env.agents.resume = async () => { throw new Error('session missing') }
+  await tick(60)
+  const store = await storeOf(env)
+  assert.equal(store.tasks[0].status, 'active', '保持 active 等待下次唤醒')
 })
 
 // ── 休眠/重启恢复 ─────────────────────────────────────────────────────────

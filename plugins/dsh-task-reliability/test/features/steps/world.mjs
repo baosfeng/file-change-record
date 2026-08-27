@@ -87,7 +87,8 @@ class World {
         return undefined
       },
     }
-    apply(ctx, { saveDebounceMs: 0, resumeGraceMs: 60000, steerCooldownMs: 0, retryBaseMs: 0, ...config })
+    const shared = apply(ctx, { saveDebounceMs: 0, resumeGraceMs: 60000, steerCooldownMs: 0, retryBaseMs: 0, ...config })
+    this.store = shared.store
   }
 
   makeAgent(id, opts = {}) {

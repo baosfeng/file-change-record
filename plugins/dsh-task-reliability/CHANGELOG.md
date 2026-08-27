@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-08-28
+
+### 新增
+
+- **ask 超时自动继续（issue #34）**：`tools/execute` 包装 `ask_user_question`，空闲计时器（`askTimeoutMs`，默认 30 分钟，0 = 禁用）超时后：记录待确认问题（复用自主决策机制，可事后回答）+ 注入「用户长时间未响应，请自行决策继续」followup + 返回模拟回答（有推荐选项则选中第一个，否则空回答由模型自行决策），任务不挂起；用户回答时真实结果透传。
+- **任务停滞看门狗（issue #34）**：定期（`watchdogIntervalMs`，默认 5 分钟，0 = 禁用）扫描活动任务，最后活动时间超过 `stallTimeoutMs`（默认 10 分钟）判定停滞 → 复用恢复逻辑唤醒（live agent 直接 followup，否则 `agents.resume` + 「系统唤醒恢复」指令），锁屏/休眠/网络断开后自动继续，无需重启 DSH；唤醒失败不标记 failed，留给下次轮询。
+- **配置项**：`askTimeoutMs` / `watchdogIntervalMs` / `stallTimeoutMs`（设置页可视化 + `GET/PUT /task-reliability/api/config` 同步支持）。
+- **测试**：ask 超时（超时注入/推荐选项/真实回答透传/禁用/非 ask 透传/子代理/模拟回答过滤）、看门狗（唤醒/未停滞/禁用/不重复唤醒/失败保持/live 不 resume/阈值边界）、Gherkin 3 新场景、client-render 设置页新字段断言。
+
+### 取舍说明
+
+- **系统唤醒恢复用看门狗轮询替代电源事件监听**：Node 无内置电源事件 API，`system-sleep` 等 npm 包引入运行时依赖（违反无新增依赖约束）；看门狗轮询（默认 5 分钟间隔）在唤醒后最多一个周期内恢复任务。
+
 ## [0.2.0] - 2026-08-27
 
 ### 新增

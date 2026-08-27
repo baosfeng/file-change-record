@@ -128,7 +128,7 @@ function boot(config = {}, services = {}, dirOverride) {
       return undefined
     },
   }
-  apply(ctx, { saveDebounceMs: 0, resumeGraceMs: 60000, steerCooldownMs: 0, retryBaseMs: 0, ...config })
+  const shared = apply(ctx, { saveDebounceMs: 0, resumeGraceMs: 60000, steerCooldownMs: 0, retryBaseMs: 0, ...config })
   const api = routes.find((r) => r.path === '/task-reliability/api' && r.kind === 'prefix')
   assert.ok(api, 'prefix route /task-reliability/api registered')
   const disposeAll = () => {
@@ -136,7 +136,7 @@ function boot(config = {}, services = {}, dirOverride) {
     process.env.DSH_HOME = oldHome
   }
   disposeAlls.push(disposeAll)
-  return { ctx, listeners, api, mainAgent, verifyAgent, agents, policies, calls, dir, disposeAll }
+  return { ctx, listeners, api, mainAgent, verifyAgent, agents, policies, calls, dir, disposeAll, store: shared.store }
 }
 
 const tick = (ms = 10) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -293,6 +293,64 @@ test('重启时 agent 已 live 则直接唤醒不重复 resume', async () => {
   assert.equal(env2.calls.resume.length, 0, 'live agent 不 resume')
   assert.equal(env2.mainAgent.followed.length, 1, '直接 followup 唤醒')
   assert.ok(env2.mainAgent.followed[0].content[0].text.includes('系统重启恢复'))
+})
+
+// ── ask 超时边界（issue #34）─────────────────────────────────────────────
+test('ask 超时对子代理透传不处理', async () => {
+  const env = boot({ askTimeoutMs: 20 })
+  const sub = makeAgent('sub-edge', { origin: 'subagent' })
+  let nextCalled = false
+  const result = await dispatchEvent(env.listeners, 'tools/execute', {
+    name: 'ask_user_question',
+    agent: sub,
+    arguments: { questions: [{ id: 'q1', question: 'x' }] },
+  }, () => { nextCalled = true; return Promise.resolve({ value: { answers: [] } }) })
+  assert.equal(nextCalled, true, '子代理直接透传')
+  assert.deepEqual(result.value.answers, [])
+  assert.equal(sub.followed.length, 0)
+})
+
+test('ask 超时对空 exec 透传', async () => {
+  const env = boot({ askTimeoutMs: 20 })
+  let nextCalled = false
+  const result = await dispatchEvent(env.listeners, 'tools/execute', null, () => {
+    nextCalled = true
+    return Promise.resolve({ value: { output: 'x' } })
+  })
+  assert.equal(nextCalled, true)
+  assert.deepEqual(result.value, { output: 'x' })
+})
+
+test('ask 超时 arguments 无 questions 时返回空回答', async () => {
+  const env = boot({ askTimeoutMs: 20 })
+  const result = await dispatchEvent(env.listeners, 'tools/execute', {
+    name: 'ask_user_question',
+    agent: env.mainAgent,
+    arguments: { questions: 'not-an-array' },
+  }, () => new Promise(() => {}))
+  assert.deepEqual(result.value.answers, [], '无有效 questions 返回空回答')
+  assert.equal(env.mainAgent.followed.length, 1, '仍注入继续指令')
+})
+
+// ── 看门狗边界（issue #34）───────────────────────────────────────────────
+test('看门狗唤醒 live agent 不重复 resume', async () => {
+  const env = boot({ watchdogIntervalMs: 20, stallTimeoutMs: 1000 }, { liveAgentId: 'session-edge' })
+  await registerTask(env)
+  env.store.tasks[0].updatedAt = Date.now() - 60000
+  await tick(60)
+  assert.equal(env.calls.resume.length, 0, 'live agent 不 resume')
+  assert.equal(env.mainAgent.followed.length, 1, '直接 followup 唤醒')
+  assert.ok(env.mainAgent.followed[0].content[0].text.includes('系统唤醒'))
+})
+
+test('看门狗跳过非 active 任务', async () => {
+  const env = boot({ watchdogIntervalMs: 20, stallTimeoutMs: 1000 })
+  await registerTask(env)
+  const id = env.store.tasks[0].id
+  await callApi(env.api, mockRequest({ url: `/task-reliability/api/tasks/${id}/done`, method: 'POST' }))
+  env.store.tasks[0].updatedAt = Date.now() - 60000
+  await tick(60)
+  assert.equal(env.mainAgent.followed.length, 0, 'done 任务不唤醒')
 })
 
 afterAll(() => {

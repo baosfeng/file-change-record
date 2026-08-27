@@ -221,6 +221,7 @@ test('client bundle registers settings tab via slots and renders the config form
     apiToken: 'tok', retryMax: 5, maxLoop: 10, maxVerify: 2,
     retryableCodes: ['TIMEOUT', 'SERVER'], retryBaseMs: 2000, autopilot: true,
     steerCooldownMs: 5000, saveDebounceMs: 300, resumeGraceMs: 1000, rateMaxActions: 20,
+    askTimeoutMs: 900000, watchdogIntervalMs: 120000, stallTimeoutMs: 300000,
   }
   hookValues.set(0, [configValue, () => {}])
   hookValues.set(1, [{ ...configValue, retryableCodesText: 'TIMEOUT, SERVER' }, () => {}])
@@ -255,6 +256,10 @@ test('client bundle registers settings tab via slots and renders the config form
   assert.ok(joined.includes('Retryable codes'), 'retryableCodes field rendered')
   assert.ok(joined.includes('Max continues per task'), 'maxLoop field rendered')
   assert.ok(joined.includes('Max verifies'), 'maxVerify field rendered')
+  assert.ok(joined.includes('Ask timeout (ms)'), 'askTimeoutMs field rendered (issue #34)')
+  assert.ok(joined.includes('Stall watchdog'), 'watchdog section rendered (issue #34)')
+  assert.ok(joined.includes('Watchdog interval (ms)'), 'watchdogIntervalMs field rendered (issue #34)')
+  assert.ok(joined.includes('Stall threshold (ms)'), 'stallTimeoutMs field rendered (issue #34)')
   assert.ok(joined.includes('Autopilot (default on)'), 'autopilot switch rendered')
   assert.ok(joined.includes('Remote trigger token'), 'apiToken field rendered')
   assert.ok(joined.includes('Save'), 'save button rendered')

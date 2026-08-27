@@ -12,6 +12,7 @@ import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { apply } from '../lib/index.js'
+import { runWatchdog } from '../lib/verify.js'
 
 // ── mock helpers ──────────────────────────────────────────────────────────
 function mockResponse() {
@@ -132,7 +133,7 @@ function boot(config = {}, services = {}, dirOverride) {
       return undefined
     },
   }
-  apply(ctx, { saveDebounceMs: 0, resumeGraceMs: 60000, steerCooldownMs: 0, retryBaseMs: 0, ...config })
+  const shared = apply(ctx, { saveDebounceMs: 0, resumeGraceMs: 60000, steerCooldownMs: 0, retryBaseMs: 0, ...config })
   const api = routes.find((r) => r.path === '/task-reliability/api' && r.kind === 'prefix')
   assert.ok(api, 'prefix route /task-reliability/api registered')
   const disposeAll = () => {
@@ -140,7 +141,7 @@ function boot(config = {}, services = {}, dirOverride) {
     process.env.DSH_HOME = oldHome
   }
   disposeAlls.push(disposeAll)
-  return { ctx, listeners, api, mainAgent, verifyAgent, policies, calls, dir, disposeAll }
+  return { ctx, listeners, api, mainAgent, verifyAgent, policies, calls, dir, disposeAll, store: shared.store }
 }
 
 const tick = (ms = 10) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -952,6 +953,93 @@ test('非字符串 description 注册返回 400', async () => {
     body: JSON.stringify({ sessionId: 's-1', description: 123 }),
   }))
   assert.equal(response.writeHeadStatus, 400)
+})
+
+// ── 第七轮：issue #34 变异定向断言 ────────────────────────────────────────
+test('ask 超时继续文本包含完整段落', async () => {
+  const env = boot({ askTimeoutMs: 20 })
+  await dispatchOne(env.listeners, 'tools/execute', {
+    name: 'ask_user_question',
+    agent: env.mainAgent,
+    arguments: { questions: [{ id: 'q1', question: 'x' }] },
+  }, () => new Promise(() => {}))
+  const text = env.mainAgent.followed[0].content[0].text
+  assert.ok(text.includes('用户长时间未响应'))
+  assert.ok(text.includes('请基于已有信息和上下文自行决策并继续执行任务'))
+  assert.ok(text.includes('不要再次询问用户'))
+  assert.ok(text.includes('被跳过的询问已记录，用户回来后统一处理'))
+})
+
+test('ask 超时模拟回答跳过无 id 问题', async () => {
+  const env = boot({ askTimeoutMs: 20 })
+  const result = await dispatchOne(env.listeners, 'tools/execute', {
+    name: 'ask_user_question',
+    agent: env.mainAgent,
+    arguments: { questions: [
+      { question: '无 id 的问题' },
+      { id: 'q1', question: '有 id 的问题' },
+      null,
+    ] },
+  }, () => new Promise(() => {}))
+  assert.equal(result.value.answers.length, 1, '仅有效 id 的问题生成回答')
+  assert.equal(result.value.answers[0].id, 'q1')
+})
+
+test('ask 超时模拟回答 options 非数组时 selected 为空', async () => {
+  const env = boot({ askTimeoutMs: 20 })
+  const result = await dispatchOne(env.listeners, 'tools/execute', {
+    name: 'ask_user_question',
+    agent: env.mainAgent,
+    arguments: { questions: [{ id: 'q1', question: 'x', options: 'not-array' }] },
+  }, () => new Promise(() => {}))
+  assert.deepEqual(result.value.answers[0].selected, [], '非法 options 视为无推荐')
+})
+
+test('ask 超时模拟回答过滤非法 option 项', async () => {
+  const env = boot({ askTimeoutMs: 20 })
+  const result = await dispatchOne(env.listeners, 'tools/execute', {
+    name: 'ask_user_question',
+    agent: env.mainAgent,
+    arguments: { questions: [{ id: 'q1', question: 'x', options: [null, { label: '推荐' }, { label: 42 }] }] },
+  }, () => new Promise(() => {}))
+  assert.deepEqual(result.value.answers[0].selected, ['推荐'], '仅合法 label 的 option 可被选中')
+})
+
+test('看门狗唤醒文本包含完整段落', async () => {
+  const env = boot({ watchdogIntervalMs: 20, stallTimeoutMs: 1000 })
+  await registerTask(env)
+  env.store.tasks[0].updatedAt = Date.now() - 60000
+  await tick(60)
+  const text = env.mainAgent.followed[0].content[0].text
+  assert.ok(text.includes('系统此前因锁屏/休眠/网络中断而停滞'))
+  assert.ok(text.includes('先回顾当前进度，然后继续执行剩余部分，直到任务完成'))
+})
+
+test('看门狗停滞判定为严格小于阈值', async () => {
+  const env = boot({ watchdogIntervalMs: 0, stallTimeoutMs: 1000 })
+  await registerTask(env)
+  const task = env.store.tasks[0]
+  const now = Date.now()
+  task.updatedAt = now - 999 // 未到阈值 → 不唤醒
+  await runWatchdog(env.ctx, env.store, () => {}, { stallTimeoutMs: 1000 }, now)
+  assert.equal(env.mainAgent.followed.length, 0, '未到阈值不视为停滞')
+  task.updatedAt = now - 1000 // 恰好等于阈值 → 视为停滞（严格小于）
+  await runWatchdog(env.ctx, env.store, () => {}, { stallTimeoutMs: 1000 }, now)
+  assert.equal(env.mainAgent.followed.length, 1, '等于阈值视为停滞')
+})
+
+test('ask 超时配置为 0 时透传且不记录问题', async () => {
+  const env = boot({ askTimeoutMs: 0 })
+  let nextCalled = false
+  const result = await dispatchOne(env.listeners, 'tools/execute', {
+    name: 'ask_user_question',
+    agent: env.mainAgent,
+    arguments: { questions: [{ id: 'q1', question: 'x' }] },
+  }, () => { nextCalled = true; return Promise.resolve({ value: { answers: [{ id: 'q1', selected: ['B'] }] } }) })
+  assert.equal(nextCalled, true)
+  assert.deepEqual(result.value.answers[0].selected, ['B'])
+  const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
+  assert.equal(body.value.length, 0, '禁用时不记录问题')
 })
 
 afterAll(() => {

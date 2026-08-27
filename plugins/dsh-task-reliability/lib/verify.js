@@ -8,7 +8,9 @@
 
 import { withTimeout, userMessage } from './util.js'
 import { lastAssistantText, summarizeSession } from './text.js'
-import { DIRECT_CONTINUE_TEXT, RESUME_CONTINUE_TEXT, VERIFY_TIMEOUT_MS } from './constants.js'
+import {
+  DIRECT_CONTINUE_TEXT, RESUME_CONTINUE_TEXT, VERIFY_TIMEOUT_MS, WAKE_CONTINUE_TEXT,
+} from './constants.js'
 
 function verifyPrompt(task, summary) {
   return `你是一个任务完成度校验员。请阅读以下任务与当前会话进展，判断任务是否已经真正完成。
@@ -175,4 +177,43 @@ export async function resumeActiveTasks(ctx, store, save) {
     wakeAgent(task, agent)
   }
   save()
+}
+
+// ── 任务停滞看门狗（issue #34）────────────────────────────────────────────
+
+/**
+ * 唤醒单个停滞任务：live agent 直接复用，否则 resume；注入唤醒继续指令并
+ * 刷新活动时间。与重启恢复不同，唤醒失败不标记 failed（网络/会话暂时不可用
+ * 时留给下一次看门狗轮询重试）。
+ */
+export async function wakeStalledTask(ctx, task, save) {
+  const agents = ctx.get('agents')
+  if (!resumeServiceReady(agents)) return
+  let agent
+  try {
+    const live = agents.get(task.sessionId)
+    agent = live !== undefined ? live : (await agents.resume({
+      resumeSessionId: task.sessionId,
+      agentOptions: {},
+    })).agent
+  } catch {
+    return
+  }
+  if (agent === undefined) return
+  try {
+    agent.followup(userMessage(WAKE_CONTINUE_TEXT(task.description)))
+    task.updatedAt = Date.now()
+  } catch {
+    // followup is best-effort; keep the task active for a later attempt
+  }
+  save()
+}
+
+/** 扫描停滞的活动任务（最后活动时间超过阈值）并逐个唤醒。 */
+export async function runWatchdog(ctx, store, save, options, now = Date.now()) {
+  for (const task of store.tasks) {
+    if (task.status !== 'active') continue
+    if (now - task.updatedAt < options.stallTimeoutMs) continue
+    await wakeStalledTask(ctx, task, save)
+  }
 }
