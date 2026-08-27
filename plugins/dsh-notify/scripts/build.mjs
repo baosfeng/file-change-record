@@ -25,6 +25,7 @@ const PARTS = [
   ['/*__PART_I18N__*/', 'lib/parts/i18n.js'],
   ['/*__PART_NOTIFY_RENDER__*/', 'lib/parts/render.js'],
   ['/*__PART_STREAM__*/', 'lib/parts/stream.js'],
+  ['/*__PART_SETTINGS__*/', 'lib/parts/settings.js'],
 ]
 
 let src = readFileSync(join(root, 'lib/client.src.js'), 'utf8')

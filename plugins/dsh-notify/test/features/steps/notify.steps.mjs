@@ -3,126 +3,13 @@
  * Boots the plugin against a mocked ctx per scenario, drives events + routes
  * through it, mirroring host-smoke.mjs: end/ask/approval notices, subagent
  * filtering, dedupe, config switches, remote trigger, token gate and SSE.
+ *
+ * World + helpers live in world.mjs (shared with notify-config.steps.mjs —
+ * cucumber allows only one setWorldConstructor).
  */
-import { Given, When, Then, After, setWorldConstructor } from '@cucumber/cucumber'
+import { Given, When, Then } from '@cucumber/cucumber'
 import assert from 'node:assert/strict'
-import { apply } from '../../../lib/index.js'
-
-class World {
-  constructor() {
-    this.listeners = {}
-    this.api = null
-    this.clients = []
-    this.nextCalled = false
-    this.lastResponse = null
-    this.disposers = []
-  }
-
-  boot(config) {
-    const listeners = this.listeners
-    const disposers = this.disposers
-    const ctx = {
-      logger: { warn() {} },
-      on(name, handler) {
-        ;(listeners[name] ??= []).push(handler)
-        return () => {}
-      },
-      effect(fn) {
-        const dispose = fn()
-        disposers.push(dispose)
-        return dispose
-      },
-      webServer: {
-        register: (route) => {
-          if (route.kind === 'prefix' && route.path === '/notify/api') this.api = route
-          return () => {}
-        },
-      },
-      get(name) {
-        if (name === 'sessionTitle') return ctx.sessionTitle
-        if (name === 'webRuntime') return { trustedHosts: [] }
-        return undefined
-      },
-      sessionTitle: {
-        get(session) {
-          return session?.__title === undefined ? {} : { title: session.__title }
-        },
-      },
-    }
-    this.ctx = ctx
-    apply(ctx, config)
-    assert.ok(this.api, 'prefix route /notify/api registered')
-  }
-
-  async dispatch(name, ...args) {
-    for (const handler of [...(this.listeners[name] ?? [])]) {
-      await handler(...args)
-    }
-  }
-
-  async invoke(request, response) {
-    await this.api.handler(request, response)
-  }
-
-  noticesOf(client) {
-    return client.written.filter((c) => c.includes('data: '))
-  }
-}
-
-function mockResponse() {
-  const res = {
-    writeHeadStatus: 0,
-    written: [],
-    closeHandlers: [],
-    writeHead(status) {
-      res.writeHeadStatus = status
-    },
-    write(chunk) {
-      res.written.push(String(chunk))
-      return true
-    },
-    end(value) {
-      if (value !== undefined) res.written.push(String(value))
-    },
-    destroy() {},
-    on(_event, handler) {
-      if (_event === 'close') res.closeHandlers.push(handler)
-    },
-    removeListener() {},
-    emitClose() {
-      for (const h of res.closeHandlers.splice(0)) h()
-    },
-  }
-  return res
-}
-
-function mockRequest({ url, method = 'GET', host = '127.0.0.1:3080', secFetchSite, origin, token, body = '' } = {}) {
-  const headers = { host }
-  if (secFetchSite !== undefined) headers['sec-fetch-site'] = secFetchSite
-  if (origin !== undefined) headers.origin = origin
-  if (token !== undefined) headers['x-notify-token'] = token
-  return {
-    url,
-    method,
-    headers,
-    async *[Symbol.asyncIterator]() {
-      yield body
-    },
-  }
-}
-
-function topAgent(id, extra = {}) {
-  return {
-    id,
-    session: { header: { cwd: '/work/alpha', ...extra }, __title: `标题-${id}` },
-  }
-}
-
-setWorldConstructor(World)
-
-After(async function () {
-  for (const dispose of this.disposers.splice(0)) dispose()
-})
+import { mockResponse, mockRequest, topAgent } from './world.mjs'
 
 // ── Given ─────────────────────────────────────────────────────────────────
 Given('通知插件已启动', async function () {

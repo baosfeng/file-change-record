@@ -98,6 +98,8 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-guardian
 
 ## 配置
 
+**无应用层配置项**（`apply(ctx)` 不接收 config 参数，设置页无可视化配置入口；插件激活即生效）。运行时状态与开关：
+
 - **状态文件**：`$DSH_HOME/guardian/state.json`（`~/.dsh/guardian/state.json`）——持久化候选/转正清单、失败次数、安全模式、事件日志。损坏自动降级为空状态，不影响启动。
 - **安全模式**：面板开关（或直接编辑 `state.json` 的 `safeMode: true`）。开启后所有候选/已转正插件不再加载；恢复环境后关闭开关即重新加载。
 

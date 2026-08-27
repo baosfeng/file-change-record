@@ -55,7 +55,28 @@ async function dispatchGet(method, request, response, shared) {
     writeJson(response, 200, { ok: true, value: shared.store.questions })
     return true
   }
+  if (method === 'config') {
+    writeJson(response, 200, { ok: true, value: configValue(shared.options) })
+    return true
+  }
   return false
+}
+
+/** 当前生效配置（设置页表单回填；retryableCodes Set → 数组）。 */
+function configValue(options) {
+  return {
+    apiToken: options.apiToken,
+    retryMax: options.retryMax,
+    maxLoop: options.maxLoop,
+    maxVerify: options.maxVerify,
+    retryableCodes: [...options.retryableCodes],
+    retryBaseMs: options.retryBaseMs,
+    autopilot: options.autopilot,
+    steerCooldownMs: options.steerCooldownMs,
+    saveDebounceMs: options.saveDebounceMs,
+    resumeGraceMs: options.resumeGraceMs,
+    rateMaxActions: options.rateMaxActions,
+  }
 }
 
 // ── POST 路由 ──────────────────────────────────────────────────────────────
@@ -157,6 +178,18 @@ async function postMode(request, response, shared) {
   return true
 }
 
+/** 保存配置（设置页）：校验 payload 为对象 → 持久化 + 更新内存 options。 */
+async function putConfig(request, response, shared) {
+  const payload = await readJsonBody(request)
+  if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
+    writeJson(response, 400, { ok: false, error: { message: 'config must be an object' } })
+    return true
+  }
+  await shared.saveConfig(payload)
+  writeJson(response, 200, { ok: true })
+  return true
+}
+
 // ── trigger 动作 ───────────────────────────────────────────────────────────
 
 async function triggerRegister(body, response, shared) {
@@ -220,6 +253,7 @@ async function dispatchPost(method, request, response, shared) {
   const answerMatch = method?.match(/^questions\/([^/]+)\/answer$/)
   if (answerMatch !== null) return postAnswer(answerMatch, request, response, shared)
   if (method === 'mode') return postMode(request, response, shared)
+  if (method === 'config') return putConfig(request, response, shared)
   if (method === 'trigger') return postTrigger(request, response, shared)
   return false
 }
@@ -228,6 +262,7 @@ async function dispatch(method, requestMethod, request, response, shared) {
   if (method === undefined) return false
   if (requestMethod === 'GET') return dispatchGet(method, request, response, shared)
   if (requestMethod === 'POST') return dispatchPost(method, request, response, shared)
+  if (requestMethod === 'PUT' && method === 'config') return putConfig(request, response, shared)
   return false
 }
 

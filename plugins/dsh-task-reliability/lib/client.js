@@ -65,6 +65,39 @@ window.__ModuleLoader__.load({
       verifies: (n) => (isZh() ? `校验 ${n} 次` : `${n} verifies`),
       loadError: () => (isZh() ? '加载失败' : 'Load failed'),
       autoSession: () => (isZh() ? '当前会话' : 'Current session'),
+      // 设置页（issue #27 配置可视化）
+      settingsTitle: () => (isZh() ? '任务可靠性' : 'Task Reliability'),
+      settingsRetry: () => (isZh() ? '超时重试' : 'Retry'),
+      settingsRetryMax: () => (isZh() ? '最大重试次数' : 'Max retries'),
+      settingsRetryMaxHint: () => (isZh() ? '超时/瞬态错误自动重试上限' : 'Cap for auto-retry on timeout/transient errors'),
+      settingsRetryBaseMs: () => (isZh() ? '重试退避基数（毫秒）' : 'Retry backoff base (ms)'),
+      settingsRetryBaseMsHint: () => (isZh() ? '指数退避：base × 2^n' : 'Exponential backoff: base × 2^n'),
+      settingsRetryableCodes: () => (isZh() ? '可重试错误码' : 'Retryable codes'),
+      settingsRetryableCodesHint: () => (isZh() ? '逗号分隔的错误码列表' : 'Comma-separated error codes'),
+      settingsLoop: () => (isZh() ? '自动继续' : 'Auto-continue'),
+      settingsMaxLoop: () => (isZh() ? '每任务继续上限' : 'Max continues per task'),
+      settingsMaxLoopHint: () => (isZh() ? '任务未完成自动继续的次数上限' : 'Cap for auto-continue of unfinished tasks'),
+      settingsMaxVerify: () => (isZh() ? '校验次数上限' : 'Max verifies'),
+      settingsMaxVerifyHint: () => (isZh() ? '完成度校验 agent 的校验次数上限' : 'Cap for completion-verification runs'),
+      settingsSteerCooldownMs: () => (isZh() ? '继续冷却（毫秒）' : 'Continue cooldown (ms)'),
+      settingsSteerCooldownMsHint: () => (isZh() ? '两次自动继续之间的最小间隔' : 'Min interval between auto-continues'),
+      settingsPersist: () => (isZh() ? '持久化与速率' : 'Persistence & rate'),
+      settingsSaveDebounceMs: () => (isZh() ? '落盘防抖（毫秒）' : 'Save debounce (ms)'),
+      settingsSaveDebounceMsHint: () => (isZh() ? '任务状态写入磁盘的防抖窗口' : 'Debounce window for state writes'),
+      settingsResumeGraceMs: () => (isZh() ? '恢复宽限（毫秒）' : 'Resume grace (ms)'),
+      settingsResumeGraceMsHint: () => (isZh() ? '启动后延迟恢复任务的时间' : 'Delay before resuming tasks on boot'),
+      settingsRateMaxActions: () => (isZh() ? '每分钟动作上限' : 'Max actions/min'),
+      settingsRateMaxActionsHint: () => (isZh() ? '自动继续的全局速率限制' : 'Global rate limit for auto-continues'),
+      settingsAutopilot: () => (isZh() ? '自主决策（默认开启）' : 'Autopilot (default on)'),
+      settingsAutopilotHint: () => (isZh() ? '新会话默认进入自主决策模式' : 'New sessions default to autopilot mode'),
+      settingsSecurity: () => (isZh() ? '安全' : 'Security'),
+      settingsApiToken: () => (isZh() ? '远程触发 Token' : 'Remote trigger token'),
+      settingsApiTokenHint: () => (isZh() ? '配置后远程触发需携带 x-task-reliability-token 头' : 'Remote triggers must send x-task-reliability-token when set'),
+      save: () => (isZh() ? '保存' : 'Save'),
+      saved: () => (isZh() ? '已保存' : 'Saved'),
+      saveFailed: () => (isZh() ? '保存失败' : 'Save failed'),
+      loading: () => (isZh() ? '加载中…' : 'Loading…'),
+      loadError: () => (isZh() ? '加载失败' : 'Load failed'),
     }
 
     // ── API helpers ───────────────────────────────────────────────────────
@@ -324,6 +357,162 @@ window.__ModuleLoader__.load({
       )
     }
 
+    // ── 设置页视图（issue #27 配置可视化，官方 slots 扩展点）────────────
+    const SETTINGS_STYLES = `
+.dtr-settings{display:flex;flex-direction:column;gap:10px;padding:12px}
+.dtr-settings-section{display:flex;flex-direction:column;gap:8px}
+.dtr-settings-title{font:var(--dsw-font-xs-strong-13);color:var(--dsw-alias-label-secondary)}
+.dtr-settings-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-2)}
+.dtr-settings-info{display:flex;flex-direction:column;gap:2px;min-width:0}
+.dtr-settings-label{font:var(--dsw-font-xs-strong-13)}
+.dtr-settings-hint{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary);line-height:1.5}
+.dtr-settings-input{flex:none;width:180px;height:28px;padding:0 8px;border-radius:6px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xxs-12)}
+.dtr-settings-actions{display:flex;align-items:center;gap:8px}
+.dtr-settings-saved{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-state-success-primary)}
+.dtr-settings-error{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-state-danger-primary)}
+.dtr-settings-status{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary)}
+`
+
+    function SettingsSwitchRow({ label, hint, on, onChange }) {
+      return createElement('div', { className: 'dtr-settings-row' },
+        createElement('div', { className: 'dtr-settings-info' },
+          createElement('div', { className: 'dtr-settings-label' }, label),
+          createElement('div', { className: 'dtr-settings-hint' }, hint),
+        ),
+        createElement('div', {
+          className: 'dtr-toggle',
+          'data-on': String(on),
+          role: 'switch',
+          'aria-checked': String(on),
+          onClick: () => onChange(!on),
+        }),
+      )
+    }
+
+    function SettingsTextRow({ label, hint, value, onChange, type }) {
+      return createElement('div', { className: 'dtr-settings-row' },
+        createElement('div', { className: 'dtr-settings-info' },
+          createElement('div', { className: 'dtr-settings-label' }, label),
+          createElement('div', { className: 'dtr-settings-hint' }, hint),
+        ),
+        createElement('input', {
+          className: 'dtr-settings-input',
+          type: type ?? 'text',
+          value,
+          onChange: (event) => onChange(event.target.value),
+        }),
+      )
+    }
+
+    /** 设置页主视图：加载当前配置 → 表单编辑 → 保存（PUT /task-reliability/api/config）。 */
+    function TaskReliabilitySettingsView() {
+      const [config, setConfig] = useState(null)
+      const [draft, setDraft] = useState(null)
+      const [loading, setLoading] = useState(true)
+      const [error, setError] = useState(false)
+      const [saved, setSaved] = useState(false)
+
+      useEffect(() => {
+        fetch('/task-reliability/api/config')
+          .then((res) => res.json())
+          .then((body) => {
+            if (body === null || body.ok !== true) throw new Error('bad config response')
+            setConfig(body.value)
+            setDraft({ ...body.value, retryableCodesText: (body.value.retryableCodes ?? []).join(', ') })
+            setLoading(false)
+          })
+          .catch(() => {
+            setLoading(false)
+            setError(true)
+          })
+      }, [])
+
+      const save = () => {
+        setSaved(false)
+        setError(false)
+        const payload = {
+          ...draft,
+          retryableCodes: (draft.retryableCodesText ?? '')
+            .split(',')
+            .map((code) => code.trim())
+            .filter((code) => code !== ''),
+        }
+        delete payload.retryableCodesText
+        fetch('/task-reliability/api/config', {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+          .then((res) => res.json())
+          .then((body) => {
+            if (body === null || body.ok !== true) throw new Error('save failed')
+            setSaved(true)
+          })
+          .catch(() => setError(true))
+      }
+
+      if (loading) {
+        return createElement('div', { className: 'dtr-settings' }, createElement('div', { className: 'dtr-settings-status' }, strings.loading()))
+      }
+      if (config === null) {
+        return createElement('div', { className: 'dtr-settings' }, createElement('div', { className: 'dtr-settings-error' }, strings.loadError()))
+      }
+      const patch = (key, value) => setDraft({ ...draft, [key]: value })
+      const num = (key) => (value) => patch(key, Number(value))
+      return createElement('div', { className: 'dtr-settings' },
+        createElement('div', { className: 'dtr-settings-section' },
+          createElement('div', { className: 'dtr-settings-title' }, strings.settingsRetry()),
+          createElement(SettingsTextRow, { label: strings.settingsRetryMax(), hint: strings.settingsRetryMaxHint(), value: String(draft.retryMax ?? 3), type: 'number', onChange: num('retryMax') }),
+          createElement(SettingsTextRow, { label: strings.settingsRetryBaseMs(), hint: strings.settingsRetryBaseMsHint(), value: String(draft.retryBaseMs ?? 1000), type: 'number', onChange: num('retryBaseMs') }),
+          createElement(SettingsTextRow, { label: strings.settingsRetryableCodes(), hint: strings.settingsRetryableCodesHint(), value: draft.retryableCodesText ?? '', onChange: (v) => patch('retryableCodesText', v) }),
+        ),
+        createElement('div', { className: 'dtr-settings-section' },
+          createElement('div', { className: 'dtr-settings-title' }, strings.settingsLoop()),
+          createElement(SettingsTextRow, { label: strings.settingsMaxLoop(), hint: strings.settingsMaxLoopHint(), value: String(draft.maxLoop ?? 8), type: 'number', onChange: num('maxLoop') }),
+          createElement(SettingsTextRow, { label: strings.settingsMaxVerify(), hint: strings.settingsMaxVerifyHint(), value: String(draft.maxVerify ?? 3), type: 'number', onChange: num('maxVerify') }),
+          createElement(SettingsTextRow, { label: strings.settingsSteerCooldownMs(), hint: strings.settingsSteerCooldownMsHint(), value: String(draft.steerCooldownMs ?? 8000), type: 'number', onChange: num('steerCooldownMs') }),
+        ),
+        createElement('div', { className: 'dtr-settings-section' },
+          createElement('div', { className: 'dtr-settings-title' }, strings.settingsPersist()),
+          createElement(SettingsTextRow, { label: strings.settingsSaveDebounceMs(), hint: strings.settingsSaveDebounceMsHint(), value: String(draft.saveDebounceMs ?? 500), type: 'number', onChange: num('saveDebounceMs') }),
+          createElement(SettingsTextRow, { label: strings.settingsResumeGraceMs(), hint: strings.settingsResumeGraceMsHint(), value: String(draft.resumeGraceMs ?? 2000), type: 'number', onChange: num('resumeGraceMs') }),
+          createElement(SettingsTextRow, { label: strings.settingsRateMaxActions(), hint: strings.settingsRateMaxActionsHint(), value: String(draft.rateMaxActions ?? 12), type: 'number', onChange: num('rateMaxActions') }),
+        ),
+        createElement('div', { className: 'dtr-settings-section' },
+          createElement('div', { className: 'dtr-settings-title' }, strings.settingsSecurity()),
+          createElement(SettingsSwitchRow, { label: strings.settingsAutopilot(), hint: strings.settingsAutopilotHint(), on: draft.autopilot === true, onChange: (v) => patch('autopilot', v) }),
+          createElement(SettingsTextRow, { label: strings.settingsApiToken(), hint: strings.settingsApiTokenHint(), value: draft.apiToken ?? '', onChange: (v) => patch('apiToken', v) }),
+        ),
+        createElement('div', { className: 'dtr-settings-actions' },
+          createElement('button', { className: 'dtr-btn', onClick: save }, strings.save()),
+          saved ? createElement('span', { className: 'dtr-settings-saved' }, strings.saved()) : null,
+          error ? createElement('span', { className: 'dtr-settings-error' }, strings.saveFailed()) : null,
+        ),
+      )
+    }
+
+    /** 设置页 tab 注册（官方 slots 扩展点；服务缺省时静默跳过）。 */
+    function attachSettingsTab(ctx) {
+      const slots = ctx.get('slots')
+      if (slots === undefined) return
+      ctx.effect(() => {
+        if (typeof document === 'undefined' || typeof document.head === 'undefined') return () => {}
+        const style = document.createElement('style')
+        style.setAttribute('data-dsh-task-reliability-settings', 'styles')
+        style.textContent = SETTINGS_STYLES
+        document.head.appendChild(style)
+        return () => {
+          if (style.parentNode !== null) style.parentNode.removeChild(style)
+        }
+      }, 'dsh-task-reliability: settings styles')
+      ctx.effect(() => slots.inject('settings.plugins.tab', () => slots.register({
+        name: 'settings.plugins.tab',
+        id: 'task-reliability-settings',
+        order: 92,
+        label: () => strings.settingsTitle(),
+      }, TaskReliabilitySettingsView)), 'dsh-task-reliability: settings tab registration')
+    }
+
     exports.apply = function apply(ctx) {
       // 样式注入（与 fiber 同生命周期）。
       ctx.effect(() => {
@@ -347,6 +536,9 @@ window.__ModuleLoader__.load({
           component: ({ scope, visible }) => createElement(Panel, { scope, visible }),
         }), 'dsh-task-reliability: tab')
       }
+
+      // 设置页 tab（官方 slots 扩展点，issue #27 配置可视化）。
+      attachSettingsTab(ctx)
     }
 
     return module.exports

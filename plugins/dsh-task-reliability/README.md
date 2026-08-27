@@ -48,7 +48,23 @@ curl -X POST http://127.0.0.1:3080/task-reliability/api/trigger \
 | `maxLoop` | 8 | 每任务自动继续次数上限（防死循环） |
 | `maxVerify` | 3 | 每任务完成度校验次数上限 |
 | `retryableCodes` | TIMEOUT/ETIMEDOUT/… | 触发自动重试的错误码集合 |
+| `retryBaseMs` | 1000 | 重试指数退避基数（毫秒） |
 | `autopilot` | false | 默认自主决策开关 |
+| `steerCooldownMs` | 8000 | 两次自动继续之间的最小间隔（毫秒） |
+| `saveDebounceMs` | 500 | 任务状态落盘防抖窗口（毫秒） |
+| `resumeGraceMs` | 2000 | 启动后延迟恢复任务的时间（毫秒） |
+| `rateMaxActions` | 12 | 自动继续的全局速率限制（每分钟动作数） |
+
+### 设置页可视化（推荐）
+
+所有配置项也可在 **设置 → 插件 → 任务可靠性** 页签中可视化查看和编辑（官方 slots 扩展点，无需手动编辑配置文件）：
+
+- **超时重试**：最大重试次数 / 退避基数 / 可重试错误码（逗号分隔）；
+- **自动继续**：每任务继续上限 / 校验次数上限 / 继续冷却；
+- **持久化与速率**：落盘防抖 / 恢复宽限 / 每分钟动作上限；
+- **安全**：自主决策默认开关、远程触发 Token。
+
+点击「保存」即生效（写入 `$DSH_HOME/profiles/<profile>/cordis.patch.yml`，DSH 热重载 + 内存即时更新），重启不丢。
 
 ## 安全
 

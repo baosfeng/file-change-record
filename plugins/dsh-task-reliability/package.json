@@ -1,6 +1,6 @@
 {
   "name": "dsh-task-reliability",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "DSH 任务可靠性保障插件：模型超时/请求失败自动重试、任务未完成自动继续、思考重复干预、休眠重启后任务恢复、自主决策模式、远程触发。DSH web plugin: auto-retry, auto-continue, verification agent, repeat detection, resume after restart, autopilot, remote trigger.",
   "type": "module",
   "main": "lib/index.js",

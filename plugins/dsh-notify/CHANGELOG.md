@@ -2,6 +2,15 @@
 
 本文件记录 dsh-notify 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.3.0] - 2026-08-27
+
+### 新增
+
+- **配置可视化（issue #27）**：设置 → 插件 → 通知提醒 页签（官方 slots 扩展点），end/ask/approval/subagentEnd 开关 + apiToken/dedupeMs 输入，保存即生效、重启不丢。
+- **配置 API**：`GET /notify/api/config`（当前生效配置）、`PUT /notify/api/config`（保存配置，写入 `$DSH_HOME/profiles/<profile>/cordis.patch.yml`，DSH watchUserPatches 热重载 + 内存即时更新 + 监听器按新开关重载）。
+- **配置持久化模块**：`lib/config-store.js`（profile patch 文件读写，YAML 子集解析/序列化，原子写 tmp+rename，不破坏其他条目）。
+- **测试**：`test/config-store.mjs`（配置读写/持久化闭环）、`test/host-config.mjs`（配置 API 读写/立即生效/重启恢复/非法输入/fence）、Gherkin `notify-config.feature`（5 场景）。
+
 ## [0.2.1] - 2026-08-25
 
 ### 变更

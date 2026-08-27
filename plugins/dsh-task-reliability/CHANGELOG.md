@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-08-27
+
+### 新增
+
+- **配置可视化（issue #27）**：设置 → 插件 → 任务可靠性 页签（官方 slots 扩展点），11 项配置（超时重试/自动继续/持久化与速率/安全）可视化编辑，保存即生效、重启不丢。
+- **配置 API**：`GET /task-reliability/api/config`（当前生效配置）、`PUT /task-reliability/api/config`（保存配置，写入 `$DSH_HOME/profiles/<profile>/cordis.patch.yml`，DSH watchUserPatches 热重载 + 内存 options 即时更新）。
+- **配置持久化模块**：`lib/config-store.js`（profile patch 文件读写，YAML 子集解析/序列化，原子写 tmp+rename，不破坏其他条目）。
+- **测试**：`test/config-store.mjs`（配置读写/持久化闭环）、`test/host-config.mjs`（配置 API 读写/立即生效/重启恢复/非法输入/fence）、Gherkin `task-reliability-config.feature`（5 场景）、client-render 设置页渲染断言。
+
 ## [0.1.3] - 2026-08-26
 
 ### 变更

@@ -82,4 +82,7 @@
 
       // SSE 订阅：server 事件 → 浏览器通知。
       ctx.effect(() => subscribeStream(sessionsSvc), 'dsh-notify: event stream')
+
+      // 设置页 tab（官方 slots 扩展点，issue #27 配置可视化）。
+      attachSettingsTab(ctx)
     }

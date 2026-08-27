@@ -26,10 +26,11 @@
  */
 window.__ModuleLoader__.load({
   id: 'bsfeng-dsh-notify',
-  factory: () => {
+  factory: (require) => {
     var module = { exports: {} }
     var exports = module.exports
     Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' })
+    const { createElement, useEffect, useState } = require('react')
 
     // ── i18n 文案与本地偏好（lib/parts/i18n.js）────────────────────────
     /*__PART_I18N__*/
@@ -39,6 +40,9 @@ window.__ModuleLoader__.load({
 
     // ── SSE 客户端：通知分发 / EventSource 订阅 / 插件体 ─────────────────
     /*__PART_STREAM__*/
+
+    // ── 设置页视图：配置可视化（issue #27，官方 slots 扩展点）───────────
+    /*__PART_SETTINGS__*/
 
     return module.exports
   },

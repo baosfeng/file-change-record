@@ -190,3 +190,72 @@ test('task status badge shows the correct label per status (regression: statusLa
   assert.ok(joined.includes('Paused'), 'paused task badge label (regression)')
   assert.ok(joined.includes('Done'), 'done task badge label (regression)')
 })
+
+test('client bundle registers settings tab via slots and renders the config form (issue #27)', () => {
+  hookValues.clear()
+  const exportsObj = loadBundle()
+
+  // ── mock slots service（官方扩展点）──────────────────────────────────
+  let capturedTab = null
+  const mockSlots = {
+    register: (descriptor, component) => ({ ...descriptor, component }),
+    inject: (name, register) => {
+      capturedTab = register()
+      return () => {}
+    },
+  }
+  const ctx = {
+    effect: (fn) => fn(),
+    get(name) {
+      if (name === 'slots') return mockSlots
+      return undefined
+    },
+  }
+  exportsObj.apply(ctx)
+  assert.ok(capturedTab, 'settings tab registered')
+  assert.equal(capturedTab.id, 'task-reliability-settings')
+  assert.ok(typeof capturedTab.label === 'function' && capturedTab.label() !== '')
+
+  // ── 预置 state：loading=false，config/draft 有值 → 渲染表单 ──────────
+  const configValue = {
+    apiToken: 'tok', retryMax: 5, maxLoop: 10, maxVerify: 2,
+    retryableCodes: ['TIMEOUT', 'SERVER'], retryBaseMs: 2000, autopilot: true,
+    steerCooldownMs: 5000, saveDebounceMs: 300, resumeGraceMs: 1000, rateMaxActions: 20,
+  }
+  hookValues.set(0, [configValue, () => {}])
+  hookValues.set(1, [{ ...configValue, retryableCodesText: 'TIMEOUT, SERVER' }, () => {}])
+  hookValues.set(2, [false, () => {}])
+  hookValues.set(3, [false, () => {}])
+  hookValues.set(4, [false, () => {}])
+
+  const element = capturedTab.component({ ctx })
+  const tree = element
+
+  const texts = []
+  function walk(node) {
+    if (node === null || node === undefined || typeof node === 'boolean') return
+    if (typeof node === 'string' || typeof node === 'number') {
+      texts.push(String(node))
+      return
+    }
+    if (Array.isArray(node)) {
+      for (const child of node) walk(child)
+      return
+    }
+    if (typeof node.type === 'function') {
+      walk(node.type(node.props))
+      return
+    }
+    walk(node.props?.children)
+  }
+  walk(tree)
+
+  const joined = texts.join('|')
+  assert.ok(joined.includes('Max retries'), 'retryMax field rendered')
+  assert.ok(joined.includes('Retryable codes'), 'retryableCodes field rendered')
+  assert.ok(joined.includes('Max continues per task'), 'maxLoop field rendered')
+  assert.ok(joined.includes('Max verifies'), 'maxVerify field rendered')
+  assert.ok(joined.includes('Autopilot (default on)'), 'autopilot switch rendered')
+  assert.ok(joined.includes('Remote trigger token'), 'apiToken field rendered')
+  assert.ok(joined.includes('Save'), 'save button rendered')
+})

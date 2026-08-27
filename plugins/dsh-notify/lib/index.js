@@ -37,6 +37,7 @@
 import { createNoticeBus } from './notice.js'
 import { attachListeners } from './listeners.js'
 import { registerNotifyRoutes } from './routes.js'
+import { currentProfile, patchFileOf, writePatchConfig } from './config-store.js'
 
 export const name = 'bsfeng-dsh-notify'
 
@@ -57,8 +58,19 @@ export function apply(ctx, config) {
   const bus = createNoticeBus(options)
 
   // ── 事件监听（只读观察；waterfall 一律透传 next()）──────────────────
-  attachListeners(ctx, options, bus.emitNotice)
+  let listenerDisposers = attachListeners(ctx, options, bus.emitNotice)
 
-  // ── 路由（SSE / trigger / info + 心跳清理）───────────────────────────
-  registerNotifyRoutes(ctx, options, bus)
+  // 配置保存：持久化到 profile patch 文件 + 更新内存 + 重载监听器。
+  // patch 文件写入完整配置（当前值 + 新值合并），重启后完整恢复；
+  // DSH 的 watchUserPatches 会热重载 patch 文件（保存即生效）。
+  const onConfigChange = async (next) => {
+    const merged = { ...options, ...next }
+    await writePatchConfig(patchFileOf(currentProfile()), 'notify', merged)
+    Object.assign(options, next)
+    for (const dispose of listenerDisposers.splice(0)) dispose()
+    listenerDisposers = attachListeners(ctx, options, bus.emitNotice)
+  }
+
+  // ── 路由（SSE / trigger / info / config + 心跳清理）──────────────────
+  registerNotifyRoutes(ctx, options, bus, onConfigChange)
 }

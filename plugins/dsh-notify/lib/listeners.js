@@ -11,16 +11,18 @@
  */
 import { isTopLevelAgent, titleOf, subagentTitleOf, askNoteOf } from './session.js'
 
-/** 注册三类事件监听（按 options 开关），通知统一交给 emitNotice。 */
+/** 注册三类事件监听（按 options 开关），通知统一交给 emitNotice；返回 disposer 数组。 */
 export function attachListeners(ctx, options, emitNotice) {
-  if (options.end) attachEndListener(ctx, options, emitNotice)
-  if (options.ask) attachAskListener(ctx, emitNotice)
-  if (options.approval) attachApprovalListener(ctx, emitNotice)
+  const disposers = []
+  if (options.end) disposers.push(attachEndListener(ctx, options, emitNotice))
+  if (options.ask) disposers.push(attachAskListener(ctx, emitNotice))
+  if (options.approval) disposers.push(attachApprovalListener(ctx, emitNotice))
+  return disposers
 }
 
 /** agent/status idle → end 通知（默认过滤子代理；subagentEnd 开启后子代理也推）。 */
 function attachEndListener(ctx, options, emitNotice) {
-  ctx.on('agent/status', ({ agent, status }) => {
+  return ctx.on('agent/status', ({ agent, status }) => {
     if (status !== 'idle') return
     if (isTopLevelAgent(agent)) {
       emitNotice({ kind: 'end', sessionId: agent.id, title: titleOf(ctx, agent), agentType: 'top' })
@@ -34,7 +36,7 @@ function attachEndListener(ctx, options, emitNotice) {
 
 /** tools/pre-execute 命中 ask_user_question → ask 通知（透传 next）。 */
 function attachAskListener(ctx, emitNotice) {
-  ctx.on('tools/pre-execute', async (exec, next) => {
+  return ctx.on('tools/pre-execute', async (exec, next) => {
     if (exec !== undefined && exec !== null && exec.name === 'ask_user_question') {
       const agent = exec.agent
       if (isTopLevelAgent(agent)) {
@@ -53,7 +55,7 @@ function attachAskListener(ctx, emitNotice) {
 
 /** approval/request → approval 通知（透传 next）。 */
 function attachApprovalListener(ctx, emitNotice) {
-  ctx.on('approval/request', async (req, next) => {
+  return ctx.on('approval/request', async (req, next) => {
     if (req !== undefined && req !== null && isTopLevelAgent(req.agent)) {
       emitNotice({
         kind: 'approval',

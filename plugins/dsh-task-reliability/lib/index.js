@@ -50,6 +50,7 @@ import { isTrustedApiRequest } from './fence.js'
 import { resumeActiveTasks } from './verify.js'
 import { registerListeners } from './events.js'
 import { createApi } from './api.js'
+import { currentProfile, patchFileOf, writePatchConfig } from './config-store.js'
 import {
   RETRYABLE_CODES, RETRY_MAX, MAX_LOOP, MAX_VERIFY, RETRY_BASE_MS,
   STEER_COOLDOWN_MS, SAVE_DEBOUNCE_MS, RESUME_GRACE_MS, RATE_MAX_ACTIONS,
@@ -62,6 +63,13 @@ export const inject = ['webServer']
 export function apply(ctx, config) {
   const options = buildOptions(config)
   const shared = createShared(ctx, options)
+  // 设置页保存配置（issue #27）：持久化到 profile patch 文件 + 更新内存
+  // options（立即生效）。DSH 的 watchUserPatches 会热重载 patch 文件。
+  shared.saveConfig = async (payload) => {
+    const next = buildOptionsFrom(payload)
+    await writePatchConfig(patchFileOf(currentProfile()), 'task-reliability', configToPlain(next))
+    Object.assign(options, next)
+  }
   registerListeners(ctx, shared)
   registerApi(ctx, shared)
   scheduleResume(ctx, shared)
@@ -103,6 +111,23 @@ function buildOptionsFrom(c) {
     saveDebounceMs: nonNegInt(c.saveDebounceMs, SAVE_DEBOUNCE_MS),
     resumeGraceMs: nonNegInt(c.resumeGraceMs, RESUME_GRACE_MS),
     rateMaxActions: positiveInt(c.rateMaxActions, RATE_MAX_ACTIONS),
+  }
+}
+
+/** options → 可序列化纯对象（retryableCodes Set → 数组），供 patch 文件写入。 */
+function configToPlain(options) {
+  return {
+    apiToken: options.apiToken,
+    retryMax: options.retryMax,
+    maxLoop: options.maxLoop,
+    maxVerify: options.maxVerify,
+    retryableCodes: [...options.retryableCodes],
+    retryBaseMs: options.retryBaseMs,
+    autopilot: options.autopilot,
+    steerCooldownMs: options.steerCooldownMs,
+    saveDebounceMs: options.saveDebounceMs,
+    resumeGraceMs: options.resumeGraceMs,
+    rateMaxActions: options.rateMaxActions,
   }
 }
 
