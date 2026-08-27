@@ -606,6 +606,22 @@ window.__ModuleLoader__.load({
 .dfa-pdf-download:hover { text-decoration:underline; }
 .dfa-pdf-frame { flex:1; min-height:0; width:100%; border:none; border-radius:6px; background:transparent; }
 @keyframes dfa-row-in { from { opacity:0; transform:translateY(1px); } to { opacity:1; transform:none; } }
+/* ── sidebar tab selected-state overrides (issue #25) ─────────────────────
+   The host (dsh-better-sidebar) renders tabs with CSS-modules hashed class
+   names (e.g. tabActive_xxxxx) and no data attributes, so the selected tab
+   is targeted via the [class*="tabActive"] substring selector — the fallback
+   contract that keeps these rules working if the host ever renames its
+   classes. The double attribute selector [class*="tab"][class*="tabActive"]
+   (0,2,0) beats the host .tabActive (0,1,0) by specificity alone: no
+   !important, no reliance on injection order. Selected = theme-aware brand
+   fill + contrast ink (light #4176e6/#fff, dark #679efe/#0f1115); the :hover
+   variant (0,3,0) beats the host .tab:hover (0,2,0) so the selected state
+   never collapses into the host's grey hover. Unselected tabs stay untouched
+   (transparent + secondary label ink, host grey hover). */
+[class*="tab"][class*="tabActive"] { background:var(--dsw-alias-state-business-primary); color:var(--dsw-alias-label-primary-foreground); }
+[class*="tab"][class*="tabActive"]:hover { background:var(--dsw-alias-state-business-primary); color:var(--dsw-alias-label-primary-foreground); }
+[class*="tab"][class*="tabActive"] [class*="tabClose"] { color:var(--dsw-alias-label-primary-foreground); }
+[class*="tab"][class*="tabActive"] [class*="tabClose"]:hover { background:color-mix(in srgb, var(--dsw-alias-label-primary-foreground) 18%, transparent); color:var(--dsw-alias-label-primary-foreground); }
 `
 
         // ── row rendering helpers (recent list & stats tree) ──────────────────
