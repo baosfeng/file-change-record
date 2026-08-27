@@ -434,6 +434,102 @@ window.__ModuleLoader__.load({
       ], size),
     }
 
+    // Common-language / file-type badges (issue #24): brand fill + contrast
+    // ink, reading on both light and dark themes. Unmapped extensions keep the
+    // neutral currentColor file icon above. [bg, fg ink, short mark]
+    const FILE_BADGES = {
+      // JavaScript / TypeScript
+      js: ['#F7DF1E', '#323330', 'JS'], mjs: ['#F7DF1E', '#323330', 'JS'], cjs: ['#F7DF1E', '#323330', 'JS'],
+      ts: ['#3178C6', '#ffffff', 'TS'], mts: ['#3178C6', '#ffffff', 'TS'], cts: ['#3178C6', '#ffffff', 'TS'],
+      tsx: ['#3178C6', '#ffffff', 'TSX'], jsx: ['#3178C6', '#ffffff', 'JSX'],
+      // 后端语言
+      java: ['#007396', '#ffffff', 'JAVA'],
+      c: ['#A8B9CC', '#111111', 'C'],
+      cpp: ['#00599C', '#ffffff', 'C++'], cxx: ['#00599C', '#ffffff', 'C++'], cc: ['#00599C', '#ffffff', 'C++'], hpp: ['#00599C', '#ffffff', 'C++'],
+      h: ['#A8B9CC', '#111111', 'H'], hh: ['#A8B9CC', '#111111', 'H'],
+      cs: ['#68217A', '#ffffff', 'C#'], csharp: ['#68217A', '#ffffff', 'C#'],
+      go: ['#00ADD8', '#ffffff', 'GO'],
+      rs: ['#CE422B', '#ffffff', 'RS'],
+      rb: ['#B51624', '#ffffff', 'RB'],
+      php: ['#777BB4', '#ffffff', 'PHP'],
+      py: ['#3776AB', '#ffffff', 'PY'],
+      swift: ['#F05138', '#ffffff', 'SWIFT'],
+      kt: ['#7F52FF', '#ffffff', 'KT'], kotlin: ['#7F52FF', '#ffffff', 'KT'],
+      dart: ['#0175C2', '#ffffff', 'DART'],
+      scala: ['#DC322F', '#ffffff', 'SCALA'],
+      lua: ['#2C2C7C', '#ffffff', 'LUA'],
+      pl: ['#0298C3', '#ffffff', 'PERL'],
+      r: ['#336DC3', '#ffffff', 'R'],
+      m: ['#C1272D', '#ffffff', 'MAT'], mm: ['#C1272D', '#ffffff', 'MAT'],
+      // Web / 前端
+      html: ['#E34F26', '#ffffff', '</>'], htm: ['#E34F26', '#ffffff', '</>'],
+      css: ['#663399', '#ffffff', 'CSS'],
+      scss: ['#CD6799', '#ffffff', 'SCSS'], sass: ['#CD6799', '#ffffff', 'SCSS'],
+      vue: ['#42B883', '#ffffff', 'VUE'],
+      svelte: ['#FF3E00', '#ffffff', 'SVELTE'],
+      // 数据 / 结构化
+      json: ['#F7DF1E', '#323330', '{}'],
+      sql: ['#00758F', '#ffffff', 'SQL'],
+      csv: ['#2E7D32', '#ffffff', 'CSV'],
+      db: ['#0F62FE', '#ffffff', 'DB'], sqlite: ['#0F62FE', '#ffffff', 'DB'], sqlite3: ['#0F62FE', '#ffffff', 'DB'],
+      xml: ['#FF6F00', '#ffffff', 'XML'],
+      svg: ['#FF6F00', '#ffffff', 'SVG'],
+      // 文档
+      md: ['#42A5F5', '#ffffff', 'M↓'], markdown: ['#42A5F5', '#ffffff', 'M↓'],
+      txt: ['#90A4AE', '#ffffff', 'TXT'], text: ['#90A4AE', '#ffffff', 'TXT'], log: ['#90A4AE', '#ffffff', 'TXT'],
+      pdf: ['#E5202B', '#ffffff', 'PDF'],
+      doc: ['#2B579A', '#ffffff', 'DOC'], docx: ['#2B579A', '#ffffff', 'DOC'],
+      xls: ['#217346', '#ffffff', 'XLS'], xlsx: ['#217346', '#ffffff', 'XLS'],
+      ppt: ['#D24726', '#ffffff', 'PPT'], pptx: ['#D24726', '#ffffff', 'PPT'],
+      // 配置 / 构建
+      yml: ['#CB171E', '#ffffff', 'YML'], yaml: ['#CB171E', '#ffffff', 'YML'],
+      toml: ['#8D6E63', '#ffffff', 'TOML'],
+      ini: ['#546E7A', '#ffffff', 'CFG'], cfg: ['#546E7A', '#ffffff', 'CFG'], config: ['#546E7A', '#ffffff', 'CFG'],
+      env: ['#F9A825', '#323330', 'ENV'],
+      properties: ['#7B1FA2', '#ffffff', 'PROP'],
+      lock: ['#37474F', '#ffffff', 'LOCK'],
+      dockerfile: ['#2496ED', '#ffffff', 'DOCK'], docker: ['#2496ED', '#ffffff', 'DOCK'],
+      makefile: ['#607D8B', '#ffffff', 'MAKE'],
+      gradle: ['#02303A', '#ffffff', 'GRADLE'],
+      cmake: ['#265774', '#ffffff', 'CMAKE'],
+      ipynb: ['#F37726', '#ffffff', 'JNB'],
+      // 脚本 / Shell
+      sh: ['#89E051', '#111111', '>_'], bash: ['#89E051', '#111111', '>_'], zsh: ['#89E051', '#111111', '>_'],
+      ps1: ['#012456', '#ffffff', 'PS1'],
+      bat: ['#546E7A', '#ffffff', 'CMD'], cmd: ['#546E7A', '#ffffff', 'CMD'],
+      // 打包 / 二进制
+      zip: ['#FFA726', '#323330', 'ZIP'], tar: ['#FFA726', '#323330', 'ZIP'], gz: ['#FFA726', '#323330', 'ZIP'],
+      '7z': ['#FFA726', '#323330', 'ZIP'], rar: ['#FFA726', '#323330', 'ZIP'],
+      exe: ['#0078D4', '#ffffff', 'EXE'], msi: ['#0078D4', '#ffffff', 'EXE'],
+      wasm: ['#654FF0', '#ffffff', 'WASM'],
+      // 图片 / 媒体
+      png: ['#8E44AD', '#ffffff', 'IMG'], jpg: ['#8E44AD', '#ffffff', 'IMG'], jpeg: ['#8E44AD', '#ffffff', 'IMG'],
+      gif: ['#8E44AD', '#ffffff', 'IMG'], webp: ['#8E44AD', '#ffffff', 'IMG'], ico: ['#8E44AD', '#ffffff', 'IMG'], bmp: ['#8E44AD', '#ffffff', 'IMG'],
+      // 版本控制
+      gitignore: ['#F05032', '#ffffff', 'GIT'], gitattributes: ['#F05032', '#ffffff', 'GIT'],
+    }
+
+    /** One self-colored badge svg: rounded brand rect + short contrast mark.
+     *  Mark font scales by length so 5-6 char marks (JAVA/SCALA/SWIFT) stay
+     *  inside the 24×24 viewBox. */
+    const badgeIcon = ([bg, fg, mark], size) =>
+      createElement('svg', {
+        width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': 'true',
+      },
+      createElement('rect', { x: 1, y: 1, width: 22, height: 22, rx: 5, fill: bg }),
+      createElement('text', {
+        x: 12, y: 16, textAnchor: 'middle', fontSize: mark.length <= 2 ? 9 : mark.length <= 4 ? 7 : 5.5,
+        fontWeight: 700, fill: fg,
+      }, mark))
+
+    /** File-type icon dispatcher: branded badge for known extensions, the
+     *  neutral file icon for everything else (case-insensitive, tolerates a
+     *  leading dot like ".md"). */
+    const fileIconByExt = (ext, size = 14) => {
+      const spec = FILE_BADGES[String(ext ?? '').toLowerCase().replace(/^\./, '')]
+      return spec === undefined ? icon.file(size) : badgeIcon(spec, size)
+    }
+
         // ── themed stylesheet (injected once per activation) ──────────────────
     // Mirrors the better-sidebar explorer surface: tight 2px 6px 8px body,
     // 30px rows, box-sizing border-box indentation, folder rows use the
@@ -536,6 +632,29 @@ window.__ModuleLoader__.load({
       return createElement('span', { className: 'dfa-counts', style: { paddingLeft: '6px' } }, ...pills)
     }
 
+    /** Extension of a file name (lowercase, no leading dot); '' when none.
+     *  Dotfiles map to their whole name ('.gitignore' → 'gitignore') so the
+     *  badge table can cover them; 'notes.' still yields ''. */
+    const extOf = (name) => {
+      const dot = name.lastIndexOf('.')
+      if (dot > 0) return name.slice(dot + 1).toLowerCase()
+      if (dot === 0) return name.slice(1).toLowerCase()
+      return ''
+    }
+
+    /** Extension-less but common build files → their badge key. */
+    const NAME_BADGES = {
+      makefile: 'makefile', dockerfile: 'dockerfile', 'cmakelists.txt': 'cmake',
+    }
+
+    /** Badge key for a file name: basename match first, then extension. */
+    const badgeKeyOf = (name) => {
+      const base = name.toLowerCase()
+      const named = NAME_BADGES[base]
+      if (named !== undefined) return named
+      return extOf(name)
+    }
+
     /** A stats-tree file row: icon + name + count pills + relative time. */
     const fileRow = (file, depth, onOpen) =>
       createElement(
@@ -547,7 +666,7 @@ window.__ModuleLoader__.load({
           style: { paddingLeft: 8 + depth * 20 },
           title: fileTitle(file.abs, file.firstSeen, file.lastSeen),
         },
-        createElement('span', { className: 'dfa-row-icon dfa-icon-file' }, icon.file(14)),
+        createElement('span', { className: 'dfa-row-icon dfa-icon-file' }, fileIconByExt(badgeKeyOf(file.name))),
         createElement('span', { className: 'dfa-row-name dfa-name-file' }, file.name),
         countPills(file),
         file.lastSeen

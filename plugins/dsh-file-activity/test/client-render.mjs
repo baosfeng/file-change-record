@@ -192,6 +192,65 @@ assert.ok(dirRows.every((r) => typeof r.onClick === 'function'), 'directory rows
 const recentRows = rows.filter((r) => r.title === '/work/a/b/c/d/e.txt' || r.title === '/work/README.md' || r.title === '/work/src/components/ui/Button.tsx')
 assert.ok(recentRows.length >= 4, 'recent entries clickable')
 
+// ── per-type file icons (issue #24) ────────────────────────────────────────
+// Stats rows render a brand-colored badge for known extensions (markdown /
+// tsx / ts …) and keep the neutral stroke file icon for unknown ones (txt).
+// Walk the tree collecting each row's icon svg keyed by its file name.
+const iconByFile = new Map()
+function collectFileIcons(node) {
+  if (node === null || node === undefined || typeof node === 'boolean') return
+  if (typeof node === 'string' || typeof node === 'number') return
+  if (Array.isArray(node)) { for (const c of node) collectFileIcons(c); return }
+  const props = node.props ?? {}
+  if (props.className === 'dfa-row') {
+    const children = Array.isArray(props.children) ? props.children : [props.children]
+    const iconSpan = children.find((c) => c && typeof c === 'object' && String(c.props?.className ?? '').startsWith('dfa-row-icon'))
+    const nameSpan = children.find((c) => c && typeof c === 'object' && String(c.props?.className ?? '').startsWith('dfa-row-name'))
+    if (iconSpan && nameSpan) iconByFile.set(textOf(nameSpan), iconSpan.props.children)
+  }
+  collectFileIcons(props.children)
+}
+function textOf(node) {
+  if (node === null || typeof node === 'boolean') return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(textOf).join('')
+  return textOf(node?.props?.children)
+}
+function badgeFillOf(svg) {
+  const children = Array.isArray(svg.props.children) ? svg.props.children : [svg.props.children]
+  const rect = children.find((c) => c && c.type === 'rect')
+  return rect ? rect.props.fill : null
+}
+function badgeMarkOf(svg) {
+  const children = Array.isArray(svg.props.children) ? svg.props.children : [svg.props.children]
+  const text = children.find((c) => c && c.type === 'text')
+  return text ? text.props.children : null
+}
+collectFileIcons(tree)
+assert.equal(iconByFile.size, 4, `4 stats rows each carry an icon, got ${iconByFile.size}`)
+assert.equal(badgeFillOf(iconByFile.get('README.md')), '#42A5F5', 'markdown row renders the markdown badge')
+assert.equal(badgeMarkOf(iconByFile.get('README.md')), 'M↓', 'markdown badge carries the M↓ mark')
+assert.equal(badgeFillOf(iconByFile.get('Button.tsx')), '#3178C6', 'tsx row renders the TypeScript-blue badge')
+assert.equal(badgeFillOf(iconByFile.get('index.ts')), '#3178C6', 'ts row renders the TypeScript-blue badge')
+assert.equal(badgeFillOf(iconByFile.get('e.txt')), '#90A4AE', 'txt row renders the text badge')
+assert.equal(badgeMarkOf(iconByFile.get('e.txt')), 'TXT', 'txt badge carries the TXT mark')
+
+// Directory rows keep the plain folder icon (no file badge) — issue #24
+// must not change the folder-vs-file visual separation.
+let dirIconSvg = null
+function collectDirIcon(node) {
+  if (node === null || node === undefined || typeof node === 'boolean') return
+  if (typeof node === 'string' || typeof node === 'number') return
+  if (Array.isArray(node)) { for (const c of node) collectDirIcon(c); return }
+  const props = node.props ?? {}
+  if (props.className === 'dfa-row-icon dfa-icon-folder') dirIconSvg = props.children
+  collectDirIcon(props.children)
+}
+collectDirIcon(tree)
+assert.ok(dirIconSvg && dirIconSvg.type === 'svg', 'directory rows keep the folder icon')
+assert.equal(badgeFillOf(dirIconSvg), null, 'folder icon is not a file badge')
+assert.equal(badgeMarkOf(dirIconSvg), null, 'folder icon carries no badge mark')
+
 // the nested-tree example: a/b/c/d/e.txt renders as dirs a/ b/ c/ d/ with e.txt
 assert.ok(texts.includes('e.txt'), 'nested file name present')
 

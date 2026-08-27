@@ -22,6 +22,29 @@
       return createElement('span', { className: 'dfa-counts', style: { paddingLeft: '6px' } }, ...pills)
     }
 
+    /** Extension of a file name (lowercase, no leading dot); '' when none.
+     *  Dotfiles map to their whole name ('.gitignore' → 'gitignore') so the
+     *  badge table can cover them; 'notes.' still yields ''. */
+    const extOf = (name) => {
+      const dot = name.lastIndexOf('.')
+      if (dot > 0) return name.slice(dot + 1).toLowerCase()
+      if (dot === 0) return name.slice(1).toLowerCase()
+      return ''
+    }
+
+    /** Extension-less but common build files → their badge key. */
+    const NAME_BADGES = {
+      makefile: 'makefile', dockerfile: 'dockerfile', 'cmakelists.txt': 'cmake',
+    }
+
+    /** Badge key for a file name: basename match first, then extension. */
+    const badgeKeyOf = (name) => {
+      const base = name.toLowerCase()
+      const named = NAME_BADGES[base]
+      if (named !== undefined) return named
+      return extOf(name)
+    }
+
     /** A stats-tree file row: icon + name + count pills + relative time. */
     const fileRow = (file, depth, onOpen) =>
       createElement(
@@ -33,7 +56,7 @@
           style: { paddingLeft: 8 + depth * 20 },
           title: fileTitle(file.abs, file.firstSeen, file.lastSeen),
         },
-        createElement('span', { className: 'dfa-row-icon dfa-icon-file' }, icon.file(14)),
+        createElement('span', { className: 'dfa-row-icon dfa-icon-file' }, fileIconByExt(badgeKeyOf(file.name))),
         createElement('span', { className: 'dfa-row-name dfa-name-file' }, file.name),
         countPills(file),
         file.lastSeen
