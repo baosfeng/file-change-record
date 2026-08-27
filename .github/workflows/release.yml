@@ -89,37 +89,8 @@ jobs:
       # 不再静默失败——发版问题可被发现、可追踪。
       - name: Notify failure via issue
         if: failure()
-        run: |
-          export TAG="$GITHUB_REF_NAME"
-          export BODY="## 发版失败：${TAG}
-
-Release workflow 执行失败（tag 已推送但 Release/npm 未完成）。
-
-- **tag**: ${TAG}
-- **run**: https://github.com/baosfeng/my-dsh-plugins/actions/runs/${{ github.run_id }}
-- **失败步骤**: 见上方 run 日志
-
-请排查 workflow 失败原因并补发（修复后重新打 tag 或手动触发）。"
-          python3 - << 'PYEOF'
-import json, os, urllib.request
-body = os.environ['BODY']
-tag = os.environ['TAG']
-payload = json.dumps({
-  'title': f'[发版失败] {tag} Release workflow 失败',
-  'body': body,
-  'labels': ['bug'],
-}).encode('utf-8')
-req = urllib.request.Request(
-  'https://api.github.com/repos/baosfeng/my-dsh-plugins/issues',
-  data=payload, method='POST',
-  headers={'Authorization': f'Bearer {os.environ["GITHUB_TOKEN"]}',
-           'Accept': 'application/vnd.github+json',
-           'Content-Type': 'application/json'})
-try:
-  with urllib.request.urlopen(req) as resp:
-    print(f'::notice::failure issue created (HTTP {resp.status})')
-except Exception as e:
-  print(f'::warning::failed to create failure issue: {e}')
-PYEOF
+        run: node .github/scripts/notify-failure.mjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          RUN_ID: ${{ github.run_id }}
