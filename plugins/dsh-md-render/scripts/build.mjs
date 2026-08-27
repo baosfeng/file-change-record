@@ -20,6 +20,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 /** 占位符 → 片段文件（数组顺序即拼接后的声明顺序）。 */
 const PARTS = [
+  ['/*__PART_MARKDOWN__*/', 'lib/parts/markdown.part.js'],
   ['/*__PART_DETECT__*/', 'lib/parts/detect.part.js'],
   ['/*__PART_INLINE__*/', 'lib/parts/inline.part.js'],
   ['/*__PART_RENDER__*/', 'lib/parts/render.part.js'],

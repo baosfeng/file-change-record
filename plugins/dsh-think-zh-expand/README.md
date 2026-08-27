@@ -24,10 +24,12 @@
 
 内置的思考块（`ReasoningRow`）默认折叠成单行摘要，只显示第一行；本插件替换 `conversation.chat.node` 的 `assistant-step` 渲染器：
 
-- **思考块默认展开**：完整思考内容直接显示，点击标题行可收起（流式生成中强制保持展开）；思考内容**同样走轻量 Markdown 渲染**（代码块 / 标题 / 列表 / 引用 / 表格 / **Mermaid 图表**），思考里出现的 markdown 语法不再以原始文本显示，mermaid 代码块会渲染成图表卡片；
-- **文本块轻量 Markdown 渲染**：代码块 / 标题 / 列表 / 引用 / **表格**（含对齐）/ 粗体 / 行内代码 / 链接；
+- **思考块默认展开**：完整思考内容直接显示，点击标题行可收起（流式生成中强制保持展开）；思考内容**同样走统一 Markdown 渲染**（代码块 / 标题 / 列表 / 引用 / 表格 / 公式 / **Mermaid 图表**），思考里出现的 markdown 语法不再以原始文本显示，mermaid 代码块会渲染成图表卡片；
+- **文本块统一 Markdown 渲染**：由 [dsh-md-render](../dsh-md-render/README.md) 提供（issue #31 渲染职责迁移：本插件不再包含渲染逻辑，经 `dsh.client.external` 跨插件 require 其 MarkdownView 组件）——代码块 / 标题 / 列表 / 引用 / **表格**（含对齐）/ **公式** / 粗体 / 行内代码 / 链接；
 - **图片块**复用内置 `renderMessageImages` 渲染；
 - **tool-call 块**与内置行为一致（由独立节点渲染）。
+
+> ⚠️ **依赖 dsh-md-render**：本插件 client 端硬依赖 `dsh-md-render`（跨插件 require 其 MarkdownView），两个插件须同时启用；MarkdownView 渲染样式（`.tzx-md` 系列）随 dsh-md-render 注入。
 
 ### 3. 界面标签中文化（Client 端）
 
@@ -48,18 +50,18 @@
 ## 工作原理
 
 - **Server 端**（`lib/index.js`）：`inject: ['systemPrompt']`，`apply` 里调用 `ctx.systemPrompt.section({ name: 'dsh-think-zh', order: -90, text })`。section 名避开 `@max-null/dsh-chinese-thinking` 已占用的 `chinese-thinking`（同一层重复 name 会抛错）。
-- **Client 端**（`lib/client.js`）：`inject: ['slots']`，三个职责——① `ctx.slots.inject('conversation.chat.node', ...)` + `ctx.slots.register({ key: 'assistant-step', priority: -1, registrant: 'dsh-think-zh-expand' }, ...)` 以更低优先级覆盖内置渲染器（与 dsh-better-sidebar 覆盖内置席位的方式一致）；② `systemPrompt` 与渲染器之外，`ctx.effect` 注入样式表（随 fiber 卸载）；③ `ctx.effect` 安装界面中文化（MutationObserver 文本节点精准替换，随 fiber 卸载断开）。
+- **Client 端**（`lib/client.js`）：`inject: ['slots']`，三个职责——① `ctx.slots.inject('conversation.chat.node', ...)` + `ctx.slots.register({ key: 'assistant-step', priority: -1, registrant: 'dsh-think-zh-expand' }, ...)` 以更低优先级覆盖内置渲染器（与 dsh-better-sidebar 覆盖内置席位的方式一致）；② `systemPrompt` 与渲染器之外，`ctx.effect` 注入样式表（随 fiber 卸载）；③ `ctx.effect` 安装界面中文化（MutationObserver 文本节点精准替换，随 fiber 卸载断开）。渲染器内的 MarkdownView 组件经 `require('dsh-md-render')` 跨插件取得（`dsh.client.external: ["dsh-md-render"]` 声明，ModuleLoader 保证 dsh-md-render 先于本插件 materialize）。
 
 ## 安装
 
-> 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-think-zh-expand`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。
-
+> 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-think-zh-expand dsh-md-render`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。
 
 ```bash
 # 1) 克隆本仓库（任意目录）
 git clone https://github.com/baosfeng/my-dsh-plugins.git
 # 2) 以本地 link 方式安装（将 <仓库路径> 替换为上面的克隆目录）
 dsh plugin --profile web add link:<仓库路径>/plugins/dsh-think-zh-expand
+dsh plugin --profile web add link:<仓库路径>/plugins/dsh-md-render
 ```
 
 - server 端改动需重启 `dsh web`；
@@ -75,6 +77,7 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-think-zh-expand
 |---|---|---|
 | `@deepseek-ai/dsh-system-prompt` | host 端 systemPrompt 服务 | 是（缺省时 server 端不注入） |
 | `react` | client 端组件 | — |
+| `dsh-md-render` | client 端统一 MarkdownView（跨插件 require，`dsh.client.external`） | 否（须同时启用） |
 
 ## 与 @max-null/dsh-chinese-thinking 的关系
 

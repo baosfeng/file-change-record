@@ -2,6 +2,14 @@
 
 本文件记录 dsh-think-zh-expand 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 变更
+
+- **渲染职责迁移（issue #31）**：MarkdownView 渲染逻辑（`lib/parts/markdown.part.js`）整体迁至 [dsh-md-render](../dsh-md-render/README.md)（统一 MarkdownView：表格 / 公式 / 代码块容器）；本插件只保留「思考内容默认展开 + 界面中文化」职责。assistant-step 渲染器经 `require('dsh-md-render')` 跨插件调用其 MarkdownView 组件（`package.json` 新增 `dsh.client.external: ["dsh-md-render"]` 声明，ModuleLoader 保证 dsh-md-render 先 materialize）；MarkdownView 渲染样式（`.tzx-md` 系列）随 dsh-md-render 注入，本插件样式表仅保留 assistant/思考块/已停止标记。
+- **md-code-block 容器归属**：代码块容器 `div.md-code-block` 由 dsh-md-render 产出（结构保持），dsh-mermaid-render 无需改动。
+- **测试**：`test/client-render.mjs` 与 Gherkin steps 改为双 bundle 加载（先 dsh-md-render 后本插件，模拟 ModuleLoader 跨 bundle require）；新增迁移断言（本插件 bundle 不含 `tryTable`/`MarkdownView` 函数定义、`require('dsh-md-render')` 调用存在）；`zh.feature` 新增「渲染职责由 dsh-md-render 提供」场景。
+
 ## [0.4.2] - 2026-08-25
 
 ### 变更

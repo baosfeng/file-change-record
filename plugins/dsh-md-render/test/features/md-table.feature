@@ -1,6 +1,6 @@
 # language: zh-CN
 # 需求来源：docs/md渲染/需求清单.md
-# 验收基准：table-detect.mjs / client-render.mjs 的 Gherkin 化表达；新增需求须在此补充场景
+# 验收基准：table-detect.mjs / client-render.mjs / markdown-view.mjs 的 Gherkin 化表达；新增需求须在此补充场景
 
 功能: Markdown 表格渲染增强
   作为使用 DSH 对话的用户
@@ -28,3 +28,20 @@
   场景: 思考模式（reasoning 块）表格渲染不受影响
     假如 渲染插件已启动且对话含思考块内已渲染的表格
     那么 思考块内的表格保持原样
+
+  场景: 统一渲染器渲染标准表格
+    假如 统一渲染器已加载
+    当 渲染含分隔行的文本块
+    那么 输出包含 table 标签
+    并且 输出包含表头与数据行
+
+  场景: 统一渲染器输出代码块容器
+    假如 统一渲染器已加载
+    当 渲染含 mermaid 围栏的文本块
+    那么 输出包含 md-code-block 容器
+    并且 代码块保留语言标记
+
+  场景: 统一渲染器渲染公式
+    假如 统一渲染器已加载
+    当 渲染含行内公式的文本块
+    那么 输出包含公式元素

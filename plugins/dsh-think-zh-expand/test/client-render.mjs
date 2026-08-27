@@ -8,6 +8,11 @@ import { test } from 'vitest'
  *    with th/td cells and per-column alignment from the separator row,
  *  - a non-table pipe line (no separator row) falls back to a paragraph,
  *  - basic inline markdown inside cells still works (bold / inline code).
+ *
+ * issue #31 渲染职责迁移：MarkdownView 由 dsh-md-render 提供，本测试先
+ * 加载 dsh-md-render 的构建产物（模拟 ModuleLoader 的跨 bundle require），
+ * 并断言本插件 bundle 不再包含 MarkdownView 渲染逻辑（tryTable /
+ * MarkdownView 函数定义已迁出）。
  */
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -32,10 +37,10 @@ const stubbed = {
   useSyncExternalStore: (_subscribe, getSnapshot) => getSnapshot(),
 }
 
-// ── load bundle ────────────────────────────────────────────────────────────
-let registered = null
+// ── load bundles: dsh-md-render first (think-zh-expand requires it) ───────
+let registrations = []
 global.window = {
-  __ModuleLoader__: { load: (registration) => { registered = registration } },
+  __ModuleLoader__: { load: (registration) => { registrations.push(registration) } },
   location: { href: 'http://127.0.0.1:3080/app', search: '' },
   confirm: () => true,
   fetch: () => Promise.resolve({ json: () => Promise.resolve({ ok: true, value: {} }) }),
@@ -46,10 +51,22 @@ Object.defineProperty(global, 'navigator', { value: { language: 'zh-CN' }, confi
 global.localStorage = { getItem: () => null, setItem: () => {} }
 global.fetch = () => Promise.resolve({ json: () => Promise.resolve({ ok: true, value: {} }) })
 
+eval(fs.readFileSync(new URL('../../dsh-md-render/lib/client.js', import.meta.url), 'utf8'))
 eval(fs.readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8'))
-assert.ok(registered, 'bundle registered')
-const exportsObj = registered.factory((spec) => {
+assert.equal(registrations.length, 2, 'two bundles registered')
+const mdRenderReg = registrations.find((r) => r.id === 'dsh-md-render')
+const thinkReg = registrations.find((r) => r.id === 'dsh-think-zh-expand')
+assert.ok(mdRenderReg, 'dsh-md-render bundle registered')
+assert.ok(thinkReg, 'think-zh-expand bundle registered')
+// materialize dsh-md-render first (its factory only requires react)
+const mdRenderExports = mdRenderReg.factory((spec) => {
   if (spec === 'react') return stubbed
+  throw new Error('unexpected require: ' + spec)
+})
+assert.equal(typeof mdRenderExports.MarkdownView, 'function', 'dsh-md-render exports MarkdownView')
+const exportsObj = thinkReg.factory((spec) => {
+  if (spec === 'react') return stubbed
+  if (spec === 'dsh-md-render') return mdRenderExports
   throw new Error('unexpected require: ' + spec)
 })
 assert.deepEqual(exportsObj.inject, ['slots'])
@@ -241,6 +258,15 @@ try {
   assert.equal(exportsObj.zhCardSummary('web_search · 关键词'), '网络搜索 · 关键词', 'others summary web_search')
   assert.equal(exportsObj.zhCardSummary('no_prefix_here'), null, 'summary without tool prefix untouched')
   assert.equal(exportsObj.zhCardSummary('unknown_tool · x'), null, 'unmapped summary tool untouched')
+
+  // 12. 渲染职责迁移（issue #31）：本插件不再包含 MarkdownView 渲染逻辑，
+  //     渲染由 dsh-md-render 提供（跨插件 require）
+  assert.equal(exportsObj.MarkdownView, undefined, 'MarkdownView not exported by think-zh-expand')
+  const bundleSrc = fs.readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
+  assert.ok(!bundleSrc.includes('function tryTable'), 'tryTable definition removed from bundle')
+  assert.ok(!bundleSrc.includes('function tryFence'), 'tryFence definition removed from bundle')
+  assert.ok(!bundleSrc.includes('function MarkdownView'), 'MarkdownView definition removed from bundle')
+  assert.ok(bundleSrc.includes("require('dsh-md-render')"), 'bundle requires dsh-md-render for rendering')
 
   console.log('ALL CLIENT RENDER-PATH TESTS PASSED')
 } finally {

@@ -6,7 +6,7 @@
  * plain paragraph untouched, stylesheet injection, reasoning-block table
  * untouched (regression).
  */
-import { Given, Then, After, setWorldConstructor } from '@cucumber/cucumber'
+import { Given, When, Then, After, setWorldConstructor } from '@cucumber/cucumber'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
@@ -103,6 +103,63 @@ class World {
     this.renderedTable = null
     this.pPlain = null
     this.thinkTable = null
+    this.markdownView = null
+    this.lastMarkdown = null
+  }
+
+  /** 加载 bundle 并导出 MarkdownView（统一渲染器，不 apply）。 */
+  loadMarkdownView() {
+    const stubbed = {
+      createElement: (type, props, ...children) => ({ type, props: { ...(props || {}), children: children.flat() } }),
+      useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
+      useEffect: () => {},
+      useMemo: (fn) => fn(),
+      useSyncExternalStore: (_s, get) => get(),
+    }
+    let registered = null
+    global.window = {
+      location: { href: 'http://127.0.0.1:3080/app', search: '' },
+      __ModuleLoader__: { load: (reg) => { registered = reg } },
+    }
+    global.document = undefined
+    global.Element = function Element() {}
+    global.MutationObserver = class { constructor() {} observe() {} disconnect() {} }
+
+    eval(fs.readFileSync(new URL('../../../lib/client.js', import.meta.url), 'utf8'))
+    assert.ok(registered, 'bundle registered')
+    const exportsObj = registered.factory((spec) => {
+      if (spec === 'react') return stubbed
+      throw new Error('unexpected require: ' + spec)
+    })
+    assert.equal(typeof exportsObj.MarkdownView, 'function', 'MarkdownView exported')
+    this.markdownView = exportsObj.MarkdownView
+  }
+
+  /** 调用 MarkdownView 渲染文本并收集元素树（函数组件展开）。 */
+  renderMarkdown(text) {
+    const tags = []
+    const texts = []
+    const codeLangs = []
+    let mdCodeBlockWrappers = 0
+    let mathSpans = 0
+    function walk(node) {
+      if (node === null || node === undefined || typeof node === 'boolean') return
+      if (typeof node === 'string' || typeof node === 'number') { texts.push(String(node)); return }
+      if (Array.isArray(node)) { for (const c of node) walk(c); return }
+      const props = node.props ?? {}
+      if (typeof node.type === 'string') {
+        tags.push(node.type)
+        if (node.type === 'div' && props.className === 'md-code-block') mdCodeBlockWrappers += 1
+        if (node.type === 'code' && typeof props.className === 'string') codeLangs.push(props.className)
+        if (node.type === 'span' && props.className === 'dmr-math') mathSpans += 1
+      } else if (typeof node.type === 'function') {
+        walk(node.type(node.props))
+        return
+      }
+      walk(props.children)
+    }
+    walk(this.markdownView({ text }))
+    this.lastMarkdown = { tags, texts, codeLangs, mdCodeBlockWrappers, mathSpans }
   }
 
   buildDom() {
@@ -213,6 +270,23 @@ Given('渲染插件已启动且对话含思考块内已渲染的表格', async f
   this.loadAndApply(bodyEl)
 })
 
+Given('统一渲染器已加载', async function () {
+  this.loadMarkdownView()
+})
+
+// ── When ──────────────────────────────────────────────────────────────────
+When('渲染含分隔行的文本块', async function () {
+  this.renderMarkdown('| 插件 | 版本 |\n|:-----|:----:|\n| dsh-file-activity | **0.4.2** |')
+})
+
+When('渲染含 mermaid 围栏的文本块', async function () {
+  this.renderMarkdown('```mermaid\nflowchart TD\n    A --> B\n```')
+})
+
+When('渲染含行内公式的文本块', async function () {
+  this.renderMarkdown('公式 $x^2 + y^2$ 测试')
+})
+
 // ── Then ──────────────────────────────────────────────────────────────────
 Then('段落被替换为表格元素', async function () {
   assert.equal(this.pNonStd.parentNode, null, 'original paragraph detached')
@@ -253,4 +327,28 @@ Then('页面注入包含表格规则的样式', async function () {
 
 Then('思考块内的表格保持原样', async function () {
   assert.equal(this.thinkTable.parentNode, this.scrollEl.querySelectorAll('div.tzx-md')[3], 'reasoning-block table untouched')
+})
+
+Then('输出包含 table 标签', async function () {
+  assert.ok(this.lastMarkdown.tags.includes('table'), `tags: ${this.lastMarkdown.tags.join(',')}`)
+})
+
+Then('输出包含表头与数据行', async function () {
+  assert.ok(this.lastMarkdown.tags.includes('thead'), 'thead rendered')
+  assert.ok(this.lastMarkdown.tags.includes('tbody'), 'tbody rendered')
+  assert.ok(this.lastMarkdown.texts.includes('插件'), 'header cell text')
+  assert.ok(this.lastMarkdown.texts.includes('dsh-file-activity'), 'data cell text')
+})
+
+Then('输出包含 md-code-block 容器', async function () {
+  assert.ok(this.lastMarkdown.mdCodeBlockWrappers >= 1, 'md-code-block container rendered')
+})
+
+Then('代码块保留语言标记', async function () {
+  assert.ok(this.lastMarkdown.codeLangs.includes('language-mermaid'), 'language class kept')
+})
+
+Then('输出包含公式元素', async function () {
+  assert.equal(this.lastMarkdown.mathSpans, 1, 'inline math span rendered')
+  assert.ok(this.lastMarkdown.texts.includes('x^2 + y^2'), 'math content kept')
 })

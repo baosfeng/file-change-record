@@ -1,21 +1,19 @@
 /**
  * dsh-md-render — client half (browser).
  *
- * 非思考模式（模型只输出 text 块）下，dsh-think-zh-expand 替换内置
- * assistant-step 渲染器后，text 块走轻量 MarkdownView（`div.tzx-md`
- * 容器）。其 tryTable 检测严格（表头行必须首尾都有 `|`、分隔行必须含
- * `-`），模型输出的不标准表格（无首尾管道符、分隔行变体）检测失败后
- * 回退为纯文本段落（`p.tzx-p`），表格以原始 markdown 语法展示。
- *
- * 本插件在 DOM 层做渲染增强：
- *  - 扫描 `[data-conversation-scroll]` 内的 `div.tzx-md`（think-zh-expand
- *    的 MarkdownView 输出）与 `div.md-table-wide`（内置 MarkdownText 的
- *    宽表格容器）容器；
- *  - 对容器内以纯文本段落形式存在的表格（`p.tzx-p`），用增强检测规则
- *    （支持无首尾管道符、分隔行变体、对齐标记）识别并解析；
- *  - 将段落替换为 `<table>`（表头 thead / 数据 tbody / 对齐 style），
- *    外层 `div.dmr-table-scroll` 提供宽表格横向滚动；
- *  - 已渲染的表格（`table.tzx-table` 等）跳过，不重复处理；
+ * 统一 Markdown 渲染插件（issue #31 渲染职责迁移）：
+ *  - 提供统一 MarkdownView 组件（表格 / 公式 / 代码块容器），供
+ *    dsh-think-zh-expand 的 assistant-step 渲染器调用（跨插件
+ *    require，见其 package.json 的 dsh.client.external 声明）；
+ *  - 代码块容器 `div.md-code-block` 由本插件产出（结构保持，
+ *    dsh-mermaid-render 无需改动即可扫描）；
+ *  - DOM 层表格增强：扫描 `[data-conversation-scroll]` 内的
+ *    `div.tzx-md`（MarkdownView 输出）与 `div.md-table-wide`（内置
+ *    MarkdownText 的宽表格容器）容器，对容器内以纯文本段落形式存在
+ *    的表格（`p.tzx-p`），用增强检测规则（支持无首尾管道符、分隔行
+ *    变体、对齐标记）识别并解析，将段落替换为 `<table>`（表头 thead /
+ *    数据 tbody / 对齐 style），外层 `div.dmr-table-scroll` 提供宽表格
+ *    横向滚动；已渲染的表格（`table.tzx-table` 等）跳过，不重复处理；
  *  - MutationObserver 跟随流式渲染，流式中的容器等内容稳定后再处理。
  *
  * 样式走 DSH 语义 token（--dsw-alias-* / --dsw-font-*），随 activation
@@ -33,6 +31,11 @@ window.__ModuleLoader__.load({
     var module = { exports: {} }
     var exports = module.exports
     Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' })
+    // MarkdownView（markdown.part.js 片段）使用 createElement。
+    const { createElement } = require('react')
+
+    // ── 统一 MarkdownView：行内 + 块级渲染（导出供 think-zh-expand）──
+    /*__PART_MARKDOWN__*/
 
     // ── 表格检测与解析（纯函数，导出供单测）──────────────────────
     /*__PART_DETECT__*/

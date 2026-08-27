@@ -40,9 +40,11 @@ class World {
       useMemo: (fn) => fn(),
       useSyncExternalStore: (_subscribe, getSnapshot) => getSnapshot(),
     }
-    let registered = null
+    // issue #31 渲染职责迁移：先加载 dsh-md-render（本插件跨 bundle
+    // require 其 MarkdownView），再加载本插件。
+    const registrations = []
     global.window = {
-      __ModuleLoader__: { load: (registration) => { registered = registration } },
+      __ModuleLoader__: { load: (registration) => { registrations.push(registration) } },
       location: { href: 'http://127.0.0.1:3080/app', search: '' },
       confirm: () => true,
       fetch: () => Promise.resolve({ json: () => Promise.resolve({ ok: true, value: {} }) }),
@@ -53,10 +55,20 @@ class World {
     global.localStorage = { getItem: () => null, setItem: () => {} }
     global.fetch = () => Promise.resolve({ json: () => Promise.resolve({ ok: true, value: {} }) })
 
+    eval(fs.readFileSync(new URL('../../../../dsh-md-render/lib/client.js', import.meta.url), 'utf8'))
     eval(fs.readFileSync(new URL('../../../lib/client.js', import.meta.url), 'utf8'))
-    assert.ok(registered, 'bundle registered')
-    const exportsObj = registered.factory((spec) => {
+    assert.equal(registrations.length, 2, 'two bundles registered')
+    const mdRenderReg = registrations.find((r) => r.id === 'dsh-md-render')
+    const thinkReg = registrations.find((r) => r.id === 'dsh-think-zh-expand')
+    assert.ok(mdRenderReg, 'dsh-md-render bundle registered')
+    assert.ok(thinkReg, 'think-zh-expand bundle registered')
+    const mdRenderExports = mdRenderReg.factory((spec) => {
       if (spec === 'react') return stubbed
+      throw new Error('unexpected require: ' + spec)
+    })
+    const exportsObj = thinkReg.factory((spec) => {
+      if (spec === 'react') return stubbed
+      if (spec === 'dsh-md-render') return mdRenderExports
       throw new Error('unexpected require: ' + spec)
     })
     this.exportsObj = exportsObj
@@ -175,4 +187,15 @@ Then('输出包含表头文本 {string}', async function (text) {
 
 Then('输出包含数据文本 {string}', async function (text) {
   assert.ok(this.lastRender.texts.includes(text), `texts: ${this.lastRender.texts.join(',')}`)
+})
+
+Then('本插件不导出 MarkdownView 渲染组件', async function () {
+  assert.equal(this.exportsObj.MarkdownView, undefined, 'MarkdownView not exported by think-zh-expand')
+})
+
+Then('本插件 bundle 不包含表格渲染逻辑', async function () {
+  const bundleSrc = fs.readFileSync(new URL('../../../lib/client.js', import.meta.url), 'utf8')
+  assert.ok(!bundleSrc.includes('function tryTable'), 'tryTable definition removed from bundle')
+  assert.ok(!bundleSrc.includes('function MarkdownView'), 'MarkdownView definition removed from bundle')
+  assert.ok(bundleSrc.includes("require('dsh-md-render')"), 'bundle requires dsh-md-render for rendering')
 })

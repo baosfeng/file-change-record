@@ -32,3 +32,8 @@
     那么 输出包含 table 标签
     并且 输出包含表头文本 "插件"
     并且 输出包含数据文本 "dsh-file-activity"
+
+  场景: 渲染职责由 dsh-md-render 提供
+    假如 客户端模块已加载
+    那么 本插件不导出 MarkdownView 渲染组件
+    并且 本插件 bundle 不包含表格渲染逻辑

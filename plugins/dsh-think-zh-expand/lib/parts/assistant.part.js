@@ -3,8 +3,9 @@
  *
  * 由 scripts/build.mjs 拼入 lib/client.js 的 factory 作用域（纯函数声明
  * 文本，无 import/export）。依赖 factory 内的 createElement、useState 与
- * MarkdownView。行为与拆分前等价：reasoning 块默认展开、流式中强制展开、
- * 图片块相邻分组渲染。
+ * MarkdownView（issue #31 迁移后 MarkdownView 由 dsh-md-render 提供，
+ * factory 经 `require('dsh-md-render')` 取得）。行为与迁移前等价：
+ * reasoning 块默认展开、流式中强制展开、图片块相邻分组渲染。
  */
 
 // ── 思考块：默认展开，可点击收起，流式中强制展开 ───────────────────
@@ -33,8 +34,9 @@ function ThinkBlock({ text, running }) {
       createElement('span', { className: 'tzx-think-title' }, '思考'),
       !open && createElement('span', { className: 'tzx-think-summary' }, firstLine(text)),
     ),
-    // 思考内容也走轻量 Markdown 渲染（代码块 / mermaid / 表格 / 列表 /
-    // 标题等），否则思考里出现的 markdown 会以原始语法文本显示。
+    // 思考内容也走统一 Markdown 渲染（dsh-md-render 的 MarkdownView：
+    // 代码块 / mermaid / 表格 / 列表 / 标题 / 公式等），否则思考里出现
+    // 的 markdown 会以原始语法文本显示。
     open && createElement('div', { className: 'tzx-think-body' },
       createElement(MarkdownView, { text })),
   )

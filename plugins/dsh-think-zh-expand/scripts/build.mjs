@@ -19,8 +19,9 @@ import { dirname, join } from 'node:path'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 /** 占位符 → 片段文件（数组顺序即拼接后的声明顺序）。 */
+// issue #31 渲染职责迁移：markdown.part.js 已迁至 dsh-md-render
+// （lib/parts/markdown.part.js），本插件不再拼接渲染片段。
 const PARTS = [
-  ['/*__PART_MARKDOWN__*/', 'lib/parts/markdown.part.js'],
   ['/*__PART_ASSISTANT__*/', 'lib/parts/assistant.part.js'],
   ['/*__PART_ZH_TABLES__*/', 'lib/parts/zh-tables.part.js'],
   ['/*__PART_ZH_LOCALIZE__*/', 'lib/parts/zh-localize.part.js'],

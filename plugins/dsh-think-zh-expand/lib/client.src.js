@@ -8,8 +8,9 @@
  * 的 `assistant-step` 渲染器：
  *  - reasoning 块 → 默认展开的「思考」块（完整内容直接显示，点击标题行可
  *    收起，流式生成中强制保持展开）；
- *  - text 块 → 轻量 Markdown 渲染（代码块 / 标题 / 列表 / 引用 / 粗体 /
- *    行内代码 / 链接）；
+ *  - text 块 → 复用 dsh-md-render 的统一 MarkdownView 渲染（issue #31
+ *    渲染职责迁移：表格 / 公式 / 代码块容器由 dsh-md-render 提供，本插件
+ *    经 `dsh.client.external` 跨插件 require 其 MarkdownView 组件）；
  *  - image 块 → 复用 owner 的 renderMessageImages（内置图片渲染）；
  *  - tool-call 块与内置一致跳过（tool-call 有独立节点渲染）。
  *
@@ -24,7 +25,8 @@
  * React 重渲染持续生效。
  *
  * 样式走 DSH 语义 token（--dsw-alias-* / --dsw-font-*），随 activation 注入、
- * fiber teardown 卸载（HMR/禁用无残留）。
+ * fiber teardown 卸载（HMR/禁用无残留）。MarkdownView 的渲染样式
+ * （.tzx-md 系列）随 dsh-md-render 注入（issue #31 迁移）。
  *
  * BUILD NOTE: 本文件是源码模板（骨架）。scripts/build.mjs 把
  * lib/parts/*.part.js 片段注入到下方 /*__PART_*__* / 占位符处并写出
@@ -41,9 +43,9 @@ window.__ModuleLoader__.load({
     // useState 由 assistant.part.js 片段（ThinkBlock）使用；模板静态分析
     // 看不到片段内容（根 eslint 配置对 src+parts 已关闭 no-unused-vars）。
     const { createElement, useState } = require('react')
-
-    // ── 视图：轻量 Markdown 渲染（mdInline + 块级管线）──────────────
-    /*__PART_MARKDOWN__*/
+    // 统一 MarkdownView 由 dsh-md-render 提供（issue #31 渲染职责迁移；
+    // 依赖声明见 package.json 的 dsh.client.external）。
+    const MarkdownView = require('dsh-md-render').MarkdownView
 
     // ── 视图：思考块 + assistant-step 渲染器 ────────────────────────
     /*__PART_ASSISTANT__*/

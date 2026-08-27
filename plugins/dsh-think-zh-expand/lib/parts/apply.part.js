@@ -9,23 +9,12 @@
  */
 
 // ── 样式（DSH 语义 token，随 activation 注入）───────────────────
+// 仅保留本插件职责相关样式（assistant 容器 / 思考块 / 已停止标记）；
+// MarkdownView 的渲染样式（.tzx-md 系列）已随 issue #31 迁移至
+// dsh-md-render（其 styles.part.js 注入）。
 const STYLES = `
 .tzx-assistant{display:flex;flex-direction:column;gap:16px;color:var(--dsw-alias-label-primary);font-size:16px;line-height:28px}
 .tzx-assistant-body{display:flex;flex-direction:column;gap:16px}
-.tzx-md{display:flex;flex-direction:column;gap:8px;min-width:0}
-.tzx-md .tzx-p{margin:0}
-.tzx-md h1,.tzx-md h2,.tzx-md h3,.tzx-md h4{margin:0;font-weight:600;line-height:1.35}
-.tzx-md ul,.tzx-md ol{margin:0;padding-left:26px}
-.tzx-md li{margin:2px 0}
-.tzx-md .tzx-pre{margin:0;background:var(--dsw-alias-markdown-code-block);border:1px solid var(--dsw-alias-border-l1);border-radius:12px;padding:12px 16px;overflow:auto;font:var(--dsw-font-markdown-code-block-small)}
-.tzx-md code{background:var(--dsw-alias-markdown-code-block);border-radius:4px;padding:0 4px;font:var(--dsw-font-markdown-code-block-small)}
-.tzx-md .tzx-pre code{background:none;padding:0}
-.tzx-md .tzx-bq{margin:0;padding-left:12px;border-left:3px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary)}
-.tzx-md .tzx-bq p{margin:0}
-.tzx-md .tzx-table{border-collapse:collapse;margin:0;font-size:14px;line-height:22px}
-.tzx-md .tzx-table th,.tzx-md .tzx-table td{border:1px solid var(--dsw-alias-border-l1);padding:4px 10px}
-.tzx-md .tzx-table th{background:var(--dsw-alias-markdown-code-block);font-weight:600}
-.tzx-md a{color:var(--dsw-alias-accent-primary)}
 .tzx-think{display:flex;flex-direction:column;color:var(--dsw-alias-label-tertiary)}
 .tzx-think-row{display:flex;align-items:center;gap:8px;min-width:0;cursor:pointer;user-select:none;padding:2px 0;border-radius:6px}
 .tzx-think-row:hover{background:var(--dsw-alias-interactive-bg-hover)}
