@@ -1,0 +1,52 @@
+{
+  "name": "dsh-md-render",
+  "version": "0.1.0",
+  "description": "DSH 对话 Markdown 表格渲染增强插件：非思考模式下模型输出的表格（含无首尾管道符等不标准格式）自动识别并渲染为表格，宽表格横向滚动。DSH web plugin: enhanced markdown table rendering for non-thinking mode, tolerant of non-standard table formats, wide-table horizontal scroll.",
+  "type": "module",
+  "main": "lib/index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "npx vitest run --coverage && cucumber-js test/features --import 'test/features/steps/*.mjs'"
+  },
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "assets"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "cordis": "^4.0.0-rc.8",
+    "react": "^18.2.0"
+  },
+  "peerDependenciesMeta": {
+    "cordis": {
+      "optional": true
+    }
+  },
+  "license": "MIT"
+}
