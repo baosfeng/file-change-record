@@ -293,8 +293,9 @@ let agents = readFileSync(agentsPath, 'utf8')
 let changed = false
 
 // README plugin table: | [<name>](plugins/<name>/README.md) | <old> | ...
+// 注意：表格对齐会产生多个空格（`README.md)   | 0.1.0 |`），用 [^|]* 容忍。
 const readmeRe = new RegExp(
-  `(\\| \\[${escapeRegExp(name)}\\]\\(plugins/${escapeRegExp(name)}/README\\.md\\) \\| )\\d+\\.\\d+\\.\\d+( \\|)`,
+  `(\\| \\[${escapeRegExp(name)}\\]\\(plugins/${escapeRegExp(name)}/README\\.md\\)[^|]*\\| ?)\\d+\\.\\d+\\.\\d+( ?\\|)`,
 )
 if (readmeRe.test(readme)) {
   const next = readme.replace(readmeRe, `$1${version}$2`)
