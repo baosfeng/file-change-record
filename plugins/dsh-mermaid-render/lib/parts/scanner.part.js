@@ -9,7 +9,7 @@ function mountCard(seen, block) {
   const pre = block.querySelector('pre')
   if (pre && pre.style) pre.style.display = 'none'
   const host = document.createElement('div')
-  host.className = 'dmr-card-host'
+  host.className = 'dsh-mermaid-render-card-host'
   block.appendChild(host)
   const root = reactDomClient.createRoot(host)
   const entryId = 'dsh-mermaid-' + ++seq

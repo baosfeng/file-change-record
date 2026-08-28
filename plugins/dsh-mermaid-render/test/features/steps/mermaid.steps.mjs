@@ -238,5 +238,5 @@ Then('不生成任何图表卡片', async function () {
 
 Then('页面注入包含卡片规则的样式', async function () {
   assert.ok(this.styleTags.length === 1, 'stylesheet injected')
-  assert.ok(this.styleTags[0].textContent.includes('.dmr-card'), 'stylesheet has card rules')
+  assert.ok(this.styleTags[0].textContent.includes('.dsh-mermaid-render-card'), 'stylesheet has card rules')
 })

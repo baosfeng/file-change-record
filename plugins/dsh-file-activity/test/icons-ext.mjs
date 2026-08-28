@@ -261,3 +261,17 @@ test('alert icon keeps the shared stroke=currentColor outline style (issue #54)'
     'alert carries a warning triangle path',
   )
 })
+
+test('code icon keeps the shared stroke=currentColor outline style (issue #54)', () => {
+  const { icon } = loadIcons()
+  const svg = icon.code(16)
+  assert.equal(svg.type, 'svg', 'code is an <svg> element')
+  assert.equal(svg.props.stroke, 'currentColor', 'code inherits surrounding text color')
+  assert.equal(svg.props.strokeWidth, 1.8, 'code uses the shared stroke width')
+  assert.equal(svg.props.fill, 'none', 'code is an outline icon')
+  const children = Array.isArray(svg.props.children) ? svg.props.children : [svg.props.children]
+  assert.ok(
+    children.some((c) => c && c.type === 'polyline'),
+    'code carries angle-bracket polylines',
+  )
+})

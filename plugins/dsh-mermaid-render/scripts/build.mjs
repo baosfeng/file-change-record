@@ -22,11 +22,17 @@ import { dirname, join } from 'node:path'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const partsDir = join(root, 'lib/parts')
+// Shared client parts live in the dsh-shared package (issue #54 阶段 0):
+// single source of truth for the icon set, spliced by every plugin's build.
+const sharedPartsDir = join(root, '..', 'dsh-shared', 'client-parts')
 const src = readFileSync(join(root, 'lib/client.src.js'), 'utf8')
 
-/** (placeholder, part file) in splice order — parts share one scope. */
+/** (placeholder, part file, opts?) in splice order — parts share one scope.
+ *  opts.shared: true reads the part from the dsh-shared client-parts
+ *  directory instead of this plugin's lib/parts. */
 const pieces = [
   ['__PART_ENGINE__', 'engine.part.js'],
+  ['__PART_ICONS__', 'icons.part.js', { shared: true }],
   ['__PART_CARD__', 'card.part.js'],
   ['__PART_SCANNER__', 'scanner.part.js'],
   ['__PART_STYLES__', 'styles.part.js'],
@@ -34,11 +40,12 @@ const pieces = [
 ]
 
 let out = src
-for (const [placeholder, file] of pieces) {
+for (const [placeholder, file, opts = {}] of pieces) {
   if (!out.includes(placeholder)) {
     throw new Error(`client.src.js is missing the ${placeholder} placeholder`)
   }
-  const part = readFileSync(join(partsDir, file), 'utf8')
+  const dir = opts.shared ? sharedPartsDir : partsDir
+  const part = readFileSync(join(dir, file), 'utf8')
   // Function-style replacement: the part text may contain `$&` / `$1` style
   // sequences that a string replacement would interpret specially.
   out = out.replaceAll(placeholder, () => part)

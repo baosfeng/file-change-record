@@ -39,7 +39,7 @@ dsh-file-activity 的 UI 语言由五个要素构成，翻新插件时逐项对�
 - dsh-shared 已是 11 个插件依赖的共享包；client-parts 是**构建时源文件**，由各插件 `scripts/build.mjs` 直接按文件系统路径读取拼接，**不经过 package exports / require 解析**——因此**不需要**改 dsh-shared 的 `package.json` exports（`plugins/dsh-shared/package.json` 的 exports 只服务运行时 import）。
 - parts 仍是纯函数声明文本（无 import/export），共享 factory 作用域，与各插件本地 parts 完全同构——DSH 浏览器 ModuleLoader 不支持相对路径 require，client 端必须单 bundle，拼接机制不变。
 
-### 图标清单（15 个）
+### 图标清单（17 个）
 
 全部为 `stroke=currentColor` 线性图标，`icon.<name>(size)` 调用，默认尺寸见括号：
 
@@ -61,6 +61,7 @@ dsh-file-activity 的 UI 语言由五个要素构成，翻新插件时逐项对�
 | 齿轮   | `settings`     | 16       | 设置入口（issue #54 新增）  |
 | 铅笔   | `pencil`       | 15       | 编辑（issue #54 新增）      |
 | 警告   | `alert`        | 16       | 告警/警告（issue #54 新增） |
+| 代码   | `code`         | 16       | 代码/源码（issue #54 新增） |
 
 > 新增图标按需补充（如 `alert` 警告、`pencil` 编辑），必须保持 stroke=currentColor 风格一致，并同步更新本清单与 `plugins/dsh-file-activity/test/icons-ext.mjs` 的覆盖。
 

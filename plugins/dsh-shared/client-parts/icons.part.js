@@ -136,6 +136,16 @@ const icon = {
       ],
       size,
     ),
+  // 代码（issue #54 阶段 1 新增）：尖括号 `</>`，预览/代码切换的代码视图
+  // 图标（dsh-mermaid-render 卡片），stroke=currentColor 风格与其余图标一致。
+  code: (size = 16) =>
+    iconSvg(
+      [
+        createElement('polyline', { points: '16 18 22 12 16 6' }),
+        createElement('polyline', { points: '8 6 2 12 8 18' }),
+      ],
+      size,
+    ),
 }
 
 // Common-language / file-type badges (issue #24): brand fill + contrast

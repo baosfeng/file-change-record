@@ -212,7 +212,7 @@ exportsObj.apply(ctx)
 try {
   // stylesheet injected first
   assert.ok(styleTags.length === 1, 'stylesheet injected')
-  assert.ok(styleTags[0].textContent.includes('.dmr-card'), 'stylesheet has card rules')
+  assert.ok(styleTags[0].textContent.includes('.dsh-mermaid-render-card'), 'stylesheet has card rules')
 
   // scanner mounted a card for the mermaid block (createRoot captured)
   assert.ok(capturedRender, 'card element captured via createRoot')
@@ -228,9 +228,11 @@ try {
   assert.equal(jsPre.style.display, undefined, '非 mermaid 块的 pre 未被隐藏')
   // streaming 中的 mermaid 块不挂载（等流式结束才渲染）
   assert.equal(streamingPre.style.display, undefined, '流式中的 mermaid 块 pre 未被隐藏')
-  assert.equal(streamingBlock.querySelector('.dmr-card-host'), null, '流式中的 mermaid 块未挂载卡片')
+  assert.equal(streamingBlock.querySelector('.dsh-mermaid-render-card-host'), null, '流式中的 mermaid 块未挂载卡片')
   const cardTree = cardEl.type(cardEl.props)
   const texts = []
+  const classNames = []
+  const svgIcons = []
   function walk(node) {
     if (node === null || node === undefined || typeof node === 'boolean') return
     if (typeof node === 'string' || typeof node === 'number') {
@@ -246,11 +248,39 @@ try {
       walk(node.type(props))
       return
     }
+    if (node.type === 'svg') svgIcons.push(node)
+    if (props.className) classNames.push(props.className)
     walk(props.children)
+  }
+  /** 图标形状签名：svg 子元素的 d/points 拼接（区分 file/code/refresh/alert）。 */
+  function iconShapesOf() {
+    return svgIcons.map((s) => {
+      const kids = Array.isArray(s.props.children) ? s.props.children : [s.props.children]
+      return kids.map((c) => (c && c.props ? c.props.d || c.props.points || '' : '')).join('|')
+    })
   }
   walk(cardTree)
   assert.ok(texts.includes('渲染中…'), 'loading state shown initially')
   assert.ok(texts.includes('预览') && texts.includes('代码'), 'preview/code toggle present')
+  // 全部类名使用 dsh-mermaid-render- 前缀（无 dmr- 残留，issue #54）
+  for (const cls of classNames) {
+    assert.ok(cls.startsWith('dsh-mermaid-render-'), `class "${cls}" must use the dsh-mermaid-render- prefix`)
+  }
+  // 切换按钮带图标：预览=file / 代码=code（共享图标系统）
+  const iconShapes = iconShapesOf()
+  assert.ok(
+    iconShapes.some((d) => d.includes('M14 2H6')),
+    'preview button shows file icon',
+  )
+  assert.ok(
+    iconShapes.some((d) => d.includes('16 18 22 12 16 6')),
+    'code button shows code icon',
+  )
+  // loading 状态显示旋转 refresh 图标
+  assert.ok(
+    iconShapes.some((d) => d.includes('M21 12a9')),
+    'loading shows refresh icon',
+  )
 
   // 错误渲染兜底：mermaid.render 失败 → 卡片显示错误横幅（不崩溃、保留原始块）
   hookCall = 0
@@ -269,6 +299,11 @@ try {
   assert.ok(
     texts.some((t) => t.includes('渲染失败') || t.includes('失败')),
     '错误横幅出现',
+  )
+  // 错误状态含 alert 图标（层级化：图标 + 标题 + 信息）
+  assert.ok(
+    iconShapesOf().some((d) => d.includes('M10.29 3.86')),
+    'error shows alert icon',
   )
 
   console.log('ALL CLIENT RENDER-PATH TESTS PASSED')

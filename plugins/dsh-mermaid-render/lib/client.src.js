@@ -37,6 +37,7 @@ window.__ModuleLoader__.load({
     // ── parts (injected by scripts/build.mjs; keep this exact order — the
     //    initializers and function declarations run in splice order) ─────
     __PART_ENGINE__
+    __PART_ICONS__
     __PART_CARD__
     __PART_SCANNER__
     __PART_STYLES__

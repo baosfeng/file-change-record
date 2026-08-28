@@ -1,15 +1,27 @@
 // ── styles (DSH tokens; injected first, torn down with the fiber) ──
+// 前缀 dsh-mermaid-render-（issue #54：与 dsh-md-render 的旧缩写前缀分离，
+// 消除跨插件类名冲突）。视觉对齐 dsh-file-activity 设计语言：语义 token、
+// 图标按钮/切换按钮 hover 填充 + 过渡、状态行旋转图标、卡片入场动画。
 const STYLES = `
-.dmr-card{display:flex;flex-direction:column;gap:8px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;padding:8px 12px;background:var(--dsw-alias-bg-layer-1);font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary)}
-.dmr-card-head{display:flex;justify-content:flex-end}
-.dmr-view-toggle{display:inline-flex;gap:2px;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;padding:2px}
-.dmr-vt{border:none;background:transparent;border-radius:6px;padding:2px 10px;cursor:pointer;font-size:12px;line-height:20px;color:var(--dsw-alias-label-secondary)}
-.dmr-vt:hover{background:var(--dsw-alias-interactive-bg-hover)}
-.dmr-vt-active{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary);font-weight:600}
-.dmr-svg{overflow:auto;max-height:70vh}
-.dmr-svg svg{max-width:100%;height:auto}
-.dmr-code{margin:0;background:var(--dsw-alias-markdown-code-block);border-radius:8px;padding:8px 12px;overflow:auto;font:var(--dsw-font-markdown-code-block-small);white-space:pre-wrap}
-.dmr-error{border-radius:8px;background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);padding:6px 10px}
-.dmr-error-title{color:var(--dsw-alias-state-error-primary);font-weight:600}
-.dmr-error-msg{color:var(--dsw-alias-label-secondary);white-space:pre-wrap;word-break:break-all}
+.dsh-mermaid-render-card{display:flex;flex-direction:column;gap:8px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;padding:8px 12px;background:var(--dsw-alias-bg-layer-1);box-shadow:var(--dsw-shadow-lv2);font:var(--dsw-font-s-14);line-height:22px;color:var(--dsw-alias-label-primary);animation:dsh-mermaid-render-card-in 150ms var(--ds-ease-in-out)}
+.dsh-mermaid-render-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.dsh-mermaid-render-card-title{display:flex;align-items:center;gap:5px;font:var(--dsw-font-xxxs-strong-11);color:var(--dsw-alias-label-tertiary);text-transform:uppercase;letter-spacing:.04em}
+.dsh-mermaid-render-card-title svg{display:block;flex:none}
+.dsh-mermaid-render-view-toggle{display:inline-flex;gap:2px;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;padding:2px;flex:none}
+.dsh-mermaid-render-vt{display:inline-flex;align-items:center;gap:4px;border:none;background:transparent;border-radius:6px;padding:2px 8px;cursor:pointer;font:var(--dsw-font-xxs-12);line-height:20px;color:var(--dsw-alias-label-secondary);transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out), color var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+.dsh-mermaid-render-vt svg{display:block;flex:none}
+.dsh-mermaid-render-vt:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+.dsh-mermaid-render-vt-active{background:color-mix(in srgb, var(--dsw-alias-accent) 12%, transparent);color:var(--dsw-alias-accent);font-weight:600}
+.dsh-mermaid-render-svg{overflow:auto;max-height:70vh}
+.dsh-mermaid-render-svg svg{max-width:100%;height:auto}
+.dsh-mermaid-render-code{margin:0;background:var(--dsw-alias-markdown-code-block);border-radius:6px;padding:8px 12px;overflow:auto;font:var(--dsw-font-markdown-code-block-small);white-space:pre-wrap}
+.dsh-mermaid-render-loading{display:flex;align-items:center;gap:6px;padding:8px 6px;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary)}
+.dsh-mermaid-render-loading svg{flex:none;animation:dsh-mermaid-render-spin 1s linear infinite}
+.dsh-mermaid-render-error{border-radius:8px;background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);padding:8px 10px}
+.dsh-mermaid-render-error-head{display:flex;align-items:center;gap:6px}
+.dsh-mermaid-render-error-head svg{flex:none;color:var(--dsw-alias-state-error-primary)}
+.dsh-mermaid-render-error-title{color:var(--dsw-alias-state-error-primary);font-weight:600}
+.dsh-mermaid-render-error-msg{color:var(--dsw-alias-label-secondary);white-space:pre-wrap;word-break:break-all;margin-top:4px;line-height:1.5}
+@keyframes dsh-mermaid-render-card-in{from{opacity:0;transform:translateY(1px)}to{opacity:1;transform:none}}
+@keyframes dsh-mermaid-render-spin{to{transform:rotate(360deg)}}
 `
