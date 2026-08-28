@@ -136,28 +136,36 @@ console.log(`✓ plugin ${name} version ${version}`)
 // 1b. peer dependencies: DSH 插件必须声明 cordis peer（npm 分发后缺失会导致
 // dsh plugin add 安装失败），且 cordis major 与仓库内其他插件保持一致。
 const peers = pkg.peerDependencies || {}
-const cordisPeer = peers.cordis
-if (!cordisPeer) {
-  console.error(`✗ ${name}/package.json 缺少 peerDependencies.cordis（DSH 插件必须声明）`)
-  process.exit(1)
+// 共享工具包（如 dsh-shared）不是 DSH 插件：不挂载 cordis service，无
+// peerDependencies.cordis 是正常的——用 package.json 的 dsh.kind=library
+// 显式标记豁免 cordis peer 检查（其余检查照旧）。
+const isLibrary = pkg.dsh?.kind === 'library'
+if (isLibrary) {
+  console.log('- 共享工具包（dsh.kind=library）豁免 peerDependencies.cordis 检查（非 DSH 插件）')
+} else {
+  const cordisPeer = peers.cordis
+  if (!cordisPeer) {
+    console.error(`✗ ${name}/package.json 缺少 peerDependencies.cordis（DSH 插件必须声明）`)
+    process.exit(1)
+  }
+  const cordisMajor = String(cordisPeer).match(/^[\^~]?(\d+)/)?.[1]
+  if (!cordisMajor) {
+    console.error(`✗ ${name}/package.json peerDependencies.cordis 无法解析 major 版本: ${cordisPeer}`)
+    process.exit(1)
+  }
+  const mismatched = []
+  for (const entry of readdirSync(join(root, 'plugins'))) {
+    if (entry === name || !existsSync(join(root, 'plugins', entry, 'package.json'))) continue
+    const other = JSON.parse(readFileSync(join(root, 'plugins', entry, 'package.json'), 'utf8'))
+    const otherMajor = String(other.peerDependencies?.cordis ?? '').match(/^[\^~]?(\d+)/)?.[1]
+    if (otherMajor && otherMajor !== cordisMajor) mismatched.push(`${entry} (cordis ^${otherMajor})`)
+  }
+  if (mismatched.length > 0) {
+    console.error(`✗ ${name} peerDependencies.cordis ^${cordisMajor} 与以下插件不一致: ${mismatched.join(', ')}`)
+    process.exit(1)
+  }
+  console.log(`✓ peerDependencies.cordis ^${cordisMajor} 已声明且与其他插件一致`)
 }
-const cordisMajor = String(cordisPeer).match(/^[\^~]?(\d+)/)?.[1]
-if (!cordisMajor) {
-  console.error(`✗ ${name}/package.json peerDependencies.cordis 无法解析 major 版本: ${cordisPeer}`)
-  process.exit(1)
-}
-const mismatched = []
-for (const entry of readdirSync(join(root, 'plugins'))) {
-  if (entry === name || !existsSync(join(root, 'plugins', entry, 'package.json'))) continue
-  const other = JSON.parse(readFileSync(join(root, 'plugins', entry, 'package.json'), 'utf8'))
-  const otherMajor = String(other.peerDependencies?.cordis ?? '').match(/^[\^~]?(\d+)/)?.[1]
-  if (otherMajor && otherMajor !== cordisMajor) mismatched.push(`${entry} (cordis ^${otherMajor})`)
-}
-if (mismatched.length > 0) {
-  console.error(`✗ ${name} peerDependencies.cordis ^${cordisMajor} 与以下插件不一致: ${mismatched.join(', ')}`)
-  process.exit(1)
-}
-console.log(`✓ peerDependencies.cordis ^${cordisMajor} 已声明且与其他插件一致`)
 
 // 1c. 跨插件依赖校验（issue #39）：client require('dsh-*') 必须声明 peerDependencies；
 // 仓库内 dsh-* 依赖必须已发布且已打 tag（依赖先发版）。

@@ -26,5 +26,8 @@
     "CHANGELOG.md",
     "LICENSE"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "dsh": {
+    "kind": "library"
+  }
 }
