@@ -46,495 +46,635 @@ window.__ModuleLoader__.load({
 
     // ── parts (injected by scripts/build.mjs; keep this exact order — the
     //    const initializers below run in splice order) ─────────────────────
-        // ── i18n ──────────────────────────────────────────────────────────────
-    function isZh() {
-      try {
-        const lang = (navigator.language || 'en').toLowerCase()
-        return lang.startsWith('zh')
-      } catch {
-        return false
-      }
-    }
+    // ── i18n ──────────────────────────────────────────────────────────────
+function isZh() {
+  try {
+    const lang = (navigator.language || 'en').toLowerCase()
+    return lang.startsWith('zh')
+  } catch {
+    return false
+  }
+}
 
-    const strings = {
-      title: () => (isZh() ? '文件活动' : 'File Activity'),
-      recent: () => (isZh() ? '最近访问' : 'Recent'),
-      stats: () => (isZh() ? '文件统计' : 'File Stats'),
-      empty: () => (isZh() ? '暂无文件活动记录' : 'No file activity yet'),
-      emptyHint: () => (isZh()
-        ? '在侧边栏打开文件、编辑保存，或让 agent 读写文件（创建/读取/修改），都会记录在这里。点击任意文件将在侧边栏内用原生预览打开（代码高亮 / Markdown 渲染 / 图片 / PDF…）。'
-        : 'Opening files in the sidebar, editing, or agent file operations (create/read/modify) are recorded here. Click any file to open it in the sidebar with native preview (syntax highlighting / Markdown rendering / images / PDF…).'),
-      refresh: () => (isZh() ? '刷新' : 'Refresh'),
-      clear: () => (isZh() ? '清空' : 'Clear'),
-      clearConfirm: () => (isZh() ? '确定清空当前会话的全部文件活动记录？' : 'Clear all file activity for this session?'),
-      read: () => (isZh() ? '读取' : 'read'),
-      create: () => (isZh() ? '新增' : 'create'),
-      modify: () => (isZh() ? '修改' : 'modify'),
-      delete: () => (isZh() ? '删除' : 'delete'),
-      readShort: () => (isZh() ? '读' : 'R'),
-      createShort: () => (isZh() ? '增' : 'C'),
-      modifyShort: () => (isZh() ? '改' : 'M'),
-      loadError: () => (isZh() ? '加载失败' : 'Load failed'),
-      created: () => (isZh() ? '创建' : 'Created'),
-      lastSeen: () => (isZh() ? '最近访问' : 'Last seen'),
-      justNow: () => (isZh() ? '刚刚' : 'just now'),
-      minutesAgo: (m) => (isZh() ? `${m} 分钟前` : `${m}m ago`),
-      hoursAgo: (h) => (isZh() ? `${h} 小时前` : `${h}h ago`),
-      daysAgo: (d) => (isZh() ? `${d} 天前` : `${d}d ago`),
-      closePreview: () => (isZh() ? '关闭预览' : 'Close preview'),
-      loading: () => (isZh() ? '加载中…' : 'Loading…'),
-      previewUnsupported: () => (isZh() ? '该文件类型暂不支持预览' : 'This file type cannot be previewed yet'),
-      previewFailed: () => (isZh() ? '预览加载失败' : 'Preview failed to load'),
-      downloadToView: () => (isZh() ? '下载查看' : 'download to view'),
-    }
+const strings = {
+  title: () => (isZh() ? '文件活动' : 'File Activity'),
+  recent: () => (isZh() ? '最近访问' : 'Recent'),
+  stats: () => (isZh() ? '文件统计' : 'File Stats'),
+  empty: () => (isZh() ? '暂无文件活动记录' : 'No file activity yet'),
+  emptyHint: () =>
+    isZh()
+      ? '在侧边栏打开文件、编辑保存，或让 agent 读写文件（创建/读取/修改），都会记录在这里。点击任意文件将在侧边栏内用原生预览打开（代码高亮 / Markdown 渲染 / 图片 / PDF…）。'
+      : 'Opening files in the sidebar, editing, or agent file operations (create/read/modify) are recorded here. Click any file to open it in the sidebar with native preview (syntax highlighting / Markdown rendering / images / PDF…).',
+  refresh: () => (isZh() ? '刷新' : 'Refresh'),
+  clear: () => (isZh() ? '清空' : 'Clear'),
+  clearConfirm: () => (isZh() ? '确定清空当前会话的全部文件活动记录？' : 'Clear all file activity for this session?'),
+  read: () => (isZh() ? '读取' : 'read'),
+  create: () => (isZh() ? '新增' : 'create'),
+  modify: () => (isZh() ? '修改' : 'modify'),
+  delete: () => (isZh() ? '删除' : 'delete'),
+  readShort: () => (isZh() ? '读' : 'R'),
+  createShort: () => (isZh() ? '增' : 'C'),
+  modifyShort: () => (isZh() ? '改' : 'M'),
+  loadError: () => (isZh() ? '加载失败' : 'Load failed'),
+  created: () => (isZh() ? '创建' : 'Created'),
+  lastSeen: () => (isZh() ? '最近访问' : 'Last seen'),
+  justNow: () => (isZh() ? '刚刚' : 'just now'),
+  minutesAgo: (m) => (isZh() ? `${m} 分钟前` : `${m}m ago`),
+  hoursAgo: (h) => (isZh() ? `${h} 小时前` : `${h}h ago`),
+  daysAgo: (d) => (isZh() ? `${d} 天前` : `${d}d ago`),
+  closePreview: () => (isZh() ? '关闭预览' : 'Close preview'),
+  loading: () => (isZh() ? '加载中…' : 'Loading…'),
+  previewUnsupported: () => (isZh() ? '该文件类型暂不支持预览' : 'This file type cannot be previewed yet'),
+  previewFailed: () => (isZh() ? '预览加载失败' : 'Preview failed to load'),
+  downloadToView: () => (isZh() ? '下载查看' : 'download to view'),
+}
 
-        // ── path / time formatting helpers ────────────────────────────────────
-    function basenameOf(path) {
-      const norm = path.split('\\').join('/')
-      const idx = norm.lastIndexOf('/')
-      return idx === -1 ? norm : norm.slice(idx + 1)
-    }
+    // ── path / time formatting helpers ────────────────────────────────────
+function basenameOf(path) {
+  const norm = path.split('\\').join('/')
+  const idx = norm.lastIndexOf('/')
+  return idx === -1 ? norm : norm.slice(idx + 1)
+}
 
-    /** Compact relative time: 刚刚 / N 分钟前 / N 小时前 / N 天前 / MM/DD. */
-    function formatRelative(time) {
-      if (typeof time !== 'number' || !Number.isFinite(time)) return ''
-      const diff = Date.now() - time
-      if (diff < 30_000) return strings.justNow()
-      const minutes = Math.floor(diff / 60_000)
-      if (minutes < 60) return strings.minutesAgo(minutes)
-      const hours = Math.floor(minutes / 60)
-      if (hours < 24) return strings.hoursAgo(hours)
-      const days = Math.floor(hours / 24)
-      if (days < 7) return strings.daysAgo(days)
-      const date = new Date(time)
-      return `${date.getMonth() + 1}/${date.getDate()}`
-    }
+/** Compact relative time: 刚刚 / N 分钟前 / N 小时前 / N 天前 / MM/DD. */
+function formatRelative(time) {
+  if (typeof time !== 'number' || !Number.isFinite(time)) return ''
+  const diff = Date.now() - time
+  if (diff < 30_000) return strings.justNow()
+  const minutes = Math.floor(diff / 60_000)
+  if (minutes < 60) return strings.minutesAgo(minutes)
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return strings.hoursAgo(hours)
+  const days = Math.floor(hours / 24)
+  if (days < 7) return strings.daysAgo(days)
+  const date = new Date(time)
+  return `${date.getMonth() + 1}/${date.getDate()}`
+}
 
-    /** Local wall-clock HH:MM:SS (used in tooltips; full precision). */
-    function formatTime(time) {
-      const date = new Date(time)
-      const pad = (n) => String(n).padStart(2, '0')
-      return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
-    }
+/** Local wall-clock HH:MM:SS (used in tooltips; full precision). */
+function formatTime(time) {
+  const date = new Date(time)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
 
-        // ── directory tree construction ───────────────────────────────────────
-    /**
-     * Collapse chain directories: a directory whose only child is another
-     * directory merges into it (a → a.b → a.b.c …). Deep single-child paths
-     * render as one dotted label with the file(s) directly beneath.
-     * `root` itself is never collapsed (its name is '' and would drop the
-     * top-level directory).
-     */
-    function compressChains(node, isRoot) {
-      for (const child of node.children) {
-        if (child.type === 'dir') compressChains(child, false)
-      }
-      if (isRoot) return
-      while (node.children.length === 1 && node.children[0].type === 'dir') {
-        const only = node.children[0]
-        node.name = `${node.name}.${only.name}`
-        node.children = only.children
-        node.compressed = true
-      }
-    }
+    // ── directory tree construction ───────────────────────────────────────
+/**
+ * Collapse chain directories: a directory whose only child is another
+ * directory merges into it (a → a.b → a.b.c …). Deep single-child paths
+ * render as one dotted label with the file(s) directly beneath.
+ * `root` itself is never collapsed (its name is '' and would drop the
+ * top-level directory).
+ */
+function compressChains(node, isRoot) {
+  for (const child of node.children) {
+    if (child.type === 'dir') compressChains(child, false)
+  }
+  if (isRoot) return
+  while (node.children.length === 1 && node.children[0].type === 'dir') {
+    const only = node.children[0]
+    node.name = `${node.name}.${only.name}`
+    node.children = only.children
+    node.compressed = true
+  }
+}
 
-    /**
-     * Sort a directory node: directories first (alphabetically), then files
-     * (by total activity, then name); recurse into directories.
-     */
-    function sortNode(node) {
-      node.children.sort((a, b) => {
-        if (a.type !== b.type) return a.type === 'dir' ? -1 : 1
-        if (a.type === 'dir') return a.name < b.name ? -1 : a.name > b.name ? 1 : 0
-        const ta = a.read + a.create + a.modify
-        const tb = b.read + b.create + b.modify
-        return tb - ta || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
-      })
-      for (const child of node.children) {
-        if (child.type === 'dir') sortNode(child)
-      }
-    }
+/**
+ * Sort a directory node: directories first (alphabetically), then files
+ * (by total activity, then name); recurse into directories.
+ */
+function sortNode(node) {
+  node.children.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'dir' ? -1 : 1
+    if (a.type === 'dir') return a.name < b.name ? -1 : a.name > b.name ? 1 : 0
+    const ta = a.read + a.create + a.modify
+    const tb = b.read + b.create + b.modify
+    return tb - ta || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
+  })
+  for (const child of node.children) {
+    if (child.type === 'dir') sortNode(child)
+  }
+}
 
-    /**
-     * Build a nested directory tree from per-file counts, keyed by the file's
-     * absolute path. Every directory node aggregates its subtree counters and
-     * sorts directories first (alphabetically), then files (by activity).
-     */
-    function buildTree(counts) {
-      const root = { type: 'dir', name: '', path: '', children: [], read: 0, create: 0, modify: 0 }
-      for (const [abs, counter] of Object.entries(counts)) {
-        const parts = abs.split('/').filter((part) => part !== '')
-        if (parts.length === 0) continue
-        const name = parts[parts.length - 1]
-        let node = root
-        for (const dir of parts.slice(0, -1)) {
-          let child = node.children.find((c) => c.type === 'dir' && c.name === dir)
-          if (child === undefined) {
-            child = { type: 'dir', name: dir, path: `${node.path}/${dir}`, children: [], read: 0, create: 0, modify: 0 }
-            node.children.push(child)
-          }
-          node = child
-          node.read += counter.read
-          node.create += counter.create
-          node.modify += counter.modify
+/**
+ * Build a nested directory tree from per-file counts, keyed by the file's
+ * absolute path. Every directory node aggregates its subtree counters and
+ * sorts directories first (alphabetically), then files (by activity).
+ */
+function buildTree(counts) {
+  const root = { type: 'dir', name: '', path: '', children: [], read: 0, create: 0, modify: 0 }
+  for (const [abs, counter] of Object.entries(counts)) {
+    const parts = abs.split('/').filter((part) => part !== '')
+    if (parts.length === 0) continue
+    const name = parts[parts.length - 1]
+    let node = root
+    for (const dir of parts.slice(0, -1)) {
+      let child = node.children.find((c) => c.type === 'dir' && c.name === dir)
+      if (child === undefined) {
+        child = {
+          type: 'dir',
+          name: dir,
+          path: `${node.path}/${dir}`,
+          children: [],
+          read: 0,
+          create: 0,
+          modify: 0,
         }
-        node.children.push({
-          type: 'file', name, abs,
-          read: counter.read, create: counter.create, modify: counter.modify,
-          firstSeen: counter.firstSeen, lastSeen: counter.lastSeen,
-        })
+        node.children.push(child)
       }
-      sortNode(root)
-      compressChains(root, true)
-      return root
+      node = child
+      node.read += counter.read
+      node.create += counter.create
+      node.modify += counter.modify
     }
+    node.children.push({
+      type: 'file',
+      name,
+      abs,
+      read: counter.read,
+      create: counter.create,
+      modify: counter.modify,
+      firstSeen: counter.firstSeen,
+      lastSeen: counter.lastSeen,
+    })
+  }
+  sortNode(root)
+  compressChains(root, true)
+  return root
+}
 
-        // ── tiny external store ───────────────────────────────────────────────
-    function createStore(initial) {
-      let state = initial
-      const listeners = new Set()
-      return {
-        getSnapshot: () => state,
-        set(patch) {
-          state = { ...state, ...patch }
-          for (const listener of [...listeners]) listener()
-        },
-        subscribe(listener) {
-          listeners.add(listener)
-          return () => listeners.delete(listener)
-        },
-      }
+    // ── tiny external store ───────────────────────────────────────────────
+function createStore(initial) {
+  let state = initial
+  const listeners = new Set()
+  return {
+    getSnapshot: () => state,
+    set(patch) {
+      state = { ...state, ...patch }
+      for (const listener of [...listeners]) listener()
+    },
+    subscribe(listener) {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+  }
+}
+
+    // ── data access (host routes) ─────────────────────────────────────────
+async function fetchStats(sessionId) {
+  const response = await fetch(`/file-activity/api/stats?sessionId=${encodeURIComponent(sessionId)}`)
+  const json = await response.json()
+  if (json === null || typeof json !== 'object' || json.ok !== true) return null
+  return json.value
+}
+
+/** Resolve the session working directory through the sidebar's native API. */
+async function fetchSessionCwd(sessionId) {
+  try {
+    const response = await fetch('/sidebar/api/session.cwd', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sessionId }),
+    })
+    const json = await response.json()
+    const cwd = json?.value?.cwd
+    return typeof cwd === 'string' && cwd !== '' ? cwd : ''
+  } catch {
+    return ''
+  }
+}
+
+function postRecord(sessionId, path, op) {
+  if (typeof sessionId !== 'string' || sessionId === '' || typeof path !== 'string' || path === '') return
+  void fetch('/file-activity/api/record', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ sessionId, path, op }),
+  }).catch(() => {})
+}
+
+function postClear(sessionId) {
+  void fetch('/file-activity/api/clear', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ sessionId }),
+  }).catch(() => {})
+}
+
+/** Plugin media route URL for a recorded path (authorized per session). */
+function mediaUrlOf(sessionId, path) {
+  return `/file-activity/file?${new URLSearchParams({ sessionId, path })}`
+}
+
+    // ── fetch interception: sidebar file operations ───────────────────────
+function methodOf(init) {
+  return (init?.method ?? 'GET').toUpperCase()
+}
+
+/** POST body as a plain object (non-string bodies are ignored). */
+function parseBody(init) {
+  return typeof init?.body === 'string' ? JSON.parse(init.body) : {}
+}
+
+/** Record fs.read / fs.write POSTs observed on the sidebar API. */
+function recordSidebarFs(url, init) {
+  if (url.pathname !== '/sidebar/api/fs.read' && url.pathname !== '/sidebar/api/fs.write') return
+  if (methodOf(init) !== 'POST') return
+  const body = parseBody(init)
+  if (typeof body.sessionId !== 'string' || typeof body.path !== 'string') return
+  postRecord(body.sessionId, body.path, url.pathname === '/sidebar/api/fs.write' ? 'write' : 'read')
+}
+
+/** Record sidebar media opens (/sidebar/file?sessionId=...&path=...). */
+function recordMediaOpen(url, init) {
+  if (url.pathname !== '/sidebar/file' || methodOf(init) !== 'GET') return
+  const sessionId = url.searchParams.get('sessionId')
+  const path = url.searchParams.get('path')
+  if (sessionId !== null && path !== null) postRecord(sessionId, path, 'read')
+}
+
+/** Observe a resolved fetch URL and record sidebar file operations. */
+function observeSidebarFetch(url, init) {
+  try {
+    recordSidebarFs(url, init)
+    recordMediaOpen(url, init)
+  } catch {
+    // observation must never break the underlying call
+  }
+}
+
+function installFetchInterceptor() {
+  const original = window.fetch.bind(window)
+  window.fetch = (input, init) => {
+    const result = original(input, init)
+    let url
+    try {
+      if (typeof input === 'string') url = new URL(input, window.location.href)
+      else if (input instanceof URL) url = input
+      else return result // Request instances: skip observation
+    } catch {
+      return result
     }
+    observeSidebarFetch(url, init)
+    return result
+  }
+  return () => {
+    window.fetch = original
+  }
+}
 
-        // ── data access (host routes) ─────────────────────────────────────────
-    async function fetchStats(sessionId) {
-      const response = await fetch(`/file-activity/api/stats?sessionId=${encodeURIComponent(sessionId)}`)
-      const json = await response.json()
-      if (json === null || typeof json !== 'object' || json.ok !== true) return null
-      return json.value
+    // ── auto-open (enabled by default) ────────────────────────────────────
+function findTabIn(state, tabId) {
+  const leaves = (node) => (node.kind === 'leaf' ? [node] : (node.children ?? []).flatMap(leaves))
+  for (const node of [state?.splits, state?.bottomSplits]) {
+    if (node === undefined || node === null) continue
+    for (const leaf of leaves(node)) {
+      if ((leaf.tabs ?? []).some((tab) => tab.type === tabId)) return true
     }
+  }
+  return false
+}
 
-    /** Resolve the session working directory through the sidebar's native API. */
-    async function fetchSessionCwd(sessionId) {
-      try {
-        const response = await fetch('/sidebar/api/session.cwd', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ sessionId }),
-        })
-        const json = await response.json()
-        const cwd = json?.value?.cwd
-        return typeof cwd === 'string' && cwd !== '' ? cwd : ''
-      } catch {
-        return ''
-      }
-    }
+/** Current sidebar snapshot, or null when the service is not ready. */
+function sidebarSnapshot(service) {
+  try {
+    return service.getSnapshot?.()
+  } catch {
+    return null
+  }
+}
 
-    function postRecord(sessionId, path, op) {
-      if (typeof sessionId !== 'string' || sessionId === '' || typeof path !== 'string' || path === '') return
-      void fetch('/file-activity/api/record', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ sessionId, path, op }),
-      }).catch(() => {})
-    }
+/** The user disabled auto-open for this tab in the sidebar settings. */
+function isAutoOpenDisabled(snapshot, tabId) {
+  const settings = snapshot.prefs?.pluginSettings?.[tabId]
+  return settings !== undefined && settings.autoOpen === false
+}
 
-    function postClear(sessionId) {
-      void fetch('/file-activity/api/clear', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ sessionId }),
-      }).catch(() => {})
-    }
+/** Whether this session was already auto-opened (localStorage marker). */
+function isAutoOpenMarked(sessionId) {
+  try {
+    return Boolean(window.localStorage.getItem(AUTO_OPEN_KEY + sessionId))
+  } catch {
+    return true
+  }
+}
 
-    /** Plugin media route URL for a recorded path (authorized per session). */
-    function mediaUrlOf(sessionId, path) {
-      return `/file-activity/file?${new URLSearchParams({ sessionId, path })}`
-    }
+/** Persist the auto-opened marker for this session. */
+function markAutoOpened(sessionId) {
+  try {
+    window.localStorage.setItem(AUTO_OPEN_KEY + sessionId, '1')
+  } catch {
+    // ignore
+  }
+}
 
-        // ── fetch interception: sidebar file operations ───────────────────────
-    function methodOf(init) {
-      return (init?.method ?? 'GET').toUpperCase()
-    }
+/** Open the tab once per session unless disabled in the plugin settings. */
+function tryAutoOpen(service, tabId) {
+  const snapshot = sidebarSnapshot(service)
+  if (snapshot === undefined || snapshot === null || snapshot.sessionId === undefined || snapshot.state === undefined)
+    return
+  const sessionId = snapshot.sessionId
+  if (isAutoOpenDisabled(snapshot, tabId)) return
+  if (isAutoOpenMarked(sessionId)) return
+  if (findTabIn(snapshot.state, tabId)) {
+    markAutoOpened(sessionId)
+    return
+  }
+  try {
+    service.openTab({ type: tabId, title: strings.title(), path: '' })
+    markAutoOpened(sessionId)
+  } catch (error) {
+    console.error('[dsh-file-activity] auto-open failed:', error)
+  }
+}
 
-    /** POST body as a plain object (non-string bodies are ignored). */
-    function parseBody(init) {
-      return typeof init?.body === 'string' ? JSON.parse(init.body) : {}
-    }
+function installAutoOpen(ctx, tabId) {
+  const service = ctx.betterSidebar
+  tryAutoOpen(service, tabId)
+  let off = () => {}
+  try {
+    off = service.subscribeState?.(() => tryAutoOpen(service, tabId)) ?? off
+  } catch {
+    // service may lack subscribeState on older versions
+  }
+  return off
+}
 
-    /** Record fs.read / fs.write POSTs observed on the sidebar API. */
-    function recordSidebarFs(url, init) {
-      if (url.pathname !== '/sidebar/api/fs.read' && url.pathname !== '/sidebar/api/fs.write') return
-      if (methodOf(init) !== 'POST') return
-      const body = parseBody(init)
-      if (typeof body.sessionId !== 'string' || typeof body.path !== 'string') return
-      postRecord(body.sessionId, body.path, url.pathname === '/sidebar/api/fs.write' ? 'write' : 'read')
-    }
-
-    /** Record sidebar media opens (/sidebar/file?sessionId=...&path=...). */
-    function recordMediaOpen(url, init) {
-      if (url.pathname !== '/sidebar/file' || methodOf(init) !== 'GET') return
-      const sessionId = url.searchParams.get('sessionId')
-      const path = url.searchParams.get('path')
-      if (sessionId !== null && path !== null) postRecord(sessionId, path, 'read')
-    }
-
-    /** Observe a resolved fetch URL and record sidebar file operations. */
-    function observeSidebarFetch(url, init) {
-      try {
-        recordSidebarFs(url, init)
-        recordMediaOpen(url, init)
-      } catch {
-        // observation must never break the underlying call
-      }
-    }
-
-    function installFetchInterceptor() {
-      const original = window.fetch.bind(window)
-      window.fetch = (input, init) => {
-        const result = original(input, init)
-        let url
-        try {
-          if (typeof input === 'string') url = new URL(input, window.location.href)
-          else if (input instanceof URL) url = input
-          else return result // Request instances: skip observation
-        } catch {
-          return result
-        }
-        observeSidebarFetch(url, init)
-        return result
-      }
-      return () => {
-        window.fetch = original
-      }
-    }
-
-        // ── auto-open (enabled by default) ────────────────────────────────────
-    function findTabIn(state, tabId) {
-      const leaves = (node) => (node.kind === 'leaf' ? [node] : (node.children ?? []).flatMap(leaves))
-      for (const node of [state?.splits, state?.bottomSplits]) {
-        if (node === undefined || node === null) continue
-        for (const leaf of leaves(node)) {
-          if ((leaf.tabs ?? []).some((tab) => tab.type === tabId)) return true
-        }
-      }
-      return false
-    }
-
-    /** Current sidebar snapshot, or null when the service is not ready. */
-    function sidebarSnapshot(service) {
-      try {
-        return service.getSnapshot?.()
-      } catch {
-        return null
-      }
-    }
-
-    /** The user disabled auto-open for this tab in the sidebar settings. */
-    function isAutoOpenDisabled(snapshot, tabId) {
-      const settings = snapshot.prefs?.pluginSettings?.[tabId]
-      return settings !== undefined && settings.autoOpen === false
-    }
-
-    /** Whether this session was already auto-opened (localStorage marker). */
-    function isAutoOpenMarked(sessionId) {
-      try {
-        return Boolean(window.localStorage.getItem(AUTO_OPEN_KEY + sessionId))
-      } catch {
-        return true
-      }
-    }
-
-    /** Persist the auto-opened marker for this session. */
-    function markAutoOpened(sessionId) {
-      try {
-        window.localStorage.setItem(AUTO_OPEN_KEY + sessionId, '1')
-      } catch {
-        // ignore
-      }
-    }
-
-    /** Open the tab once per session unless disabled in the plugin settings. */
-    function tryAutoOpen(service, tabId) {
-      const snapshot = sidebarSnapshot(service)
-      if (snapshot === undefined || snapshot === null || snapshot.sessionId === undefined || snapshot.state === undefined) return
-      const sessionId = snapshot.sessionId
-      if (isAutoOpenDisabled(snapshot, tabId)) return
-      if (isAutoOpenMarked(sessionId)) return
-      if (findTabIn(snapshot.state, tabId)) {
-        markAutoOpened(sessionId)
-        return
-      }
-      try {
-        service.openTab({ type: tabId, title: strings.title(), path: '' })
-        markAutoOpened(sessionId)
-      } catch (error) {
-        console.error('[dsh-file-activity] auto-open failed:', error)
-      }
-    }
-
-    function installAutoOpen(ctx, tabId) {
-      const service = ctx.betterSidebar
-      tryAutoOpen(service, tabId)
-      let off = () => {}
-      try {
-        off = service.subscribeState?.(() => tryAutoOpen(service, tabId)) ?? off
-      } catch {
-        // service may lack subscribeState on older versions
-      }
-      return off
-    }
-
-        // ── icons (inline, stroke=currentColor, matching better-sidebar) ──────
-    const ICON_STROKE = 1.8
-    const iconSvg = (children, size) =>
-      createElement('svg', {
-        width: size, height: size, viewBox: '0 0 24 24', fill: 'none',
-        stroke: 'currentColor', strokeWidth: ICON_STROKE, strokeLinecap: 'round', strokeLinejoin: 'round',
-        'aria-hidden': 'true',
-      }, children.map((child, i) => (child === null || child === undefined || typeof child === 'boolean')
+    // ── shared icons (inline, stroke=currentColor, matching better-sidebar) ──
+// Single source of truth for the plugin UI icon set (issue #54 阶段 0).
+// Extracted from dsh-file-activity's lib/parts/icons.part.js; every plugin's
+// scripts/build.mjs splices this file via the `shared: true` piece marker.
+// Keep the stroke=currentColor outline style — it inherits the surrounding
+// text color and reads on both light and dark themes.
+const ICON_STROKE = 1.8
+const iconSvg = (children, size) =>
+  createElement(
+    'svg',
+    {
+      width: size,
+      height: size,
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: ICON_STROKE,
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+      'aria-hidden': 'true',
+    },
+    children.map((child, i) =>
+      child === null || child === undefined || typeof child === 'boolean'
         ? child
-        : createElement(child.type, { key: i, ...child.props })))
+        : createElement(child.type, { key: i, ...child.props }),
+    ),
+  )
 
-    const icon = {
-      clock: (size = 16) => iconSvg([
-        createElement('circle', { cx: 12, cy: 12, r: 9 }),
-        createElement('path', { d: 'M12 7v5l3 2' }),
-      ], size),
-      refresh: (size = 16) => iconSvg([
+const icon = {
+  clock: (size = 16) =>
+    iconSvg([createElement('circle', { cx: 12, cy: 12, r: 9 }), createElement('path', { d: 'M12 7v5l3 2' })], size),
+  refresh: (size = 16) =>
+    iconSvg(
+      [
         createElement('path', { d: 'M21 12a9 9 0 1 1-2.64-6.36' }),
         createElement('polyline', { points: '21 3 21 9 15 9' }),
-      ], size),
-      trash: (size = 16) => iconSvg([
+      ],
+      size,
+    ),
+  trash: (size = 16) =>
+    iconSvg(
+      [
         createElement('path', { d: 'M3 6h18' }),
         createElement('path', { d: 'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6' }),
         createElement('path', { d: 'M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2' }),
-      ], size),
-      chevronRight: (size = 14) => iconSvg([
-        createElement('polyline', { points: '9 6 15 12 9 18' }),
-      ], size),
-      chevronDown: (size = 14) => iconSvg([
-        createElement('polyline', { points: '6 9 12 15 18 9' }),
-      ], size),
-      file: (size = 16) => iconSvg([
+      ],
+      size,
+    ),
+  chevronRight: (size = 14) => iconSvg([createElement('polyline', { points: '9 6 15 12 9 18' })], size),
+  chevronDown: (size = 14) => iconSvg([createElement('polyline', { points: '6 9 12 15 18 9' })], size),
+  file: (size = 16) =>
+    iconSvg(
+      [
         createElement('path', { d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z' }),
         createElement('path', { d: 'M14 2v6h6' }),
-      ], size),
-      folder: (size = 16) => iconSvg([
-        createElement('path', { d: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' }),
-      ], size),
-      external: (size = 15) => iconSvg([
+      ],
+      size,
+    ),
+  folder: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', {
+          d: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
+        }),
+      ],
+      size,
+    ),
+  external: (size = 15) =>
+    iconSvg(
+      [
         createElement('path', { d: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' }),
         createElement('polyline', { points: '15 3 21 3 21 9' }),
         createElement('line', { x1: 10, y1: 14, x2: 21, y2: 3 }),
-      ], size),
-      close: (size = 15) => iconSvg([
+      ],
+      size,
+    ),
+  close: (size = 15) =>
+    iconSvg(
+      [
         createElement('line', { x1: 18, y1: 6, x2: 6, y2: 18 }),
         createElement('line', { x1: 6, y1: 6, x2: 18, y2: 18 }),
-      ], size),
-    }
+      ],
+      size,
+    ),
+  // ── generic action icons (issue #54 阶段 0) ─────────────────────────────
+  // Added for the upcoming plugin UI refresh: save/confirm (check), add/
+  // install (plus), market search (search), settings entry (settings).
+  check: (size = 16) => iconSvg([createElement('polyline', { points: '20 6 9 17 4 12' })], size),
+  plus: (size = 16) =>
+    iconSvg(
+      [
+        createElement('line', { x1: 12, y1: 5, x2: 12, y2: 19 }),
+        createElement('line', { x1: 5, y1: 12, x2: 19, y2: 12 }),
+      ],
+      size,
+    ),
+  search: (size = 16) =>
+    iconSvg(
+      [
+        createElement('circle', { cx: 11, cy: 11, r: 8 }),
+        createElement('line', { x1: 21, y1: 21, x2: 16.65, y2: 16.65 }),
+      ],
+      size,
+    ),
+  settings: (size = 16) =>
+    iconSvg(
+      [
+        createElement('circle', { cx: 12, cy: 12, r: 3 }),
+        createElement('path', {
+          d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z',
+        }),
+      ],
+      size,
+    ),
+}
 
-    // Common-language / file-type badges (issue #24): brand fill + contrast
-    // ink, reading on both light and dark themes. Unmapped extensions keep the
-    // neutral currentColor file icon above. [bg, fg ink, short mark]
-    const FILE_BADGES = {
-      // JavaScript / TypeScript
-      js: ['#F7DF1E', '#323330', 'JS'], mjs: ['#F7DF1E', '#323330', 'JS'], cjs: ['#F7DF1E', '#323330', 'JS'],
-      ts: ['#3178C6', '#ffffff', 'TS'], mts: ['#3178C6', '#ffffff', 'TS'], cts: ['#3178C6', '#ffffff', 'TS'],
-      tsx: ['#3178C6', '#ffffff', 'TSX'], jsx: ['#3178C6', '#ffffff', 'JSX'],
-      // 后端语言
-      java: ['#007396', '#ffffff', 'JAVA'],
-      c: ['#A8B9CC', '#111111', 'C'],
-      cpp: ['#00599C', '#ffffff', 'C++'], cxx: ['#00599C', '#ffffff', 'C++'], cc: ['#00599C', '#ffffff', 'C++'], hpp: ['#00599C', '#ffffff', 'C++'],
-      h: ['#A8B9CC', '#111111', 'H'], hh: ['#A8B9CC', '#111111', 'H'],
-      cs: ['#68217A', '#ffffff', 'C#'], csharp: ['#68217A', '#ffffff', 'C#'],
-      go: ['#00ADD8', '#ffffff', 'GO'],
-      rs: ['#CE422B', '#ffffff', 'RS'],
-      rb: ['#B51624', '#ffffff', 'RB'],
-      php: ['#777BB4', '#ffffff', 'PHP'],
-      py: ['#3776AB', '#ffffff', 'PY'],
-      swift: ['#F05138', '#ffffff', 'SWIFT'],
-      kt: ['#7F52FF', '#ffffff', 'KT'], kotlin: ['#7F52FF', '#ffffff', 'KT'],
-      dart: ['#0175C2', '#ffffff', 'DART'],
-      scala: ['#DC322F', '#ffffff', 'SCALA'],
-      lua: ['#2C2C7C', '#ffffff', 'LUA'],
-      pl: ['#0298C3', '#ffffff', 'PERL'],
-      r: ['#336DC3', '#ffffff', 'R'],
-      m: ['#C1272D', '#ffffff', 'MAT'], mm: ['#C1272D', '#ffffff', 'MAT'],
-      // Web / 前端
-      html: ['#E34F26', '#ffffff', '</>'], htm: ['#E34F26', '#ffffff', '</>'],
-      css: ['#663399', '#ffffff', 'CSS'],
-      scss: ['#CD6799', '#ffffff', 'SCSS'], sass: ['#CD6799', '#ffffff', 'SCSS'],
-      vue: ['#42B883', '#ffffff', 'VUE'],
-      svelte: ['#FF3E00', '#ffffff', 'SVELTE'],
-      // 数据 / 结构化
-      json: ['#F7DF1E', '#323330', '{}'],
-      sql: ['#00758F', '#ffffff', 'SQL'],
-      csv: ['#2E7D32', '#ffffff', 'CSV'],
-      db: ['#0F62FE', '#ffffff', 'DB'], sqlite: ['#0F62FE', '#ffffff', 'DB'], sqlite3: ['#0F62FE', '#ffffff', 'DB'],
-      xml: ['#FF6F00', '#ffffff', 'XML'],
-      svg: ['#FF6F00', '#ffffff', 'SVG'],
-      // 文档
-      md: ['#42A5F5', '#ffffff', 'M↓'], markdown: ['#42A5F5', '#ffffff', 'M↓'],
-      txt: ['#90A4AE', '#ffffff', 'TXT'], text: ['#90A4AE', '#ffffff', 'TXT'], log: ['#90A4AE', '#ffffff', 'TXT'],
-      pdf: ['#E5202B', '#ffffff', 'PDF'],
-      doc: ['#2B579A', '#ffffff', 'DOC'], docx: ['#2B579A', '#ffffff', 'DOC'],
-      xls: ['#217346', '#ffffff', 'XLS'], xlsx: ['#217346', '#ffffff', 'XLS'],
-      ppt: ['#D24726', '#ffffff', 'PPT'], pptx: ['#D24726', '#ffffff', 'PPT'],
-      // 配置 / 构建
-      yml: ['#CB171E', '#ffffff', 'YML'], yaml: ['#CB171E', '#ffffff', 'YML'],
-      toml: ['#8D6E63', '#ffffff', 'TOML'],
-      ini: ['#546E7A', '#ffffff', 'CFG'], cfg: ['#546E7A', '#ffffff', 'CFG'], config: ['#546E7A', '#ffffff', 'CFG'],
-      env: ['#F9A825', '#323330', 'ENV'],
-      properties: ['#7B1FA2', '#ffffff', 'PROP'],
-      lock: ['#37474F', '#ffffff', 'LOCK'],
-      dockerfile: ['#2496ED', '#ffffff', 'DOCK'], docker: ['#2496ED', '#ffffff', 'DOCK'],
-      makefile: ['#607D8B', '#ffffff', 'MAKE'],
-      gradle: ['#02303A', '#ffffff', 'GRADLE'],
-      cmake: ['#265774', '#ffffff', 'CMAKE'],
-      ipynb: ['#F37726', '#ffffff', 'JNB'],
-      // 脚本 / Shell
-      sh: ['#89E051', '#111111', '>_'], bash: ['#89E051', '#111111', '>_'], zsh: ['#89E051', '#111111', '>_'],
-      ps1: ['#012456', '#ffffff', 'PS1'],
-      bat: ['#546E7A', '#ffffff', 'CMD'], cmd: ['#546E7A', '#ffffff', 'CMD'],
-      // 打包 / 二进制
-      zip: ['#FFA726', '#323330', 'ZIP'], tar: ['#FFA726', '#323330', 'ZIP'], gz: ['#FFA726', '#323330', 'ZIP'],
-      '7z': ['#FFA726', '#323330', 'ZIP'], rar: ['#FFA726', '#323330', 'ZIP'],
-      exe: ['#0078D4', '#ffffff', 'EXE'], msi: ['#0078D4', '#ffffff', 'EXE'],
-      wasm: ['#654FF0', '#ffffff', 'WASM'],
-      // 图片 / 媒体
-      png: ['#8E44AD', '#ffffff', 'IMG'], jpg: ['#8E44AD', '#ffffff', 'IMG'], jpeg: ['#8E44AD', '#ffffff', 'IMG'],
-      gif: ['#8E44AD', '#ffffff', 'IMG'], webp: ['#8E44AD', '#ffffff', 'IMG'], ico: ['#8E44AD', '#ffffff', 'IMG'], bmp: ['#8E44AD', '#ffffff', 'IMG'],
-      // 版本控制
-      gitignore: ['#F05032', '#ffffff', 'GIT'], gitattributes: ['#F05032', '#ffffff', 'GIT'],
-    }
+// Common-language / file-type badges (issue #24): brand fill + contrast
+// ink, reading on both light and dark themes. Unmapped extensions keep the
+// neutral currentColor file icon above. [bg, fg ink, short mark]
+const FILE_BADGES = {
+  // JavaScript / TypeScript
+  js: ['#F7DF1E', '#323330', 'JS'],
+  mjs: ['#F7DF1E', '#323330', 'JS'],
+  cjs: ['#F7DF1E', '#323330', 'JS'],
+  ts: ['#3178C6', '#ffffff', 'TS'],
+  mts: ['#3178C6', '#ffffff', 'TS'],
+  cts: ['#3178C6', '#ffffff', 'TS'],
+  tsx: ['#3178C6', '#ffffff', 'TSX'],
+  jsx: ['#3178C6', '#ffffff', 'JSX'],
+  // 后端语言
+  java: ['#007396', '#ffffff', 'JAVA'],
+  c: ['#A8B9CC', '#111111', 'C'],
+  cpp: ['#00599C', '#ffffff', 'C++'],
+  cxx: ['#00599C', '#ffffff', 'C++'],
+  cc: ['#00599C', '#ffffff', 'C++'],
+  hpp: ['#00599C', '#ffffff', 'C++'],
+  h: ['#A8B9CC', '#111111', 'H'],
+  hh: ['#A8B9CC', '#111111', 'H'],
+  cs: ['#68217A', '#ffffff', 'C#'],
+  csharp: ['#68217A', '#ffffff', 'C#'],
+  go: ['#00ADD8', '#ffffff', 'GO'],
+  rs: ['#CE422B', '#ffffff', 'RS'],
+  rb: ['#B51624', '#ffffff', 'RB'],
+  php: ['#777BB4', '#ffffff', 'PHP'],
+  py: ['#3776AB', '#ffffff', 'PY'],
+  swift: ['#F05138', '#ffffff', 'SWIFT'],
+  kt: ['#7F52FF', '#ffffff', 'KT'],
+  kotlin: ['#7F52FF', '#ffffff', 'KT'],
+  dart: ['#0175C2', '#ffffff', 'DART'],
+  scala: ['#DC322F', '#ffffff', 'SCALA'],
+  lua: ['#2C2C7C', '#ffffff', 'LUA'],
+  pl: ['#0298C3', '#ffffff', 'PERL'],
+  r: ['#336DC3', '#ffffff', 'R'],
+  m: ['#C1272D', '#ffffff', 'MAT'],
+  mm: ['#C1272D', '#ffffff', 'MAT'],
+  // Web / 前端
+  html: ['#E34F26', '#ffffff', '</>'],
+  htm: ['#E34F26', '#ffffff', '</>'],
+  css: ['#663399', '#ffffff', 'CSS'],
+  scss: ['#CD6799', '#ffffff', 'SCSS'],
+  sass: ['#CD6799', '#ffffff', 'SCSS'],
+  vue: ['#42B883', '#ffffff', 'VUE'],
+  svelte: ['#FF3E00', '#ffffff', 'SVELTE'],
+  // 数据 / 结构化
+  json: ['#F7DF1E', '#323330', '{}'],
+  sql: ['#00758F', '#ffffff', 'SQL'],
+  csv: ['#2E7D32', '#ffffff', 'CSV'],
+  db: ['#0F62FE', '#ffffff', 'DB'],
+  sqlite: ['#0F62FE', '#ffffff', 'DB'],
+  sqlite3: ['#0F62FE', '#ffffff', 'DB'],
+  xml: ['#FF6F00', '#ffffff', 'XML'],
+  svg: ['#FF6F00', '#ffffff', 'SVG'],
+  // 文档
+  md: ['#42A5F5', '#ffffff', 'M↓'],
+  markdown: ['#42A5F5', '#ffffff', 'M↓'],
+  txt: ['#90A4AE', '#ffffff', 'TXT'],
+  text: ['#90A4AE', '#ffffff', 'TXT'],
+  log: ['#90A4AE', '#ffffff', 'TXT'],
+  pdf: ['#E5202B', '#ffffff', 'PDF'],
+  doc: ['#2B579A', '#ffffff', 'DOC'],
+  docx: ['#2B579A', '#ffffff', 'DOC'],
+  xls: ['#217346', '#ffffff', 'XLS'],
+  xlsx: ['#217346', '#ffffff', 'XLS'],
+  ppt: ['#D24726', '#ffffff', 'PPT'],
+  pptx: ['#D24726', '#ffffff', 'PPT'],
+  // 配置 / 构建
+  yml: ['#CB171E', '#ffffff', 'YML'],
+  yaml: ['#CB171E', '#ffffff', 'YML'],
+  toml: ['#8D6E63', '#ffffff', 'TOML'],
+  ini: ['#546E7A', '#ffffff', 'CFG'],
+  cfg: ['#546E7A', '#ffffff', 'CFG'],
+  config: ['#546E7A', '#ffffff', 'CFG'],
+  env: ['#F9A825', '#323330', 'ENV'],
+  properties: ['#7B1FA2', '#ffffff', 'PROP'],
+  lock: ['#37474F', '#ffffff', 'LOCK'],
+  dockerfile: ['#2496ED', '#ffffff', 'DOCK'],
+  docker: ['#2496ED', '#ffffff', 'DOCK'],
+  makefile: ['#607D8B', '#ffffff', 'MAKE'],
+  gradle: ['#02303A', '#ffffff', 'GRADLE'],
+  cmake: ['#265774', '#ffffff', 'CMAKE'],
+  ipynb: ['#F37726', '#ffffff', 'JNB'],
+  // 脚本 / Shell
+  sh: ['#89E051', '#111111', '>_'],
+  bash: ['#89E051', '#111111', '>_'],
+  zsh: ['#89E051', '#111111', '>_'],
+  ps1: ['#012456', '#ffffff', 'PS1'],
+  bat: ['#546E7A', '#ffffff', 'CMD'],
+  cmd: ['#546E7A', '#ffffff', 'CMD'],
+  // 打包 / 二进制
+  zip: ['#FFA726', '#323330', 'ZIP'],
+  tar: ['#FFA726', '#323330', 'ZIP'],
+  gz: ['#FFA726', '#323330', 'ZIP'],
+  '7z': ['#FFA726', '#323330', 'ZIP'],
+  rar: ['#FFA726', '#323330', 'ZIP'],
+  exe: ['#0078D4', '#ffffff', 'EXE'],
+  msi: ['#0078D4', '#ffffff', 'EXE'],
+  wasm: ['#654FF0', '#ffffff', 'WASM'],
+  // 图片 / 媒体
+  png: ['#8E44AD', '#ffffff', 'IMG'],
+  jpg: ['#8E44AD', '#ffffff', 'IMG'],
+  jpeg: ['#8E44AD', '#ffffff', 'IMG'],
+  gif: ['#8E44AD', '#ffffff', 'IMG'],
+  webp: ['#8E44AD', '#ffffff', 'IMG'],
+  ico: ['#8E44AD', '#ffffff', 'IMG'],
+  bmp: ['#8E44AD', '#ffffff', 'IMG'],
+  // 版本控制
+  gitignore: ['#F05032', '#ffffff', 'GIT'],
+  gitattributes: ['#F05032', '#ffffff', 'GIT'],
+}
 
-    /** One self-colored badge svg: rounded brand rect + short contrast mark.
-     *  Mark font scales by length so 5-6 char marks (JAVA/SCALA/SWIFT) stay
-     *  inside the 24×24 viewBox. */
-    const badgeIcon = ([bg, fg, mark], size) =>
-      createElement('svg', {
-        width: size, height: size, viewBox: '0 0 24 24', 'aria-hidden': 'true',
+/** One self-colored badge svg: rounded brand rect + short contrast mark.
+ *  Mark font scales by length so 5-6 char marks (JAVA/SCALA/SWIFT) stay
+ *  inside the 24×24 viewBox. */
+const badgeIcon = ([bg, fg, mark], size) =>
+  createElement(
+    'svg',
+    {
+      width: size,
+      height: size,
+      viewBox: '0 0 24 24',
+      'aria-hidden': 'true',
+    },
+    createElement('rect', { x: 1, y: 1, width: 22, height: 22, rx: 5, fill: bg }),
+    createElement(
+      'text',
+      {
+        x: 12,
+        y: 16,
+        textAnchor: 'middle',
+        fontSize: mark.length <= 2 ? 9 : mark.length <= 4 ? 7 : 5.5,
+        fontWeight: 700,
+        fill: fg,
       },
-      createElement('rect', { x: 1, y: 1, width: 22, height: 22, rx: 5, fill: bg }),
-      createElement('text', {
-        x: 12, y: 16, textAnchor: 'middle', fontSize: mark.length <= 2 ? 9 : mark.length <= 4 ? 7 : 5.5,
-        fontWeight: 700, fill: fg,
-      }, mark))
+      mark,
+    ),
+  )
 
-    /** File-type icon dispatcher: branded badge for known extensions, the
-     *  neutral file icon for everything else (case-insensitive, tolerates a
-     *  leading dot like ".md"). */
-    const fileIconByExt = (ext, size = 14) => {
-      const spec = FILE_BADGES[String(ext ?? '').toLowerCase().replace(/^\./, '')]
-      return spec === undefined ? icon.file(size) : badgeIcon(spec, size)
-    }
+/** File-type icon dispatcher: branded badge for known extensions, the
+ *  neutral file icon for everything else (case-insensitive, tolerates a
+ *  leading dot like ".md"). */
+const fileIconByExt = (ext, size = 14) => {
+  const spec =
+    FILE_BADGES[
+      String(ext ?? '')
+        .toLowerCase()
+        .replace(/^\./, '')
+    ]
+  return spec === undefined ? icon.file(size) : badgeIcon(spec, size)
+}
 
-        // ── themed stylesheet (injected once per activation) ──────────────────
-    // Mirrors the better-sidebar explorer surface: tight 2px 6px 8px body,
-    // 30px rows, box-sizing border-box indentation, folder rows use the
-    // strong type face to read as directories, files stay regular.
-    const STYLES = `
+    // ── themed stylesheet (injected once per activation) ──────────────────
+// Mirrors the better-sidebar explorer surface: tight 2px 6px 8px body,
+// 30px rows, box-sizing border-box indentation, folder rows use the
+// strong type face to read as directories, files stay regular.
+const STYLES = `
 .dfa { display:flex; flex-direction:column; height:100%; overflow-y:auto; overflow-x:hidden;
   padding:2px 6px 8px; gap:2px; font:var(--dsw-font-s-14); color:var(--dsw-alias-label-primary); }
 .dfa-iconbtn { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; padding:0;
@@ -624,541 +764,670 @@ window.__ModuleLoader__.load({
 [class*="tab"][class*="tabActive"] [class*="tabClose"]:hover { background:color-mix(in srgb, var(--dsw-alias-label-primary-foreground) 18%, transparent); color:var(--dsw-alias-label-primary-foreground); }
 `
 
-        // ── row rendering helpers (recent list & stats tree) ──────────────────
-    const opClass = (op) => (op === 'create' ? 'dfa-op-create' : op === 'modify' ? 'dfa-op-modify' : op === 'delete' ? 'dfa-op-delete' : 'dfa-op-read')
-    const opLabel = (op) => (op === 'create' ? strings.create() : op === 'modify' ? strings.modify() : op === 'delete' ? strings.delete() : strings.read())
+    // ── row rendering helpers (recent list & stats tree) ──────────────────
+const opClass = (op) =>
+  op === 'create'
+    ? 'dfa-op-create'
+    : op === 'modify'
+      ? 'dfa-op-modify'
+      : op === 'delete'
+        ? 'dfa-op-delete'
+        : 'dfa-op-read'
+const opLabel = (op) =>
+  op === 'create'
+    ? strings.create()
+    : op === 'modify'
+      ? strings.modify()
+      : op === 'delete'
+        ? strings.delete()
+        : strings.read()
 
-    /** Tooltip for a stats file row: absolute path + created / last-seen times. */
-    const fileTitle = (abs, firstSeen, lastSeen) => {
-      const times = []
-      if (typeof firstSeen === 'number') times.push(`${strings.created()} ${formatTime(firstSeen)}`)
-      if (typeof lastSeen === 'number') times.push(`${strings.lastSeen()} ${formatTime(lastSeen)}`)
-      return times.length > 0 ? `${abs}\n${times.join(' · ')}` : abs
-    }
+/** Tooltip for a stats file row: absolute path + created / last-seen times. */
+const fileTitle = (abs, firstSeen, lastSeen) => {
+  const times = []
+  if (typeof firstSeen === 'number') times.push(`${strings.created()} ${formatTime(firstSeen)}`)
+  if (typeof lastSeen === 'number') times.push(`${strings.lastSeen()} ${formatTime(lastSeen)}`)
+  return times.length > 0 ? `${abs}\n${times.join(' · ')}` : abs
+}
 
-    /** Count pills for a file/dir node — only actions that actually happened are
-     *  shown (a zero count renders no pill; all-zero nodes render no pill group,
-     *  keeping untouched files visually quiet). */
-    const countPills = (node) => {
-      const pills = []
-      if (node.read > 0) pills.push(createElement('span', { className: 'dfa-count dfa-count-read' }, `${strings.readShort()} ${node.read}`))
-      if (node.create > 0) pills.push(createElement('span', { className: 'dfa-count dfa-count-create' }, `${strings.createShort()} ${node.create}`))
-      if (node.modify > 0) pills.push(createElement('span', { className: 'dfa-count dfa-count-modify' }, `${strings.modifyShort()} ${node.modify}`))
-      if (pills.length === 0) return null
-      return createElement('span', { className: 'dfa-counts', style: { paddingLeft: '6px' } }, ...pills)
-    }
+/** Count pills for a file/dir node — only actions that actually happened are
+ *  shown (a zero count renders no pill; all-zero nodes render no pill group,
+ *  keeping untouched files visually quiet). */
+const countPills = (node) => {
+  const pills = []
+  if (node.read > 0)
+    pills.push(createElement('span', { className: 'dfa-count dfa-count-read' }, `${strings.readShort()} ${node.read}`))
+  if (node.create > 0)
+    pills.push(
+      createElement('span', { className: 'dfa-count dfa-count-create' }, `${strings.createShort()} ${node.create}`),
+    )
+  if (node.modify > 0)
+    pills.push(
+      createElement('span', { className: 'dfa-count dfa-count-modify' }, `${strings.modifyShort()} ${node.modify}`),
+    )
+  if (pills.length === 0) return null
+  return createElement('span', { className: 'dfa-counts', style: { paddingLeft: '6px' } }, ...pills)
+}
 
-    /** Extension of a file name (lowercase, no leading dot); '' when none.
-     *  Dotfiles map to their whole name ('.gitignore' → 'gitignore') so the
-     *  badge table can cover them; 'notes.' still yields ''. */
-    const extOf = (name) => {
-      const dot = name.lastIndexOf('.')
-      if (dot > 0) return name.slice(dot + 1).toLowerCase()
-      if (dot === 0) return name.slice(1).toLowerCase()
-      return ''
-    }
+/** Extension of a file name (lowercase, no leading dot); '' when none.
+ *  Dotfiles map to their whole name ('.gitignore' → 'gitignore') so the
+ *  badge table can cover them; 'notes.' still yields ''. */
+const extOf = (name) => {
+  const dot = name.lastIndexOf('.')
+  if (dot > 0) return name.slice(dot + 1).toLowerCase()
+  if (dot === 0) return name.slice(1).toLowerCase()
+  return ''
+}
 
-    /** Extension-less but common build files → their badge key. */
-    const NAME_BADGES = {
-      makefile: 'makefile', dockerfile: 'dockerfile', 'cmakelists.txt': 'cmake',
-    }
+/** Extension-less but common build files → their badge key. */
+const NAME_BADGES = {
+  makefile: 'makefile',
+  dockerfile: 'dockerfile',
+  'cmakelists.txt': 'cmake',
+}
 
-    /** Badge key for a file name: basename match first, then extension. */
-    const badgeKeyOf = (name) => {
-      const base = name.toLowerCase()
-      const named = NAME_BADGES[base]
-      if (named !== undefined) return named
-      return extOf(name)
-    }
+/** Badge key for a file name: basename match first, then extension. */
+const badgeKeyOf = (name) => {
+  const base = name.toLowerCase()
+  const named = NAME_BADGES[base]
+  if (named !== undefined) return named
+  return extOf(name)
+}
 
-    /** A stats-tree file row: icon + name + count pills + relative time. */
-    const fileRow = (file, depth, onOpen) =>
-      createElement(
-        'div',
-        {
-          key: file.abs,
-          className: 'dfa-row',
-          onClick: () => onOpen(file.abs),
-          style: { paddingLeft: 8 + depth * 20 },
-          title: fileTitle(file.abs, file.firstSeen, file.lastSeen),
-        },
-        createElement('span', { className: 'dfa-row-icon dfa-icon-file' }, fileIconByExt(badgeKeyOf(file.name))),
-        createElement('span', { className: 'dfa-row-name dfa-name-file' }, file.name),
-        countPills(file),
-        file.lastSeen
-          ? createElement('span', { className: 'dfa-time' }, formatRelative(file.lastSeen))
-          : null,
-      )
+/** A stats-tree file row: icon + name + count pills + relative time. */
+const fileRow = (file, depth, onOpen) =>
+  createElement(
+    'div',
+    {
+      key: file.abs,
+      className: 'dfa-row',
+      onClick: () => onOpen(file.abs),
+      style: { paddingLeft: 8 + depth * 20 },
+      title: fileTitle(file.abs, file.firstSeen, file.lastSeen),
+    },
+    createElement('span', { className: 'dfa-row-icon dfa-icon-file' }, fileIconByExt(badgeKeyOf(file.name))),
+    createElement('span', { className: 'dfa-row-name dfa-name-file' }, file.name),
+    countPills(file),
+    file.lastSeen ? createElement('span', { className: 'dfa-time' }, formatRelative(file.lastSeen)) : null,
+  )
 
-    /** One stats-tree node: file rows render inline, dirs toggle collapse. */
-    function renderTreeNode(node, depth, collapsedDirs, onToggleDir, onOpen) {
-      if (node.type === 'file') return fileRow(node, depth, onOpen)
-      const collapsed = collapsedDirs.has(node.path)
-      return createElement(
-        'div',
-        { key: node.path },
-        createElement(
-          'div',
-          {
-            className: 'dfa-row dfa-row-dir',
-            onClick: () => onToggleDir(node.path),
-            style: { paddingLeft: 8 + depth * 20 },
-            title: `${node.path}/`,
-          },
-          createElement('span', { className: 'dfa-chevron' },
-            collapsed ? icon.chevronRight(13) : icon.chevronDown(13),
-          ),
-          createElement('span', { className: 'dfa-row-icon dfa-icon-folder' }, icon.folder(14)),
-          createElement('span', { className: 'dfa-row-name' },
-            node.compressed ? node.name : node.name + '/',
-          ),
-          countPills(node),
-        ),
-        collapsed ? null : node.children.map((child) => renderTreeNode(child, depth + 1, collapsedDirs, onToggleDir, onOpen)),
-      )
-    }
+/** One stats-tree node: file rows render inline, dirs toggle collapse. */
+function renderTreeNode(node, depth, collapsedDirs, onToggleDir, onOpen) {
+  if (node.type === 'file') return fileRow(node, depth, onOpen)
+  const collapsed = collapsedDirs.has(node.path)
+  return createElement(
+    'div',
+    { key: node.path },
+    createElement(
+      'div',
+      {
+        className: 'dfa-row dfa-row-dir',
+        onClick: () => onToggleDir(node.path),
+        style: { paddingLeft: 8 + depth * 20 },
+        title: `${node.path}/`,
+      },
+      createElement('span', { className: 'dfa-chevron' }, collapsed ? icon.chevronRight(13) : icon.chevronDown(13)),
+      createElement('span', { className: 'dfa-row-icon dfa-icon-folder' }, icon.folder(14)),
+      createElement('span', { className: 'dfa-row-name' }, node.compressed ? node.name : node.name + '/'),
+      countPills(node),
+    ),
+    collapsed
+      ? null
+      : node.children.map((child) => renderTreeNode(child, depth + 1, collapsedDirs, onToggleDir, onOpen)),
+  )
+}
 
-    /** A recent-list row: op badge + basename + relative time. */
-    const recentEntry = (entry, onOpen) =>
-      createElement(
-        'div',
-        {
-          key: `${entry.path}:${entry.time}:${entry.op}`,
-          className: 'dfa-row',
-          onClick: () => onOpen(entry.path),
-          title: entry.path,
-        },
-        createElement('span', { className: `dfa-op ${opClass(entry.op)}` }, opLabel(entry.op)),
-        createElement('span', { className: 'dfa-row-name' }, basenameOf(entry.path)),
-        createElement('span', { className: 'dfa-time' }, formatRelative(entry.time)),
-      )
+/** A recent-list row: op badge + basename + relative time. */
+const recentEntry = (entry, onOpen) =>
+  createElement(
+    'div',
+    {
+      key: `${entry.path}:${entry.time}:${entry.op}`,
+      className: 'dfa-row',
+      onClick: () => onOpen(entry.path),
+      title: entry.path,
+    },
+    createElement('span', { className: `dfa-op ${opClass(entry.op)}` }, opLabel(entry.op)),
+    createElement('span', { className: 'dfa-row-name' }, basenameOf(entry.path)),
+    createElement('span', { className: 'dfa-time' }, formatRelative(entry.time)),
+  )
 
-    /** Toggle a key in a Set (directory collapse state). */
-    function toggleInSet(set, key) {
-      const next = new Set(set)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    }
+/** Toggle a key in a Set (directory collapse state). */
+function toggleInSet(set, key) {
+  const next = new Set(set)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  return next
+}
 
-    /** Clear the current session's records host-side and reset its bucket. */
-    function clearSessionData(dataStore, sessionId) {
-      if (!window.confirm(strings.clearConfirm())) return
-      postClear(sessionId)
+/** Clear the current session's records host-side and reset its bucket. */
+function clearSessionData(dataStore, sessionId) {
+  if (!window.confirm(strings.clearConfirm())) return
+  postClear(sessionId)
+  const current = dataStore.getSnapshot()
+  dataStore.set({
+    bySession: {
+      ...(current.bySession ?? {}),
+      [sessionId]: { recent: [], counts: {}, loading: false },
+    },
+  })
+}
+
+/** Manual refresh: fetch stats + the authoritative cwd for this session. */
+function refreshSessionData(dataStore, sessionId, setCwd, setError) {
+  if (sessionId === '') return
+  void fetchStats(sessionId)
+    .then((value) => {
+      if (value === null) return
+      setCwd((prev) => prev || value.cwd || '')
       const current = dataStore.getSnapshot()
       dataStore.set({
         bySession: {
           ...(current.bySession ?? {}),
-          [sessionId]: { recent: [], counts: {}, loading: false },
+          [sessionId]: { recent: value.recent ?? [], counts: value.counts ?? {}, loading: false },
         },
       })
-    }
+      setError(false)
+    })
+    .catch(() => setError(true))
+  void fetchSessionCwd(sessionId).then((cwd) => {
+    if (cwd !== '') setCwd(cwd)
+  })
+}
 
-    /** Manual refresh: fetch stats + the authoritative cwd for this session. */
-    function refreshSessionData(dataStore, sessionId, setCwd, setError) {
-      if (sessionId === '') return
-      void fetchStats(sessionId).then((value) => {
-        if (value === null) return
-        setCwd((prev) => prev || value.cwd || '')
-        const current = dataStore.getSnapshot()
-        dataStore.set({
-          bySession: {
-            ...(current.bySession ?? {}),
-            [sessionId]: { recent: value.recent ?? [], counts: value.counts ?? {}, loading: false },
-          },
-        })
-        setError(false)
-      }).catch(() => setError(true))
-      void fetchSessionCwd(sessionId).then((cwd) => {
-        if (cwd !== '') setCwd(cwd)
-      })
-    }
+    // ── view component ────────────────────────────────────────────────────
+/** Shared empty bucket for sessions that have never loaded data (stable ref). */
+const EMPTY_SESSION = { recent: [], counts: {}, loading: true }
 
-        // ── view component ────────────────────────────────────────────────────
-    /** Shared empty bucket for sessions that have never loaded data (stable ref). */
-    const EMPTY_SESSION = { recent: [], counts: {}, loading: true }
-
-    /**
-     * Polling loader for one session: fetches stats on mount and on a fixed
-     * interval while visible, prefers the sidebar's authoritative session.cwd
-     * for relative display, and writes results into the per-session bucket.
-     */
-    function useSessionLoader(visible, sessionId, scope, dataStore, setCwd, setError) {
-      useEffect(() => {
-        if (!visible || sessionId === '') return
-        let cancelled = false
-        const load = () => {
-          void fetchStats(sessionId).then((value) => {
-            if (cancelled || value === null) return
-            setCwd((prev) => prev || value.cwd || '')
-            const current = dataStore.getSnapshot()
-            dataStore.set({
-              bySession: {
-                ...(current.bySession ?? {}),
-                [sessionId]: { recent: value.recent ?? [], counts: value.counts ?? {}, loading: false },
+/**
+ * Polling loader for one session: fetches stats on mount and on a fixed
+ * interval while visible, prefers the sidebar's authoritative session.cwd
+ * for relative display, and writes results into the per-session bucket.
+ */
+function useSessionLoader(visible, sessionId, scope, dataStore, setCwd, setError) {
+  useEffect(() => {
+    if (!visible || sessionId === '') return
+    let cancelled = false
+    const load = () => {
+      void fetchStats(sessionId)
+        .then((value) => {
+          if (cancelled || value === null) return
+          setCwd((prev) => prev || value.cwd || '')
+          const current = dataStore.getSnapshot()
+          dataStore.set({
+            bySession: {
+              ...(current.bySession ?? {}),
+              [sessionId]: {
+                recent: value.recent ?? [],
+                counts: value.counts ?? {},
+                loading: false,
               },
-            })
-            setError(false)
-          }).catch(() => {
-            if (!cancelled) setError(true)
+            },
           })
-        }
-        load()
-        void fetchSessionCwd(sessionId).then((cwd) => {
-          if (!cancelled && cwd !== '') setCwd(cwd)
+          setError(false)
         })
-        const timer = window.setInterval(load, POLL_MS)
-        return () => {
-          cancelled = true
-          window.clearInterval(timer)
-        }
-      }, [visible, sessionId, dataStore])
+        .catch(() => {
+          if (!cancelled) setError(true)
+        })
     }
-
-    /** Error banner element, or null when the last load succeeded. */
-    function renderError(error) {
-      if (!error) return null
-      return createElement('div', { style: { color: 'var(--dsw-alias-state-error-primary)', padding: '4px 6px', font: 'var(--dsw-font-xxs-12)' } }, strings.loadError())
+    load()
+    void fetchSessionCwd(sessionId).then((cwd) => {
+      if (!cancelled && cwd !== '') setCwd(cwd)
+    })
+    const timer = window.setInterval(load, POLL_MS)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
     }
+  }, [visible, sessionId, dataStore])
+}
 
-    /** "最近访问" section: collapsible head with refresh/clear actions. */
-    function renderRecentSection(recent, recentOpen, onToggle, onRefresh, onClear, onOpen) {
-      return createElement(
-        'div',
-        { className: 'dfa-section' },
+/** Error banner element, or null when the last load succeeded. */
+function renderError(error) {
+  if (!error) return null
+  return createElement(
+    'div',
+    {
+      style: {
+        color: 'var(--dsw-alias-state-error-primary)',
+        padding: '4px 6px',
+        font: 'var(--dsw-font-xxs-12)',
+      },
+    },
+    strings.loadError(),
+  )
+}
+
+/** "最近访问" section: collapsible head with refresh/clear actions. */
+function renderRecentSection(recent, recentOpen, onToggle, onRefresh, onClear, onOpen) {
+  return createElement(
+    'div',
+    { className: 'dfa-section' },
+    createElement(
+      'div',
+      { className: 'dfa-section-head' },
+      createElement(
+        'button',
+        { className: 'dfa-section-head-toggle', onClick: onToggle },
+        recentOpen ? icon.chevronDown(13) : icon.chevronRight(13),
+        strings.recent(),
+      ),
+      createElement(
+        'span',
+        { className: 'dfa-section-head-actions' },
         createElement(
+          'button',
+          {
+            className: 'dfa-iconbtn dfa-iconbtn-xs',
+            onClick: onRefresh,
+            title: strings.refresh(),
+            'aria-label': strings.refresh(),
+          },
+          icon.refresh(14),
+        ),
+        createElement(
+          'button',
+          {
+            className: 'dfa-iconbtn dfa-iconbtn-xs dfa-iconbtn-danger',
+            onClick: onClear,
+            title: strings.clear(),
+            'aria-label': strings.clear(),
+          },
+          icon.trash(14),
+        ),
+      ),
+    ),
+    !recentOpen
+      ? null
+      : recent.length === 0
+        ? createElement(
+            'div',
+            { className: 'dfa-empty' },
+            strings.empty(),
+            createElement('span', { className: 'dfa-empty-hint' }, strings.emptyHint()),
+          )
+        : createElement(
+            'div',
+            { className: 'dfa-list' },
+            recent.map((entry) => recentEntry(entry, onOpen)),
+          ),
+  )
+}
+
+/** "文件统计" section: the directory tree, or an empty hint. */
+function renderStatsSection(tree, collapsedDirs, onToggleDir, onOpen) {
+  return createElement(
+    'div',
+    { className: 'dfa-section' },
+    createElement('div', { className: 'dfa-section-head' }, strings.stats()),
+    tree.children.length === 0
+      ? createElement('div', { className: 'dfa-empty' }, strings.empty())
+      : createElement(
           'div',
-          { className: 'dfa-section-head' },
+          { className: 'dfa-list' },
+          tree.children.map((child) => renderTreeNode(child, 0, collapsedDirs, onToggleDir, onOpen)),
+        ),
+  )
+}
+
+/**
+ * The file-activity tab. Each session renders only its own store bucket:
+ * a fresh conversation shows an empty list immediately, with no residue
+ * from the previous session. Clicking any file opens a FLOATING preview
+ * that reuses the sidebar's NATIVE viewer via matchFileViewer.
+ */
+function FileActivityView({ ctx, store, scope, visible, dataStore }) {
+  const data = useSyncExternalStore(dataStore.subscribe, dataStore.getSnapshot)
+  const [cwd, setCwd] = useState(scope?.cwd || '')
+  const [error, setError] = useState(false)
+  const [recentOpen, setRecentOpen] = useState(true)
+  const [collapsedDirs, setCollapsedDirs] = useState(() => new Set())
+  const sessionId = scope?.sessionId ?? ''
+  const sessionData = (data.bySession ?? {})[sessionId] ?? EMPTY_SESSION
+  const tree = useMemo(() => buildTree(sessionData.counts ?? {}), [sessionData.counts])
+  useEffect(() => {
+    if (scope?.cwd) setCwd(scope.cwd)
+  }, [scope?.cwd])
+  useSessionLoader(visible, sessionId, scope, dataStore, setCwd, setError)
+  // Switching conversations closes any floating preview left open by the
+  // previous session (preview is shared UI state; session data never
+  // crosses sessions anymore).
+  useEffect(() => {
+    dataStore.set({ preview: null })
+  }, [sessionId, dataStore])
+  const toggleDir = (path) => setCollapsedDirs((prev) => toggleInSet(prev, path))
+  const openPreview = (path) => dataStore.set({ preview: { abs: path, name: basenameOf(path) } })
+  const closePreview = () => dataStore.set({ preview: null })
+  const onClear = () => clearSessionData(dataStore, sessionId)
+  const onRefresh = () => refreshSessionData(dataStore, sessionId, setCwd, setError)
+  const recent = sessionData.recent ?? []
+  return createElement(
+    'div',
+    { className: 'dfa' },
+    renderError(error),
+    renderRecentSection(recent, recentOpen, () => setRecentOpen((v) => !v), onRefresh, onClear, openPreview),
+    renderStatsSection(tree, collapsedDirs, toggleDir, openPreview),
+    data.preview
+      ? createElement(FloatingPreview, {
+          ctx,
+          store,
+          scope,
+          preview: data.preview,
+          onClose: closePreview,
+        })
+      : null,
+  )
+}
+
+    // ── floating preview window (reuses the sidebar's native viewer) ──────
+/** Resolve a possibly-relative path against the session cwd. */
+function resolvePath(path, cwd) {
+  if (typeof path !== 'string' || path === '') return path
+  if (path.startsWith('/')) return path
+  if (typeof cwd === 'string' && cwd !== '') return `${cwd.replace(/\/+$/, '')}/${path}`
+  return path
+}
+
+/** Whether the fs.read API response carries a text content payload. */
+function isFsReadOk(json) {
+  return json !== null && typeof json === 'object' && json.ok === true && typeof json.value?.content === 'string'
+}
+
+/** Error load state from an fs.read API response (or a generic message). */
+function fsReadError(json, viewer) {
+  return { status: 'error', viewer, message: json?.error?.message ?? strings.previewFailed() }
+}
+
+/**
+ * Load fsRead content through the sidebar API and resolve the viewer's
+ * load state (ready with text, or error with the API message).
+ */
+async function loadFsReadContent(viewer, path, scope, sessionId) {
+  const target = resolvePath(path, scope?.cwd ?? '')
+  const response = await fetch('/sidebar/api/fs.read', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ sessionId, path: target }),
+  })
+  const json = await response.json()
+  if (isFsReadOk(json)) return { status: 'ready', viewer, content: json.value.content }
+  return fsReadError(json, viewer)
+}
+
+/**
+ * Fetch the bytes the viewer's fetchStrategy needs (fsRead text /
+ * mediaUrl / customData) and resolve its load state.
+ */
+async function fetchPreviewLoad(viewer, path, scope, sessionId) {
+  const strategy = viewer.fetchStrategy
+  if (strategy === 'fsRead') return loadFsReadContent(viewer, path, scope, sessionId)
+  if (strategy === 'mediaUrl') {
+    return { status: 'ready', viewer, mediaUrl: mediaUrlOf(sessionId, path) }
+  }
+  if (strategy === 'custom') {
+    const data = await (viewer.load?.(path, scope) ?? Promise.resolve(undefined))
+    return { status: 'ready', viewer, customData: data }
+  }
+  // 'binary-download' and anything else: mount the viewer's own
+  // component (it handles the download / media itself).
+  return { status: 'ready', viewer }
+}
+
+/**
+ * Resolve the file's viewer through the sidebar registry and load the
+ * bytes it needs; failures become an error state shown in the window.
+ */
+function usePreviewLoader(service, path, sessionId, scope) {
+  const [load, setLoad] = useState({ status: 'loading', viewer: null })
+  useEffect(() => {
+    let cancelled = false
+    const viewer = service?.matchFileViewer?.(path)
+    if (!viewer) {
+      setLoad({ status: 'error', viewer: null, message: strings.previewUnsupported() })
+      return () => {
+        cancelled = true
+      }
+    }
+    setLoad({ status: 'loading', viewer })
+    fetchPreviewLoad(viewer, path, scope, sessionId)
+      .then((next) => {
+        if (!cancelled) setLoad(next)
+      })
+      .catch((error) => {
+        if (!cancelled)
+          setLoad({
+            status: 'error',
+            viewer,
+            message: error instanceof Error ? error.message : String(error),
+          })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [path, sessionId, scope])
+  return load
+}
+
+/** Preview window body: loading note / error panel / viewer mount. */
+function renderPreviewBody(load, ctx, store, scope, path, title, sessionId) {
+  if (load.status === 'loading') {
+    return createElement('div', { className: 'dfa-fp-note' }, strings.loading())
+  }
+  if (load.status === 'error') {
+    return createElement(
+      'div',
+      { className: 'dfa-fp-err' },
+      strings.previewFailed(),
+      load.message
+        ? createElement('div', { style: { marginTop: '6px', fontSize: '11px', opacity: 0.85 } }, load.message)
+        : null,
+    )
+  }
+  if (load.viewer.id === 'pdf') {
+    const url = mediaUrlOf(sessionId, path)
+    return createElement(PdfPreview, { src: url, download: `${url}&download=1`, title })
+  }
+  return createElement(load.viewer.component, {
+    ctx,
+    store,
+    scope,
+    path,
+    title,
+    viewerId: load.viewer.id,
+    content: load.content,
+    mediaUrl: load.mediaUrl,
+    customData: load.customData,
+  })
+}
+
+/**
+ * A floating preview window. Instead of re-implementing rendering, it
+ * asks the sidebar registry for the file's viewer (`matchFileViewer`),
+ * fetches the bytes the viewer's fetchStrategy needs (fsRead text /
+ * mediaUrl / customData), then mounts that viewer's own component — so
+ * code gets syntax highlighting and markdown gets rendered by the SAME
+ * built-in renderers the sidebar's editor tab uses.
+ *
+ * Media caveat: the sidebar's own media route (/sidebar/file) only serves
+ * files inside the session working directory, while file activity records
+ * files the agent touched anywhere (/tmp scratch files, sibling repos…).
+ * Media bytes therefore come from OUR route (/file-activity/file), which
+ * authorizes exactly the paths this session recorded; PDF is the one
+ * built-in viewer that fetches its own URL internally (it ignores the
+ * `mediaUrl` prop), so it gets a small iframe preview instead.
+ */
+function FloatingPreview({ ctx, store, scope, preview, onClose }) {
+  const sessionId = scope?.sessionId ?? ''
+  const path = preview.abs
+  const title = preview.name
+  const service = ctx.betterSidebar
+  const load = usePreviewLoader(service, path, sessionId, scope)
+
+  // Clicking outside is the primary dismiss (the overlay's onClick);
+  // Escape is a keyboard affordance. Both call onClose.
+  useEffect(() => {
+    if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return () => {}
+    const handler = (event) => {
+      if (event && event.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  return createElement(
+    'div',
+    { className: 'dfa-fp-overlay', onClick: onClose },
+    createElement(
+      'div',
+      {
+        className: 'dfa-fp',
+        onClick: (event) => {
+          if (event && event.stopPropagation) event.stopPropagation()
+        },
+      },
+      createElement(
+        'div',
+        { className: 'dfa-fp-head' },
+        createElement('span', { className: 'dfa-fp-title' }, title),
+        createElement(
+          'span',
+          { className: 'dfa-fp-actions' },
           createElement(
             'button',
-            { className: 'dfa-section-head-toggle', onClick: onToggle },
-            recentOpen ? icon.chevronDown(13) : icon.chevronRight(13),
-            strings.recent(),
-          ),
-          createElement('span', { className: 'dfa-section-head-actions' },
-            createElement('button', { className: 'dfa-iconbtn dfa-iconbtn-xs', onClick: onRefresh, title: strings.refresh(), 'aria-label': strings.refresh() }, icon.refresh(14)),
-            createElement('button', { className: 'dfa-iconbtn dfa-iconbtn-xs dfa-iconbtn-danger', onClick: onClear, title: strings.clear(), 'aria-label': strings.clear() }, icon.trash(14)),
+            {
+              className: 'dfa-iconbtn',
+              title: strings.closePreview(),
+              'aria-label': strings.closePreview(),
+              onClick: () => onClose(),
+            },
+            icon.close(15),
           ),
         ),
-        !recentOpen ? null : recent.length === 0
-          ? createElement(
-              'div',
-              { className: 'dfa-empty' },
-              strings.empty(),
-              createElement('span', { className: 'dfa-empty-hint' }, strings.emptyHint()),
-            )
-          : createElement('div', { className: 'dfa-list' }, recent.map((entry) => recentEntry(entry, onOpen))),
-      )
-    }
-
-    /** "文件统计" section: the directory tree, or an empty hint. */
-    function renderStatsSection(tree, collapsedDirs, onToggleDir, onOpen) {
-      return createElement(
+      ),
+      createElement(
         'div',
-        { className: 'dfa-section' },
-        createElement('div', { className: 'dfa-section-head' }, strings.stats()),
-        tree.children.length === 0
-          ? createElement('div', { className: 'dfa-empty' }, strings.empty())
-          : createElement('div', { className: 'dfa-list' }, tree.children.map((child) => renderTreeNode(child, 0, collapsedDirs, onToggleDir, onOpen))),
-      )
+        { className: 'dfa-fp-body' },
+        renderPreviewBody(load, ctx, store, scope, path, title, sessionId),
+      ),
+    ),
+  )
+}
+
+/**
+ * Lightweight PDF preview. better-sidebar's built-in PdfView fetches
+ * `/sidebar/file` internally (it ignores any injected `mediaUrl` prop),
+ * and that route refuses files outside the session working directory — so
+ * a recorded /tmp PDF would never load. This tiny view embeds the bytes
+ * from OUR media route in a native browser PDF frame, with a download
+ * fallback in its toolbar.
+ */
+function PdfPreview({ src, download, title }) {
+  return createElement(
+    'div',
+    { className: 'dfa-pdf' },
+    createElement(
+      'div',
+      { className: 'dfa-pdf-toolbar' },
+      createElement(
+        'a',
+        {
+          className: 'dfa-pdf-download',
+          href: download,
+          download: true,
+          title: strings.downloadToView(),
+        },
+        strings.downloadToView(),
+      ),
+    ),
+    createElement('iframe', { className: 'dfa-pdf-frame', src, title }),
+  )
+}
+
+    // ── plugin body ───────────────────────────────────────────────────────
+/**
+ * The stylesheet is pure static CSS and must NOT depend on the
+ * betterSidebar service: inject it first, unconditionally. If it lived
+ * behind the `service === undefined` early return, an HMR rebuild or
+ * service reload could leave the already-rendered tab WITHOUT its
+ * stylesheet — the raw white-text list you see when the CSS is gone.
+ * Each fiber owns its own <style> element and the disposer removes
+ * only that element, so a rebuild always keeps at least one copy.
+ */
+function injectStyles(ctx) {
+  ctx.effect(() => {
+    if (typeof document === 'undefined' || document === null || typeof document.head === 'undefined') return () => {}
+    const style = document.createElement('style')
+    style.setAttribute('data-dsh-file-activity', 'styles')
+    style.textContent = STYLES
+    document.head.appendChild(style)
+    return () => {
+      if (style.parentNode) style.parentNode.removeChild(style)
     }
+  }, 'dsh-file-activity: styles')
+}
 
-    /**
-     * The file-activity tab. Each session renders only its own store bucket:
-     * a fresh conversation shows an empty list immediately, with no residue
-     * from the previous session. Clicking any file opens a FLOATING preview
-     * that reuses the sidebar's NATIVE viewer via matchFileViewer.
-     */
-    function FileActivityView({ ctx, store, scope, visible, dataStore }) {
-      const data = useSyncExternalStore(dataStore.subscribe, dataStore.getSnapshot)
-      const [cwd, setCwd] = useState(scope?.cwd || '')
-      const [error, setError] = useState(false)
-      const [recentOpen, setRecentOpen] = useState(true)
-      const [collapsedDirs, setCollapsedDirs] = useState(() => new Set())
-      const sessionId = scope?.sessionId ?? ''
-      const sessionData = (data.bySession ?? {})[sessionId] ?? EMPTY_SESSION
-      const tree = useMemo(() => buildTree(sessionData.counts ?? {}), [sessionData.counts])
-      useEffect(() => {
-        if (scope?.cwd) setCwd(scope.cwd)
-      }, [scope?.cwd])
-      useSessionLoader(visible, sessionId, scope, dataStore, setCwd, setError)
-      // Switching conversations closes any floating preview left open by the
-      // previous session (preview is shared UI state; session data never
-      // crosses sessions anymore).
-      useEffect(() => {
-        dataStore.set({ preview: null })
-      }, [sessionId, dataStore])
-      const toggleDir = (path) => setCollapsedDirs((prev) => toggleInSet(prev, path))
-      const openPreview = (path) => dataStore.set({ preview: { abs: path, name: basenameOf(path) } })
-      const closePreview = () => dataStore.set({ preview: null })
-      const onClear = () => clearSessionData(dataStore, sessionId)
-      const onRefresh = () => refreshSessionData(dataStore, sessionId, setCwd, setError)
-      const recent = sessionData.recent ?? []
-      return createElement('div', { className: 'dfa' },
-        renderError(error),
-        renderRecentSection(recent, recentOpen, () => setRecentOpen((v) => !v), onRefresh, onClear, openPreview),
-        renderStatsSection(tree, collapsedDirs, toggleDir, openPreview),
-        data.preview
-          ? createElement(FloatingPreview, { ctx, store, scope, preview: data.preview, onClose: closePreview })
-          : null,
-      )
-    }
+/** Mount probe: report client activation to the host state (synthetic
+ *  session id, invisible in the UI — confirms the client half actually
+ *  loaded after a page refresh). */
+function mountProbe() {
+  void fetch('/file-activity/api/record', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ sessionId: '__probe__', path: 'mounted', op: 'read' }),
+  }).catch(() => {})
+}
 
-        // ── floating preview window (reuses the sidebar's native viewer) ──────
-    /** Resolve a possibly-relative path against the session cwd. */
-    function resolvePath(path, cwd) {
-      if (typeof path !== 'string' || path === '') return path
-      if (path.startsWith('/')) return path
-      if (typeof cwd === 'string' && cwd !== '') return `${cwd.replace(/\/+$/, '')}/${path}`
-      return path
-    }
-
-    /** Whether the fs.read API response carries a text content payload. */
-    function isFsReadOk(json) {
-      return json !== null && typeof json === 'object' && json.ok === true && typeof json.value?.content === 'string'
-    }
-
-    /** Error load state from an fs.read API response (or a generic message). */
-    function fsReadError(json, viewer) {
-      return { status: 'error', viewer, message: json?.error?.message ?? strings.previewFailed() }
-    }
-
-    /**
-     * Load fsRead content through the sidebar API and resolve the viewer's
-     * load state (ready with text, or error with the API message).
-     */
-    async function loadFsReadContent(viewer, path, scope, sessionId) {
-      const target = resolvePath(path, scope?.cwd ?? '')
-      const response = await fetch('/sidebar/api/fs.read', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ sessionId, path: target }),
-      })
-      const json = await response.json()
-      if (isFsReadOk(json)) return { status: 'ready', viewer, content: json.value.content }
-      return fsReadError(json, viewer)
-    }
-
-    /**
-     * Fetch the bytes the viewer's fetchStrategy needs (fsRead text /
-     * mediaUrl / customData) and resolve its load state.
-     */
-    async function fetchPreviewLoad(viewer, path, scope, sessionId) {
-      const strategy = viewer.fetchStrategy
-      if (strategy === 'fsRead') return loadFsReadContent(viewer, path, scope, sessionId)
-      if (strategy === 'mediaUrl') {
-        return { status: 'ready', viewer, mediaUrl: mediaUrlOf(sessionId, path) }
-      }
-      if (strategy === 'custom') {
-        const data = await (viewer.load?.(path, scope) ?? Promise.resolve(undefined))
-        return { status: 'ready', viewer, customData: data }
-      }
-      // 'binary-download' and anything else: mount the viewer's own
-      // component (it handles the download / media itself).
-      return { status: 'ready', viewer }
-    }
-
-    /**
-     * Resolve the file's viewer through the sidebar registry and load the
-     * bytes it needs; failures become an error state shown in the window.
-     */
-    function usePreviewLoader(service, path, sessionId, scope) {
-      const [load, setLoad] = useState({ status: 'loading', viewer: null })
-      useEffect(() => {
-        let cancelled = false
-        const viewer = service?.matchFileViewer?.(path)
-        if (!viewer) {
-          setLoad({ status: 'error', viewer: null, message: strings.previewUnsupported() })
-          return () => { cancelled = true }
-        }
-        setLoad({ status: 'loading', viewer })
-        fetchPreviewLoad(viewer, path, scope, sessionId)
-          .then((next) => {
-            if (!cancelled) setLoad(next)
-          })
-          .catch((error) => {
-            if (!cancelled) setLoad({ status: 'error', viewer, message: error instanceof Error ? error.message : String(error) })
-          })
-        return () => { cancelled = true }
-      }, [path, sessionId, scope])
-      return load
-    }
-
-    /** Preview window body: loading note / error panel / viewer mount. */
-    function renderPreviewBody(load, ctx, store, scope, path, title, sessionId) {
-      if (load.status === 'loading') {
-        return createElement('div', { className: 'dfa-fp-note' }, strings.loading())
-      }
-      if (load.status === 'error') {
-        return createElement('div', { className: 'dfa-fp-err' },
-          strings.previewFailed(),
-          load.message
-            ? createElement('div', { style: { marginTop: '6px', fontSize: '11px', opacity: 0.85 } }, load.message)
-            : null,
-        )
-      }
-      if (load.viewer.id === 'pdf') {
-        const url = mediaUrlOf(sessionId, path)
-        return createElement(PdfPreview, { src: url, download: `${url}&download=1`, title })
-      }
-      return createElement(load.viewer.component, {
-        ctx, store, scope, path, title,
-        viewerId: load.viewer.id,
-        content: load.content,
-        mediaUrl: load.mediaUrl,
-        customData: load.customData,
-      })
-    }
-
-    /**
-     * A floating preview window. Instead of re-implementing rendering, it
-     * asks the sidebar registry for the file's viewer (`matchFileViewer`),
-     * fetches the bytes the viewer's fetchStrategy needs (fsRead text /
-     * mediaUrl / customData), then mounts that viewer's own component — so
-     * code gets syntax highlighting and markdown gets rendered by the SAME
-     * built-in renderers the sidebar's editor tab uses.
-     *
-     * Media caveat: the sidebar's own media route (/sidebar/file) only serves
-     * files inside the session working directory, while file activity records
-     * files the agent touched anywhere (/tmp scratch files, sibling repos…).
-     * Media bytes therefore come from OUR route (/file-activity/file), which
-     * authorizes exactly the paths this session recorded; PDF is the one
-     * built-in viewer that fetches its own URL internally (it ignores the
-     * `mediaUrl` prop), so it gets a small iframe preview instead.
-     */
-    function FloatingPreview({ ctx, store, scope, preview, onClose }) {
-      const sessionId = scope?.sessionId ?? ''
-      const path = preview.abs
-      const title = preview.name
-      const service = ctx.betterSidebar
-      const load = usePreviewLoader(service, path, sessionId, scope)
-
-      // Clicking outside is the primary dismiss (the overlay's onClick);
-      // Escape is a keyboard affordance. Both call onClose.
-      useEffect(() => {
-        if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return () => {}
-        const handler = (event) => { if (event && event.key === 'Escape') onClose() }
-        document.addEventListener('keydown', handler)
-        return () => document.removeEventListener('keydown', handler)
-      }, [onClose])
-
-      return createElement(
-        'div',
-        { className: 'dfa-fp-overlay', onClick: onClose },
-        createElement(
-          'div',
-          { className: 'dfa-fp', onClick: (event) => { if (event && event.stopPropagation) event.stopPropagation() } },
-          createElement(
-            'div',
-            { className: 'dfa-fp-head' },
-            createElement('span', { className: 'dfa-fp-title' }, title),
-            createElement(
-              'span',
-              { className: 'dfa-fp-actions' },
-              createElement('button', { className: 'dfa-iconbtn', title: strings.closePreview(), 'aria-label': strings.closePreview(), onClick: () => onClose() },
-                icon.close(15),
-              ),
-            ),
-          ),
-          createElement('div', { className: 'dfa-fp-body' }, renderPreviewBody(load, ctx, store, scope, path, title, sessionId)),
-        ),
-      )
-    }
-
-    /**
-     * Lightweight PDF preview. better-sidebar's built-in PdfView fetches
-     * `/sidebar/file` internally (it ignores any injected `mediaUrl` prop),
-     * and that route refuses files outside the session working directory — so
-     * a recorded /tmp PDF would never load. This tiny view embeds the bytes
-     * from OUR media route in a native browser PDF frame, with a download
-     * fallback in its toolbar.
-     */
-    function PdfPreview({ src, download, title }) {
-      return createElement('div', { className: 'dfa-pdf' },
-        createElement('div', { className: 'dfa-pdf-toolbar' },
-          createElement('a', { className: 'dfa-pdf-download', href: download, download: true, title: strings.downloadToView() },
-            strings.downloadToView()),
-        ),
-        createElement('iframe', { className: 'dfa-pdf-frame', src, title }),
-      )
-    }
-
-        // ── plugin body ───────────────────────────────────────────────────────
-    /**
-     * The stylesheet is pure static CSS and must NOT depend on the
-     * betterSidebar service: inject it first, unconditionally. If it lived
-     * behind the `service === undefined` early return, an HMR rebuild or
-     * service reload could leave the already-rendered tab WITHOUT its
-     * stylesheet — the raw white-text list you see when the CSS is gone.
-     * Each fiber owns its own <style> element and the disposer removes
-     * only that element, so a rebuild always keeps at least one copy.
-     */
-    function injectStyles(ctx) {
-      ctx.effect(() => {
-        if (typeof document === 'undefined' || document === null || typeof document.head === 'undefined') return () => {}
-        const style = document.createElement('style')
-        style.setAttribute('data-dsh-file-activity', 'styles')
-        style.textContent = STYLES
-        document.head.appendChild(style)
-        return () => {
-          if (style.parentNode) style.parentNode.removeChild(style)
-        }
-      }, 'dsh-file-activity: styles')
-    }
-
-    /** Mount probe: report client activation to the host state (synthetic
-     *  session id, invisible in the UI — confirms the client half actually
-     *  loaded after a page refresh). */
-    function mountProbe() {
-      void fetch('/file-activity/api/record', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ sessionId: '__probe__', path: 'mounted', op: 'read' }),
-      }).catch(() => {})
-    }
-
-    /** Register the tab (enabled by default in the Side card settings). */
-    function registerTab(ctx, dataStore) {
-      const service = ctx.betterSidebar
-      ctx.effect(() => service.registerTab({
+/** Register the tab (enabled by default in the Side card settings). */
+function registerTab(ctx, dataStore) {
+  const service = ctx.betterSidebar
+  ctx.effect(
+    () =>
+      service.registerTab({
         id: TAB_ID,
         title: () => strings.title(),
         icon: (size) => icon.clock(size),
         order: 15,
         single: true,
         settings: {
-          pluginToggles: [{
-            key: 'autoOpen',
-            title: () => (isZh() ? '会话开始时自动打开' : 'Auto-open on session start'),
-            desc: () => (isZh() ? '每个会话首次打开时自动显示本页（可在侧边栏设置中关闭）' : 'Opens this tab once per session by default (turn off here)'),
-            type: 'switch',
-          }],
+          pluginToggles: [
+            {
+              key: 'autoOpen',
+              title: () => (isZh() ? '会话开始时自动打开' : 'Auto-open on session start'),
+              desc: () =>
+                isZh()
+                  ? '每个会话首次打开时自动显示本页（可在侧边栏设置中关闭）'
+                  : 'Opens this tab once per session by default (turn off here)',
+              type: 'switch',
+            },
+          ],
         },
         component: (props) => createElement(FileActivityView, { ...props, dataStore }),
-      }), 'dsh-file-activity: tab registration')
-    }
+      }),
+    'dsh-file-activity: tab registration',
+  )
+}
 
-    exports.inject = ['betterSidebar']
+exports.inject = ['betterSidebar']
 
-    exports.apply = function apply(ctx) {
-      // Stylesheet first, unconditionally (HMR pitfall — see injectStyles).
-      injectStyles(ctx)
-      const service = ctx.betterSidebar
-      if (service === undefined) return
+exports.apply = function apply(ctx) {
+  // Stylesheet first, unconditionally (HMR pitfall — see injectStyles).
+  injectStyles(ctx)
+  const service = ctx.betterSidebar
+  if (service === undefined) return
 
-      // Per-session data store: { bySession: { [sessionId]: { recent, counts, loading } }, preview }
-      // Each conversation reads/writes only its own bucket, so switching
-      // sessions never leaks another session's file activity into the view.
-      const dataStore = createStore({ bySession: {}, preview: null })
-      mountProbe()
+  // Per-session data store: { bySession: { [sessionId]: { recent, counts, loading } }, preview }
+  // Each conversation reads/writes only its own bucket, so switching
+  // sessions never leaks another session's file activity into the view.
+  const dataStore = createStore({ bySession: {}, preview: null })
+  mountProbe()
 
-      // sidebar operations → host record route
-      ctx.effect(() => installFetchInterceptor(), 'dsh-file-activity: sidebar fetch observation')
-      registerTab(ctx, dataStore)
+  // sidebar operations → host record route
+  ctx.effect(() => installFetchInterceptor(), 'dsh-file-activity: sidebar fetch observation')
+  registerTab(ctx, dataStore)
 
-      // auto-open once per session (default on)
-      ctx.effect(() => installAutoOpen(ctx, TAB_ID), 'dsh-file-activity: auto-open')
-    }
+  // auto-open once per session (default on)
+  ctx.effect(() => installAutoOpen(ctx, TAB_ID), 'dsh-file-activity: auto-open')
+}
 
 
     return module.exports

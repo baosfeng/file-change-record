@@ -1,7 +1,8 @@
 import { test } from 'vitest'
 /**
  * Unit tests for fileIconByExt — the per-extension file icon dispatcher in
- * lib/parts/icons.part.js (issue #24).
+ * the shared client parts (issue #24; moved to plugins/dsh-shared/client-parts
+ * in issue #54 阶段 0).
  *
  * The parts are plain text spliced into the client bundle factory scope, so
  * this suite evals the part source in a tiny stub scope and asserts on the
@@ -20,9 +21,9 @@ function createElement(type, props, ...children) {
   return { type, props: p }
 }
 
-/** Eval the icons part source in a factory scope and return its internals. */
+/** Eval the shared icons part source in a factory scope and return its internals. */
 function loadIcons() {
-  const src = fs.readFileSync(new URL('../lib/parts/icons.part.js', import.meta.url), 'utf8')
+  const src = fs.readFileSync(new URL('../../dsh-shared/client-parts/icons.part.js', import.meta.url), 'utf8')
   const factory = new Function('createElement', `${src}\nreturn { icon, fileIconByExt }`)
   return factory(createElement)
 }
