@@ -57,3 +57,6 @@ reasonix.toml
 **/.stryker-tmp/
 reports/
 **/reports/
+
+# TS 插件 client 构建临时目录（tsc 编译产物，构建后清理）
+**/lib/.client-build/

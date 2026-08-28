@@ -1,0 +1,25 @@
+{
+  // 根级 TypeScript 配置（issue #47：新插件可用 TS 开发）
+  // 用途：全仓 TS 源码的类型检查（CI 跑 `tsc --noEmit`，见 .github/workflows/ci.yml）。
+  // 本配置只做检查（noEmit），不产出任何文件；各 TS 插件的构建配置在插件目录内
+  // （plugins/<name>/tsconfig.json 编译 server 端、tsconfig.client.json 编译 client 端）。
+  //
+  // 分工：TS 源码的类型/模块检查由 tsc 负责（TS2307 模块不存在、类型不匹配、
+  // 未定义变量等编译期发现）；eslint 继续只检查 JS（typescript-eslint 尚不兼容
+  // TS 7 原生编译器，见 docs/TS示例/概述.md）。
+  "compilerOptions": {
+    "strict": true,
+    "target": "es2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["es2022", "dom"],
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true
+  },
+  "include": ["plugins/**/*.ts", "plugins/**/*.d.ts"],
+  "exclude": ["node_modules", "**/.stryker-tmp/**", "**/lib/.client-build/**"]
+}

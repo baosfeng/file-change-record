@@ -51,6 +51,10 @@ export default [
       'plugins/dsh-my-observability/lib/client.js',
       'plugins/dsh-my-guard/lib/client.js',
       'plugins/dsh-my-context/lib/client.js',
+      // TS 插件（issue #47）：tsc 编译产物（src/*.ts → lib/*.js），格式由
+      // tsc 生成（分号/缩进与 prettier 不一致），尺寸规则只查 TS 源码
+      'plugins/dsh-ts-example/lib/index.js',
+      'plugins/dsh-ts-example/lib/greeting.js',
     ],
   },
   {

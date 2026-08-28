@@ -7,6 +7,7 @@
     "lint": "eslint plugins/",
     "lint:size": "eslint plugins/ --rule '{\"complexity\":[\"error\",10],\"max-lines\":[\"error\",400],\"max-lines-per-function\":[\"error\",70]}'",
     "depcruise": "depcruise plugins/",
+    "typecheck": "tsc --noEmit",
     "test": "bash scripts/test-all.sh",
     "test:scripts": "vitest run --coverage --config scripts/test/vitest.config.mjs",
     "format": "prettier --write .",
@@ -16,6 +17,9 @@
   "lint-staged": {
     "*.{js,mjs}": [
       "eslint --fix",
+      "prettier --write"
+    ],
+    "*.ts": [
       "prettier --write"
     ],
     "*.{json,md,yml,yaml}": [
@@ -30,6 +34,8 @@
     "@stryker-mutator/core": "^10.0.0",
     "@stryker-mutator/html-reporter": "^3.1.0",
     "@stryker-mutator/vitest-runner": "^10.0.0",
+    "@types/node": "^26.4.0",
+    "@types/react": "^18.3.31",
     "@vitest/coverage-v8": "^4.1.11",
     "dependency-cruiser": "^18.2.0",
     "eslint": "^10.9.0",
@@ -38,6 +44,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^17.4.1",
     "prettier": "^3.9.6",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.11"
   },
   "overrides": {

@@ -52,6 +52,7 @@ jobs:
           - dsh-my-skill-manager
           - dsh-plugin-dev-mode
           - dsh-task-reliability
+          - dsh-ts-example
     steps:
       - uses: actions/checkout@v7
 
@@ -106,6 +107,11 @@ jobs:
 
       - name: Install root toolchain (eslint, dependency-cruiser)
         run: npm ci
+
+      # 类型检查（issue #47：TS 插件开发——tsc --noEmit 编译期发现模块
+      # 不存在 TS2307 / 类型不匹配 / 未定义变量；TS 7 原生编译器）
+      - name: Type check (tsc --noEmit)
+        run: npx tsc --noEmit
 
       # 代码质量规则 + 尺寸规则（complexity≤10 / 函数≤70行 / 文件≤400行，
       # issue #44 引入 prettier 后调整，见 eslint.config.js 注释）。

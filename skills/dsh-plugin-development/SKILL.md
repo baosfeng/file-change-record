@@ -185,6 +185,17 @@ window.__ModuleLoader__.load({
 - HTTP 路由：`ctx.webServer.register({ kind: 'prefix', path: '/<插件名>/api', handler })`；handler 签名 `(request, response)`，用 `request.url` 分发，`writeHead` + `end` 返回 JSON；先做 loopback 信任围栏。
 - 持久化：写 `$DSH_HOME` 下 JSON（防抖 + 原子写 tmp+rename），按会话隔离。
 
+## TypeScript 开发（TS 插件，issue #47）
+
+> 新插件可用 TypeScript 开发（server 端 tsc 编译 + client 端构建时编译 + CI 类型检查）。**完整示例照抄 `plugins/dsh-ts-example/`**，详细说明见 [docs/TS示例/概述.md](../../docs/TS示例/概述.md)。
+
+- **目录结构**：`src/*.ts`（server 源码，`index.ts` 入口 + 逻辑模块 + `types.d.ts` 运行时类型声明）、`src/client/index.ts`（client 源码，单文件）、`lib/` 放编译产物（`index.js` / `client.js`，**必须提交**——CI 只跑 `node --check` + 测试，不跑构建）。
+- **server 构建**：`tsc -p tsconfig.json`（`module: nodenext` → ESM 产物 `lib/*.js`）；相对 import 写 `.js` 扩展名（nodenext 要求，tsc 自动映射到 `.ts` 源码）。
+- **client 构建**：`tsc -p tsconfig.client.json`（`module: commonjs` + `moduleResolution: bundler`）编译为 CommonJS 单文件，`scripts/build.mjs` 注入 `lib/client.src.js` 模板的 `__CLIENT_BUNDLE__` 占位符 → `lib/client.js`；产物内联进 `__ModuleLoader__` factory 作用域后 `require`/`exports`/`module` 均为作用域变量。**client 端 TS 源码为单文件**（无运行时相对 import）；多文件/复杂打包用 esbuild/tsdown（官方 `tsdown.client.ts` 协议）。
+- **类型检查**：根 `tsconfig.json`（strict）+ `npm run typecheck`（`tsc --noEmit`，CI 强制）——编译期发现模块不存在（TS2307）/类型不匹配/未定义变量；#39 的 `require('dsh-md-render')` 类错误在 TS 下不可能发版出去。
+- **运行时类型**：`ctx` / `webServer` / 请求响应用 `src/types.d.ts` 手写最小契约（DSH 运行时模块由宿主提供，不装 cordis 类型包）；client 端 `ctx.betterSidebar` 等类型在 `src/client/index.ts` 内联声明。
+- **踩坑**：TS 7 移除了 `moduleResolution: node10`（用 `bundler`）；注释里不写 `/*`（提前闭合块注释 → TS1127）；typescript-eslint 尚不兼容 TS 7（eslint 只查 JS，TS 由 tsc 负责）；tsc 产物（`lib/index.js` 等）加入 `.prettierignore` + `eslint.config.js` ignores。
+
 ## 工具型插件（defineTool）速览
 
 > 官方权威 API（dsh 插件最核心形态）：注册 agent 可调用的工具函数。完整细节见 [references/dsh-tools-api.md](references/dsh-tools-api.md)。

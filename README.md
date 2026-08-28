@@ -41,6 +41,7 @@
 | [dsh-my-guard](plugins/dsh-my-guard/README.md)                   | 0.1.0 | 安全护栏：执行前护栏（破坏性命令 rm -rf / 等执行前拦截/确认，observe/ask/deny 三模式）、安装前投毒扫描（`dsh plugin add` 自动扫描包内容：可疑脚本/密钥/恶意依赖告警）、提示注入检测（规则 + 启发式检测 prompt injection / jailbreak，命中告警）；告警持久化 + 侧边栏安全护栏面板（确认机制）                     |
 | [dsh-my-context](plugins/dsh-my-context/README.md)               | 0.1.0 | 上下文透镜 + 成本治理：token 用量可视化（每次请求的上下文构成、KV 缓存命中率，按会话隔离、重启后恢复）、每轮/每会话预算控制（token 上限，超限提醒/拦截，可配置）                                                                                                                                                 |
 | [dsh-plugin-dev-mode](plugins/dsh-plugin-dev-mode/README.md)     | 0.1.0 | 插件开发模式 **agent preset**（非运行时插件）：唯一启用 Cordis 工具集（cordis_inspect_*/define/run/stop/undefine）的 Agent 预设，精简工具组合 + 随包技能，一键安装到 `$DSH_HOME/.agent-presets/`                                                                                                                 |
+| [dsh-ts-example](plugins/dsh-ts-example/README.md)               | 0.1.0 | TypeScript 插件开发示例（issue #47）：server 端 TS 源码 + tsc 编译（`lib/index.js` 产物）、client 端 TS 源码 + 构建时编译（`__ModuleLoader__` bundle）、CI 强制 `tsc --noEmit` 类型检查——编译期发现模块不存在（TS2307）/类型不匹配/未定义变量；新 TS 插件照抄本插件结构                                          |
 
 ## 目录结构
 
@@ -58,7 +59,9 @@
 │   ├── dsh-my-plugin-manager/
 │   ├── dsh-my-observability/
 │   ├── dsh-my-guard/
-│   └── dsh-plugin-dev-mode/   # agent preset 资产包（非运行时插件）
+│   ├── dsh-my-context/
+│   ├── dsh-plugin-dev-mode/   # agent preset 资产包（非运行时插件）
+│   └── dsh-ts-example/        # TypeScript 插件开发示例（issue #47）
 ├── skills/           # 本仓库的开发技能（SKILL.md 格式，可安装到 ~/.dsh/skills/）
 │   └── dsh-plugin-development/
 ├── docs/             # 通用文档与设计文档
