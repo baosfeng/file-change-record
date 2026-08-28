@@ -17,8 +17,16 @@ const strings = {
     isZh()
       ? '暂无告警——破坏性命令、投毒内容与提示注入命中会出现在这里'
       : 'No alerts yet — destructive commands, poisoned packages and injection hits will appear here',
+  emptyAlertsHint: () =>
+    isZh()
+      ? '执行危险命令、安装可疑包或输入注入文本时，护栏会在这里生成告警'
+      : 'Run a dangerous command, install a suspicious package or paste injection text to see alerts here',
   loadError: () => (isZh() ? '加载失败' : 'Load failed'),
   loading: () => (isZh() ? '加载中…' : 'Loading…'),
+  refresh: () => (isZh() ? '刷新' : 'Refresh'),
+  retry: () => (isZh() ? '重试' : 'Retry'),
+  scanning: () => (isZh() ? '扫描中…' : 'Scanning…'),
+  checking: () => (isZh() ? '检测中…' : 'Checking…'),
   typeDestructive: () => (isZh() ? '破坏性命令' : 'Destructive'),
   typePoison: () => (isZh() ? '投毒扫描' : 'Poison'),
   typeInjection: () => (isZh() ? '提示注入' : 'Injection'),
@@ -27,6 +35,7 @@ const strings = {
   sevLow: () => (isZh() ? '低' : 'low'),
   confirmed: () => (isZh() ? '已确认' : 'confirmed'),
   confirm: () => (isZh() ? '确认' : 'Confirm'),
+  confirmAria: () => (isZh() ? '确认此告警' : 'Confirm this alert'),
   scanPlaceholder: () => (isZh() ? '包名或本地路径，如 dsh-my-guard' : 'package name or path, e.g. dsh-my-guard'),
   scan: () => (isZh() ? '扫描' : 'Scan'),
   scanResult: () => (isZh() ? '扫描结果' : 'Scan result'),

@@ -36,14 +36,22 @@ function severityLabel(severity) {
   return strings.sevLow()
 }
 
-/** 告警类型 → 徽标样式类别。 */
-function badgeKind(alert) {
+/** 告警类型 → 视觉类别（类型图标/徽章/颜色共用，语义一致）：
+ *  destructive=danger（trash 图标）/ poison=warn（alert 图标）/ injection=info（alert 图标）。 */
+function alertKind(alert) {
   if (alert.type === 'destructive') return 'danger'
   if (alert.type === 'poison') return 'warn'
   return 'info'
 }
 
-/** 单条告警行（徽标 + 时间 + 消息 + 确认按钮）。 */
+/** 告警类型 → 类型图标（共享线性图标集，stroke=currentColor）。 */
+function alertTypeIcon(alert) {
+  if (alert.type === 'destructive') return icon.trash(15)
+  return icon.alert(15)
+}
+
+/** 单条告警行：类型图标 + 类型徽章 + 严重度徽章 + 时间 + 消息 + 详情 + 确认操作。
+ *  已确认告警弱化显示（已处理=不再打扰），确认按钮带 check 图标与 aria-label。 */
 function AlertRow({ alert, onConfirm }) {
   const detail = alert.detail || {}
   const meta =
@@ -54,24 +62,37 @@ function AlertRow({ alert, onConfirm }) {
         : detail.rule !== undefined
           ? `${strings.rule()} ${detail.rule}`
           : ''
+  const kind = alertKind(alert)
   return createElement(
     'div',
-    { className: 'dso-alert' },
+    { className: `dsh-my-guard-alert${alert.confirmed ? ' dsh-my-guard-alert-confirmed' : ''}` },
     createElement(
       'div',
-      { className: 'dso-alert-head' },
-      createElement('span', { className: `dso-badge dso-badge-${badgeKind(alert)}` }, alertTypeLabel(alert.type)),
-      createElement('span', { className: `dso-sev dso-sev-${alert.severity}` }, severityLabel(alert.severity)),
-      createElement('span', { className: 'dso-time' }, timeText(alert.time)),
+      { className: 'dsh-my-guard-alert-head' },
+      createElement('span', { className: `dsh-my-guard-alert-icon dsh-my-guard-icon-${kind}` }, alertTypeIcon(alert)),
+      createElement('span', { className: `dsh-my-guard-badge dsh-my-guard-badge-${kind}` }, alertTypeLabel(alert.type)),
+      createElement(
+        'span',
+        { className: `dsh-my-guard-sev dsh-my-guard-sev-${alert.severity}` },
+        severityLabel(alert.severity),
+      ),
+      createElement('span', { className: 'dsh-my-guard-time' }, timeText(alert.time)),
     ),
-    createElement('div', { className: 'dso-alert-msg' }, alert.message),
-    meta !== '' ? createElement('div', { className: 'dso-alert-meta' }, meta) : null,
+    createElement('div', { className: 'dsh-my-guard-alert-msg' }, alert.message),
+    meta !== '' ? createElement('div', { className: 'dsh-my-guard-alert-meta' }, meta) : null,
     alert.confirmed
-      ? createElement('div', { className: 'dso-alert-confirmed' }, strings.confirmed())
+      ? confirmedBadge()
       : createElement(
           'button',
-          { className: 'dso-btn dso-btn-small', onClick: () => onConfirm(alert.id) },
-          strings.confirm(),
+          {
+            type: 'button',
+            className: 'dsh-my-guard-btn dsh-my-guard-btn-confirm',
+            'aria-label': strings.confirmAria(),
+            title: strings.confirm(),
+            onClick: () => onConfirm(alert.id),
+          },
+          icon.check(14),
+          createElement('span', null, strings.confirm()),
         ),
   )
 }
@@ -88,7 +109,7 @@ async function loadAlerts(setters) {
   }
 }
 
-/** 确认告警（用户确认机制）。 */
+/** 确认告警（用户确认机制）；成功后行内反馈「已确认」，失败静默（轮询恢复真实状态）。 */
 async function confirmAlert(id, setAlerts) {
   try {
     await apiJson('/guard/api/alerts/confirm', {
@@ -102,24 +123,15 @@ async function confirmAlert(id, setAlerts) {
   }
 }
 
-/** 扫描结果展示（发现项列表）。 */
+/** 扫描结果展示（发现项列表；无发现 = 绿色 check 反馈）。 */
 function ScanResult({ result }) {
   const findings = result?.findings || []
+  if (findings.length === 0) return cleanFeedback(strings.scanClean())
   return createElement(
     'div',
-    { className: 'dso-feedback' },
-    findings.length === 0 ? strings.scanClean() : `${strings.findings(findings.length)}：`,
-    findings.length > 0
-      ? findings.map((f, index) =>
-          createElement(
-            'div',
-            { key: index, className: `dso-issue dso-issue-${f.severity}` },
-            createElement('div', { className: 'dso-issue-sev' }, severityLabel(f.severity)),
-            createElement('div', { className: 'dso-issue-msg' }, f.message),
-            createElement('div', { className: 'dso-issue-rule' }, `${f.file} · ${f.pattern}`),
-          ),
-        )
-      : null,
+    { className: 'dsh-my-guard-feedback' },
+    createElement('div', { className: 'dsh-my-guard-feedback-head' }, `${strings.findings(findings.length)}：`),
+    findings.map((f, index) => issueRow(f, index, `${f.file} · ${f.pattern}`)),
   )
 }
 
@@ -148,7 +160,7 @@ async function runScan(target, setters) {
   }
 }
 
-/** 投毒扫描工具：输入包名/路径 → 扫描 → 显示发现项。 */
+/** 投毒扫描工具：输入框 + search 图标按钮 → 扫描 → 显示发现项（busy 禁用 + 扫描中状态）。 */
 function ScanTool() {
   const [target, setTarget] = useState('')
   const [result, setResult] = useState(null)
@@ -157,15 +169,16 @@ function ScanTool() {
   const run = () => runScan(target, { setResult, setBusy, setError })
   return createElement(
     'div',
-    { className: 'dso-section' },
-    createElement('div', { className: 'dso-section-title' }, strings.scanTitle()),
+    { className: 'dsh-my-guard-section' },
+    createElement('div', { className: 'dsh-my-guard-section-title' }, strings.scanTitle()),
     createElement(
       'div',
-      { className: 'dso-repo-row' },
+      { className: 'dsh-my-guard-tool-row' },
       createElement('input', {
-        className: 'dso-input dso-repo-input',
+        className: 'dsh-my-guard-input dsh-my-guard-tool-input',
         value: target,
         placeholder: strings.scanPlaceholder(),
+        disabled: busy,
         onChange: (e) => setTarget(e.target.value),
         onKeyDown: (e) => {
           if (e.key === 'Enter') void run()
@@ -173,41 +186,38 @@ function ScanTool() {
       }),
       createElement(
         'button',
-        { className: 'dso-btn dso-btn-primary', disabled: busy, onClick: () => void run() },
-        strings.scan(),
+        {
+          type: 'button',
+          className: 'dsh-my-guard-btn dsh-my-guard-btn-primary',
+          disabled: busy,
+          onClick: () => void run(),
+        },
+        icon.search(14),
+        createElement('span', null, strings.scan()),
       ),
     ),
-    error !== ''
-      ? createElement('div', { className: 'dso-feedback dso-feedback-error' }, `${strings.scanError()}：${error}`)
-      : null,
+    busy ? busyState(strings.scanning()) : null,
+    error !== '' ? errorFeedback(`${strings.scanError()}：${error}`) : null,
     result !== null ? createElement(ScanResult, { result }) : null,
   )
 }
 
-/** 注入检测结果展示（命中规则列表）。 */
+/** 注入检测结果展示（命中规则列表；无命中 = 绿色 check 反馈）。 */
 function PromptResult({ hits }) {
+  if (hits.length === 0) return cleanFeedback(strings.checkClean())
   return createElement(
     'div',
-    { className: 'dso-feedback' },
-    hits.length === 0 ? strings.checkClean() : `${strings.checkHits(hits.length)}：`,
-    hits.length > 0
-      ? hits.map((h, index) =>
-          createElement(
-            'div',
-            { key: index, className: `dso-issue dso-issue-${h.severity}` },
-            createElement('div', { className: 'dso-issue-sev' }, severityLabel(h.severity)),
-            createElement('div', { className: 'dso-issue-msg' }, h.message),
-            createElement('div', { className: 'dso-issue-rule' }, h.id),
-          ),
-        )
-      : null,
+    { className: 'dsh-my-guard-feedback' },
+    createElement('div', { className: 'dsh-my-guard-feedback-head' }, `${strings.checkHits(hits.length)}：`),
+    hits.map((h, index) => issueRow(h, index, h.id)),
   )
 }
 
-/** 提示注入检测工具：输入文本 → 检测 → 显示命中规则。 */
+/** 提示注入检测工具：textarea + check 图标按钮 → 检测 → 显示命中规则（busy 禁用 + 检测中状态）。 */
 function PromptTool() {
   const [text, setText] = useState('')
   const [hits, setHits] = useState(null)
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const run = async () => {
     const value = text.trim()
@@ -215,6 +225,7 @@ function PromptTool() {
       setError(strings.noText())
       return
     }
+    setBusy(true)
     setError('')
     try {
       const result = await apiJson('/guard/api/scan-prompt', {
@@ -226,32 +237,49 @@ function PromptTool() {
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
       setHits(null)
+    } finally {
+      setBusy(false)
     }
   }
   return createElement(
     'div',
-    { className: 'dso-section' },
-    createElement('div', { className: 'dso-section-title' }, strings.promptTitle()),
+    { className: 'dsh-my-guard-section' },
+    createElement('div', { className: 'dsh-my-guard-section-title' }, strings.promptTitle()),
     createElement('textarea', {
-      className: 'dso-input dso-textarea',
+      className: 'dsh-my-guard-input dsh-my-guard-textarea',
       value: text,
       placeholder: strings.promptPlaceholder(),
+      disabled: busy,
       onChange: (e) => setText(e.target.value),
     }),
-    createElement('button', { className: 'dso-btn dso-btn-primary', onClick: () => void run() }, strings.check()),
-    error !== ''
-      ? createElement('div', { className: 'dso-feedback dso-feedback-error' }, `${strings.loadError()}：${error}`)
-      : null,
+    createElement(
+      'div',
+      { className: 'dsh-my-guard-tool-row' },
+      createElement(
+        'button',
+        {
+          type: 'button',
+          className: 'dsh-my-guard-btn dsh-my-guard-btn-primary',
+          disabled: busy,
+          onClick: () => void run(),
+        },
+        icon.check(14),
+        createElement('span', null, strings.check()),
+      ),
+    ),
+    busy ? busyState(strings.checking()) : null,
+    error !== '' ? errorFeedback(`${strings.loadError()}：${error}`) : null,
     hits !== null ? createElement(PromptResult, { hits }) : null,
   )
 }
 
-/** 安全护栏主面板：告警列表 + 扫描工具 + 注入检测工具（可见时轮询）。 */
+/** 安全护栏主面板：告警列表（标题 + 刷新）+ 扫描工具 + 注入检测工具（可见时轮询）。 */
 function GuardPanel(props) {
   const visible = props.visible !== false
   const [alerts, setAlerts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [reloadTick, setReloadTick] = useState(0)
 
   useEffect(() => {
     if (!visible) return undefined
@@ -266,7 +294,12 @@ function GuardPanel(props) {
       alive = false
       clearInterval(timer)
     }
-  }, [visible])
+  }, [visible, reloadTick])
+  const retry = () => {
+    setError('')
+    setLoading(true)
+    setReloadTick((tick) => tick + 1)
+  }
 
   const rows = alerts.map((alert) =>
     createElement(AlertRow, {
@@ -278,14 +311,27 @@ function GuardPanel(props) {
 
   return createElement(
     'div',
-    { className: 'dso-panel' },
-    createElement('div', { className: 'dso-section-title' }, strings.alertsTitle()),
-    error !== '' ? createElement('div', { className: 'dso-empty' }, `${strings.loadError()}：${error}`) : null,
-    loading && error === '' ? createElement('div', { className: 'dso-empty' }, strings.loading()) : null,
-    !loading && error === '' && alerts.length === 0
-      ? createElement('div', { className: 'dso-empty' }, strings.emptyAlerts())
-      : null,
-    createElement('div', { className: 'dso-timeline' }, rows),
+    { className: 'dsh-my-guard-panel' },
+    createElement(
+      'div',
+      { className: 'dsh-my-guard-section-head' },
+      createElement('span', { className: 'dsh-my-guard-section-title' }, strings.alertsTitle()),
+      createElement(
+        'button',
+        {
+          type: 'button',
+          className: 'dsh-my-guard-iconbtn',
+          'aria-label': strings.refresh(),
+          title: strings.refresh(),
+          onClick: retry,
+        },
+        icon.refresh(15),
+      ),
+    ),
+    error !== '' ? createElement(ErrorState, { message: error, onRetry: retry }) : null,
+    loading && error === '' ? createElement(LoadingState, null) : null,
+    !loading && error === '' && alerts.length === 0 ? createElement(EmptyState, null) : null,
+    createElement('div', { className: 'dsh-my-guard-timeline' }, rows),
     createElement(ScanTool, null),
     createElement(PromptTool, null),
   )

@@ -20,19 +20,28 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+const partsDir = join(root, 'lib/parts')
+// 共享 client parts 位于 dsh-shared 包（issue #54 阶段 0）：图标集单一来源，
+// 各插件构建时经 shared: true 标记从此目录拼接。
+const sharedPartsDir = join(root, '..', 'dsh-shared', 'client-parts')
 
+/** (placeholder, part file, opts?) — 拼接顺序固定（const 初始化器依赖）。
+ *  file 相对 partsDir（本地）或 sharedPartsDir（shared: true）。 */
 const PARTS = [
-  ['/*__PART_I18N__*/', 'lib/parts/i18n.js'],
-  ['/*__PART_PANEL__*/', 'lib/parts/panel.js'],
-  ['/*__PART_STYLES__*/', 'lib/parts/styles.js'],
+  ['/*__PART_I18N__*/', 'i18n.js'],
+  ['/*__PART_ICONS__*/', 'icons.part.js', { shared: true }],
+  ['/*__PART_PANEL__*/', 'panel.js'],
+  ['/*__PART_STATES__*/', 'states.js'],
+  ['/*__PART_STYLES__*/', 'styles.js'],
 ]
 
 let src = readFileSync(join(root, 'lib/client.src.js'), 'utf8')
-for (const [placeholder, file] of PARTS) {
+for (const [placeholder, file, opts = {}] of PARTS) {
   if (!src.includes(placeholder)) {
     throw new Error(`client.src.js is missing the ${placeholder} placeholder`)
   }
-  const part = readFileSync(join(root, file), 'utf8')
+  const dir = opts.shared ? sharedPartsDir : partsDir
+  const part = readFileSync(join(dir, file), 'utf8')
   // 函数式替换：片段内容作为字面文本返回，$&/$1 不会被特殊解释。
   src = src.replaceAll(placeholder, () => part)
 }

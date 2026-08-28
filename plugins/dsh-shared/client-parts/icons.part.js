@@ -123,6 +123,19 @@ const icon = {
       ],
       size,
     ),
+  // 警告（issue #54 阶段 1 新增）：安全护栏告警类型图标（投毒/提示注入），
+  // 三角警示 + 感叹号，stroke=currentColor 风格与其余图标一致。
+  alert: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', {
+          d: 'M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z',
+        }),
+        createElement('line', { x1: 12, y1: 9, x2: 12, y2: 13 }),
+        createElement('line', { x1: 12, y1: 17, x2: 12.01, y2: 17 }),
+      ],
+      size,
+    ),
 }
 
 // Common-language / file-type badges (issue #24): brand fill + contrast

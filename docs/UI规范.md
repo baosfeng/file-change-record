@@ -60,6 +60,7 @@ dsh-file-activity 的 UI 语言由五个要素构成，翻新插件时逐项对�
 | 放大镜 | `search`       | 16       | 搜索（issue #54 新增）      |
 | 齿轮   | `settings`     | 16       | 设置入口（issue #54 新增）  |
 | 铅笔   | `pencil`       | 15       | 编辑（issue #54 新增）      |
+| 警告   | `alert`        | 16       | 告警/警告（issue #54 新增） |
 
 > 新增图标按需补充（如 `alert` 警告、`pencil` 编辑），必须保持 stroke=currentColor 风格一致，并同步更新本清单与 `plugins/dsh-file-activity/test/icons-ext.mjs` 的覆盖。
 

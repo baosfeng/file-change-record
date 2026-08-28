@@ -247,3 +247,17 @@ test('badge mark font scales with mark length (issue #24)', () => {
   assert.equal(badgeMark(fileIconByExt('swift')).fontSize, 5.5, '5+ char mark uses 5.5px')
   assert.equal(badgeMark(fileIconByExt('scala')).fontSize, 5.5, '5-char mark uses 5.5px')
 })
+
+test('alert icon keeps the shared stroke=currentColor outline style (issue #54)', () => {
+  const { icon } = loadIcons()
+  const svg = icon.alert(16)
+  assert.equal(svg.type, 'svg', 'alert is an <svg> element')
+  assert.equal(svg.props.stroke, 'currentColor', 'alert inherits surrounding text color')
+  assert.equal(svg.props.strokeWidth, 1.8, 'alert uses the shared stroke width')
+  assert.equal(svg.props.fill, 'none', 'alert is an outline icon')
+  const children = Array.isArray(svg.props.children) ? svg.props.children : [svg.props.children]
+  assert.ok(
+    children.some((c) => c && c.type === 'path'),
+    'alert carries a warning triangle path',
+  )
+})
