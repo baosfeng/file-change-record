@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-08-28
+
+### 变更
+
+- feat(ui): dsh-my-skill-manager 设置页翻新——开关组件/图标/层级（issue #54）
+- refactor(shared): 抽取 dsh-shared 共享工具包，10 个插件迁移消除重复实现（issue #45）
+- chore(deps): 升级 react 19 兼容性——13 个插件 peer 声明 ^18.2.0 || ^19.2.0（issue #49）
+- style(format): 全仓 prettier 格式化（issue #44）
+
 ## [0.1.1] - 2026-08-27
 
 ### 变更
