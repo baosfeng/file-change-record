@@ -27,6 +27,7 @@ docs/
 ├── 记忆/                     ← dsh-my-memory 插件模块文档（源码: plugins/dsh-my-memory/）
 ├── 插件管理/                 ← dsh-my-plugin-manager 插件模块文档（源码: plugins/dsh-my-plugin-manager/）
 ├── 可观测性/                 ← dsh-my-observability 插件模块文档（源码: plugins/dsh-my-observability/）
+├── 安全护栏/                 ← dsh-my-guard 插件模块文档（源码: plugins/dsh-my-guard/）
 ├── 插件开发技能/             ← 插件开发技能说明（源码: skills/dsh-plugin-development/）
 ├── 插件开发模式/             ← dsh-plugin-dev-mode agent preset 说明（源码: plugins/dsh-plugin-dev-mode/）
 ├── 快速集成/                 ← 插件安装与快速开始
@@ -35,12 +36,12 @@ docs/
 ```
 
 > 本项目所有文档位于 `docs/`。首次接触请先读 [索引.md](docs/索引.md)。
-> 文档↔源码映射: `docs/文件活动追踪/` → `plugins/dsh-file-activity/`、`docs/思考增强/` → `plugins/dsh-think-zh-expand/`、`docs/mermaid渲染/` → `plugins/dsh-mermaid-render/`、`docs/md渲染/` → `plugins/dsh-md-render/`、`docs/通知提醒/` → `plugins/dsh-my-notify/`、`docs/插件治理/` → `plugins/dsh-my-guardian/`、`docs/任务可靠性/` → `plugins/dsh-task-reliability/`、`docs/Skill管理/` → `plugins/dsh-my-skill-manager/`、`docs/记忆/` → `plugins/dsh-my-memory/`、`docs/插件管理/` → `plugins/dsh-my-plugin-manager/`、`docs/可观测性/` → `plugins/dsh-my-observability/`，各核心文件的精确路径见对应模块文档。
+> 文档↔源码映射: `docs/文件活动追踪/` → `plugins/dsh-file-activity/`、`docs/思考增强/` → `plugins/dsh-think-zh-expand/`、`docs/mermaid渲染/` → `plugins/dsh-mermaid-render/`、`docs/md渲染/` → `plugins/dsh-md-render/`、`docs/通知提醒/` → `plugins/dsh-my-notify/`、`docs/插件治理/` → `plugins/dsh-my-guardian/`、`docs/任务可靠性/` → `plugins/dsh-task-reliability/`、`docs/Skill管理/` → `plugins/dsh-my-skill-manager/`、`docs/记忆/` → `plugins/dsh-my-memory/`、`docs/插件管理/` → `plugins/dsh-my-plugin-manager/`、`docs/可观测性/` → `plugins/dsh-my-observability/`、`docs/安全护栏/` → `plugins/dsh-my-guard/`，各核心文件的精确路径见对应模块文档。
 
 > 📌 **文档定位原则：** 能被自动化流程加载的内容（skill、脚本、工具）**不写进 docs/ 文档**——流程/方法优先沉淀为 skill 或脚本（如 `development-lifecycle` skill、`scripts/release.mjs`），文档不重复。docs/ 只记录**必须依靠外部才能实现、真的会踩坑**的内容（如 GitHub Release 校验 bug、CDN 不可达等踩坑与外部依赖说明）。新增文档前先问：这个能被 skill/脚本自动化吗？能 → 沉淀为 skill/脚本；不能且会踩坑 → 才写文档。
 
 ## 项目简介
-- **版本:** 各插件独立 semver（当前主插件 dsh-file-activity v0.5.1；dsh-think-zh-expand v0.4.3；dsh-mermaid-render v0.1.3；dsh-md-render v0.1.1；dsh-my-notify v0.3.1；dsh-my-guardian v0.3.1；dsh-task-reliability v0.4.0；dsh-my-skill-manager v0.1.1；dsh-my-memory v0.1.0；dsh-my-plugin-manager v0.1.1；dsh-my-observability v0.1.0；dsh-plugin-dev-mode v0.1.0） **语言:** JavaScript (Node ≥ 20, ESM) **类型:** 基础服务（DSH 插件集合） **技术栈:** Node.js + Cordis 4 + React 18 + dsh-better-sidebar
+- **版本:** 各插件独立 semver（当前主插件 dsh-file-activity v0.5.1；dsh-think-zh-expand v0.4.3；dsh-mermaid-render v0.1.3；dsh-md-render v0.1.1；dsh-my-notify v0.3.1；dsh-my-guardian v0.3.1；dsh-task-reliability v0.4.0；dsh-my-skill-manager v0.1.1；dsh-my-memory v0.1.0；dsh-my-plugin-manager v0.1.1；dsh-my-observability v0.1.0；dsh-my-guard v0.1.0；dsh-plugin-dev-mode v0.1.0） **语言:** JavaScript (Node ≥ 20, ESM) **类型:** 基础服务（DSH 插件集合） **技术栈:** Node.js + Cordis 4 + React 18 + dsh-better-sidebar
 
 > 🧪 测试命令: `cd plugins/<插件名> && npm test`（CI 遍历 `plugins/*/` 执行 `node --check` + 冒烟测试） — 提交前必跑全部测试并修复失败
 - [项目简介](docs/概览/项目简介.md) | [架构总览](docs/概览/架构总览.md) | [快速上手](docs/概览/快速上手.md)
@@ -82,6 +83,7 @@ docs/
 | 记忆 | 记忆、全局记忆、项目记忆、系统提示词注入、memory_query、记忆面板、确认 UI | 全局/项目两级记忆持久化（全局 `$DSH_HOME/memory.json` + 项目 `<项目根>/.dsh/memory.json`，原子写 + 防抖 + 重启恢复）；会话开始时全局记忆注入系统提示词（条数/长度上限防膨胀）；设置页可视化面板（全局/项目分区 + 自定义确认 UI：删除红色、保存绿色，写操作必须用户确认）；`memory_query` 只读查询工具（需求清单见 [docs/记忆/需求清单.md](docs/记忆/需求清单.md)） | `plugins/dsh-my-memory/lib/index.js`（server）`plugins/dsh-my-memory/lib/client.js`（client） |
 | 插件管理 | 插件市场、市场搜索、一键安装/卸载、更新检查、已安装清单、plugin manager | 公共插件管理面板：市场浏览/搜索（npm registry）、一键安装/卸载（`dsh plugin` CLI 同一数据源，自动维护 patch）、更新检查（pnpm outdated）、已安装清单（官方 pluginInventory + 版本解析）；设置页签走官方 slots 扩展点（需求清单见 [docs/插件管理/需求清单.md](docs/插件管理/需求清单.md)） | `plugins/dsh-my-plugin-manager/lib/index.js`（server）`plugins/dsh-my-plugin-manager/lib/client.js`（client） |
 | 可观测性 | 事件审计、轨迹回放、时间轴、类型化提交、Conventional Commits、增量 diff 审查、提交前审查 | 事件审计（监听 agent/status、llm/stream、tools/*，按会话隔离、重启后恢复）+ 侧边栏轨迹回放时间轴面板 + 结构化 Git 类型化提交（Conventional Commits）+ 提交前增量 diff 审查（规则引擎 + 可选 AI 审查）（需求清单见 [docs/可观测性/需求清单.md](docs/可观测性/需求清单.md)） | `plugins/dsh-my-observability/lib/index.js`（server）`plugins/dsh-my-observability/lib/client.js`（client） |
+| 安全护栏 | 执行前护栏、破坏性命令、投毒扫描、可疑脚本、密钥、恶意依赖、提示注入、prompt injection、jailbreak、告警确认 | 安全护栏三件套：执行前护栏（监听 tools/pre-execute，破坏性命令 rm -rf / 等执行前拦截/确认，observe/ask/deny 三模式）+ 安装前投毒扫描（`dsh plugin add` 自动扫描包内容：可疑脚本/密钥/恶意依赖告警，绝不执行包内代码）+ 提示注入检测（监听 user/message，规则 + 启发式检测 prompt injection / jailbreak，命中告警）；告警持久化 + 侧边栏安全护栏面板（用户确认机制）（需求清单见 [docs/安全护栏/需求清单.md](docs/安全护栏/需求清单.md)） | `plugins/dsh-my-guard/lib/index.js`（server）`plugins/dsh-my-guard/lib/client.js`（client） |
 
 ## 共享语言
 - [术语表](docs/术语表.md) — 项目领域术语权威定义，沟通业务概念前先查阅，避免黑话歧义
