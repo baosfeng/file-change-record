@@ -133,6 +133,17 @@ jobs:
       - name: Dependency analysis
         run: npx depcruise plugins/
 
+      # 死代码检测（issue #45：knip 接入 CI——未使用的文件/依赖/导出；
+      # 配置见 knip.json：各插件 workspace 入口 + 构建产物/脚本 ignore）
+      - name: Dead code check (knip)
+        run: npx knip
+
+      # 重复代码检测（issue #45：jscpd 接入 CI——复制粘贴检测；
+      # 配置见 .jscpd.json：min-tokens 100 + 配置模板 ignore + 阈值 5%，
+      # 真实重复已抽取到 dsh-shared 共享包）
+      - name: Duplicate code check (jscpd)
+        run: npx jscpd
+
       # 文档一致性（新插件/新版本必须同步根 README / AGENTS.md /
       # docs/ 索引与模块文档 / 安装章节 npm 方式——防"插件没部署/文档没更新"复发）
       - name: Docs consistency check

@@ -1,0 +1,20 @@
+{
+  "minTokens": 100,
+  "minLines": 5,
+  "format": ["javascript", "typescript"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/coverage/**",
+    "**/.stryker-tmp/**",
+    "**/reports/**",
+    "**/lib/client.js",
+    "**/lib/client.src.js",
+    "**/lib/parts/**",
+    "**/test/**",
+    "**/scripts/**",
+    "**/*.d.ts",
+    "**/stryker.config.mjs",
+    "**/vitest.config.mjs"
+  ],
+  "threshold": 5
+}

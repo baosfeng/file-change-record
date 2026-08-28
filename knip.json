@@ -1,0 +1,31 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    "plugins/*": {
+      "entry": ["lib/parts/*.js", "test/*.mjs", "test/features/steps/*.mjs"],
+      "project": ["lib/**", "scripts/**", "test/**", "*.mjs"],
+      "ignore": ["lib/client.src.js"]
+    },
+    "plugins/dsh-plugin-dev-mode": {
+      "entry": [],
+      "project": ["scripts/**", "skills/**"]
+    },
+    "plugins/dsh-shared": {
+      "entry": ["test/*.mjs", "test/features/steps/*.mjs"],
+      "project": ["lib/**", "test/**", "*.mjs"]
+    },
+    "plugins/dsh-task-reliability": {
+      "entry": ["test/*.mjs", "test/features/steps/*.mjs"],
+      "project": ["lib/**", "test/**", "*.mjs"]
+    },
+    "plugins/dsh-ts-example": {
+      "entry": ["src/client/index.ts", "test/*.mjs"],
+      "project": ["src/**", "scripts/**", "test/**", "*.mjs"]
+    }
+  },
+  "entry": ["scripts/*.mjs", "scripts/lib/*.mjs", "scripts/test/*.mjs", "eslint.config.js", "vitest.config.mjs"],
+  "project": ["scripts/**", "*.js", "*.mjs"],
+  "ignoreDependencies": ["dsh-shared", "@stryker-mutator/html-reporter"],
+  "ignoreBinaries": ["dsh"],
+  "ignore": ["scripts/check-release.mjs", "scripts/verify-real-profile.mjs"]
+}
