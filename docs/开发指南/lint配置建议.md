@@ -12,14 +12,15 @@ updated: 2026-08-28
 
 ## 当前状态
 
-| 维度 | 状态 |
-|------|------|
-| 项目类型 | library（DSH 插件集合仓库） |
-| 语言 | JavaScript（Node.js ≥ 20，ESM） |
-| 已配置的 Lint 工具 | **ESLint 9+ Flat Config**（根 `eslint.config.js`） |
-| 已启用规则 | 圈复杂度 ≤ 10、单文件 ≤ 300 行、单函数 ≤ 40 行、`import/no-unresolved`（issue #48）、server 端 `no-undef` |
-| 缺失的必备工具 | Prettier |
-| 可考虑的可选工具 | Husky + lint-staged、commitlint、Markdownlint、.editorconfig |
+| 维度               | 状态                                                                                                                                           |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 项目类型           | library（DSH 插件集合仓库）                                                                                                                    |
+| 语言               | JavaScript（Node.js ≥ 20，ESM）                                                                                                                |
+| 已配置的 Lint 工具 | **ESLint 9+ Flat Config**（根 `eslint.config.js`）                                                                                             |
+| 已配置的 Lint 工具 | **ESLint 9+ Flat Config**（根 `eslint.config.js`）、**Prettier**（根 `.prettierrc.json`，issue #44）                                           |
+| 已启用规则         | 圈复杂度 ≤ 10、单文件 ≤ 400 行、单函数 ≤ 70 行、`import/no-unresolved`（issue #48）、server 端 `no-undef`                                      |
+| 已配置的提交拦截   | Husky + lint-staged（pre-commit：eslint --fix + prettier --write）、commitlint（commit-msg，Conventional Commits）、.editorconfig（issue #44） |
+| 可考虑的可选工具   | Markdownlint                                                                                                                                   |
 
 > 说明：本仓库为多插件目录结构，各插件目录（`plugins/<name>/`）各自带 `package.json`。lint 配置统一在仓库根 `eslint.config.js`（flat config），CI（`.github/workflows/ci.yml` 的 quality job）执行 `npx eslint plugins/` 强制门禁。
 
@@ -38,12 +39,12 @@ npm run lint:size     # 仅尺寸门禁（复杂度/行数）
 
 **配置结构（flat config，按文件类型分块）：**
 
-| 配置块 | 匹配文件 | 关键规则 |
-|--------|---------|---------|
-| server 端 | `plugins/**/lib/*.js`（排除 client 产物/模板） | `js.configs.recommended` + 复杂度 ≤10 / 行数 ≤300 / 函数 ≤40 + `import/no-unresolved` + `no-undef`（recommended 自带） |
-| client 端 | `plugins/**/lib/client.src.js` + `plugins/**/lib/parts/*.js` | 同上尺寸规则 + `import/no-unresolved`；`no-undef`/`no-unused-vars` 关闭（`__ModuleLoader__` 格式） |
-| 测试文件 | `plugins/**/test/**/*.mjs` | `js.configs.recommended` + `import/no-unresolved`；`no-unused-vars` 豁免下划线参数 |
-| ignores | 构建产物 `lib/client.js`、`coverage/`、`.stryker-tmp/`、`reports/`、`dist/`、`node_modules/` | — |
+| 配置块    | 匹配文件                                                                                     | 关键规则                                                                                                               |
+| --------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| server 端 | `plugins/**/lib/*.js`（排除 client 产物/模板）                                               | `js.configs.recommended` + 复杂度 ≤10 / 行数 ≤400 / 函数 ≤70 + `import/no-unresolved` + `no-undef`（recommended 自带） |
+| client 端 | `plugins/**/lib/client.src.js` + `plugins/**/lib/parts/*.js`                                 | 同上尺寸规则 + `import/no-unresolved`；`no-undef`/`no-unused-vars` 关闭（`__ModuleLoader__` 格式）                     |
+| 测试文件  | `plugins/**/test/**/*.mjs`                                                                   | `js.configs.recommended` + `import/no-unresolved`；`no-unused-vars` 豁免下划线参数                                     |
+| ignores   | 构建产物 `lib/client.js`、`coverage/`、`.stryker-tmp/`、`reports/`、`dist/`、`node_modules/` | —                                                                                                                      |
 
 ### import/no-unresolved（issue #48，2026-08-28 新增）
 
@@ -65,6 +66,7 @@ npm run lint:size     # 仅尺寸门禁（复杂度/行数）
 ### 插件源码特殊性（client 端）
 
 `lib/client.js` 是浏览器模块加载器格式（`window.__ModuleLoader__.load`），非标准 Node ESM；`lib/client.src.js` 模板 + `lib/parts/*.part.js` 片段经 `scripts/build.mjs` 拼接生成产物。lint 时：
+
 - 构建产物 `lib/client.js` 在 ignores 排除（mermaid 产物内嵌 8.9MB base64，ESLint 正则规则会崩溃）；
 - `client.src.js` / `parts/*.js` 单独配置 `sourceType: 'script'` + 浏览器 globals，关闭 `no-undef`/`no-unused-vars`（片段注入 factory 作用域后互相引用），尺寸规则照常强制。
 
@@ -108,12 +110,12 @@ npm install -D prettier eslint-config-prettier
 
 > 以下工具非必须，但可以进一步提升代码质量或开发效率，建议在项目稳定后按需添加。
 
-| 工具 | 作用 | 安装命令 | 配置方式 |
-|------|------|---------|---------|
-| Husky + lint-staged | Git hooks 管理，提交前自动运行 linter | `npm install -D husky lint-staged && npx husky init` | `.husky/pre-commit` 中写 `npx lint-staged` |
-| commitlint | 检查 Git 提交信息符合约定式提交规范 | `npm install -D @commitlint/cli @commitlint/config-conventional` | `commitlint.config.js`：`extends: ['@commitlint/config-conventional']` |
-| Markdownlint | Markdown 文档规范检查（本仓库文档较多） | `npm install -D markdownlint-cli2` | `.markdownlint-cli2.jsonc` |
-| .editorconfig | 跨编辑器代码风格统一 | 新建 `.editorconfig` 文件 | `root = true`；`[*.{js,mjs}]`：`indent_style = space`、`indent_size = 2` |
+| 工具                | 作用                                    | 安装命令                                                         | 配置方式                                                                 |
+| ------------------- | --------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Husky + lint-staged | Git hooks 管理，提交前自动运行 linter   | `npm install -D husky lint-staged && npx husky init`             | `.husky/pre-commit` 中写 `npx lint-staged`                               |
+| commitlint          | 检查 Git 提交信息符合约定式提交规范     | `npm install -D @commitlint/cli @commitlint/config-conventional` | `commitlint.config.js`：`extends: ['@commitlint/config-conventional']`   |
+| Markdownlint        | Markdown 文档规范检查（本仓库文档较多） | `npm install -D markdownlint-cli2`                               | `.markdownlint-cli2.jsonc`                                               |
+| .editorconfig       | 跨编辑器代码风格统一                    | 新建 `.editorconfig` 文件                                        | `root = true`；`[*.{js,mjs}]`：`indent_style = space`、`indent_size = 2` |
 
 ---
 

@@ -89,7 +89,7 @@ jobs:
       - name: Install root toolchain (eslint, dependency-cruiser)
         run: npm ci
 
-      - name: "Mutation testing (stryker pilot: dsh-file-activity)"
+      - name: 'Mutation testing (stryker pilot: dsh-file-activity)'
         run: (cd plugins/dsh-file-activity && npx stryker run)
 
   # 质量门禁：代码质量规则 + 尺寸规则 + 依赖结构 + 文档一致性
@@ -107,11 +107,17 @@ jobs:
       - name: Install root toolchain (eslint, dependency-cruiser)
         run: npm ci
 
-      # 代码质量规则 + 尺寸规则（complexity≤10 / 函数≤40行 / 文件≤300行）。
+      # 代码质量规则 + 尺寸规则（complexity≤10 / 函数≤70行 / 文件≤400行，
+      # issue #44 引入 prettier 后调整，见 eslint.config.js 注释）。
       # P2 模块拆分（G9-G12）完成后启用尺寸规则强制（client 构建产物已在
       # eslint.config.js ignores 排除，src/parts 模板与片段照常检查）。
       - name: Lint (quality rules + size gates)
         run: npx eslint plugins/
+
+      # 格式校验（issue #44：prettier 统一全仓格式，CI 强制 prettier --check；
+      # 构建产物 client.js / vendor 压缩产物在 .prettierignore 排除）
+      - name: Format check (prettier)
+        run: npx prettier --check .
 
       # 发版校验纯函数单元测试（issue #39：跨插件依赖校验逻辑，含覆盖率门禁）
       - name: Release checks unit tests

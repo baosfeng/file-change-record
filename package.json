@@ -5,12 +5,26 @@
   "description": "DSH 插件集合仓库 —— 根工具链（质量门禁：ESLint 复杂度/行数、dependency-cruiser 依赖分析）。各插件测试在 plugins/<name>/ 内独立运行。",
   "scripts": {
     "lint": "eslint plugins/",
-    "lint:size": "eslint plugins/ --rule '{\"complexity\":[\"error\",10],\"max-lines\":[\"error\",300],\"max-lines-per-function\":[\"error\",40]}'",
+    "lint:size": "eslint plugins/ --rule '{\"complexity\":[\"error\",10],\"max-lines\":[\"error\",400],\"max-lines-per-function\":[\"error\",70]}'",
     "depcruise": "depcruise plugins/",
     "test": "bash scripts/test-all.sh",
-    "test:scripts": "vitest run --coverage --config scripts/test/vitest.config.mjs"
+    "test:scripts": "vitest run --coverage --config scripts/test/vitest.config.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,mjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
     "@cucumber/cucumber": "^13.2.1",
     "@eslint/js": "^10.0.1",
     "@stryker-mutator/core": "^10.0.0",
@@ -21,6 +35,9 @@
     "eslint": "^10.9.0",
     "eslint-plugin-import": "^2.32.0",
     "globals": "^17.11.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.4.1",
+    "prettier": "^3.9.6",
     "vitest": "^4.1.11"
   },
   "overrides": {

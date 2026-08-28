@@ -1,0 +1,27 @@
+# 依赖与产物目录（与 .gitignore 一致；prettier 默认尊重 .gitignore，此处显式声明保证 CI 行为一致）
+node_modules/
+coverage/
+**/coverage/
+.stryker-tmp/
+**/.stryker-tmp/
+reports/
+**/reports/
+dist/
+build/
+
+# 构建产物：plugins/*/lib/client.js 由 scripts/build.mjs 从 client.src.js 模板 +
+# lib/parts/ 片段拼接生成（dsh-mermaid-render 产物内嵌 8.9MB base64，格式化会
+# 崩溃/产生巨量 diff），格式化无意义（下次构建即覆盖），与 eslint.config.js
+# ignores 保持一致——只格式化 client.src.js 模板与 parts 片段源码。
+plugins/*/lib/client.js
+
+# 第三方压缩产物（vendor 内嵌引擎）
+plugins/dsh-mermaid-render/vendor/mermaid.min.js
+
+# npm 生成的锁文件（格式由 npm 维护，避免与 npm 输出冲突）
+package-lock.json
+
+# 本地环境文件（未被 git 跟踪）
+.dsh/
+.reasonix/
+.DS_Store
