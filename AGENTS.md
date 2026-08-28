@@ -46,7 +46,7 @@ docs/
 
 ## 项目简介
 
-- **版本:** 各插件独立 semver（当前主插件 dsh-file-activity v0.5.1；dsh-think-zh-expand v0.4.4；dsh-mermaid-render v0.1.3；dsh-md-render v0.1.1；dsh-my-notify v0.3.2；dsh-my-guardian v0.3.2；dsh-task-reliability v0.4.0；dsh-my-skill-manager v0.1.2；dsh-my-memory v0.1.1；dsh-my-plugin-manager v0.1.2；dsh-my-observability v0.1.1；dsh-my-guard v0.1.1；dsh-my-context v0.1.0；dsh-plugin-dev-mode v0.1.0；dsh-ts-example v0.1.0；dsh-shared v0.1.0） **语言:** JavaScript/TypeScript (Node ≥ 20, ESM；TS 插件见 [docs/TS示例/概述.md](docs/TS示例/概述.md)) **类型:** 基础服务（DSH 插件集合） **技术栈:** Node.js + Cordis 4 + React 18/19 兼容（client 渲染，实际版本由 DSH 运行时决定，当前 18.3.1；评估见 [docs/开发指南/React19兼容性评估.md](docs/开发指南/React19兼容性评估.md)） + dsh-better-sidebar
+- **版本:** 各插件独立 semver（当前主插件 dsh-file-activity v0.5.1；dsh-think-zh-expand v0.4.4；dsh-mermaid-render v0.1.3；dsh-md-render v0.1.2；dsh-my-notify v0.3.2；dsh-my-guardian v0.3.2；dsh-task-reliability v0.4.0；dsh-my-skill-manager v0.1.2；dsh-my-memory v0.1.1；dsh-my-plugin-manager v0.1.2；dsh-my-observability v0.1.1；dsh-my-guard v0.1.1；dsh-my-context v0.1.0；dsh-plugin-dev-mode v0.1.0；dsh-ts-example v0.1.0；dsh-shared v0.1.0） **语言:** JavaScript/TypeScript (Node ≥ 20, ESM；TS 插件见 [docs/TS示例/概述.md](docs/TS示例/概述.md)) **类型:** 基础服务（DSH 插件集合） **技术栈:** Node.js + Cordis 4 + React 18/19 兼容（client 渲染，实际版本由 DSH 运行时决定，当前 18.3.1；评估见 [docs/开发指南/React19兼容性评估.md](docs/开发指南/React19兼容性评估.md)） + dsh-better-sidebar
 
 > 🧪 测试命令: `cd plugins/<插件名> && npm test`（CI 遍历 `plugins/*/` 执行 `node --check` + 冒烟测试） — 提交前必跑全部测试并修复失败
 

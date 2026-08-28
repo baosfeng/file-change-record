@@ -2,6 +2,15 @@
 
 本文件记录 dsh-md-render 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.2] - 2026-08-28
+
+### 变更
+
+- feat(ui): dsh-md-render 表格/代码块视觉统一——前缀拆分（issue #54）
+- chore(deps): 升级 react 19 兼容性——13 个插件 peer 声明 ^18.2.0 || ^19.2.0（issue #49）
+- style(format): 全仓 prettier 格式化（issue #44）
+- fix(ci): 修复 7 个 eslint 质量门禁错误（CI lint 失败，issue #36 范围）
+
 ## [0.1.1] - 2026-08-29
 
 ### 新增
