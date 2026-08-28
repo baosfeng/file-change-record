@@ -2,6 +2,15 @@
 
 本文件记录 dsh-notify 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.3.2] - 2026-08-28
+
+### 变更
+
+- feat(ui): dsh-my-notify toast 翻新——类型图标/操作按钮/动画（issue #54）
+- refactor(shared): 抽取 dsh-shared 共享工具包，10 个插件迁移消除重复实现（issue #45）
+- chore(deps): 升级 react 19 兼容性——13 个插件 peer 声明 ^18.2.0 || ^19.2.0（issue #49）
+- style(format): 全仓 prettier 格式化（issue #44）
+
 ## [0.3.1] - 2026-08-27
 
 ### 变更
