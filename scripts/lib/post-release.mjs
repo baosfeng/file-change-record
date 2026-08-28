@@ -60,7 +60,12 @@ export async function verifyPostRelease(pkgName, name, version) {
   if (npm.ok) {
     console.log(`✓ npm ${pkgName}@${version} 已发布`)
   } else {
-    console.error(`✗ npm ${pkgName}@${version} 未在 5 分钟内发布（包名被占用或 publish 失败）— 请检查 Actions 日志`)
-    process.exit(1)
+    // npm 发布失败不阻断：workflow 设计为「npm 失败仅 warning，GitHub Release
+    // 为主交付物」（issue #12）；实践中 npm 429 限流为暂时性问题，可稍后重试
+    // （手动 npm publish 或重新触发 workflow）。GitHub Release 已成功即发版完成。
+    console.warn(
+      `⚠ npm ${pkgName}@${version} 未在 5 分钟内发布（可能是 429 限流/NPM_TOKEN 问题）— ` +
+        `GitHub Release 已成功；如需 npm 发布请手动重试：cd plugins/${name} && npm publish --access public`,
+    )
   }
 }
