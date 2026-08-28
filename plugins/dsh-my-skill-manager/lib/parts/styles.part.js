@@ -1,53 +1,81 @@
 // ── styles (DSH semantic tokens, injected on activate, removed on teardown) ──
+// Visual language follows the dsh-file-activity baseline (issue #54): flat
+// surfaces, hairline borders, 24px circular icon buttons with hover fills,
+// 8px-radius rows with hover fills, badge chips, and a role=switch toggle
+// (track + sliding thumb, checked = success accent). All colors ride the
+// --dsw-alias-* tokens; motion rides --ds-*.
 const STYLES = `
-.dsm-root { display:flex; flex-direction:column; gap:10px; padding:12px; }
-.dsm-pathbar { display:flex; gap:6px; align-items:center; }
-.dsm-path-input { flex:1; min-width:0; height:28px; padding:0 8px; border-radius:6px;
-  border:1px solid var(--dsw-alias-hairline-strong, rgba(128,128,128,.35));
-  background:var(--dsw-alias-bg-input, transparent); color:var(--dsw-alias-label-primary, inherit);
-  font:var(--dsw-font-sm-13, 13px/1.4 sans-serif); }
-.dsm-btn { flex:none; height:28px; padding:0 10px; border-radius:6px; cursor:pointer;
-  border:1px solid var(--dsw-alias-line-border-strong, rgba(128,128,128,.4));
-  background:var(--dsw-alias-surface-hover, rgba(128,128,128,.12)); color:var(--dsw-alias-label-primary, inherit);
-  font:var(--dsw-font-sm-13, 13px sans-serif); }
-.dsm-btn:hover { background:var(--dsw-alias-surface-press, rgba(128,128,128,.2)); }
-.dsm-note { font:var(--dsw-font-xxxs-11, 11px sans-serif); color:var(--dsw-alias-label-tertiary, #888); }
-.dsm-status { font:var(--dsw-font-xxxs-11, 11px sans-serif); color:var(--dsw-alias-label-tertiary, #888); }
-.dsm-saved { color:var(--dsw-alias-state-success-primary, #2e9e5b); }
-.dsm-error { font:var(--dsw-font-xxxs-11, 11px sans-serif); color:var(--dsw-alias-state-danger-primary, #d33); }
-.dsm-section { display:flex; flex-direction:column; gap:2px; }
-.dsm-section-title { font:var(--dsw-font-sm-strong-13, 600 13px sans-serif);
-  color:var(--dsw-alias-label-primary, inherit); padding:6px 0 2px; }
-.dsm-hint { font:var(--dsw-font-xxxs-11, 11px sans-serif); color:var(--dsw-alias-label-tertiary, #888); padding-bottom:4px; }
-.dsm-empty { font:var(--dsw-font-xxxs-11, 11px sans-serif); color:var(--dsw-alias-label-tertiary, #888); padding:6px 0; }
-.dsm-row { display:flex; flex-direction:column; gap:2px; padding:6px 8px; border-radius:6px;
-  border:1px solid var(--dsw-alias-line-border-soft, rgba(128,128,128,.18));
-  background:var(--dsw-alias-surface, transparent); }
-.dsm-row:hover { background:var(--dsw-alias-surface-hover, rgba(128,128,128,.08)); }
-.dsm-row-disabled { opacity:.72; }
-.dsm-row-head { display:flex; align-items:center; gap:8px; }
-.dsm-name { font:var(--dsw-font-sm-strong-13, 13px sans-serif); color:var(--dsw-alias-label-primary, inherit);
-  flex:none; max-width:45%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.dsm-src { flex:none; font:var(--dsw-font-xxxs-11, 11px sans-serif); color:var(--dsw-alias-label-tertiary, #888);
-  padding:1px 6px; border-radius:4px; background:var(--dsw-alias-surface-hover, rgba(128,128,128,.12)); }
-.dsm-src-warn { color:var(--dsw-alias-state-warning-primary, #c90);
-  border:1px solid color-mix(in srgb, var(--dsw-alias-state-warning-primary, #c90) 45%, transparent); }
-.dsm-desc { font:var(--dsw-font-xxxs-11, 11px sans-serif); color:var(--dsw-alias-label-secondary, #666); }
-.dsm-toggle { flex:none; height:22px; padding:0 8px; border-radius:5px; cursor:pointer;
-  border:1px solid var(--dsw-alias-line-border-strong, rgba(128,128,128,.4));
-  background:transparent; color:var(--dsw-alias-label-secondary, #666);
-  font:var(--dsw-font-xxxs-11, 11px sans-serif); }
-.dsm-toggle:hover { background:var(--dsw-alias-surface-hover, rgba(128,128,128,.12)); }
-.dsm-toggle-on { color:var(--dsw-alias-state-danger-primary, #d33);
-  border-color:color-mix(in srgb, var(--dsw-alias-state-danger-primary, #d33) 45%, transparent); }
-.dsm-toggle:disabled { opacity:.45; cursor:not-allowed; }
-.dsm-diag-row { display:flex; align-items:center; gap:8px; padding:4px 8px; border-radius:6px;
-  border:1px solid var(--dsw-alias-line-border-soft, rgba(128,128,128,.18));
-  background:var(--dsw-alias-surface, transparent); }
-.dsm-diag-reason { flex:none; font:var(--dsw-font-xxxs-11, 11px sans-serif);
-  color:var(--dsw-alias-state-warning-primary, #c90); }
-.dsm-diag-path { flex:1; min-width:0; font:var(--dsw-font-xxxs-11, 11px sans-serif);
-  color:var(--dsw-alias-label-tertiary, #888); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dsh-my-skill-manager-root { display:flex; flex-direction:column; gap:8px; padding:2px 6px 8px;
+  font:var(--dsw-font-s-14); color:var(--dsw-alias-label-primary); }
+.dsh-my-skill-manager-toolbar { display:flex; flex-direction:column; gap:4px; }
+.dsh-my-skill-manager-pathbar { display:flex; gap:6px; align-items:center; }
+.dsh-my-skill-manager-path-input { flex:1; min-width:0; height:28px; padding:0 8px; border-radius:6px;
+  border:1px solid var(--dsw-alias-border-l1); background:transparent; color:var(--dsw-alias-label-primary);
+  font:var(--dsw-font-s-14); transition:border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-skill-manager-path-input:focus { outline:none; border-color:var(--dsw-alias-accent); }
+.dsh-my-skill-manager-iconbtn { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; padding:0;
+  border:none; border-radius:50%; background:transparent; color:var(--dsw-alias-label-secondary); cursor:pointer; flex:none;
+  transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out), color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-skill-manager-iconbtn svg { display:block; }
+.dsh-my-skill-manager-iconbtn:hover:not(:disabled) { background:var(--dsw-alias-interactive-bg-hover); color:var(--dsw-alias-label-primary); }
+.dsh-my-skill-manager-iconbtn:disabled { opacity:.4; cursor:default; }
+.dsh-my-skill-manager-note { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); line-height:1.7; }
+.dsh-my-skill-manager-status { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); padding:4px 6px; }
+.dsh-my-skill-manager-saved { color:var(--dsw-alias-state-success-primary); }
+.dsh-my-skill-manager-error { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-state-error-primary); padding:4px 6px; white-space:pre-wrap; }
+.dsh-my-skill-manager-section { display:flex; flex-direction:column; gap:2px; margin-top:4px; }
+.dsh-my-skill-manager-section-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:2px 6px;
+  font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-label-tertiary); text-transform:uppercase; letter-spacing:.04em; }
+.dsh-my-skill-manager-section-title { font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-label-tertiary);
+  text-transform:uppercase; letter-spacing:.04em; }
+.dsh-my-skill-manager-hint { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); padding:0 6px 4px; line-height:1.7; }
+.dsh-my-skill-manager-empty { display:flex; flex-direction:column; align-items:center; gap:4px; padding:12px 6px;
+  font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); line-height:1.7; }
+.dsh-my-skill-manager-empty-icon { color:var(--dsw-alias-label-dimmed); }
+.dsh-my-skill-manager-empty-hint { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-dimmed); }
+.dsh-my-skill-manager-row { display:flex; flex-direction:column; gap:2px; padding:6px 8px; border-radius:8px;
+  border:1px solid var(--dsw-alias-border-l1); background:transparent;
+  transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out);
+  animation:dsh-my-skill-manager-row-in 150ms var(--ds-ease-in-out); }
+.dsh-my-skill-manager-row:hover { background:var(--dsw-alias-interactive-bg-hover); }
+.dsh-my-skill-manager-row-disabled { opacity:.72; }
+.dsh-my-skill-manager-row-head { display:flex; align-items:center; gap:6px; min-width:0; }
+.dsh-my-skill-manager-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font:var(--dsw-font-s-strong-14); color:var(--dsw-alias-label-primary); }
+.dsh-my-skill-manager-src { flex:none; display:inline-flex; align-items:center; height:17px; padding:0 5px; border-radius:4px;
+  font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-label-tertiary); background:var(--dsw-alias-interactive-bg-hover); }
+.dsh-my-skill-manager-src-warn { color:var(--dsw-alias-state-warn-primary);
+  background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
+.dsh-my-skill-manager-state { flex:none; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
+.dsh-my-skill-manager-state-on { color:var(--dsw-alias-state-success-primary); }
+.dsh-my-skill-manager-desc { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-secondary); }
+/* ── switch (role=switch): track + sliding thumb, checked = enabled ────────
+   Off = neutral grey track, on = success accent; both thumb and track
+   transition on --ds-transition-duration-slow. */
+.dsh-my-skill-manager-switch { flex:none; width:34px; height:20px; padding:0; border:none; background:transparent; cursor:pointer; }
+.dsh-my-skill-manager-switch-track { display:block; width:34px; height:20px; border-radius:10px;
+  background:color-mix(in srgb, var(--dsw-alias-label-tertiary) 25%, transparent);
+  transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-skill-manager-switch-thumb { display:block; width:16px; height:16px; margin:2px; border-radius:50%;
+  background:var(--dsw-alias-label-tertiary);
+  transition:transform var(--ds-transition-duration-slow) var(--ds-ease-in-out), background var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-skill-manager-switch-on .dsh-my-skill-manager-switch-track { background:var(--dsw-alias-state-success-primary); }
+.dsh-my-skill-manager-switch-on .dsh-my-skill-manager-switch-thumb { transform:translateX(14px); background:var(--dsw-alias-label-primary-foreground); }
+.dsh-my-skill-manager-switch:hover:not(:disabled) .dsh-my-skill-manager-switch-track { background:color-mix(in srgb, var(--dsw-alias-label-tertiary) 40%, transparent); }
+.dsh-my-skill-manager-switch:hover:not(:disabled).dsh-my-skill-manager-switch-on .dsh-my-skill-manager-switch-track { background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 85%, var(--dsw-alias-label-tertiary)); }
+.dsh-my-skill-manager-switch:disabled { opacity:.4; cursor:default; }
+/* ── diagnostics: badge + key info + detail, mirroring the dfa-op chips ──── */
+.dsh-my-skill-manager-diag-row { display:flex; align-items:center; gap:6px; padding:4px 8px; border-radius:8px;
+  border:1px solid var(--dsw-alias-border-l1); background:transparent;
+  animation:dsh-my-skill-manager-row-in 150ms var(--ds-ease-in-out); }
+.dsh-my-skill-manager-diag-badge { flex:none; display:inline-flex; align-items:center; height:17px; padding:0 5px; border-radius:4px;
+  font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-state-warn-primary);
+  background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
+.dsh-my-skill-manager-diag-name { flex:none; font:var(--dsw-font-s-strong-14); color:var(--dsw-alias-label-primary); }
+.dsh-my-skill-manager-diag-reason { flex:none; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-state-warn-primary); }
+.dsh-my-skill-manager-diag-path { flex:1; min-width:0; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+@keyframes dsh-my-skill-manager-row-in { from { opacity:0; transform:translateY(1px); } to { opacity:1; transform:none; } }
 `.trim()
 
 const STYLE_TAG = 'data-dsh-my-skill-manager'

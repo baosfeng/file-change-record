@@ -156,7 +156,6 @@ const texts = []
 walkText(tree2, texts)
 const joined = texts.join('|')
 
-assert.ok(joined.includes('加载'), 'load button rendered')
 assert.ok(joined.includes('全局'), 'global section present')
 assert.equal(countSections(tree2), 1, 'global view renders exactly one section (no project section)')
 assert.ok(joined.includes('web-search'), 'skill name rendered')
@@ -188,11 +187,11 @@ function collectButtons(node) {
   collectButtons(props.children)
 }
 
-/** Count rendered `.dsm-section` blocks (global view = 1, project view = 1). */
+/** Count rendered `.dsh-my-skill-manager-section` blocks (global view = 1, project view = 1). */
 function countSections(node) {
   if (node === null || typeof node !== 'object') return 0
   const props = node.props ?? {}
-  let count = props.className === 'dsm-section' ? 1 : 0
+  let count = props.className === 'dsh-my-skill-manager-section' ? 1 : 0
   if (Array.isArray(node)) {
     for (const c of node) count += countSections(c)
     return count
@@ -201,11 +200,11 @@ function countSections(node) {
   return count + countSections(props.children)
 }
 
-/** Collect the path input element props (className dsm-path-input). */
+/** Collect the path input element props (className dsh-my-skill-manager-path-input). */
 function collectInputs(node, out) {
   if (node === null || typeof node !== 'object') return
   const props = node.props ?? {}
-  if (props.className === 'dsm-path-input') out.push(props)
+  if (props.className === 'dsh-my-skill-manager-path-input') out.push(props)
   if (Array.isArray(node)) {
     for (const c of node) collectInputs(c, out)
     return
@@ -217,6 +216,8 @@ function collectInputs(node, out) {
   collectInputs(props.children, out)
 }
 collectButtons(tree2)
+const loadBtn2 = toggles.find((t) => t.label.includes('加载'))
+assert.ok(loadBtn2, 'load button rendered')
 const toggle = toggles.find((t) => t.label.includes('codebase-memory') && t.label.includes('启用'))
 assert.ok(toggle, 'toggle for the enabled skill found')
 

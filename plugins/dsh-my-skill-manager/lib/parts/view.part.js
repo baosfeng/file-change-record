@@ -62,16 +62,16 @@ function SkillManagerView() {
 
   return createElement(
     'div',
-    { className: 'dsm-root' },
+    { className: 'dsh-my-skill-manager-root' },
     createElement(Toolbar, {
       pathInput,
       onInput: setPathInput,
       onLoad: actions.load,
       onRescan: actions.rescan,
     }),
-    error ? createElement('div', { className: 'dsm-error' }, strings.loadError()) : null,
+    error ? createElement('div', { className: 'dsh-my-skill-manager-error' }, strings.loadError()) : null,
     loading
-      ? createElement('div', { className: 'dsm-status' }, strings.loading())
+      ? createElement('div', { className: 'dsh-my-skill-manager-status' }, strings.loading())
       : data === null
         ? null
         : createElement(Sections, {
@@ -82,16 +82,16 @@ function SkillManagerView() {
   )
 }
 
-/** Path input + refresh button + project config note. */
+/** Path input + icon buttons (load project / rescan) + config note. */
 function Toolbar({ pathInput, onInput, onLoad, onRescan }) {
   return createElement(
     'div',
-    null,
+    { className: 'dsh-my-skill-manager-toolbar' },
     createElement(
       'div',
-      { className: 'dsm-pathbar' },
+      { className: 'dsh-my-skill-manager-pathbar' },
       createElement('input', {
-        className: 'dsm-path-input',
+        className: 'dsh-my-skill-manager-path-input',
         placeholder: strings.projectHint(),
         value: pathInput,
         onChange: (event) => onInput(event.target.value),
@@ -102,23 +102,25 @@ function Toolbar({ pathInput, onInput, onLoad, onRescan }) {
       createElement(
         'button',
         {
-          className: 'dsm-btn',
+          className: 'dsh-my-skill-manager-iconbtn',
           'aria-label': strings.loadProject(),
+          title: strings.loadProject(),
           onClick: () => onLoad(pathInput),
         },
-        strings.loadProject(),
+        icon.folder(14),
       ),
       createElement(
         'button',
         {
-          className: 'dsm-btn',
+          className: 'dsh-my-skill-manager-iconbtn',
           'aria-label': strings.refresh(),
+          title: strings.refresh(),
           onClick: () => onRescan(pathInput),
         },
-        strings.refresh(),
+        icon.refresh(14),
       ),
     ),
-    createElement('div', { className: 'dsm-note' }, strings.projectConfigNote()),
+    createElement('div', { className: 'dsh-my-skill-manager-note' }, strings.projectConfigNote()),
   )
 }
 
@@ -127,7 +129,7 @@ function Sections({ data, saved, onToggle }) {
   const projectMode = data.cwd !== ''
   return createElement(
     'div',
-    null,
+    { className: 'dsh-my-skill-manager-sections' },
     projectMode
       ? createElement(SectionBlock, {
           title: projectTitleOf(data),
@@ -144,26 +146,30 @@ function Sections({ data, saved, onToggle }) {
           onToggle: (name, isDisabled) => onToggle('global', name, isDisabled),
         }),
     createElement(DiagnosticsBlock, { diagnostics: data.diagnostics }),
-    saved ? createElement('div', { className: 'dsm-status dsm-saved' }, strings.saved()) : null,
+    saved
+      ? createElement('div', { className: 'dsh-my-skill-manager-status dsh-my-skill-manager-saved' }, strings.saved())
+      : null,
   )
 }
 
-/** Skipped skill entries reported by the server-side directory scan. */
+/** Skipped skill entries reported by the server-side directory scan:
+ *  warn badge + key info (name/reason) + detail (path). */
 function DiagnosticsBlock({ diagnostics }) {
   const missing = diagnostics?.missing ?? []
   if (missing.length === 0) return null
   return createElement(
     'div',
-    { className: 'dsm-section' },
-    createElement('div', { className: 'dsm-section-title' }, strings.diagnosticsTitle()),
-    createElement('div', { className: 'dsm-hint' }, strings.diagnosticsHint()),
+    { className: 'dsh-my-skill-manager-section' },
+    createElement('div', { className: 'dsh-my-skill-manager-section-head' }, strings.diagnosticsTitle()),
+    createElement('div', { className: 'dsh-my-skill-manager-hint' }, strings.diagnosticsHint()),
     missing.map((item) =>
       createElement(
         'div',
-        { key: item.path, className: 'dsm-diag-row' },
-        createElement('span', { className: 'dsm-name' }, item.name),
-        createElement('span', { className: 'dsm-diag-reason' }, strings.diagReason(item.reason)),
-        createElement('span', { className: 'dsm-diag-path' }, item.path),
+        { key: item.path, className: 'dsh-my-skill-manager-diag-row' },
+        createElement('span', { className: 'dsh-my-skill-manager-diag-badge' }, strings.diagBadge()),
+        createElement('span', { className: 'dsh-my-skill-manager-diag-name' }, item.name),
+        createElement('span', { className: 'dsh-my-skill-manager-diag-reason' }, strings.diagReason(item.reason)),
+        createElement('span', { className: 'dsh-my-skill-manager-diag-path' }, item.path),
       ),
     ),
   )
@@ -187,44 +193,80 @@ function SectionBlock({ title, hint, skills, disabledNames, onToggle, locked }) 
   )
   return createElement(
     'div',
-    { className: 'dsm-section' },
-    createElement('div', { className: 'dsm-section-title' }, title),
-    createElement('div', { className: 'dsm-hint' }, hint),
-    rows.length === 0 ? createElement('div', { className: 'dsm-empty' }, strings.empty()) : rows,
+    { className: 'dsh-my-skill-manager-section' },
+    createElement(
+      'div',
+      { className: 'dsh-my-skill-manager-section-head' },
+      createElement('span', { className: 'dsh-my-skill-manager-section-title' }, title),
+    ),
+    createElement('div', { className: 'dsh-my-skill-manager-hint' }, hint),
+    rows.length === 0
+      ? createElement(
+          'div',
+          { className: 'dsh-my-skill-manager-empty' },
+          createElement('span', { className: 'dsh-my-skill-manager-empty-icon' }, icon.file(16)),
+          strings.empty(),
+          createElement('span', { className: 'dsh-my-skill-manager-empty-hint' }, strings.emptyHint()),
+        )
+      : rows,
   )
 }
 
 function SkillRow({ skill, disabled, locked, onToggle }) {
   return createElement(
     'div',
-    { className: `dsm-row${disabled ? ' dsm-row-disabled' : ''}` },
+    { className: `dsh-my-skill-manager-row${disabled ? ' dsh-my-skill-manager-row-disabled' : ''}` },
     createElement(
       'div',
-      { className: 'dsm-row-head' },
-      createElement('span', { className: 'dsm-name' }, skill.name),
+      { className: 'dsh-my-skill-manager-row-head' },
+      createElement('span', { className: 'dsh-my-skill-manager-name' }, skill.name),
       skill.cataloged === false
         ? createElement(
             'span',
-            { className: 'dsm-src dsm-src-warn', title: strings.notCatalogedHint() },
+            { className: 'dsh-my-skill-manager-src dsh-my-skill-manager-src-warn', title: strings.notCatalogedHint() },
             strings.notCataloged(),
           )
         : null,
       createElement(
         'span',
-        { className: 'dsm-src' },
+        { className: 'dsh-my-skill-manager-src' },
         isProjectSource(skill.source) ? strings.sourceProject(skill.source) : strings.sourceGlobal(skill.source),
       ),
       createElement(
-        'button',
-        {
-          className: `dsm-toggle${disabled ? ' dsm-toggle-on' : ''}`,
-          disabled: locked,
-          onClick: onToggle,
-          'aria-label': `${skill.name}: ${disabled ? strings.disabled() : strings.enabled()}`,
-        },
+        'span',
+        { className: `dsh-my-skill-manager-state${disabled ? '' : ' dsh-my-skill-manager-state-on'}` },
         disabled ? strings.disabled() : strings.enabled(),
       ),
+      createElement(Switch, {
+        checked: !disabled,
+        disabled: locked,
+        label: `${skill.name}: ${disabled ? strings.disabled() : strings.enabled()}`,
+        onToggle,
+      }),
     ),
-    createElement('div', { className: 'dsm-desc' }, skill.description),
+    createElement('div', { className: 'dsh-my-skill-manager-desc' }, skill.description),
+  )
+}
+
+/** Visual switch (role=switch): track + sliding thumb, checked = enabled.
+ *  Semantics match the previous enable/disable text button exactly: clicking
+ *  reports the CURRENT disabled state, and the parent flips the list. */
+function Switch({ checked, disabled, label, onToggle }) {
+  return createElement(
+    'button',
+    {
+      type: 'button',
+      role: 'switch',
+      'aria-checked': checked,
+      'aria-label': label,
+      className: `dsh-my-skill-manager-switch${checked ? ' dsh-my-skill-manager-switch-on' : ''}`,
+      disabled,
+      onClick: onToggle,
+    },
+    createElement(
+      'span',
+      { className: 'dsh-my-skill-manager-switch-track' },
+      createElement('span', { className: 'dsh-my-skill-manager-switch-thumb' }),
+    ),
   )
 }

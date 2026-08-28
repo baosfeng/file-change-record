@@ -23,6 +23,8 @@ const strings = {
   loading: () => (isZh() ? '加载中…' : 'Loading…'),
   loadError: () => (isZh() ? '加载失败' : 'Load failed'),
   empty: () => (isZh() ? '暂无 skill' : 'No skills yet'),
+  emptyHint: () =>
+    isZh() ? 'skill 目录为空或尚未扫描，点击右上角刷新重新扫描' : 'No skills found yet; click refresh to rescan',
   sourceProject: (source) => (isZh() ? `项目（${source}）` : `project (${source})`),
   sourceGlobal: (source) => (isZh() ? `全局（${source}）` : `global (${source})`),
   notCataloged: () => (isZh() ? '未收录' : 'Not cataloged'),
@@ -42,6 +44,7 @@ const strings = {
   saved: () => (isZh() ? '已保存' : 'Saved'),
   saveFailed: () => (isZh() ? '保存失败' : 'Save failed'),
   diagnosticsTitle: () => (isZh() ? '扫描诊断' : 'Scan diagnostics'),
+  diagBadge: () => (isZh() ? '跳过' : 'Skipped'),
   diagnosticsHint: () =>
     isZh()
       ? '以下条目存在于 skill 目录但未被收录（可能被官方扫描器跳过）：'
