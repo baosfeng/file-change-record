@@ -251,11 +251,14 @@ if (skipReal) {
 
 // 3b. README 效果图校验：发版前必须引用真实截图（见效果图规范）。
 // 支持 ./assets/<file> 相对路径与 https://unpkg.com/<pkg>/assets/<file> 绝对 URL，
-// 均提取文件名校验 assets/ 下真实存在。
+// 均提取文件名校验 assets/ 下真实存在。共享工具包（dsh.kind=library）无 UI，
+// 豁免截图校验。
 const plugReadmePath = join(pluginDir, 'README.md')
 const assetsDir = join(pluginDir, 'assets')
 let screenshotRefs = 0
-if (existsSync(plugReadmePath)) {
+if (isLibrary) {
+  console.log('- 共享工具包（dsh.kind=library）豁免 README 效果图校验（无 UI）')
+} else if (existsSync(plugReadmePath)) {
   const plugReadme = readFileSync(plugReadmePath, 'utf8')
   // markdown 图片与 HTML <img> 的两种引用形态
   const imgRe =
@@ -269,13 +272,13 @@ if (existsSync(plugReadmePath)) {
     process.exit(1)
   }
 }
-if (screenshotRefs === 0) {
+if (screenshotRefs === 0 && !isLibrary) {
   console.error(
     `✗ ${name}/README.md has no real screenshot reference (./assets/... or unpkg URL) — update README + assets/ per the 效果图规范`,
   )
   process.exit(1)
 }
-console.log(`✓ README references ${screenshotRefs} screenshot(s) under assets/`)
+if (!isLibrary) console.log(`✓ README references ${screenshotRefs} screenshot(s) under assets/`)
 
 // 4. sync versions in root README.md and AGENTS.md
 const readmePath = join(root, 'README.md')
