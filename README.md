@@ -37,6 +37,7 @@
 | [dsh-my-skill-manager](plugins/dsh-my-skill-manager/README.md) | 0.1.1 | Skill 管理：分「全局 / 项目」查看 skill 列表（名称/描述/来源/状态），按项目启用/禁用——禁用的 skill 不再注入该项目会话（模型不可见、不可加载）；全局配置 `$DSH_HOME`，项目配置随仓库版本化；设置页面板（官方扩展点，纯官方依赖） |
 | [dsh-my-memory](plugins/dsh-my-memory/README.md) | 0.1.0 | 记忆：全局/项目两级记忆持久化（全局 `$DSH_HOME/memory.json` + 项目 `<项目根>/.dsh/memory.json`），会话开始时全局记忆注入系统提示词（agent 始终携带关键偏好，条数/长度上限防膨胀）；设置页面板（全局/项目分区 + 自定义确认 UI：删除红色、保存绿色，写操作必须用户确认）；`memory_query` 只读查询工具 |
 | [dsh-my-plugin-manager](plugins/dsh-my-plugin-manager/README.md) | 0.1.1 | 公共插件管理面板：市场浏览/搜索（npm registry）、一键安装/卸载（`dsh plugin` CLI 同一数据源）、更新检查（pnpm outdated）、已安装插件清单（官方 pluginInventory + 版本）；设置页面板（官方扩展点，纯官方依赖） |
+| [dsh-my-observability](plugins/dsh-my-observability/README.md) | 0.1.0 | 可观测性 + Git 工程工具：事件审计（监听 agent/status、llm/stream、tools/*，agent 行为可追溯，按会话隔离、重启后恢复）、侧边栏轨迹回放时间轴面板、结构化 Git 类型化提交（Conventional Commits）、提交前增量 diff 审查（规则引擎 + 可选 AI 审查） |
 | [dsh-plugin-dev-mode](plugins/dsh-plugin-dev-mode/README.md) | 0.1.0 | 插件开发模式 **agent preset**（非运行时插件）：唯一启用 Cordis 工具集（cordis_inspect_*/define/run/stop/undefine）的 Agent 预设，精简工具组合 + 随包技能，一键安装到 `$DSH_HOME/.agent-presets/` |
 
 ## 目录结构
@@ -53,6 +54,7 @@
 │   ├── dsh-my-skill-manager/
 │   ├── dsh-my-memory/
 │   ├── dsh-my-plugin-manager/
+│   ├── dsh-my-observability/
 │   └── dsh-plugin-dev-mode/   # agent preset 资产包（非运行时插件）
 ├── skills/           # 本仓库的开发技能（SKILL.md 格式，可安装到 ~/.dsh/skills/）
 │   └── dsh-plugin-development/
