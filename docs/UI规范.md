@@ -91,7 +91,7 @@ dsh-file-activity 的 UI 语言由五个要素构成，翻新插件时逐项对�
   - dsh-my-plugin-manager → `dsh-my-plugin-manager-`
   - dsh-my-guardian → `dsh-my-guardian-`（现状已符合）
 - **dsh-file-activity 保留 `dfa-` 前缀**：其 UI 已稳定（v0.5.x、测试覆盖完整），改前缀会引发大规模回归且无收益；本规范只约束其余插件，`dfa-` 作为历史例外记录于此。
-- 现状冲突（阶段 1 必须消除）：`dso-` 被 dsh-my-observability / dsh-my-guard / dsh-my-context 共用；`dmr-` 被 dsh-mermaid-render / dsh-md-render 共用；`dmm-`/`dpm-`/`dsm-`/`dns-`/`dtr-`/`tzx-` 等缩写前缀统一改为全名前缀。
+- **阶段 1 已消除的冲突（issue #54，2026-08 完成）**：`dso-`（observability/guard/context 共用）已拆分；`dmr-`（mermaid-render/md-render 共用）已拆分；`dmm-`/`dpm-`/`dsm-`/`dn-`/`dns-`/`dtr-`/`tzx-think*` 等缩写前缀已统一改为全名前缀。**例外**：契约类名 `tzx-md`/`tzx-p`/`tzx-table`（dsh-md-render 表格增强跨插件依赖）、`md-code-block`/`md-table-wide`（渲染契约）、`dfa-`（历史例外）保留；新插件一律使用全名前缀。
 
 ### 类名命名规则
 
