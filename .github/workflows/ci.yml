@@ -46,6 +46,7 @@ jobs:
           - dsh-my-memory
           - dsh-my-notify
           - dsh-my-observability
+          - dsh-my-guard
           - dsh-my-plugin-manager
           - dsh-my-skill-manager
           - dsh-plugin-dev-mode
