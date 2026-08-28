@@ -188,6 +188,11 @@ const isPublished = (dep, range) => {
     // peerDependencies 键（外部输入），execFileSync 参数数组不经过 shell
     return versionGte(execFileSync('npm', ['view', dep, 'version'], { encoding: 'utf8' }).trim(), min)
   } catch {
+    // npm 未发布（如 429 限流）：仓库内依赖（pluginIndex）认可「已打 tag」——
+    // tag push 必触发 Release workflow，GitHub Release 为仓库主交付物（issue #12）；
+    // npm 发布失败不阻塞依赖顺序校验（发布后可手动重试）。
+    const entry = pluginIndex.get(dep)
+    if (entry !== undefined && isTagged(entry.dir, entry.version)) return true
     return false
   }
 }
