@@ -12,15 +12,15 @@ updated: 2026-08-28
 
 ## 当前状态
 
-| 维度               | 状态                                                                                                                                           |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| 项目类型           | library（DSH 插件集合仓库）                                                                                                                    |
-| 语言               | JavaScript（Node.js ≥ 20，ESM）                                                                                                                |
-| 已配置的 Lint 工具 | **ESLint 9+ Flat Config**（根 `eslint.config.js`）                                                                                             |
-| 已配置的 Lint 工具 | **ESLint 9+ Flat Config**（根 `eslint.config.js`）、**Prettier**（根 `.prettierrc.json`，issue #44）                                           |
-| 已启用规则         | 圈复杂度 ≤ 10、单文件 ≤ 400 行、单函数 ≤ 70 行、`import/no-unresolved`（issue #48）、server 端 `no-undef`                                      |
-| 已配置的提交拦截   | Husky + lint-staged（pre-commit：eslint --fix + prettier --write）、commitlint（commit-msg，Conventional Commits）、.editorconfig（issue #44） |
-| 可考虑的可选工具   | Markdownlint                                                                                                                                   |
+| 维度               | 状态                                                                                                                                                                                              |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 项目类型           | library（DSH 插件集合仓库）                                                                                                                                                                       |
+| 语言               | JavaScript（Node.js ≥ 20，ESM）                                                                                                                                                                   |
+| 已配置的 Lint 工具 | **ESLint 9+ Flat Config**（根 `eslint.config.js`）                                                                                                                                                |
+| 已配置的 Lint 工具 | **ESLint 9+ Flat Config**（根 `eslint.config.js`）、**Prettier**（根 `.prettierrc.json`，issue #44）、**Knip**（根 `knip.json`，issue #45）、**jscpd**（根 `.jscpd.json`，issue #45）             |
+| 已启用规则         | 圈复杂度 ≤ 10、单文件 ≤ 400 行、单函数 ≤ 70 行、`import/no-unresolved`（issue #48）、server 端 `no-undef`；knip 死代码检测（未使用文件/依赖/导出）、jscpd 重复代码检测（min-tokens 100，阈值 5%） |
+| 已配置的提交拦截   | Husky + lint-staged（pre-commit：eslint --fix + prettier --write）、commitlint（commit-msg，Conventional Commits）、.editorconfig（issue #44）                                                    |
+| 可考虑的可选工具   | Markdownlint                                                                                                                                                                                      |
 
 > 说明：本仓库为多插件目录结构，各插件目录（`plugins/<name>/`）各自带 `package.json`。lint 配置统一在仓库根 `eslint.config.js`（flat config），CI（`.github/workflows/ci.yml` 的 quality job）执行 `npx eslint plugins/` 强制门禁。
 

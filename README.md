@@ -42,6 +42,7 @@
 | [dsh-my-context](plugins/dsh-my-context/README.md)               | 0.1.0 | 上下文透镜 + 成本治理：token 用量可视化（每次请求的上下文构成、KV 缓存命中率，按会话隔离、重启后恢复）、每轮/每会话预算控制（token 上限，超限提醒/拦截，可配置）                                                                                                                                                 |
 | [dsh-plugin-dev-mode](plugins/dsh-plugin-dev-mode/README.md)     | 0.1.0 | 插件开发模式 **agent preset**（非运行时插件）：唯一启用 Cordis 工具集（cordis_inspect_*/define/run/stop/undefine）的 Agent 预设，精简工具组合 + 随包技能，一键安装到 `$DSH_HOME/.agent-presets/`                                                                                                                 |
 | [dsh-ts-example](plugins/dsh-ts-example/README.md)               | 0.1.0 | TypeScript 插件开发示例（issue #47）：server 端 TS 源码 + tsc 编译（`lib/index.js` 产物）、client 端 TS 源码 + 构建时编译（`__ModuleLoader__` bundle）、CI 强制 `tsc --noEmit` 类型检查——编译期发现模块不存在（TS2307）/类型不匹配/未定义变量；新 TS 插件照抄本插件结构                                          |
+| [dsh-shared](plugins/dsh-shared/README.md)                       | 0.1.0 | 共享工具包（issue #45）：多插件共用的 server 端工具——Host-header 信任围栏、HTTP JSON 读写、配置持久化（cordis.patch.yml）、项目根解析、异步与消息工具、原子写；依赖方在 peerDependencies 声明（依赖先发版）                                                                                                      |
 
 ## 目录结构
 
