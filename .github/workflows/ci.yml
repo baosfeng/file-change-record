@@ -113,6 +113,10 @@ jobs:
       - name: Lint (quality rules + size gates)
         run: npx eslint plugins/
 
+      # 发版校验纯函数单元测试（issue #39：跨插件依赖校验逻辑，含覆盖率门禁）
+      - name: Release checks unit tests
+        run: npm run test:scripts
+
       # 依赖结构分析（无循环依赖、server/client 不交叉）
       - name: Dependency analysis
         run: npx depcruise plugins/

@@ -14,6 +14,7 @@
 
 ### 变更
 
+- **跨插件依赖声明修复（issue #39）**：`peerDependencies` 补声明 `"dsh-md-render": "^0.1.1"`（client 端 `require('dsh-md-render')` 的依赖包，此前仅 `dsh.client.external` 声明、npm 分发层面缺失导致用户环境加载崩溃）；发版流程（`scripts/release.mjs`）新增跨插件依赖强制校验（require 必须声明、依赖必须已发布且已打 tag）+ 真实环境验证强制（`verify-real-profile.mjs --addons`，失败阻断发版）。
 - **渲染职责迁移（issue #31）**：MarkdownView 渲染逻辑（`lib/parts/markdown.part.js`）整体迁至 [dsh-md-render](../dsh-md-render/README.md)（统一 MarkdownView：表格 / 公式 / 代码块容器）；本插件只保留「思考内容默认展开 + 界面中文化」职责。assistant-step 渲染器经 `require('dsh-md-render')` 跨插件调用其 MarkdownView 组件（`package.json` 新增 `dsh.client.external: ["dsh-md-render"]` 声明，ModuleLoader 保证 dsh-md-render 先 materialize）；MarkdownView 渲染样式（`.tzx-md` 系列）随 dsh-md-render 注入，本插件样式表仅保留 assistant/思考块/已停止标记。
 - **md-code-block 容器归属**：代码块容器 `div.md-code-block` 由 dsh-md-render 产出（结构保持），dsh-mermaid-render 无需改动。
 - **测试**：`test/client-render.mjs` 与 Gherkin steps 改为双 bundle 加载（先 dsh-md-render 后本插件，模拟 ModuleLoader 跨 bundle require）；新增迁移断言（本插件 bundle 不含 `tryTable`/`MarkdownView` 函数定义、`require('dsh-md-render')` 调用存在）；`zh.feature` 新增「渲染职责由 dsh-md-render 提供」场景。

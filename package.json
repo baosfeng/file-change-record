@@ -7,7 +7,8 @@
     "lint": "eslint plugins/",
     "lint:size": "eslint plugins/ --rule '{\"complexity\":[\"error\",10],\"max-lines\":[\"error\",300],\"max-lines-per-function\":[\"error\",40]}'",
     "depcruise": "depcruise plugins/",
-    "test": "bash scripts/test-all.sh"
+    "test": "bash scripts/test-all.sh",
+    "test:scripts": "vitest run --coverage --config scripts/test/vitest.config.mjs"
   },
   "devDependencies": {
     "@cucumber/cucumber": "^13.2.1",

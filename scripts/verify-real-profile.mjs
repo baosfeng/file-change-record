@@ -152,17 +152,26 @@ for (const addon of options.addons) {
     console.error(`[verify] --addons 不是插件目录（无 package.json）: ${addon}`)
     process.exit(1)
   }
-  symlinkSync(abs, join(simNode, addon.split('/').pop()))
+  // 生产 profile 已 link: 安装的插件（node_modules 已有同名条目，指向真实源码）
+  // 直接复用，避免 EEXIST（发版校验对已安装插件跑 --addons 的常见场景）。
+  const target = join(simNode, addon.split('/').pop())
+  if (!existsSync(target)) symlinkSync(abs, target)
 }
 
 // ── 2. 模拟安装 addons（写入临时 profile：bundles + dependencies） ────────
 if (options.addons.length > 0) {
   const pkgPath = join(simProfile, 'package.json')
   const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
+  const patchPath = join(simProfile, 'cordis.patch.yml')
+  const patchText = existsSync(patchPath) ? readFileSync(patchPath, 'utf8') : ''
   for (const addon of options.addons) {
     const abs = resolve(addon)
     const name = JSON.parse(readFileSync(join(abs, 'package.json'), 'utf8')).name
-    if (!pkg.dsh.profile.bundles.includes(name)) pkg.dsh.profile.bundles.push(name)
+    // 插件已手动安装（patch 行存在）时不再写入 bundles：bundle 自动插行 +
+    // patch 手动行叠加会产生重复 id（发版校验对已安装插件跑 --addons 的场景）。
+    const alreadyInConfig = pkg.dsh.profile.bundles.includes(name)
+      || patchText.includes(`name: '${name}'`) || patchText.includes(`name: "${name}"`)
+    if (!alreadyInConfig) pkg.dsh.profile.bundles.push(name)
     pkg.dependencies[name] = `link:${abs}`
   }
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2))

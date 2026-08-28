@@ -1,0 +1,118 @@
+/**
+ * release-checks.mjs — 发版校验逻辑（issue #39：跨插件依赖校验）。
+ *
+ * 纯函数（无 IO，可单元测试）：
+ *   extractDshRequires / findUndeclaredPeers / rangeMin / versionGte / findUnpublishedDeps
+ * IO 辅助（依赖注入 fs 便于测试）：
+ *   collectClientSources / buildPluginIndex / findFreePort
+ *
+ * 校验规则（对应 issue #39 期望 1/3）：
+ *   1. client 端 require('dsh-*') / import 的包必须在 package.json peerDependencies 声明；
+ *   2. 声明的 dsh-* 依赖中属于本仓库插件的，必须已发布（npm）且版本已打 tag
+ *      （<目录>@v<版本>）——依赖先发版、依赖方后发版。
+ */
+import { readdirSync, existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { createServer } from 'node:net'
+
+/** 从代码文本提取 require('dsh-*') / from 'dsh-*' 的包名（去重、排序；子路径归为包名）。 */
+export function extractDshRequires(source) {
+  const re = /(?:require\(\s*|from\s+)(['"])(dsh-[A-Za-z0-9._/-]+)\1/g
+  const found = new Set()
+  for (const m of source.matchAll(re)) found.add(m[2].split('/')[0])
+  return [...found].sort()
+}
+
+/** 返回 requires 中未在 peers（peerDependencies）声明的包。 */
+export function findUndeclaredPeers(requires, peers) {
+  return requires.filter((r) => !(r in peers))
+}
+
+/** 从版本范围提取最低版本（^0.1.1 / ~0.1.1 / >=0.1.1 / 0.1.1 → 0.1.1）。 */
+export function rangeMin(range) {
+  const m = String(range).match(/\d+\.\d+\.\d+/)
+  return m ? m[0] : null
+}
+
+/** 比较 x.y.z 版本：a >= b（缺位按 0 处理）。 */
+export function versionGte(a, b) {
+  const pa = String(a).split('.').map(Number)
+  const pb = String(b).split('.').map(Number)
+  for (let i = 0; i < 3; i += 1) {
+    const x = pa[i] || 0
+    const y = pb[i] || 0
+    if (x !== y) return x > y
+  }
+  return true
+}
+
+/**
+ * 校验声明的 dsh-* 依赖（仓库内插件）是否已发布且已打 tag（发布顺序校验）。
+ *
+ * @param {object} peers peerDependencies 映射
+ * @param {Map<string, {dir: string, version: string}>} pluginIndex 仓库内插件索引
+ * @param {(dep: string, range: string) => boolean} isPublished 依赖包是否已发布且满足范围
+ * @param {(dir: string, version: string) => boolean} isTagged 依赖包版本是否已打 tag
+ * @returns {{dep: string, reason: string}[]} 问题列表（空 = 通过）
+ */
+export function findUnpublishedDeps(peers, pluginIndex, isPublished, isTagged) {
+  const problems = []
+  for (const [dep, range] of Object.entries(peers)) {
+    const entry = pluginIndex.get(dep)
+    if (!entry) continue // 非仓库内插件（官方包）不校验
+    if (!isPublished(dep, range)) {
+      problems.push({
+        dep,
+        reason: `依赖包 ${dep} 未发布（npm 上不存在或最新版本 < ${rangeMin(range)}）——依赖必须先发版`,
+      })
+    } else if (!isTagged(entry.dir, entry.version)) {
+      problems.push({
+        dep,
+        reason: `依赖包 ${dep}（${entry.dir}@v${entry.version}）未打 tag——依赖必须先发版（先发依赖、再发本插件）`,
+      })
+    }
+  }
+  return problems
+}
+
+/** 收集 client 端源码文件：client.src.js 优先，否则 client.js；附加 lib/parts/*.js。 */
+export function collectClientSources(pluginDir) {
+  const files = []
+  const src = join(pluginDir, 'lib', 'client.src.js')
+  const built = join(pluginDir, 'lib', 'client.js')
+  if (existsSync(src)) files.push(src)
+  else if (existsSync(built)) files.push(built)
+  const partsDir = join(pluginDir, 'lib', 'parts')
+  if (existsSync(partsDir)) {
+    for (const f of readdirSync(partsDir)) {
+      if (f.endsWith('.js')) files.push(join(partsDir, f))
+    }
+  }
+  return files
+}
+
+/** 构建仓库内插件索引：Map<包名, { dir, version }>（包名取自 package.json name）。 */
+export function buildPluginIndex(root) {
+  const index = new Map()
+  for (const entry of readdirSync(join(root, 'plugins'))) {
+    const pkgPath = join(root, 'plugins', entry, 'package.json')
+    if (!existsSync(pkgPath)) continue
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
+    index.set(pkg.name, { dir: entry, version: pkg.version })
+  }
+  return index
+}
+
+/** 从 start 起探测第一个空闲端口（异步）。 */
+export function findFreePort(start = 3087) {
+  return new Promise((resolve) => {
+    const probe = (port) => {
+      const server = createServer()
+      server.once('error', () => probe(port + 1))
+      server.listen(port, () => {
+        server.close(() => resolve(port))
+      })
+    }
+    probe(start)
+  })
+}
