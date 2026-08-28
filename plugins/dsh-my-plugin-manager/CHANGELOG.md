@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-08-28
+
+### 变更
+
+- feat(ui): dsh-my-plugin-manager 设置页翻新——图标/徽章/状态/交互（issue #54）
+- refactor(shared): 抽取 dsh-shared 共享工具包，10 个插件迁移消除重复实现（issue #45）
+- chore(deps): 升级 react 19 兼容性——13 个插件 peer 声明 ^18.2.0 || ^19.2.0（issue #49）
+- style(format): 全仓 prettier 格式化（issue #44）
+- refactor(plugins): dsh-guardian/dsh-notify 改名 dsh-my-guardian/dsh-my-notify（npm 包名统一 dsh-my-* 系列，避免与 npm 同名包混淆）+ 新增 check-release.mjs 发布状态检查脚本
+
 ## [0.1.1] - 2026-08-27
 
 ### 变更
