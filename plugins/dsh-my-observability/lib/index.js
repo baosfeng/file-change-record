@@ -1,0 +1,48 @@
+/**
+ * dsh-my-observability — host half.
+ *
+ * 可观测性 + Git 工程工具：
+ *  1. 事件审计：监听 agent/status、llm/stream、tools/* 事件，记录审计
+ *     日志（agent 行为可追溯），按会话隔离、重启后恢复（持久化
+ *     $DSH_HOME/observability/audit.json，防抖 + 原子写）；
+ *  2. 轨迹回放：/observability/api 查询接口供侧边栏时间轴面板消费；
+ *  3. 结构化 Git：类型化提交（Conventional Commits）+ 状态/差异查询；
+ *  4. 增量 diff 审查：提交前规则引擎审查 + 可选 AI agent 增强。
+ *
+ * 模块结构：
+ *  - fence.js    — Host-header 信任围栏（loopback / trustedHosts / 同源）
+ *  - store.js    — 审计事件存储（会话隔离 / 重启恢复 / 上限 / 原子持久化）
+ *  - audit.js    — 事件监听（agent/status、llm/stream、tools/pre-execute、tools/execute）
+ *  - git.js      — 结构化 Git 操作（类型化提交 / status / diff）
+ *  - diff.js     — unified diff 解析（纯函数）
+ *  - review.js   — 增量 diff 审查规则引擎（纯函数）
+ *  - ai.js       — 可选 AI 审查增强（agents.create，失败降级）
+ *  - routes.js   — /observability/api 路由
+ */
+import { createStore } from './store.js'
+import { attachAuditListeners } from './audit.js'
+import { registerObservabilityRoutes } from './routes.js'
+
+export const name = 'dsh-my-observability'
+
+export const inject = ['webServer']
+
+export function apply(ctx, config) {
+  // ── 配置（应用层 config 覆盖，默认全部开启）─────────────────────────
+  const options = {
+    aiReview: config?.aiReview !== false,
+    aiTimeoutMs: Number.isFinite(config?.aiTimeoutMs) && config.aiTimeoutMs > 0 ? config.aiTimeoutMs : 60000,
+  }
+
+  // ── 审计存储：会话隔离 + 持久化 + 重启恢复 ──────────────────────────
+  const store = createStore(ctx)
+
+  // ── 事件监听（只读观察；waterfall 一律透传 next()）──────────────────
+  attachAuditListeners(ctx, store.record)
+
+  // ── 路由（查询 / git 工具 / diff 审查）──────────────────────────────
+  registerObservabilityRoutes(ctx, store, options)
+
+  // ── 卸载冲刷：清防抖定时器 + 立即落盘 ───────────────────────────────
+  ctx.effect(() => store.dispose, 'dsh-my-observability: persistence teardown')
+}
