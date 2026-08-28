@@ -20,7 +20,7 @@
  *
  * Exit codes: 0 ok, 1 validation/test failure (nothing changed).
  */
-import { execSync } from 'node:child_process'
+import { execSync, execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -55,6 +55,12 @@ if (!name) {
   console.error('usage: node scripts/release.mjs <plugin-name> [--bump patch|minor|major] [--push]')
   process.exit(2)
 }
+// name 会拼入多个 shell 命令（git tag --list / git log / git add 等），
+// 严格校验字符集（CodeQL js/shell-command-injection-from-environment）。
+if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(name)) {
+  console.error(`✗ 非法插件名: ${name}（仅允许 [a-zA-Z0-9._-] 且首字符为字母/数字）`)
+  process.exit(2)
+}
 if (bump !== '' && !BUMP_TYPES.has(bump)) {
   console.error(`✗ --bump 必须是 patch | minor | major，收到: ${bump}`)
   process.exit(2)
@@ -71,11 +77,13 @@ const pkgPath = join(pluginDir, 'package.json')
 const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
 let bumped = false
 let version = pkg.version
+// version 会拼入 git tag/push 命令，先严格校验（CodeQL
+// js/shell-command-injection-from-environment；bump 生成的 next 必为 x.y.z）
+if (!/^\d+\.\d+\.\d+$/.test(version)) {
+  console.error(`✗ invalid version in plugins/${name}/package.json: ${version}`)
+  process.exit(1)
+}
 if (bump !== '') {
-  if (!/^\d+\.\d+\.\d+$/.test(version)) {
-    console.error(`✗ invalid version in plugins/${name}/package.json: ${version}`)
-    process.exit(1)
-  }
   const [maj, min, pat] = version.split('.').map(Number)
   const next =
     bump === 'major' ? `${maj + 1}.0.0` : bump === 'minor' ? `${maj}.${min + 1}.0` : `${maj}.${min}.${pat + 1}`
@@ -168,7 +176,9 @@ const isPublished = (dep, range) => {
   const min = rangeMin(range)
   if (!min) return false
   try {
-    return versionGte(execSync(`npm view ${dep} version`, { encoding: 'utf8' }).trim(), min)
+    // CodeQL js/shell-command-injection-from-environment 修复：dep 来自
+    // peerDependencies 键（外部输入），execFileSync 参数数组不经过 shell
+    return versionGte(execFileSync('npm', ['view', dep, 'version'], { encoding: 'utf8' }).trim(), min)
   } catch {
     return false
   }

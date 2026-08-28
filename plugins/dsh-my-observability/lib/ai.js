@@ -10,6 +10,7 @@
  * 参考 dsh-task-reliability 的校验 agent 模式（agents.create + whenIdle
  * 超时 + dispose）。
  */
+import { randomUUID } from 'node:crypto'
 import { withTimeout, userMessage } from 'dsh-shared'
 import { REVIEW_TIMEOUT_MS } from './constants.js'
 
@@ -20,7 +21,9 @@ const AI_DIFF_MAX = 8000
 export async function runAiReview(ctx, diffText, report, timeoutMs = REVIEW_TIMEOUT_MS) {
   const agents = agentsServiceOf(ctx)
   if (agents === undefined) return { enabled: true, failed: true, note: 'agents service unavailable' }
-  const sessionId = `obs-review-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  // CodeQL js/insecure-randomness 修复：sessionId 随机段改用 crypto.randomUUID()
+  // （密码学安全随机，无需种子），保持 `obs-review-<ts>-<6位hex>` 格式兼容。
+  const sessionId = `obs-review-${Date.now()}-${randomUUID().slice(0, 6)}`
   let handle
   try {
     handle = await agents.create({

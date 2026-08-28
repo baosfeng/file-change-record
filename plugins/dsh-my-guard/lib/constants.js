@@ -22,7 +22,12 @@ export const GUARD_MODES = ['observe', 'ask', 'deny']
 export const DESTRUCTIVE_PATTERNS = [
   {
     id: 'rm-root',
-    re: /\brm\s+(-[a-zA-Z]*[rf][a-zA-Z]*\s+)+(\/|\/\*|~\/?|\$HOME)(\s|$)/,
+    // CodeQL js/redos 修复：原 `(-[a-zA-Z]*[rf][a-zA-Z]*\s+)+` 中 `[a-zA-Z]` 与 `[rf]`
+    // 字符集重叠（r/f ∈ a-zA-Z），`+` 内嵌 `*` 可致指数回溯。
+    // 新写法把选项拆成「非 r/f 字母前缀 + 单个 [rf] + 任意字母后缀」，前缀字符类
+    // `[a-eg-qs-zA-EG-QS-Z]`（a-z 排除 r/f、A-Z 排除 R/F）与 `[rf]` 不相交 →
+    // 每个选项只有唯一拆分、整体线性匹配，语义不变（仍要求每个选项含小写 r/f）。
+    re: /\brm\s+(?:-[a-eg-qs-zA-EG-QS-Z]*[rf][a-zA-Z]*\s+)+(?:\/|\/\*|~\/?|\$HOME)(?:\s|$)/,
     message: '删除根目录/家目录（rm -rf / 等）',
   },
   {

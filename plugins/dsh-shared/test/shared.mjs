@@ -64,6 +64,17 @@ test('config-store: extractConfig parses YAML subset and writePatchConfig round-
   assert.equal(lines.filter((l) => l === '- id: shared').length, 1, 'old row replaced')
 })
 
+test('config-store: extractConfig tolerates spacing variants after colon', () => {
+  // 回归测试（CodeQL js/polynomial-redos 修复）：解析正则去掉 `\s*` 后，
+  // 冒号后无空格 / 多空格 / 空值 的解析行为必须与原实现一致
+  const text = ['- id: a', '  config:', '    k1: v1', '    k2:v2', '    k3:   v3', '    k4:', '    k5:   '].join('\n')
+  assert.deepEqual(
+    extractConfig(text, 'a'),
+    { k1: 'v1', k2: 'v2', k3: 'v3' },
+    'spacing variants parse identically; empty values are skipped',
+  )
+})
+
 test('findProjectRoot walks up to the nearest .git ancestor', async () => {
   const dir = tempDir()
   const { mkdirSync } = await import('node:fs')

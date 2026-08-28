@@ -59,6 +59,9 @@ test('detectDestructive: hits destructive command patterns', () => {
     'rm -rf /*',
     'rm -rf ~',
     'rm -rf $HOME',
+    'rm -rfv /',
+    'rm -r -f /',
+    'sudo rm -rf /*',
     'mkfs.ext4 /dev/sdb1',
     'dd if=/dev/zero of=/dev/sda bs=1M',
     ':(){ :|:& };:',
@@ -87,6 +90,14 @@ test('detectDestructive: safe commands are not flagged', () => {
     'echo hello',
     'rm -rf ./node_modules',
     'chmod 755 script.sh',
+    // rm-root 边界（CodeQL js/redos 修复回归，issue #5-10）：
+    // 目标必须是 /、/*、~/、~、$HOME 且后跟空白/行尾
+    'rm -f /etc/passwd',
+    'rm -r /tmp/x',
+    'rm -rf /etc',
+    'rm -x /',
+    'rm -R /',
+    'rm -- /',
   ]
   for (const command of cases) {
     assert.equal(detectDestructive(command), null, `expected no hit for: ${command}`)

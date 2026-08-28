@@ -61,7 +61,9 @@ function parseConfigBlock(lines, from) {
     const line = lines[i]
     if (line === '' || line.startsWith('#')) continue
     if (isTopLevelEntry(line) || !line.startsWith('    ')) break
-    const match = line.match(/^ {4}([A-Za-z0-9_]+):\s*(.*)$/)
+    // 注意：冒号后不用 `\s*`（与 `(.*)` 字符集重叠 → CodeQL js/polynomial-redos）；
+    // 改为 `(.*)` 直接捕获冒号后全部内容，前导空白由 parseYamlScalar 的 trim 处理，行为等价。
+    const match = line.match(/^ {4}([A-Za-z0-9_]+):(.*)$/)
     if (match === null) continue
     const value = parseYamlScalar(match[2])
     if (value !== undefined) config[match[1]] = value
