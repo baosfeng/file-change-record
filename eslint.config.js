@@ -1,9 +1,25 @@
 // 根级质量门禁 ESLint 配置（flat config）
 // 门禁：圈复杂度 ≤ 10；单文件 ≤ 300 行；单函数 ≤ 40 行（仅针对 lib/ 业务代码）
+// import/no-unresolved：require/import 的模块必须存在（issue #48，拦截
+// require 不存在模块的低级错误，如 #39 的 require('dsh-md-render') 拼写错）
 // 说明：lib/client*.js 为浏览器模块加载器格式（window.__ModuleLoader__.load），
 //       非标准 Node ESM，单独配置 globals 与 sourceType。
 import js from '@eslint/js'
 import globals from 'globals'
+import importPlugin from 'eslint-plugin-import'
+
+// import/no-unresolved 的 resolver 设置（server + client + 测试共用）：
+// node resolver 默认查找 node_modules；moduleDirectory 追加 plugins/ 使
+// client 端 require('dsh-md-render') 等跨插件模块映射到仓库内
+// plugins/<name>/ 真实检查（DSH 运行时按插件名提供模块，仓库内即
+// plugins/<name>/，require 不存在的 dsh-* 包 → lint 报错）。
+// react / react-dom 为 DSH 运行时注入的浏览器模块，node_modules 无对应
+// 包，在 client 端规则里用 ignore 豁免（见下）。
+const importSettings = {
+  'import/resolver': {
+    node: { moduleDirectory: ['node_modules', 'plugins'] },
+  },
+}
 
 export default [
   {
@@ -42,11 +58,16 @@ export default [
       sourceType: 'module',
       globals: globals.node,
     },
+    plugins: { import: importPlugin },
+    settings: importSettings,
     rules: {
       ...js.configs.recommended.rules,
       complexity: ['error', 10],
       'max-lines': ['error', 300],
       'max-lines-per-function': ['error', 40],
+      // server 端：import/require 的模块必须存在（node: 内置与相对路径
+      // 由 node resolver 检查；commonjs: true 使 require() 调用也被检查）
+      'import/no-unresolved': ['error', { commonjs: true }],
     },
   },
   {
@@ -60,6 +81,8 @@ export default [
       sourceType: 'script',
       globals: { ...globals.browser, __ModuleLoader__: 'readonly' },
     },
+    plugins: { import: importPlugin },
+    settings: importSettings,
     rules: {
       ...js.configs.recommended.rules,
       complexity: ['error', 10],
@@ -67,6 +90,14 @@ export default [
       'max-lines-per-function': ['error', 40],
       'no-undef': 'off',
       'no-unused-vars': 'off',
+      // client 端：require 的模块必须存在。react / react-dom 由 DSH 运行时
+      // 注入（node_modules 无对应包），ignore 豁免；dsh-* 跨插件模块经
+      // moduleDirectory: plugins/ 映射到仓库内真实检查（require 不存在的
+      // dsh-* 包 → lint 报错）
+      'import/no-unresolved': [
+        'error',
+        { commonjs: true, ignore: ['^react$', '^react-dom(/.*)?$'] },
+      ],
     },
   },
   {
@@ -78,9 +109,12 @@ export default [
       sourceType: 'module',
       globals: globals.node,
     },
+    plugins: { import: importPlugin },
+    settings: importSettings,
     rules: {
       ...js.configs.recommended.rules,
       'no-unused-vars': ['error', { argsIgnorePattern: '^_', caughtErrors: 'none' }],
+      'import/no-unresolved': ['error', { commonjs: true }],
     },
   },
 ]

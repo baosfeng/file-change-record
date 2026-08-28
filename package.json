@@ -19,11 +19,15 @@
     "@vitest/coverage-v8": "^4.1.11",
     "dependency-cruiser": "^18.2.0",
     "eslint": "^10.9.0",
+    "eslint-plugin-import": "^2.32.0",
     "globals": "^17.11.0",
     "vitest": "^4.1.11"
   },
   "overrides": {
-    "qs": "6.15.3"
+    "qs": "6.15.3",
+    "eslint-plugin-import": {
+      "eslint": "$eslint"
+    }
   },
   "engines": {
     "node": ">=20"
