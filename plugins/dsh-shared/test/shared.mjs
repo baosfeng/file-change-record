@@ -75,6 +75,50 @@ test('config-store: extractConfig tolerates spacing variants after colon', () =>
   )
 })
 
+test('config-store: extractConfig returns undefined when config block is absent', () => {
+  // 无该 id 的直接条目（非嵌套 config 块）
+  const flat = ['- id: a', '  name: x', '- id: b'].join('\n')
+  assert.equal(extractConfig(flat, 'a'), undefined, 'entry without config: block → undefined')
+  // 顶层条目提前跳出（config: 行之后缩进不足）→ 空对象
+  const topLevel = ['- id: a', '  config:', '- id: b'].join('\n')
+  assert.deepEqual(extractConfig(topLevel, 'a'), {}, 'no indented keys → empty config')
+  // 无对应 id
+  const other = ['- id: a', '  config:', '    k: v'].join('\n')
+  assert.equal(extractConfig(other, 'missing'), undefined, 'unknown id → undefined')
+})
+
+test('config-store: yaml scalar round-trips null/object/numbers/quoted strings', async () => {
+  const dir = tempDir()
+  const file = join(dir, 'cordis.patch.yml')
+  writeFileSync(file, '', 'utf8')
+  // YAML 子集实际行为：null/对象 → 'null' 文本 → 读回真实 null；
+  // 单引号转义 round-trip；双引号内容视作裸字符（无语义）。
+  await writePatchConfig(file, 't', {
+    nul: null,
+    obj: { nested: true },
+    int: 42,
+    neg: -3.5,
+    yes: true,
+    quoted: "it's",
+    double: '"dq"',
+    arr: [1, 'a', false],
+  })
+  assert.deepEqual(
+    extractConfig(readFileSync(file, 'utf8'), 't'),
+    {
+      nul: null,
+      obj: null,
+      int: 42,
+      neg: -3.5,
+      yes: true,
+      quoted: "it's",
+      double: '"dq"',
+      arr: [1, 'a', false],
+    },
+    'scalar kinds parse as expected; null/object collapse to real null (documented subset)',
+  )
+})
+
 test('findProjectRoot walks up to the nearest .git ancestor', async () => {
   const dir = tempDir()
   const { mkdirSync } = await import('node:fs')
