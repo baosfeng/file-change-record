@@ -17,24 +17,31 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+const partsDir = join(root, 'lib/parts')
+// 共享 client parts 位于 dsh-shared 包（issue #54 阶段 0）：图标集单一来源，
+// 各插件构建时按文件系统路径拼接（不经过 package exports / require 解析）。
+const sharedPartsDir = join(root, '..', 'dsh-shared', 'client-parts')
 
-/** 占位符 → 片段文件（数组顺序即拼接后的声明顺序）。 */
+/** 占位符 → 片段文件（数组顺序即拼接后的声明顺序）。
+ *  opts.shared: true 表示从 dsh-shared 的 client-parts 目录读取。 */
 const PARTS = [
-  ['/*__PART_MARKDOWN__*/', 'lib/parts/markdown.part.js'],
-  ['/*__PART_DETECT__*/', 'lib/parts/detect.part.js'],
-  ['/*__PART_INLINE__*/', 'lib/parts/inline.part.js'],
-  ['/*__PART_RENDER__*/', 'lib/parts/render.part.js'],
-  ['/*__PART_SCANNER__*/', 'lib/parts/scanner.part.js'],
-  ['/*__PART_STYLES__*/', 'lib/parts/styles.part.js'],
-  ['/*__PART_APPLY__*/', 'lib/parts/apply.part.js'],
+  ['/*__PART_ICONS__*/', 'icons.part.js', { shared: true }],
+  ['/*__PART_MARKDOWN__*/', 'markdown.part.js'],
+  ['/*__PART_DETECT__*/', 'detect.part.js'],
+  ['/*__PART_INLINE__*/', 'inline.part.js'],
+  ['/*__PART_RENDER__*/', 'render.part.js'],
+  ['/*__PART_SCANNER__*/', 'scanner.part.js'],
+  ['/*__PART_STYLES__*/', 'styles.part.js'],
+  ['/*__PART_APPLY__*/', 'apply.part.js'],
 ]
 
 let out = readFileSync(join(root, 'lib/client.src.js'), 'utf8')
-for (const [placeholder, file] of PARTS) {
+for (const [placeholder, file, opts = {}] of PARTS) {
   if (!out.includes(placeholder)) {
     throw new Error(`client.src.js is missing the ${placeholder} placeholder`)
   }
-  const part = readFileSync(join(root, file), 'utf8')
+  const dir = opts.shared ? sharedPartsDir : partsDir
+  const part = readFileSync(join(dir, file), 'utf8')
   // 函数式替换：替换串中的 $& / $1 不会被 replaceAll 特殊解释。
   out = out.replaceAll(placeholder, () => part)
 }

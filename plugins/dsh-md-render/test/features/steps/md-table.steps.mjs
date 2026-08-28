@@ -88,8 +88,12 @@ function makeElement(tag, attrs = {}) {
       if (sel === '[data-streaming]') return this.dataset.streaming === '1'
       if (sel === 'table') return this.tagName === 'TABLE'
       if (sel === 'table.tzx-table') return this.tagName === 'TABLE' && this.className === 'tzx-table'
-      if (sel === 'table.dmr-table') return this.tagName === 'TABLE' && this.className === 'dmr-table'
-      if (sel === 'div.dmr-table-scroll') return this.tagName === 'DIV' && this.className === 'dmr-table-scroll'
+      if (sel === 'table.dsh-md-render-table')
+        return this.tagName === 'TABLE' && this.className === 'dsh-md-render-table'
+      if (sel === 'div.dsh-md-render-table-scroll')
+        return this.tagName === 'DIV' && this.className === 'dsh-md-render-table-scroll'
+      if (sel === 'div.dsh-md-render-scroll-hint')
+        return this.tagName === 'DIV' && this.className === 'dsh-md-render-scroll-hint'
       if (/^[a-z]+$/.test(sel)) return this.tagName === sel.toUpperCase()
       return false
     },
@@ -190,9 +194,9 @@ class World {
         tags.push(node.type)
         if (node.type === 'div' && props.className === 'md-code-block') mdCodeBlockWrappers += 1
         if (node.type === 'code' && typeof props.className === 'string') codeLangs.push(props.className)
-        if (node.type === 'span' && props.className === 'dmr-math') mathSpans += 1
-        if (node.type === 'span' && props.className === 'dmr-math-error') mathErrorSpans += 1
-        if (node.type === 'div' && props.className === 'dmr-math-error') mathErrorBlocks += 1
+        if (node.type === 'span' && props.className === 'dsh-md-render-math') mathSpans += 1
+        if (node.type === 'span' && props.className === 'dsh-md-render-math-error') mathErrorSpans += 1
+        if (node.type === 'div' && props.className === 'dsh-md-render-math-error') mathErrorBlocks += 1
       } else if (typeof node.type === 'function') {
         walk(node.type(node.props))
         return
@@ -284,6 +288,9 @@ class World {
       createElement(tag) {
         return makeElement(tag)
       },
+      createElementNS(_ns, tag) {
+        return makeElement(tag)
+      },
       createTextNode(text) {
         return { nodeType: 3, textContent: text }
       },
@@ -367,12 +374,12 @@ When('渲染含空公式的文本块', async function () {
 // ── Then ──────────────────────────────────────────────────────────────────
 Then('段落被替换为表格元素', async function () {
   assert.equal(this.pNonStd.parentNode, null, 'original paragraph detached')
-  const table = this.scrollEl.querySelector('table.dmr-table')
+  const table = this.scrollEl.querySelector('table.dsh-md-render-table')
   assert.ok(table, 'table element rendered')
 })
 
 Then('表格包含表头与数据行', async function () {
-  const table = this.scrollEl.querySelector('table.dmr-table')
+  const table = this.scrollEl.querySelector('table.dsh-md-render-table')
   assert.ok(table, 'table element present')
   const thead = table.querySelector('thead')
   const tbody = table.querySelector('tbody')
@@ -383,9 +390,9 @@ Then('表格包含表头与数据行', async function () {
 })
 
 Then('表格外层有横向滚动容器', async function () {
-  const scroll = this.scrollEl.querySelector('div.dmr-table-scroll')
+  const scroll = this.scrollEl.querySelector('div.dsh-md-render-table-scroll')
   assert.ok(scroll, 'scroll container present')
-  assert.ok(scroll.querySelector('table.dmr-table'), 'table inside scroll container')
+  assert.ok(scroll.querySelector('table.dsh-md-render-table'), 'table inside scroll container')
 })
 
 Then('已渲染的表格保持原样', async function () {
@@ -403,7 +410,7 @@ Then('普通文本段落保持原样', async function () {
 
 Then('页面注入包含表格规则的样式', async function () {
   assert.ok(this.styleTags.length === 1, 'stylesheet injected')
-  assert.ok(this.styleTags[0].textContent.includes('.dmr-table'), 'stylesheet has table rules')
+  assert.ok(this.styleTags[0].textContent.includes('.dsh-md-render-table'), 'stylesheet has table rules')
 })
 
 Then('思考块内的表格保持原样', async function () {

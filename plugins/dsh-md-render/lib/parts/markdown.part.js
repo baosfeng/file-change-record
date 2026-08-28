@@ -70,7 +70,8 @@ function scanMathErrors(text, start, end, key, k, out) {
       out.push(
         createElement(
           'span',
-          { key: key + '-e' + k, className: 'dmr-math-error', title: MATH_ERROR_TITLES.unclosed },
+          { key: key + '-e' + k, className: 'dsh-md-render-math-error', title: MATH_ERROR_TITLES.unclosed },
+          icon.alert(12),
           text.slice(i, end),
         ),
       )
@@ -79,7 +80,8 @@ function scanMathErrors(text, start, end, key, k, out) {
     out.push(
       createElement(
         'span',
-        { key: key + '-e' + k, className: 'dmr-math-error', title: MATH_ERROR_TITLES.multiline },
+        { key: key + '-e' + k, className: 'dsh-md-render-math-error', title: MATH_ERROR_TITLES.multiline },
+        icon.alert(12),
         text.slice(i, j + 1),
       ),
     )
@@ -113,10 +115,15 @@ function mdInline(text, key) {
       }
     } else if (m[5] !== undefined) {
       if (isMathSpan(text, m)) {
-        out.push(createElement('span', { key: kk, className: 'dmr-math' }, m[5].slice(1, -1)))
+        out.push(createElement('span', { key: kk, className: 'dsh-md-render-math' }, m[5].slice(1, -1)))
       } else if (isMathError(m)) {
         out.push(
-          createElement('span', { key: kk, className: 'dmr-math-error', title: MATH_ERROR_TITLES.malformed }, m[5]),
+          createElement(
+            'span',
+            { key: kk, className: 'dsh-md-render-math-error', title: MATH_ERROR_TITLES.malformed },
+            icon.alert(12),
+            m[5],
+          ),
         )
       } else {
         out.push(m[5])
@@ -303,8 +310,14 @@ function tryTable(lines, i, out) {
 }
 
 // ── 块级公式：$$...$$ 单行或 $$ 开闭块；异常（未闭合/空）→ 错误标记 ──
+// 错误标记带共享 alert 图标（issue #54 阶段 1：错误状态视觉统一）。
 function mathErrorEl(out, title, content) {
-  return createElement('div', { key: 'b' + out.length, className: 'dmr-math-error', title }, content)
+  return createElement(
+    'div',
+    { key: 'b' + out.length, className: 'dsh-md-render-math-error', title },
+    icon.alert(12),
+    content,
+  )
 }
 
 function tryMath(lines, i, out) {
@@ -314,7 +327,7 @@ function tryMath(lines, i, out) {
     out.push(
       content === ''
         ? mathErrorEl(out, MATH_ERROR_TITLES.empty, lines[i].trim())
-        : createElement('div', { key: 'b' + out.length, className: 'dmr-math-block' }, content),
+        : createElement('div', { key: 'b' + out.length, className: 'dsh-md-render-math-block' }, content),
     )
     return i + 1
   }
@@ -332,7 +345,7 @@ function tryMath(lines, i, out) {
   out.push(
     err
       ? mathErrorEl(out, err, !closed ? '$$\n' + buf.join('\n') : '$$\n$$')
-      : createElement('div', { key: 'b' + out.length, className: 'dmr-math-block' }, content),
+      : createElement('div', { key: 'b' + out.length, className: 'dsh-md-render-math-block' }, content),
   )
   return i
 }

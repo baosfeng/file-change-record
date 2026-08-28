@@ -13,11 +13,11 @@
 
 - **统一 MarkdownView**（供 dsh-think-zh-expand 跨插件调用）：代码块 / 标题 / 列表 / 引用 / 表格（含对齐）/ **公式** / 粗体 / 斜体 / 行内代码 / 链接；代码块保持 `div.md-code-block` 容器结构（dsh-mermaid-render 无需改动即可扫描）。
 - **公式渲染**（自实现零依赖）：行内 `$...$` 渲染为公式样式（货币 `$5` / 变量 `a$b` / 块级 `$$` 保护），块级 `$$...$$` 渲染为居中公式块。
-- **公式错误提示**：公式内容异常（未闭合 `$`、空公式、内容以空白开头、块级未闭合/空）时渲染为错误标记（`span.dmr-math-error` / `div.dmr-math-error`），显示原文 + 错误样式（DSH 语义 token `--dsw-alias-state-error-primary`），不破坏整体布局；货币 `$5` / 变量 `a$b` / 块级 `$$` 保护不误报。
+- **公式错误提示**：公式内容异常（未闭合 `$`、空公式、内容以空白开头、块级未闭合/空）时渲染为错误标记（`span.dsh-md-render-math-error` / `div.dsh-md-render-math-error`），显示原文 + 错误样式（DSH 语义 token `--dsw-alias-state-error-primary`），不破坏整体布局；货币 `$5` / 变量 `a$b` / 块级 `$$` 保护不误报。
 - **不标准表格也能渲染**：增强表格检测——表头/数据行只需含 `|` 且 ≥2 列（允许无首尾管道符），分隔行支持 `--- | ---`、`-|-|-`、`---` 等变体；模型输出的"半成品"表格不再以纯文本段落展示。
 - **对齐标记**：`:---` 左对齐、`:---:` 居中、`---:` 右对齐，逐列生效。
-- **宽表格横向滚动**：表格外层 `div.dmr-table-scroll` 容器 `overflow-x: auto`，宽表格不撑破消息气泡。
-- **表头 / 边框样式**：表头底色 + 加粗、行分隔线，样式走 DSH 语义 token（`--dsw-alias-*` / `--dsw-font-*`），深浅主题自适应。
+- **宽表格横向滚动**：表格外层 `div.dsh-md-render-table-scroll` 容器 `overflow-x: auto`，宽表格不撑破消息气泡；容器下方带滚动提示条（chevron 图标 + 「横向滚动」）。
+- **表头 / 边框样式**：表头底色 + 加粗、行分隔线、斑马纹与 hover 行反馈，样式走 DSH 语义 token（`--dsw-alias-*` / `--dsw-font-*`），深浅主题自适应。
 - **兼容 dsh-think-zh-expand**：think-zh-expand 跨插件 require 本插件 MarkdownView（`dsh.client.external`）；识别其渲染器产出的 `div.tzx-md` 容器；已渲染的表格（`table.tzx-table`）不重复处理。
 - **兼容内置 MarkdownText**：识别内置渲染器的 `div.md-table-wide` 宽表格容器，不干扰已渲染表格。
 - **流式兼容**：MutationObserver 跟随消息流式渲染；流式中的容器（`[data-streaming]` 祖先）等内容稳定后再处理。
@@ -26,7 +26,7 @@
 ## 工作原理
 
 - **统一 MarkdownView**（`lib/parts/markdown.part.js`）：从 dsh-think-zh-expand 迁移的轻量 Markdown 渲染管线（`mdInline` + 块级 `tryXxx`），输出结构保持迁移前约定（`div.tzx-md` / `p.tzx-p` / `table.tzx-table` / `div.md-code-block`）；新增行内/块级公式渲染；`exports.MarkdownView` 供 think-zh-expand 跨 bundle require。
-- **DOM 层表格增强**（`lib/parts/detect|render|scanner.part.js`）：扫描 `[data-conversation-scroll]` 内的 `div.tzx-md`（MarkdownView 输出）与 `div.md-table-wide`（内置 MarkdownText 的宽表格容器）容器；对容器内以纯文本段落（`p.tzx-p`）形式存在的表格文本，用增强检测规则解析（表头 + 分隔行 + 数据行 + 对齐），将段落替换为 `div.dmr-table-scroll > table.dmr-table`（thead/tbody/逐列对齐）；单元格内的 `**bold**` / `` `code` `` / `*em*` / `[link]` 行内格式重新渲染。
+- **DOM 层表格增强**（`lib/parts/detect|render|scanner.part.js`）：扫描 `[data-conversation-scroll]` 内的 `div.tzx-md`（MarkdownView 输出）与 `div.md-table-wide`（内置 MarkdownText 的宽表格容器）容器；对容器内以纯文本段落（`p.tzx-p`）形式存在的表格文本，用增强检测规则解析（表头 + 分隔行 + 数据行 + 对齐），将段落替换为 `div.dsh-md-render-table-scroll > table.dsh-md-render-table`（thead/tbody/逐列对齐）；单元格内的 `**bold**` / `` `code` `` / `*em*` / `[link]` 行内格式重新渲染。
 - **构建**（`scripts/build.mjs`）：把 `lib/parts/*.part.js` 片段拼接进 `lib/client.src.js` 模板，生成 `lib/client.js`（DSH 实际服务的单一 `__ModuleLoader__` bundle）。
 - **Server 端**（`lib/index.js`）：空壳（纯 client 插件，无 host 逻辑）。
 

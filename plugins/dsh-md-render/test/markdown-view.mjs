@@ -10,10 +10,10 @@ import { test } from 'vitest'
  *  - pipe lines without a separator row fall back to paragraphs,
  *  - fenced code blocks keep the language class and are wrapped in the
  *    host `md-code-block` container (dsh-mermaid-render scans it),
- *  - inline math `$...$` renders as span.dmr-math; currency/`$$` guards
+ *  - inline math `$...$` renders as span.dsh-md-render-math; currency/`$$` guards
  *    keep `$5` / `$$x$$` literal,
  *  - block math `$$...$$` (single-line and multi-line) renders as
- *    div.dmr-math-block,
+ *    div.dsh-md-render-math-block,
  *  - headings / lists / quotes / paragraphs still render,
  *  - CommonMark multi-backtick inline code still works.
  */
@@ -92,13 +92,13 @@ function render(text) {
       }
       if (node.type === 'div' && props.className === 'md-code-block') mdCodeBlockWrappers += 1
       if (node.type === 'code' && typeof props.className === 'string') codeLangs.push(props.className)
-      if (node.type === 'span' && props.className === 'dmr-math') mathSpans += 1
-      if (node.type === 'div' && props.className === 'dmr-math-block') mathBlocks += 1
-      if (node.type === 'span' && props.className === 'dmr-math-error') {
+      if (node.type === 'span' && props.className === 'dsh-md-render-math') mathSpans += 1
+      if (node.type === 'div' && props.className === 'dsh-md-render-math-block') mathBlocks += 1
+      if (node.type === 'span' && props.className === 'dsh-md-render-math-error') {
         mathErrorSpans += 1
         if (typeof props.title === 'string') mathErrorTitles.push(props.title)
       }
-      if (node.type === 'div' && props.className === 'dmr-math-error') {
+      if (node.type === 'div' && props.className === 'dsh-md-render-math-error') {
         mathErrorBlocks += 1
         if (typeof props.title === 'string') mathErrorTitles.push(props.title)
       }
@@ -160,7 +160,7 @@ test('代码块保持语言类并包裹在 md-code-block 容器（mermaid 扫描
   assert.ok(r.mdCodeBlockWrappers >= 2, 'fenced blocks wrapped in md-code-block')
 })
 
-test('行内公式 $...$ 渲染为 span.dmr-math', () => {
+test('行内公式 $...$ 渲染为 span.dsh-md-render-math', () => {
   const r = render('公式 $x^2 + y^2$ 测试')
   assert.equal(r.mathSpans, 1, 'inline math span rendered')
   assert.ok(r.texts.includes('x^2 + y^2'), 'math content kept')
@@ -175,13 +175,13 @@ test('货币 $5 与变量 a$b 不解析为公式', () => {
   )
 })
 
-test('块级公式 $$...$$ 渲染为 div.dmr-math-block（单行）', () => {
+test('块级公式 $$...$$ 渲染为 div.dsh-md-render-math-block（单行）', () => {
   const r = render('$$E=mc^2$$')
   assert.equal(r.mathBlocks, 1, 'block math rendered')
   assert.ok(r.texts.includes('E=mc^2'), 'block math content kept')
 })
 
-test('块级公式 $$ 开闭块（多行）渲染为 div.dmr-math-block', () => {
+test('块级公式 $$ 开闭块（多行）渲染为 div.dsh-md-render-math-block', () => {
   const r = render('$$\nE = mc^2\n\\int_0^1 x dx\n$$')
   assert.equal(r.mathBlocks, 1, 'multi-line block math rendered')
   assert.ok(

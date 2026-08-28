@@ -12,8 +12,9 @@
  *    MarkdownText 的宽表格容器）容器，对容器内以纯文本段落形式存在
  *    的表格（`p.tzx-p`），用增强检测规则（支持无首尾管道符、分隔行
  *    变体、对齐标记）识别并解析，将段落替换为 `<table>`（表头 thead /
- *    数据 tbody / 对齐 style），外层 `div.dmr-table-scroll` 提供宽表格
- *    横向滚动；已渲染的表格（`table.tzx-table` 等）跳过，不重复处理；
+ *    数据 tbody / 对齐 style），外层 `div.dsh-md-render-table-scroll`
+ *    提供宽表格横向滚动 + 滚动提示条；已渲染的表格（`table.tzx-table`
+ *    等）跳过，不重复处理；
  *  - MutationObserver 跟随流式渲染，流式中的容器等内容稳定后再处理。
  *
  * 样式走 DSH 语义 token（--dsw-alias-* / --dsw-font-*），随 activation
@@ -34,6 +35,9 @@ window.__ModuleLoader__.load({
     // MarkdownView（markdown.part.js 片段）使用 createElement。
     const { createElement } = require('react')
 
+    // ── 共享图标（dsh-shared/client-parts，issue #54 阶段 0）────────
+    /*__PART_ICONS__*/
+
     // ── 统一 MarkdownView：行内 + 块级渲染（导出供 think-zh-expand）──
     /*__PART_MARKDOWN__*/
 
@@ -43,7 +47,7 @@ window.__ModuleLoader__.load({
     // ── 行内渲染：单元格内的 code / strong / em / link ─────────────
     /*__PART_INLINE__*/
 
-    // ── DOM 表格渲染：div.dmr-table-scroll > table.dmr-table ────────
+    // ── DOM 表格渲染：div.dsh-md-render-table-scroll > table.dsh-md-render-table ──
     /*__PART_RENDER__*/
 
     // ── 扫描器：MutationObserver 跟随流式渲染 ──────────────────────

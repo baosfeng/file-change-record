@@ -5,7 +5,7 @@ import { test } from 'vitest'
  * stubbed react + a fake DOM, then verifies:
  *  - the bundle registers and apply() injects the stylesheet,
  *  - the scanner replaces a non-standard table paragraph (p.tzx-p inside
- *    div.tzx-md) with a real table (div.dmr-table-scroll > table.dmr-table
+ *    div.tzx-md) with a real table (div.dsh-md-render-table-scroll > table.dsh-md-render-table
  *    > thead/tbody) with per-column alignment,
  *  - already-rendered tables (table.tzx-table) are left untouched,
  *  - non-table paragraphs are left untouched,
@@ -108,8 +108,11 @@ function makeElement(tag, attrs = {}) {
       if (sel === '[data-streaming]') return this.dataset.streaming === '1'
       if (sel === 'table') return this.tagName === 'TABLE'
       if (sel === 'table.tzx-table') return this.tagName === 'TABLE' && this.className === 'tzx-table'
-      if (sel === 'p.dmr-prefix') return this.tagName === 'P' && this.className === 'dmr-prefix'
-      if (sel === 'p.dmr-suffix') return this.tagName === 'P' && this.className === 'dmr-suffix'
+      if (sel === 'p.dsh-md-render-prefix') return this.tagName === 'P' && this.className === 'dsh-md-render-prefix'
+      if (sel === 'p.dsh-md-render-suffix') return this.tagName === 'P' && this.className === 'dsh-md-render-suffix'
+      if (sel === 'div.dsh-md-render-scroll-hint') {
+        return this.tagName === 'DIV' && this.className === 'dsh-md-render-scroll-hint'
+      }
       // 通用标签名选择器（thead/tbody/th/td/tr/strong/code/em/a/p/div）
       if (/^[a-z]+$/.test(sel)) return this.tagName === sel.toUpperCase()
       return false
@@ -207,6 +210,9 @@ global.document = {
   createElement(tag) {
     return makeElement(tag)
   },
+  createElementNS(_ns, tag) {
+    return makeElement(tag)
+  },
   createTextNode(text) {
     return { nodeType: 3, textContent: text }
   },
@@ -251,15 +257,15 @@ exportsObj.apply(ctx)
 try {
   // 1. stylesheet injected
   assert.ok(styleTags.length === 1, 'stylesheet injected')
-  assert.ok(styleTags[0].textContent.includes('.dmr-table'), 'stylesheet has table rules')
-  assert.ok(styleTags[0].textContent.includes('.dmr-table-scroll'), 'stylesheet has scroll rules')
+  assert.ok(styleTags[0].textContent.includes('.dsh-md-render-table'), 'stylesheet has table rules')
+  assert.ok(styleTags[0].textContent.includes('.dsh-md-render-table-scroll'), 'stylesheet has scroll rules')
 
   // 2. non-standard table paragraph replaced by a real table
   const table = md1.querySelector('table')
   assert.ok(table, 'non-standard table rendered as <table>')
-  assert.equal(table.className, 'dmr-table', 'table class')
+  assert.equal(table.className, 'dsh-md-render-table', 'table class')
   const scroll = table.parentNode
-  assert.equal(scroll.className, 'dmr-table-scroll', 'table wrapped in scroll container')
+  assert.equal(scroll.className, 'dsh-md-render-table-scroll', 'table wrapped in scroll container')
   const thead = table.querySelector('thead')
   const tbody = table.querySelector('tbody')
   assert.ok(thead, 'thead rendered')
@@ -275,6 +281,12 @@ try {
   // the original paragraph is gone
   assert.equal(pNonStd.parentNode, null, 'original paragraph replaced and detached')
 
+  // 2b. scroll hint bar rendered after the scroll container (issue #54 阶段 1)
+  const hint = md1.querySelector('div.dsh-md-render-scroll-hint')
+  assert.ok(hint, 'scroll hint bar rendered')
+  assert.ok(hint.textContent.includes('横向滚动'), 'hint text present')
+  assert.equal(hint.parentNode, md1, 'hint bar inside the tzx-md container')
+
   // 3. plain paragraph untouched
   assert.equal(pPlain.parentNode, md1, 'plain paragraph still in container')
   assert.equal(pPlain.textContent, '这是一段普通文本，不含表格。', 'plain paragraph text intact')
@@ -286,8 +298,8 @@ try {
   assert.equal(pStream.parentNode, md3, 'streaming paragraph untouched')
 
   // 6. prefix/suffix preserved
-  const prefixP = md4.querySelector('p.dmr-prefix')
-  const suffixP = md4.querySelector('p.dmr-suffix')
+  const prefixP = md4.querySelector('p.dsh-md-render-prefix')
+  const suffixP = md4.querySelector('p.dsh-md-render-suffix')
   assert.ok(prefixP, 'prefix paragraph preserved')
   assert.equal(prefixP.textContent, '以下是列表：', 'prefix text')
   assert.ok(suffixP, 'suffix paragraph preserved')
