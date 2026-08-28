@@ -174,8 +174,15 @@ test('stateFile: falls back to homedir when DSH_HOME is unset', async () => {
 })
 
 test('stateFile: uses DSH_HOME when set', () => {
-  const file = stateFile()
-  assert.ok(file.startsWith(process.env.DSH_HOME), `unexpected: ${file}`)
+  const oldHome = process.env.DSH_HOME
+  process.env.DSH_HOME = '/tmp/dsh-guard-home-test'
+  try {
+    const file = stateFile()
+    assert.ok(file.startsWith('/tmp/dsh-guard-home-test'), `unexpected: ${file}`)
+  } finally {
+    if (oldHome !== undefined) process.env.DSH_HOME = oldHome
+    else delete process.env.DSH_HOME
+  }
 })
 
 // ── 联动：ask 模式 + 投毒扫描同时工作 ─────────────────────────────────────
