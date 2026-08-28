@@ -32,10 +32,10 @@ description: 使用当 要把新需求/功能建议/改进想法登记为我们�
 
 ### 1. 防重复（必做）
 
-先搜已有 issue 是否已覆盖，**用多组关键词**（用户原词 + 同义词 + 英文，如 `图标`、`icon`、`颜色`、`多彩`、`文件活动`）：
+先搜已有 issue 是否已覆盖，**用多组关键词**（用户原词 + 同义词 + 英文，如 `图标`、`icon`、`颜色`、`多彩`、`文件活动`），按 `github-ops` 用 `ghops search issues`：
 
 ```bash
-curl -sS "https://api.github.com/search/issues?q=repo:baosfeng/my-dsh-plugins+<关键词>"
+ghops search issues "repo:baosfeng/my-dsh-plugins <关键词>"
 ```
 
 命中判定规则：
@@ -76,7 +76,7 @@ curl -sS "https://api.github.com/search/issues?q=repo:baosfeng/my-dsh-plugins+<�
 
 ### 6. 提交
 
-- **REQUIRED SUB-SKILL：** 按 `github-ops` 的 token 流程 + curl 模式创建 issue（`POST /repos/baosfeng/my-dsh-plugins/issues`）
+- **REQUIRED SUB-SKILL：** 按 `github-ops` 用 `ghops issue create baosfeng/my-dsh-plugins --title "..." --body "..."` 创建 issue（参数见 `ghops issue create --help`）
 - 创建成功 → 把 issue 链接贴给用户
 
 ### 7. 联动
