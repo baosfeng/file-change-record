@@ -1,0 +1,9 @@
+# dsh-my-context bundle patch: inserts the plugin row into the profile roster.
+# The row mounts the host half (context lens stats + budget governance) and the
+# client half (sidebar context panel). Install with:
+#
+#   git clone https://github.com/baosfeng/my-dsh-plugins.git
+#   dsh plugin --profile web add link:<仓库路径>/plugins/dsh-my-context
+- insert:
+    - id: my-context
+      name: 'dsh-my-context'

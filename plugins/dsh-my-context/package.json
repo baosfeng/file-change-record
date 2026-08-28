@@ -1,0 +1,59 @@
+{
+  "name": "dsh-my-context",
+  "version": "0.1.0",
+  "description": "DSH 上下文透镜 + 成本治理插件：token 用量可视化（每次请求的上下文构成、KV 缓存命中率）+ 每轮/每会话预算控制（超限提醒/拦截）。DSH web plugin: context lens (token usage visualization, KV cache hit rate) + cost governance (per-turn / per-session budget with warn/deny).",
+  "type": "module",
+  "main": "lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baosfeng/my-dsh-plugins"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "npx vitest run --coverage && cucumber-js test/features --import 'test/features/steps/*.mjs'"
+  },
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "assets"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "cordis": "^4.0.0-rc.8",
+    "react": "^18.2.0"
+  },
+  "peerDependenciesMeta": {
+    "cordis": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "license": "MIT"
+}
