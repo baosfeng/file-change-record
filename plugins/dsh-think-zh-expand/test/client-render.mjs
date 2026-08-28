@@ -366,6 +366,191 @@ try {
   assert.ok(!bundleSrc.includes('function MarkdownView'), 'MarkdownView definition removed from bundle')
   assert.ok(bundleSrc.includes("require('dsh-md-render')"), 'bundle requires dsh-md-render for rendering')
 
+  // ── issue #54 UI 翻新：思考块视觉结构 + 折叠交互 + 流式徽章 ─────────
+  // 13. 结构：统一 dsh-think-zh-expand- 前缀类名 + 共享图标（chevron/clock）
+  function collectClasses(node, out = []) {
+    if (node === null || node === undefined || typeof node === 'boolean') return out
+    if (Array.isArray(node)) {
+      for (const c of node) collectClasses(c, out)
+      return out
+    }
+    const props = node.props ?? {}
+    if (typeof node.type === 'function') {
+      collectClasses(node.type(props), out)
+      return out
+    }
+    if (typeof node.type === 'string' && typeof props.className === 'string') {
+      for (const c of props.className.split(/\s+/)) out.push(c)
+    }
+    collectClasses(props.children, out)
+    return out
+  }
+  function countSvg(node) {
+    let n = 0
+    function walk(x) {
+      if (x === null || x === undefined || typeof x === 'boolean') return
+      if (Array.isArray(x)) {
+        for (const c of x) walk(c)
+        return
+      }
+      const props = x.props ?? {}
+      if (typeof x.type === 'function') {
+        walk(x.type(props))
+        return
+      }
+      if (x.type === 'svg') n += 1
+      walk(props.children)
+    }
+    walk(node)
+    return n
+  }
+  function findClass(node, cls) {
+    if (node === null || node === undefined || typeof node === 'boolean') return null
+    if (Array.isArray(node)) {
+      for (const c of node) {
+        const hit = findClass(c, cls)
+        if (hit) return hit
+      }
+      return null
+    }
+    const props = node.props ?? {}
+    if (typeof node.type === 'function') return findClass(node.type(props), cls)
+    if (typeof node.type === 'string' && props.className === cls) return node
+    return findClass(props.children, cls)
+  }
+  function collectTexts(node) {
+    const out = []
+    function walk(x) {
+      if (x === null || x === undefined || typeof x === 'boolean') return
+      if (typeof x === 'string' || typeof x === 'number') {
+        out.push(String(x))
+        return
+      }
+      if (Array.isArray(x)) {
+        for (const c of x) walk(c)
+        return
+      }
+      const props = x.props ?? {}
+      if (typeof x.type === 'function') {
+        walk(x.type(props))
+        return
+      }
+      walk(props.children)
+    }
+    walk(node)
+    return out
+  }
+
+  const thinkTree = capturedRenderer({
+    node: { data: { blocks: [{ kind: 'reasoning', text: '第一行\n第二行' }] } },
+  })
+  const thinkClasses = collectClasses(thinkTree)
+  assert.ok(thinkClasses.includes('dsh-think-zh-expand-think'), 'think card class (new prefix)')
+  assert.ok(thinkClasses.includes('dsh-think-zh-expand-think-head'), 'think head class (new prefix)')
+  assert.ok(thinkClasses.includes('dsh-think-zh-expand-think-chevron'), 'chevron class (new prefix)')
+  assert.ok(thinkClasses.includes('dsh-think-zh-expand-think-chevron-open'), 'chevron rotated while expanded')
+  assert.ok(thinkClasses.includes('dsh-think-zh-expand-think-icon'), 'think icon class (new prefix)')
+  assert.ok(thinkClasses.includes('dsh-think-zh-expand-think-title'), 'think title class (new prefix)')
+  assert.ok(thinkClasses.includes('dsh-think-zh-expand-think-body'), 'think body class (new prefix)')
+  // 本插件旧类名全部清除；tzx-md / tzx-p 等是 dsh-md-render 的 MarkdownView
+  // 输出契约类名（跨插件表格增强依赖），必须保留。
+  const LEGACY_OWN = [
+    'tzx-think',
+    'tzx-think-row',
+    'tzx-think-chevron',
+    'tzx-think-title',
+    'tzx-think-summary',
+    'tzx-think-body',
+    'tzx-assistant',
+    'tzx-assistant-body',
+    'tzx-stopped',
+  ]
+  assert.ok(!thinkClasses.some((c) => LEGACY_OWN.includes(c)), 'no legacy own tzx-* classes in the think tree')
+  assert.ok(thinkClasses.includes('tzx-md'), 'contract class tzx-md preserved (MarkdownView output)')
+  assert.ok(thinkClasses.includes('tzx-p'), 'contract class tzx-p preserved (MarkdownView output)')
+  assert.ok(countSvg(thinkTree) >= 2, 'chevron + clock icons rendered (shared icon system)')
+  const thinkRoot = findClass(thinkTree, 'dsh-think-zh-expand-think')
+  assert.equal(thinkRoot.props['data-state'], 'ok', 'data-state ok when not streaming')
+  assert.equal(thinkRoot.props['data-variant'], 'think', 'data-variant think preserved')
+
+  // 14. 流式生成中：data-state=running + 「生成中」徽章 + 强制展开
+  const runningTree = capturedRenderer({
+    node: { data: { status: 'running', blocks: [{ kind: 'reasoning', text: '流式思考内容' }] } },
+  })
+  const runningRoot = findClass(runningTree, 'dsh-think-zh-expand-think')
+  assert.equal(runningRoot.props['data-state'], 'running', 'data-state running while streaming')
+  const runningTexts = collectTexts(runningTree)
+  assert.ok(runningTexts.includes('生成中'), 'streaming badge text shown')
+  assert.ok(
+    runningTexts.some((t) => t.includes('流式思考内容')),
+    'streaming forces expanded content',
+  )
+
+  // 15. 折叠交互：点击标题行收起（摘要出现、内容隐藏），再点恢复展开
+  let interactiveExpanded = true
+  const interactiveReact = {
+    ...stubbed,
+    useState: () => [
+      interactiveExpanded,
+      (v) => {
+        interactiveExpanded = typeof v === 'function' ? v(interactiveExpanded) : v
+      },
+    ],
+  }
+  const exportsObj2 = thinkReg.factory((spec) => {
+    if (spec === 'react') return interactiveReact
+    if (spec === 'dsh-md-render') return mdRenderExports
+    throw new Error('unexpected require: ' + spec)
+  })
+  let registerFn2 = null
+  let capturedRenderer2 = null
+  const ctx2 = {
+    effect: (fn) => fn(),
+    slots: {
+      inject: (_name, fn) => {
+        registerFn2 = fn
+        return () => {}
+      },
+      register: (_desc, renderer) => {
+        capturedRenderer2 = renderer
+        return () => {}
+      },
+    },
+  }
+  exportsObj2.apply(ctx2)
+  registerFn2()
+  assert.equal(typeof capturedRenderer2, 'function', 'interactive renderer captured')
+  const renderThink = () =>
+    capturedRenderer2({ node: { data: { blocks: [{ kind: 'reasoning', text: '第一行\n第二行' }] } } })
+  const expandedTexts = collectTexts(renderThink())
+  assert.ok(
+    expandedTexts.some((t) => t.includes('第二行')),
+    'expanded by default',
+  )
+  const head = findClass(renderThink(), 'dsh-think-zh-expand-think-head')
+  assert.ok(head, 'think head element found')
+  head.props.onClick()
+  const collapsedTexts = collectTexts(renderThink())
+  assert.ok(
+    collapsedTexts.some((t) => t.includes('第一行')),
+    'summary shows first line when collapsed',
+  )
+  assert.ok(!collapsedTexts.some((t) => t.includes('第二行')), 'body hidden when collapsed')
+  const head2 = findClass(renderThink(), 'dsh-think-zh-expand-think-head')
+  head2.props.onClick()
+  const reexpandedTexts = collectTexts(renderThink())
+  assert.ok(
+    reexpandedTexts.some((t) => t.includes('第二行')),
+    're-expanded after second click',
+  )
+
+  // 16. 前缀统一回归：bundle 不再包含旧 tzx-* 本插件类名；共享图标已拼接
+  assert.ok(!bundleSrc.includes("'tzx-think"), 'legacy tzx-think class prefix removed from bundle')
+  assert.ok(!bundleSrc.includes("'tzx-assistant"), 'legacy tzx-assistant class prefix removed from bundle')
+  assert.ok(!bundleSrc.includes("'tzx-stopped"), 'legacy tzx-stopped class removed from bundle')
+  assert.ok(bundleSrc.includes('chevronRight:'), 'shared icons spliced into bundle (chevronRight)')
+  assert.ok(bundleSrc.includes('clock:'), 'shared icons spliced into bundle (clock)')
+
   console.log('ALL CLIENT RENDER-PATH TESTS PASSED')
 } finally {
   delete global.window

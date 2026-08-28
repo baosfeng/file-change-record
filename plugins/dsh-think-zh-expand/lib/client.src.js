@@ -25,8 +25,10 @@
  * React 重渲染持续生效。
  *
  * 样式走 DSH 语义 token（--dsw-alias-* / --dsw-font-*），随 activation 注入、
- * fiber teardown 卸载（HMR/禁用无残留）。MarkdownView 的渲染样式
- * （.tzx-md 系列）随 dsh-md-render 注入（issue #31 迁移）。
+ * fiber teardown 卸载（HMR/禁用无残留）。图标走共享图标系统（issue #54
+ * 阶段 0：plugins/dsh-shared/client-parts/icons.part.js，构建时拼接）。
+ * MarkdownView 的渲染样式（.tzx-md 系列）随 dsh-md-render 注入（issue #31
+ * 迁移）。
  *
  * BUILD NOTE: 本文件是源码模板（骨架）。scripts/build.mjs 把
  * lib/parts/*.part.js 片段注入到下方 /*__PART_*__* / 占位符处并写出
@@ -46,6 +48,9 @@ window.__ModuleLoader__.load({
     // 统一 MarkdownView 由 dsh-md-render 提供（issue #31 渲染职责迁移；
     // 依赖声明见 package.json 的 dsh.client.external）。
     const MarkdownView = require('dsh-md-render').MarkdownView
+
+    // ── 共享图标（issue #54 阶段 0：dsh-shared/client-parts）──────────
+    /*__PART_ICONS__*/
 
     // ── 视图：思考块 + assistant-step 渲染器 ────────────────────────
     /*__PART_ASSISTANT__*/

@@ -25,8 +25,10 @@
  * React 重渲染持续生效。
  *
  * 样式走 DSH 语义 token（--dsw-alias-* / --dsw-font-*），随 activation 注入、
- * fiber teardown 卸载（HMR/禁用无残留）。MarkdownView 的渲染样式
- * （.tzx-md 系列）随 dsh-md-render 注入（issue #31 迁移）。
+ * fiber teardown 卸载（HMR/禁用无残留）。图标走共享图标系统（issue #54
+ * 阶段 0：plugins/dsh-shared/client-parts/icons.part.js，构建时拼接）。
+ * MarkdownView 的渲染样式（.tzx-md 系列）随 dsh-md-render 注入（issue #31
+ * 迁移）。
  *
  * BUILD NOTE: 本文件是源码模板（骨架）。scripts/build.mjs 把
  * lib/parts/*.part.js 片段注入到下方 /*__PART_*__* / 占位符处并写出
@@ -47,15 +49,318 @@ window.__ModuleLoader__.load({
     // 依赖声明见 package.json 的 dsh.client.external）。
     const MarkdownView = require('dsh-md-render').MarkdownView
 
+    // ── 共享图标（issue #54 阶段 0：dsh-shared/client-parts）──────────
+    // ── shared icons (inline, stroke=currentColor, matching better-sidebar) ──
+// Single source of truth for the plugin UI icon set (issue #54 阶段 0).
+// Extracted from dsh-file-activity's lib/parts/icons.part.js; every plugin's
+// scripts/build.mjs splices this file via the `shared: true` piece marker.
+// Keep the stroke=currentColor outline style — it inherits the surrounding
+// text color and reads on both light and dark themes.
+const ICON_STROKE = 1.8
+const iconSvg = (children, size) =>
+  createElement(
+    'svg',
+    {
+      width: size,
+      height: size,
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: ICON_STROKE,
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+      'aria-hidden': 'true',
+    },
+    children.map((child, i) =>
+      child === null || child === undefined || typeof child === 'boolean'
+        ? child
+        : createElement(child.type, { key: i, ...child.props }),
+    ),
+  )
+
+const icon = {
+  clock: (size = 16) =>
+    iconSvg([createElement('circle', { cx: 12, cy: 12, r: 9 }), createElement('path', { d: 'M12 7v5l3 2' })], size),
+  refresh: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', { d: 'M21 12a9 9 0 1 1-2.64-6.36' }),
+        createElement('polyline', { points: '21 3 21 9 15 9' }),
+      ],
+      size,
+    ),
+  trash: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', { d: 'M3 6h18' }),
+        createElement('path', { d: 'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6' }),
+        createElement('path', { d: 'M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2' }),
+      ],
+      size,
+    ),
+  chevronRight: (size = 14) => iconSvg([createElement('polyline', { points: '9 6 15 12 9 18' })], size),
+  chevronDown: (size = 14) => iconSvg([createElement('polyline', { points: '6 9 12 15 18 9' })], size),
+  file: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', { d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z' }),
+        createElement('path', { d: 'M14 2v6h6' }),
+      ],
+      size,
+    ),
+  folder: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', {
+          d: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
+        }),
+      ],
+      size,
+    ),
+  external: (size = 15) =>
+    iconSvg(
+      [
+        createElement('path', { d: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' }),
+        createElement('polyline', { points: '15 3 21 3 21 9' }),
+        createElement('line', { x1: 10, y1: 14, x2: 21, y2: 3 }),
+      ],
+      size,
+    ),
+  close: (size = 15) =>
+    iconSvg(
+      [
+        createElement('line', { x1: 18, y1: 6, x2: 6, y2: 18 }),
+        createElement('line', { x1: 6, y1: 6, x2: 18, y2: 18 }),
+      ],
+      size,
+    ),
+  help: (size = 16) =>
+    iconSvg(
+      [
+        createElement('circle', { cx: 12, cy: 12, r: 9 }),
+        createElement('path', { d: 'M9.1 9.2a3 3 0 0 1 5.8 1.2c0 1.8-2.7 2.4-2.7 3.6' }),
+        createElement('line', { x1: 12, y1: 17.2, x2: 12.01, y2: 17.2 }),
+      ],
+      size,
+    ),
+  // ── generic action icons (issue #54 阶段 0) ─────────────────────────────
+  // Added for the upcoming plugin UI refresh: save/confirm (check), add/
+  // install (plus), market search (search), settings entry (settings).
+  check: (size = 16) => iconSvg([createElement('polyline', { points: '20 6 9 17 4 12' })], size),
+  plus: (size = 16) =>
+    iconSvg(
+      [
+        createElement('line', { x1: 12, y1: 5, x2: 12, y2: 19 }),
+        createElement('line', { x1: 5, y1: 12, x2: 19, y2: 12 }),
+      ],
+      size,
+    ),
+  pencil: (size = 15) =>
+    iconSvg([createElement('path', { d: 'M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z' })], size),
+  search: (size = 16) =>
+    iconSvg(
+      [
+        createElement('circle', { cx: 11, cy: 11, r: 8 }),
+        createElement('line', { x1: 21, y1: 21, x2: 16.65, y2: 16.65 }),
+      ],
+      size,
+    ),
+  settings: (size = 16) =>
+    iconSvg(
+      [
+        createElement('circle', { cx: 12, cy: 12, r: 3 }),
+        createElement('path', {
+          d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z',
+        }),
+      ],
+      size,
+    ),
+  // 警告（issue #54 阶段 1 新增）：安全护栏告警类型图标（投毒/提示注入），
+  // 三角警示 + 感叹号，stroke=currentColor 风格与其余图标一致。
+  alert: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', {
+          d: 'M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z',
+        }),
+        createElement('line', { x1: 12, y1: 9, x2: 12, y2: 13 }),
+        createElement('line', { x1: 12, y1: 17, x2: 12.01, y2: 17 }),
+      ],
+      size,
+    ),
+}
+
+// Common-language / file-type badges (issue #24): brand fill + contrast
+// ink, reading on both light and dark themes. Unmapped extensions keep the
+// neutral currentColor file icon above. [bg, fg ink, short mark]
+const FILE_BADGES = {
+  // JavaScript / TypeScript
+  js: ['#F7DF1E', '#323330', 'JS'],
+  mjs: ['#F7DF1E', '#323330', 'JS'],
+  cjs: ['#F7DF1E', '#323330', 'JS'],
+  ts: ['#3178C6', '#ffffff', 'TS'],
+  mts: ['#3178C6', '#ffffff', 'TS'],
+  cts: ['#3178C6', '#ffffff', 'TS'],
+  tsx: ['#3178C6', '#ffffff', 'TSX'],
+  jsx: ['#3178C6', '#ffffff', 'JSX'],
+  // 后端语言
+  java: ['#007396', '#ffffff', 'JAVA'],
+  c: ['#A8B9CC', '#111111', 'C'],
+  cpp: ['#00599C', '#ffffff', 'C++'],
+  cxx: ['#00599C', '#ffffff', 'C++'],
+  cc: ['#00599C', '#ffffff', 'C++'],
+  hpp: ['#00599C', '#ffffff', 'C++'],
+  h: ['#A8B9CC', '#111111', 'H'],
+  hh: ['#A8B9CC', '#111111', 'H'],
+  cs: ['#68217A', '#ffffff', 'C#'],
+  csharp: ['#68217A', '#ffffff', 'C#'],
+  go: ['#00ADD8', '#ffffff', 'GO'],
+  rs: ['#CE422B', '#ffffff', 'RS'],
+  rb: ['#B51624', '#ffffff', 'RB'],
+  php: ['#777BB4', '#ffffff', 'PHP'],
+  py: ['#3776AB', '#ffffff', 'PY'],
+  swift: ['#F05138', '#ffffff', 'SWIFT'],
+  kt: ['#7F52FF', '#ffffff', 'KT'],
+  kotlin: ['#7F52FF', '#ffffff', 'KT'],
+  dart: ['#0175C2', '#ffffff', 'DART'],
+  scala: ['#DC322F', '#ffffff', 'SCALA'],
+  lua: ['#2C2C7C', '#ffffff', 'LUA'],
+  pl: ['#0298C3', '#ffffff', 'PERL'],
+  r: ['#336DC3', '#ffffff', 'R'],
+  m: ['#C1272D', '#ffffff', 'MAT'],
+  mm: ['#C1272D', '#ffffff', 'MAT'],
+  // Web / 前端
+  html: ['#E34F26', '#ffffff', '</>'],
+  htm: ['#E34F26', '#ffffff', '</>'],
+  css: ['#663399', '#ffffff', 'CSS'],
+  scss: ['#CD6799', '#ffffff', 'SCSS'],
+  sass: ['#CD6799', '#ffffff', 'SCSS'],
+  vue: ['#42B883', '#ffffff', 'VUE'],
+  svelte: ['#FF3E00', '#ffffff', 'SVELTE'],
+  // 数据 / 结构化
+  json: ['#F7DF1E', '#323330', '{}'],
+  sql: ['#00758F', '#ffffff', 'SQL'],
+  csv: ['#2E7D32', '#ffffff', 'CSV'],
+  db: ['#0F62FE', '#ffffff', 'DB'],
+  sqlite: ['#0F62FE', '#ffffff', 'DB'],
+  sqlite3: ['#0F62FE', '#ffffff', 'DB'],
+  xml: ['#FF6F00', '#ffffff', 'XML'],
+  svg: ['#FF6F00', '#ffffff', 'SVG'],
+  // 文档
+  md: ['#42A5F5', '#ffffff', 'M↓'],
+  markdown: ['#42A5F5', '#ffffff', 'M↓'],
+  txt: ['#90A4AE', '#ffffff', 'TXT'],
+  text: ['#90A4AE', '#ffffff', 'TXT'],
+  log: ['#90A4AE', '#ffffff', 'TXT'],
+  pdf: ['#E5202B', '#ffffff', 'PDF'],
+  doc: ['#2B579A', '#ffffff', 'DOC'],
+  docx: ['#2B579A', '#ffffff', 'DOC'],
+  xls: ['#217346', '#ffffff', 'XLS'],
+  xlsx: ['#217346', '#ffffff', 'XLS'],
+  ppt: ['#D24726', '#ffffff', 'PPT'],
+  pptx: ['#D24726', '#ffffff', 'PPT'],
+  // 配置 / 构建
+  yml: ['#CB171E', '#ffffff', 'YML'],
+  yaml: ['#CB171E', '#ffffff', 'YML'],
+  toml: ['#8D6E63', '#ffffff', 'TOML'],
+  ini: ['#546E7A', '#ffffff', 'CFG'],
+  cfg: ['#546E7A', '#ffffff', 'CFG'],
+  config: ['#546E7A', '#ffffff', 'CFG'],
+  env: ['#F9A825', '#323330', 'ENV'],
+  properties: ['#7B1FA2', '#ffffff', 'PROP'],
+  lock: ['#37474F', '#ffffff', 'LOCK'],
+  dockerfile: ['#2496ED', '#ffffff', 'DOCK'],
+  docker: ['#2496ED', '#ffffff', 'DOCK'],
+  makefile: ['#607D8B', '#ffffff', 'MAKE'],
+  gradle: ['#02303A', '#ffffff', 'GRADLE'],
+  cmake: ['#265774', '#ffffff', 'CMAKE'],
+  ipynb: ['#F37726', '#ffffff', 'JNB'],
+  // 脚本 / Shell
+  sh: ['#89E051', '#111111', '>_'],
+  bash: ['#89E051', '#111111', '>_'],
+  zsh: ['#89E051', '#111111', '>_'],
+  ps1: ['#012456', '#ffffff', 'PS1'],
+  bat: ['#546E7A', '#ffffff', 'CMD'],
+  cmd: ['#546E7A', '#ffffff', 'CMD'],
+  // 打包 / 二进制
+  zip: ['#FFA726', '#323330', 'ZIP'],
+  tar: ['#FFA726', '#323330', 'ZIP'],
+  gz: ['#FFA726', '#323330', 'ZIP'],
+  '7z': ['#FFA726', '#323330', 'ZIP'],
+  rar: ['#FFA726', '#323330', 'ZIP'],
+  exe: ['#0078D4', '#ffffff', 'EXE'],
+  msi: ['#0078D4', '#ffffff', 'EXE'],
+  wasm: ['#654FF0', '#ffffff', 'WASM'],
+  // 图片 / 媒体
+  png: ['#8E44AD', '#ffffff', 'IMG'],
+  jpg: ['#8E44AD', '#ffffff', 'IMG'],
+  jpeg: ['#8E44AD', '#ffffff', 'IMG'],
+  gif: ['#8E44AD', '#ffffff', 'IMG'],
+  webp: ['#8E44AD', '#ffffff', 'IMG'],
+  ico: ['#8E44AD', '#ffffff', 'IMG'],
+  bmp: ['#8E44AD', '#ffffff', 'IMG'],
+  // 版本控制
+  gitignore: ['#F05032', '#ffffff', 'GIT'],
+  gitattributes: ['#F05032', '#ffffff', 'GIT'],
+}
+
+/** One self-colored badge svg: rounded brand rect + short contrast mark.
+ *  Mark font scales by length so 5-6 char marks (JAVA/SCALA/SWIFT) stay
+ *  inside the 24×24 viewBox. */
+const badgeIcon = ([bg, fg, mark], size) =>
+  createElement(
+    'svg',
+    {
+      width: size,
+      height: size,
+      viewBox: '0 0 24 24',
+      'aria-hidden': 'true',
+    },
+    createElement('rect', { x: 1, y: 1, width: 22, height: 22, rx: 5, fill: bg }),
+    createElement(
+      'text',
+      {
+        x: 12,
+        y: 16,
+        textAnchor: 'middle',
+        fontSize: mark.length <= 2 ? 9 : mark.length <= 4 ? 7 : 5.5,
+        fontWeight: 700,
+        fill: fg,
+      },
+      mark,
+    ),
+  )
+
+/** File-type icon dispatcher: branded badge for known extensions, the
+ *  neutral file icon for everything else (case-insensitive, tolerates a
+ *  leading dot like ".md"). */
+const fileIconByExt = (ext, size = 14) => {
+  const spec =
+    FILE_BADGES[
+      String(ext ?? '')
+        .toLowerCase()
+        .replace(/^\./, '')
+    ]
+  return spec === undefined ? icon.file(size) : badgeIcon(spec, size)
+}
+
+
     // ── 视图：思考块 + assistant-step 渲染器 ────────────────────────
     /**
  * PART: 思考块 + assistant-step 节点渲染器。
  *
  * 由 scripts/build.mjs 拼入 lib/client.js 的 factory 作用域（纯函数声明
- * 文本，无 import/export）。依赖 factory 内的 createElement、useState 与
- * MarkdownView（issue #31 迁移后 MarkdownView 由 dsh-md-render 提供，
- * factory 经 `require('dsh-md-render')` 取得）。行为与迁移前等价：
- * reasoning 块默认展开、流式中强制展开、图片块相邻分组渲染。
+ * 文本，无 import/export）。依赖 factory 内的 createElement、useState、
+ * icon（共享图标，issue #54 阶段 0）与 MarkdownView（issue #31 迁移后
+ * MarkdownView 由 dsh-md-render 提供，factory 经 `require('dsh-md-render')`
+ * 取得）。行为与迁移前等价：reasoning 块默认展开、流式中强制展开、
+ * 图片块相邻分组渲染。
+ *
+ * issue #54 UI 翻新：样式类名统一为 dsh-think-zh-expand- 前缀（tzx- 前缀
+ * 仅保留给 dsh-md-render 的 MarkdownView 输出契约：div.tzx-md / p.tzx-p /
+ * table.tzx-table 等，本片段不产出这些类名）；标题行折叠箭头用共享
+ * chevronRight 图标 + 旋转过渡，思考图标用共享 clock 图标，流式生成中
+ * 显示「生成中」徽章（脉冲动画）。
  */
 
 // ── 思考块：默认展开，可点击收起，流式中强制展开 ───────────────────
@@ -66,29 +371,41 @@ function ThinkBlock({ text, running }) {
     const nl = t.indexOf('\n')
     return nl === -1 ? t : t.slice(0, nl)
   }
-  return createElement('div', { className: 'tzx-think', 'data-variant': 'think', 'data-state': running ? 'running' : 'ok' },
-    createElement('div', {
-      className: 'tzx-think-row',
-      role: 'button',
-      tabIndex: 0,
-      'aria-expanded': open,
-      onClick: () => setExpanded((v) => !v),
-      onKeyDown: (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          setExpanded((v) => !v)
-        }
+  return createElement(
+    'div',
+    { className: 'dsh-think-zh-expand-think', 'data-variant': 'think', 'data-state': running ? 'running' : 'ok' },
+    createElement(
+      'div',
+      {
+        className: 'dsh-think-zh-expand-think-head',
+        role: 'button',
+        tabIndex: 0,
+        'aria-expanded': open,
+        onClick: () => setExpanded((v) => !v),
+        onKeyDown: (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            setExpanded((v) => !v)
+          }
+        },
       },
-    },
-      createElement('span', { className: 'tzx-think-chevron' }, open ? '▾' : '▸'),
-      createElement('span', { className: 'tzx-think-title' }, '思考'),
-      !open && createElement('span', { className: 'tzx-think-summary' }, firstLine(text)),
+      // 折叠箭头：chevronRight 收起指向右，展开时旋转 90° 指向下
+      // （transition 见 styles.part.js 的 -chevron-open 规则）。
+      createElement(
+        'span',
+        { className: 'dsh-think-zh-expand-think-chevron' + (open ? ' dsh-think-zh-expand-think-chevron-open' : '') },
+        icon.chevronRight(14),
+      ),
+      createElement('span', { className: 'dsh-think-zh-expand-think-icon' }, icon.clock(14)),
+      createElement('span', { className: 'dsh-think-zh-expand-think-title' }, '思考'),
+      running && createElement('span', { className: 'dsh-think-zh-expand-think-badge' }, '生成中'),
+      !open && createElement('span', { className: 'dsh-think-zh-expand-think-summary' }, firstLine(text)),
     ),
     // 思考内容也走统一 Markdown 渲染（dsh-md-render 的 MarkdownView：
     // 代码块 / mermaid / 表格 / 列表 / 标题 / 公式等），否则思考里出现
     // 的 markdown 会以原始语法文本显示。
-    open && createElement('div', { className: 'tzx-think-body' },
-      createElement(MarkdownView, { text })),
+    open &&
+      createElement('div', { className: 'dsh-think-zh-expand-think-body' }, createElement(MarkdownView, { text })),
   )
 }
 
@@ -119,8 +436,7 @@ function renderBlock(blocks, i, streaming, last, renderMessageImages) {
   if (block.kind === 'image' && typeof renderMessageImages === 'function') {
     const end = imageGroupEnd(blocks, i)
     const images = blocks.slice(i, end + 1).map((b) => ({ attachment: b.attachment }))
-    return createElement('div', { key: 'img' + i },
-      renderMessageImages({ images, align: 'start' }))
+    return createElement('div', { key: 'img' + i }, renderMessageImages({ images, align: 'start' }))
   }
   return null
 }
@@ -148,10 +464,13 @@ function AssistantStepView({ node, renderMessageImages }) {
   const interrupted = data.status === 'interrupted'
   const rendered = renderBlocks(data.blocks, streaming, renderMessageImages)
   if (interrupted) {
-    rendered.push(createElement('span', { key: 'stopped', className: 'tzx-stopped' }, '已停止'))
+    rendered.push(createElement('span', { key: 'stopped', className: 'dsh-think-zh-expand-stopped' }, '已停止'))
   }
-  return createElement('div', { className: 'tzx-assistant', 'data-streaming': streaming || undefined },
-    createElement('div', { className: 'tzx-assistant-body' }, rendered))
+  return createElement(
+    'div',
+    { className: 'dsh-think-zh-expand-assistant', 'data-streaming': streaming || undefined },
+    createElement('div', { className: 'dsh-think-zh-expand-assistant-body' }, rendered),
+  )
 }
 
 
@@ -170,37 +489,37 @@ function AssistantStepView({ node, renderMessageImages }) {
 // （dsh-client-ui-trajectory 的 Thinking/Tool Call/ASSISTANT 等、
 // dsh-client-ui-conversation 的 context.tools/stats.toolCall 等）。
 const ZH_TABLE = {
-  'Thinking': '思考',
+  Thinking: '思考',
   'Tool Call': '工具调用',
   'Tool calls': '工具调用',
   'Tool call': '工具调用',
   'Tool call only': '仅工具调用',
-  'Tools': '工具',
+  Tools: '工具',
   'No content': '无内容',
   'Tools Updated': '工具已更新',
-  'Duration': '用时',
+  Duration: '用时',
   'Use actual duration': '使用实际耗时',
   'Use equal-width operations': '使用等宽操作',
-  'Turns': '轮次',
+  Turns: '轮次',
   'Expand turns': '展开轮次',
   'Collapse turns': '收起轮次',
-  'Calls': '调用',
+  Calls: '调用',
   'Expand calls': '展开调用',
   'Collapse calls': '收起调用',
   'Load earlier history': '加载更早历史',
   'Loading earlier history…': '正在加载更早历史…',
   'Loading earlier history': '正在加载更早历史',
-  'ASSISTANT': '助手',
-  'TOOL': '工具',
-  'USER': '用户',
+  ASSISTANT: '助手',
+  TOOL: '工具',
+  USER: '用户',
   'Session log': '会话日志',
   'Cordis Plugin': 'Cordis 插件',
   'System prompt': '系统提示',
-  'Messages': '消息',
-  'Files': '文件',
+  Messages: '消息',
+  Files: '文件',
   'Full access': '完全访问',
   'Enable Full access': '启用完全访问',
-  'Cancel': '取消',
+  Cancel: '取消',
 }
 
 // 动态格式（保持原始数字/单位，只翻译标签词）
@@ -222,13 +541,13 @@ const ZH_SKIP_TAGS = new Set(['PRE', 'CODE', 'SCRIPT', 'STYLE', 'TEXTAREA', 'INP
 // 这些词只允许在「工具调用卡片行」内替换（行根带 data-chat-call-id），
 // 不参与全局词表，避免误伤消息正文。
 const CARD_TITLE_ZH = {
-  'Search': '搜索',
-  'Read': '读取',
-  'Bash': '命令行',
-  'Write': '写入',
-  'Edit': '编辑',
-  'Code': '代码',
-  'Inspect': '检查',
+  Search: '搜索',
+  Read: '读取',
+  Bash: '命令行',
+  Write: '写入',
+  Edit: '编辑',
+  Code: '代码',
+  Inspect: '检查',
   'Run Cordis Plugin': '运行 Cordis 插件',
   'Stop Cordis Plugin': '停止 Cordis 插件',
   'Remove Cordis Plugin': '移除 Cordis 插件',
@@ -291,54 +610,54 @@ const TOOL_NAME_ZH = {
   'mcp__codebase-memory__search_graph': '图搜索',
   'mcp__codebase-memory__trace_path': '调用路径追踪',
   // AgentTeams
-  'agent_teams_add_member': '添加成员',
-  'agent_teams_claim_task': '认领任务',
-  'agent_teams_create': '创建团队',
-  'agent_teams_create_task': '创建任务',
-  'agent_teams_delete': '删除团队',
-  'agent_teams_reassign_task': '重新指派任务',
-  'agent_teams_remove_member': '移除成员',
-  'agent_teams_send_message': '团队消息',
-  'agent_teams_status': '团队状态',
-  'agent_teams_update_task': '更新任务',
-  'vision_toolkit_activate': '激活视觉工具',
+  agent_teams_add_member: '添加成员',
+  agent_teams_claim_task: '认领任务',
+  agent_teams_create: '创建团队',
+  agent_teams_create_task: '创建任务',
+  agent_teams_delete: '删除团队',
+  agent_teams_reassign_task: '重新指派任务',
+  agent_teams_remove_member: '移除成员',
+  agent_teams_send_message: '团队消息',
+  agent_teams_status: '团队状态',
+  agent_teams_update_task: '更新任务',
+  vision_toolkit_activate: '激活视觉工具',
 }
 
 // ── 工具描述中文化（Tool Catalog 的 tool.description）───────────────
 // 按「工具名 → 中文描述」索引，不匹配英文原文：DSH 升级导致描述文案
 // 变化时映射不失效。未覆盖的工具保留英文描述。
 const TOOL_DESC_ZH = {
-  'web_search': '搜索网络获取最新信息。',
-  'bash': '执行命令并返回输出（可设置工作目录、超时）。',
-  'read': '读取 UTF-8 文本文件并返回带行号的内容。',
-  'write': '创建或完整替换一个 UTF-8 文本文件。',
-  'edit': '对现有文本文件做精确的局部替换修改。',
-  'glob': '按路径模式查找文件，包含隐藏与忽略文件。',
-  'grep': '用正则搜索文件内容并返回匹配行。',
-  'read_image': '读取图片文件并返回图片本身。',
-  'skill': '加载指定技能（skill）的完整指令。',
-  'workflow': '编写脚本编排多个子代理，并行扇出执行。',
-  'subagent': '把独立任务委托给后台子代理。',
-  'subagent_fork': '把任务委托给继承当前对话上下文的子代理。',
-  'todo_write': '记录并更新当前工作的结构化任务清单。',
-  'ask_user_question': '需要确认、选择或补充信息时向用户提问。',
-  'exit_plan_mode': '呈现完整计划并退出计划模式。',
-  'create_goal': '创建持久化的同会话完成目标。',
-  'get_goal': '读取当前目标的准确 id 与状态。',
-  'update_goal': '更新目标的执行状态、暂停或恢复。',
-  'job_list': '列出当前启动的后台任务。',
-  'job_output': '读取后台任务的输出。',
-  'job_kill': '请求终止运行中的后台任务。',
-  'list_agents': '按持久 id 列出可续接的后台子代理。',
-  'send_message': '向后台子代理发送消息，继续其同一对话。',
-  'interrupt_agent': '请求中断后台代理的当前轮次。',
-  'cordis_define': '定义新的不可变 Cordis 插件包（不运行）。',
-  'cordis_run': '启动或更新 Cordis 插件包。',
-  'cordis_stop': '停止当前 Cordis 插件并保留定义。',
-  'cordis_undefine': '永久删除 Cordis 插件及其所有包。',
-  'cordis_inspect_list': '列出当前已知的检查提供者。',
-  'cordis_inspect_query': '执行检查提供者的只读查询。',
-  'cordis_inspect_self': '查看当前会话的插件、包与诊断。',
+  web_search: '搜索网络获取最新信息。',
+  bash: '执行命令并返回输出（可设置工作目录、超时）。',
+  read: '读取 UTF-8 文本文件并返回带行号的内容。',
+  write: '创建或完整替换一个 UTF-8 文本文件。',
+  edit: '对现有文本文件做精确的局部替换修改。',
+  glob: '按路径模式查找文件，包含隐藏与忽略文件。',
+  grep: '用正则搜索文件内容并返回匹配行。',
+  read_image: '读取图片文件并返回图片本身。',
+  skill: '加载指定技能（skill）的完整指令。',
+  workflow: '编写脚本编排多个子代理，并行扇出执行。',
+  subagent: '把独立任务委托给后台子代理。',
+  subagent_fork: '把任务委托给继承当前对话上下文的子代理。',
+  todo_write: '记录并更新当前工作的结构化任务清单。',
+  ask_user_question: '需要确认、选择或补充信息时向用户提问。',
+  exit_plan_mode: '呈现完整计划并退出计划模式。',
+  create_goal: '创建持久化的同会话完成目标。',
+  get_goal: '读取当前目标的准确 id 与状态。',
+  update_goal: '更新目标的执行状态、暂停或恢复。',
+  job_list: '列出当前启动的后台任务。',
+  job_output: '读取后台任务的输出。',
+  job_kill: '请求终止运行中的后台任务。',
+  list_agents: '按持久 id 列出可续接的后台子代理。',
+  send_message: '向后台子代理发送消息，继续其同一对话。',
+  interrupt_agent: '请求中断后台代理的当前轮次。',
+  cordis_define: '定义新的不可变 Cordis 插件包（不运行）。',
+  cordis_run: '启动或更新 Cordis 插件包。',
+  cordis_stop: '停止当前 Cordis 插件并保留定义。',
+  cordis_undefine: '永久删除 Cordis 插件及其所有包。',
+  cordis_inspect_list: '列出当前已知的检查提供者。',
+  cordis_inspect_query: '执行检查提供者的只读查询。',
+  cordis_inspect_self: '查看当前会话的插件、包与诊断。',
   'mcp__codebase-memory__check_index_coverage': '检查文件的索引覆盖情况。',
   'mcp__codebase-memory__delete_project': '把项目从索引中删除。',
   'mcp__codebase-memory__detect_changes': '把 git 变更映射为影响半径。',
@@ -354,17 +673,17 @@ const TOOL_DESC_ZH = {
   'mcp__codebase-memory__search_code': '图增强的代码搜索。',
   'mcp__codebase-memory__search_graph': '按关键词、正则或语义搜索代码图谱。',
   'mcp__codebase-memory__trace_path': '追踪调用链、数据流与跨服务路径。',
-  'agent_teams_add_member': '向团队添加可续命的成员。',
-  'agent_teams_claim_task': '为团队成员认领一个就绪任务。',
-  'agent_teams_create': '创建多代理团队，你成为队长。',
-  'agent_teams_create_task': '在团队创建任务并关联依赖。',
-  'agent_teams_delete': '删除团队：中断成员并移除状态。',
-  'agent_teams_reassign_task': '重试、重新指派任务或由队长接管。',
-  'agent_teams_remove_member': '安全移除成员并回收任务。',
-  'agent_teams_send_message': '给队长或团队成员发送消息。',
-  'agent_teams_status': '查看团队快照：成员与任务状态。',
-  'agent_teams_update_task': '更新任务状态或产出摘要。',
-  'vision_toolkit_activate': '激活视觉工具集。',
+  agent_teams_add_member: '向团队添加可续命的成员。',
+  agent_teams_claim_task: '为团队成员认领一个就绪任务。',
+  agent_teams_create: '创建多代理团队，你成为队长。',
+  agent_teams_create_task: '在团队创建任务并关联依赖。',
+  agent_teams_delete: '删除团队：中断成员并移除状态。',
+  agent_teams_reassign_task: '重试、重新指派任务或由队长接管。',
+  agent_teams_remove_member: '安全移除成员并回收任务。',
+  agent_teams_send_message: '给队长或团队成员发送消息。',
+  agent_teams_status: '查看团队快照：成员与任务状态。',
+  agent_teams_update_task: '更新任务状态或产出摘要。',
+  vision_toolkit_activate: '激活视觉工具集。',
 }
 
 
@@ -592,17 +911,29 @@ exports.zhCardSummary = (text) => {
 // 仅保留本插件职责相关样式（assistant 容器 / 思考块 / 已停止标记）；
 // MarkdownView 的渲染样式（.tzx-md 系列）已随 issue #31 迁移至
 // dsh-md-render（其 styles.part.js 注入）。
+// issue #54 UI 翻新：类名统一 dsh-think-zh-expand- 前缀；思考块卡片化
+// （圆角/边框/背景走语义 token），标题行折叠箭头 chevronRight 旋转过渡、
+// 思考图标 clock 品牌色、流式「生成中」徽章脉冲动画、行入场动画。
 const STYLES = `
-.tzx-assistant{display:flex;flex-direction:column;gap:16px;color:var(--dsw-alias-label-primary);font-size:16px;line-height:28px}
-.tzx-assistant-body{display:flex;flex-direction:column;gap:16px}
-.tzx-think{display:flex;flex-direction:column;color:var(--dsw-alias-label-tertiary)}
-.tzx-think-row{display:flex;align-items:center;gap:8px;min-width:0;cursor:pointer;user-select:none;padding:2px 0;border-radius:6px}
-.tzx-think-row:hover{background:var(--dsw-alias-interactive-bg-hover)}
-.tzx-think-chevron{flex:none;color:var(--dsw-alias-label-secondary);font-size:12px}
-.tzx-think-title{flex:none;font-size:14px;font-weight:400;color:var(--dsw-alias-label-secondary)}
-.tzx-think-summary{min-width:0;color:var(--dsw-alias-label-tertiary);text-overflow:ellipsis;white-space:nowrap;flex:auto;font-size:14px;line-height:24px;overflow:hidden}
-.tzx-think-body{white-space:pre-wrap;word-break:break-word;padding:4px 0 4px 24px;font-size:14px;line-height:24px;color:var(--dsw-alias-label-tertiary)}
-.tzx-stopped{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-tertiary);border-radius:6px;align-self:flex-start;padding:0 6px;font-size:11px;line-height:18px}
+.dsh-think-zh-expand-assistant{display:flex;flex-direction:column;gap:16px;color:var(--dsw-alias-label-primary);font-size:16px;line-height:28px}
+.dsh-think-zh-expand-assistant-body{display:flex;flex-direction:column;gap:16px}
+.dsh-think-zh-expand-think{display:flex;flex-direction:column;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:var(--dsw-alias-bg-layer-2);overflow:hidden;animation:dsh-think-zh-expand-row-in 150ms var(--ds-ease-in-out)}
+.dsh-think-zh-expand-think[data-state='running']{border-color:color-mix(in srgb,var(--dsw-alias-accent) 35%,var(--dsw-alias-border-l1))}
+.dsh-think-zh-expand-think-head{display:flex;align-items:center;gap:6px;min-width:0;cursor:pointer;user-select:none;padding:6px 10px;border-radius:8px;transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+.dsh-think-zh-expand-think-head:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.dsh-think-zh-expand-think-head:active{background:var(--dsw-alias-interactive-bg-hover)}
+.dsh-think-zh-expand-think-head:focus-visible{outline:2px solid var(--dsw-alias-accent);outline-offset:-2px}
+.dsh-think-zh-expand-think-chevron{flex:none;display:flex;align-items:center;color:var(--dsw-alias-label-tertiary);transition:transform var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+.dsh-think-zh-expand-think-chevron-open{transform:rotate(90deg)}
+.dsh-think-zh-expand-think-icon{flex:none;display:flex;align-items:center;color:var(--dsw-alias-accent)}
+.dsh-think-zh-expand-think-title{flex:none;font:var(--dsw-font-s-strong-14);color:var(--dsw-alias-label-secondary)}
+.dsh-think-zh-expand-think-badge{flex:none;display:inline-flex;align-items:center;gap:4px;height:17px;padding:0 6px;border-radius:4px;font:var(--dsw-font-xxxs-strong-11);color:var(--dsw-alias-accent);background:color-mix(in srgb,var(--dsw-alias-accent) 12%,transparent)}
+.dsh-think-zh-expand-think-badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;animation:dsh-think-zh-expand-pulse 1.2s var(--ds-ease-in-out) infinite}
+.dsh-think-zh-expand-think-summary{min-width:0;flex:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary)}
+.dsh-think-zh-expand-think-body{min-width:0;padding:2px 10px 10px;font-size:14px;line-height:24px;color:var(--dsw-alias-label-tertiary)}
+.dsh-think-zh-expand-stopped{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-tertiary);border-radius:6px;align-self:flex-start;padding:0 6px;font:var(--dsw-font-xxxs-11);line-height:18px}
+@keyframes dsh-think-zh-expand-row-in{from{opacity:0;transform:translateY(1px)}to{opacity:1;transform:none}}
+@keyframes dsh-think-zh-expand-pulse{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
     `
 
 exports.inject = ['slots']
@@ -624,12 +955,21 @@ exports.apply = function apply(ctx) {
   // Replace the built-in assistant-step renderer: register with a lower
   // priority than the shipped occupant (0) so this entry wins the keyed
   // dispatch, exactly like dsh-better-sidebar shadows built-in seats.
-  ctx.effect(() => ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
-    name: 'conversation.chat.node',
-    key: 'assistant-step',
-    priority: -1,
-    registrant: 'dsh-think-zh-expand',
-  }, (props) => createElement(AssistantStepView, props))), 'dsh-think-zh-expand: assistant-step renderer')
+  ctx.effect(
+    () =>
+      ctx.slots.inject('conversation.chat.node', () =>
+        ctx.slots.register(
+          {
+            name: 'conversation.chat.node',
+            key: 'assistant-step',
+            priority: -1,
+            registrant: 'dsh-think-zh-expand',
+          },
+          (props) => createElement(AssistantStepView, props),
+        ),
+      ),
+    'dsh-think-zh-expand: assistant-step renderer',
+  )
 
   // UI 标签中文化（词表替换，随 fiber 卸载断开观察器）。
   ctx.effect(() => installUiLocalize(), 'dsh-think-zh-expand: ui localization')
