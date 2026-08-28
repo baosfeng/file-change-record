@@ -27,6 +27,7 @@ export default [
       'plugins/dsh-my-guardian/lib/client.js',
       'plugins/dsh-my-skill-manager/lib/client.js',
       'plugins/dsh-my-memory/lib/client.js',
+      'plugins/dsh-my-observability/lib/client.js',
     ],
   },
   {

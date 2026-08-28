@@ -32,6 +32,7 @@ const MODULES = {
   'dsh-my-skill-manager': { module: 'Skill管理', display: 'Skill 管理', npm: 'dsh-my-skill-manager' },
   'dsh-my-memory': { module: '记忆', display: '记忆', npm: 'dsh-my-memory' },
   'dsh-my-plugin-manager': { module: '插件管理', display: '插件管理', npm: 'dsh-my-plugin-manager' },
+  'dsh-my-observability': { module: '可观测性', display: '可观测性', npm: 'dsh-my-observability' },
   'dsh-plugin-dev-mode': { module: '插件开发模式', display: '插件开发模式', npm: null }, // agent preset，非 npm 插件
 }
 
