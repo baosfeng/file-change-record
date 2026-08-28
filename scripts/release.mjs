@@ -185,7 +185,9 @@ const isPublished = (dep, range) => {
 }
 const isTagged = (dir, version) => {
   try {
-    execSync(`git rev-parse -q --verify refs/tags/${dir}@v${version}`, { cwd: root })
+    // CodeQL js/shell-command-injection-from-environment 修复：dir/version 来自
+    // peerDependencies 键（外部输入），execFileSync 参数数组不经过 shell
+    execFileSync('git', ['rev-parse', '-q', '--verify', `refs/tags/${dir}@v${version}`], { cwd: root })
     return true
   } catch {
     return false
