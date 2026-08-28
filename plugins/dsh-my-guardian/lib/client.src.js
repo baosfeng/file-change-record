@@ -34,6 +34,7 @@ window.__ModuleLoader__.load({
     //    const initializers below run in splice order) ─────────────────────
     __PART_STYLES__
     __PART_UTIL__
+    __PART_ICONS__
     __PART_ROW__
     __PART_VIEW__
     __PART_APPLY__

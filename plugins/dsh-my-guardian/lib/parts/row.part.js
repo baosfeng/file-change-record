@@ -1,65 +1,160 @@
 // ── row ────────────────────────────────────────────────────────────────
-function EntryRow({ entry, source, onAction }) {
-  const [expanded, setExpanded] = useState(false)
-  const hasError = typeof entry.lastError === 'string' && entry.lastError !== ''
+/** Row head: source chip + name + status badge. */
+function RowHead({ entry, source }) {
   return createElement(
     'div',
-    { className: 'dsh-my-guardian-row' },
+    { className: 'dsh-my-guardian-row-head' },
     createElement(
-      'div',
-      { className: 'dsh-my-guardian-row-head' },
-      createElement(
-        'span',
-        { className: 'dsh-my-guardian-source' },
-        source === 'staged' ? strings.staged() : strings.promoted(),
-      ),
-      createElement('span', { className: 'dsh-my-guardian-name', title: entry.id }, entry.name),
-      createElement(
-        'span',
-        { className: `dsh-my-guardian-badge dsh-my-guardian-${entry.status}` },
-        statusLabel(entry.status),
-      ),
+      'span',
+      { className: 'dsh-my-guardian-source' },
+      source === 'staged' ? strings.staged() : strings.promoted(),
     ),
+    createElement('span', { className: 'dsh-my-guardian-name', title: entry.id }, entry.name),
     createElement(
-      'div',
-      { className: 'dsh-my-guardian-row-meta' },
-      createElement('span', null, entry.id),
-      entry.attempts > 0
-        ? createElement('span', { className: 'dsh-my-guardian-attempts' }, `×${entry.attempts}`)
-        : null,
+      'span',
+      { className: `dsh-my-guardian-badge dsh-my-guardian-badge-${entry.status}` },
+      statusLabel(entry.status),
     ),
-    hasError
-      ? createElement(
-          'button',
-          {
-            className: 'dsh-my-guardian-link',
-            onClick: () => setExpanded(!expanded),
-          },
-          expanded ? '▾ 收起' : '▸ 错误详情',
-        )
+  )
+}
+
+/** Row meta: entry id + failure attempts + last failure time. */
+function RowMeta({ entry }) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-guardian-row-meta' },
+    createElement('span', null, entry.id),
+    entry.attempts > 0
+      ? createElement('span', { className: 'dsh-my-guardian-attempts' }, strings.attempts(entry.attempts))
       : null,
-    expanded && hasError ? createElement('pre', { className: 'dsh-my-guardian-error' }, entry.lastError) : null,
+    typeof entry.lastFailedAt === 'number' && Number.isFinite(entry.lastFailedAt)
+      ? createElement('span', null, formatTime(entry.lastFailedAt))
+      : null,
+  )
+}
+
+/** Expandable error-detail toggle (chevron + label). */
+function ErrorToggle({ expanded, onToggle }) {
+  return createElement(
+    'button',
+    {
+      type: 'button',
+      className: 'dsh-my-guardian-link',
+      onClick: onToggle,
+    },
+    expanded ? icon.chevronDown(12) : icon.chevronRight(12),
+    expanded ? strings.collapseError() : strings.expandError(),
+  )
+}
+
+/** Inline remove confirmation (destructive, red). */
+function RemoveConfirm({ busy, onConfirm, onCancel }) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-guardian-confirm' },
     createElement(
       'div',
-      { className: 'dsh-my-guardian-actions' },
-      entry.status === 'failed' || entry.status === 'frozen'
-        ? createElement(
-            'button',
-            {
-              className: 'dsh-my-guardian-btn dsh-my-guardian-primary',
-              onClick: () => onAction('retry', entry),
-            },
-            strings.retry(),
-          )
-        : null,
+      { className: 'dsh-my-guardian-confirm-head' },
+      icon.trash(15),
+      createElement('div', { className: 'dsh-my-guardian-confirm-text' }, strings.removeConfirm()),
+    ),
+    createElement('div', { className: 'dsh-my-guardian-confirm-desc' }, strings.removeConfirmDesc()),
+    createElement(
+      'div',
+      { className: 'dsh-my-guardian-confirm-actions' },
       createElement(
         'button',
         {
-          className: 'dsh-my-guardian-btn',
-          onClick: () => onAction('remove', entry),
+          type: 'button',
+          className: 'dsh-my-guardian-confirm-ok',
+          disabled: busy,
+          onClick: onConfirm,
         },
-        strings.remove(),
+        icon.trash(14),
+        strings.confirmRemove(),
+      ),
+      createElement(
+        'button',
+        {
+          type: 'button',
+          className: 'dsh-my-guardian-confirm-cancel',
+          disabled: busy,
+          onClick: onCancel,
+        },
+        icon.close(14),
+        strings.cancel(),
       ),
     ),
+  )
+}
+
+/** Row actions: retry (refresh) + remove (trash) circular icon buttons. */
+function RowActions({ entry, busy, onRetry, onRemove }) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-guardian-actions' },
+    entry.status === 'failed' || entry.status === 'frozen'
+      ? createElement(
+          'button',
+          {
+            type: 'button',
+            className: 'dsh-my-guardian-iconbtn dsh-my-guardian-iconbtn-success',
+            'aria-label': strings.retry(),
+            title: strings.retry(),
+            disabled: busy,
+            onClick: onRetry,
+          },
+          icon.refresh(15),
+        )
+      : null,
+    createElement(
+      'button',
+      {
+        type: 'button',
+        className: 'dsh-my-guardian-iconbtn dsh-my-guardian-iconbtn-danger',
+        'aria-label': strings.remove(),
+        title: strings.remove(),
+        disabled: busy,
+        onClick: onRemove,
+      },
+      icon.trash(15),
+    ),
+  )
+}
+
+function EntryRow({ entry, source, onAction }) {
+  const [expanded, setExpanded] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const hasError = typeof entry.lastError === 'string' && entry.lastError !== ''
+
+  const run = (kind) => {
+    setBusy(true)
+    Promise.resolve(onAction(kind, entry)).finally(() => setBusy(false))
+  }
+
+  return createElement(
+    'div',
+    { className: 'dsh-my-guardian-row' },
+    createElement(RowHead, { entry, source }),
+    createElement(RowMeta, { entry }),
+    hasError ? createElement(ErrorToggle, { expanded, onToggle: () => setExpanded(!expanded) }) : null,
+    expanded && hasError ? createElement('pre', { className: 'dsh-my-guardian-error-detail' }, entry.lastError) : null,
+    confirming
+      ? createElement(RemoveConfirm, {
+          busy,
+          onConfirm: () => {
+            setConfirming(false)
+            run('remove')
+          },
+          onCancel: () => setConfirming(false),
+        })
+      : null,
+    createElement(RowActions, {
+      entry,
+      busy,
+      onRetry: () => run('retry'),
+      onRemove: () => setConfirming(true),
+    }),
   )
 }

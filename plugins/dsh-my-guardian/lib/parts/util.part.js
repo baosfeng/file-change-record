@@ -16,19 +16,31 @@ const strings = {
       : 'Skips every staged/promoted plugin mount — fast recovery',
   staged: () => (isZh() ? '候选' : 'staged'),
   promoted: () => (isZh() ? '转正' : 'promoted'),
-  empty: () =>
+  entries: () => (isZh() ? '插件条目' : 'Plugin entries'),
+  empty: () => (isZh() ? '暂无候选插件' : 'No staged plugins'),
+  emptyHint: () =>
     isZh()
-      ? '暂无候选插件。新插件请写入 cordis.staged.json（与 cordis.patch.yml 同目录）'
-      : 'No staged plugins. Add entries to cordis.staged.json next to cordis.patch.yml',
+      ? '新插件请写入 cordis.staged.json（与 cordis.patch.yml 同目录），启动后自动加载'
+      : 'Add entries to cordis.staged.json next to cordis.patch.yml — they load on startup',
   running: () => (isZh() ? '运行中' : 'running'),
   pending: () => (isZh() ? '待加载' : 'pending'),
   failed: () => (isZh() ? '失败' : 'failed'),
   frozen: () => (isZh() ? '冻结' : 'frozen'),
   retry: () => (isZh() ? '重试' : 'Retry'),
   remove: () => (isZh() ? '移除' : 'Remove'),
+  removeConfirm: () => (isZh() ? '移除该插件条目？' : 'Remove this plugin entry?'),
+  removeConfirmDesc: () =>
+    isZh()
+      ? '将从名册中卸载并移除，候选区文件不受影响'
+      : 'Unmounts and drops it from the roster; the staged file is untouched',
+  cancel: () => (isZh() ? '取消' : 'Cancel'),
+  confirmRemove: () => (isZh() ? '确认移除' : 'Remove'),
+  expandError: () => (isZh() ? '错误详情' : 'Error details'),
+  collapseError: () => (isZh() ? '收起' : 'Collapse'),
   loadError: () => (isZh() ? '加载失败' : 'Load failed'),
   loading: () => (isZh() ? '加载中…' : 'Loading…'),
   events: () => (isZh() ? '最近事件' : 'Recent events'),
+  attempts: (n) => (isZh() ? `失败 ${n} 次` : `failed ×${n}`),
 }
 
 // ── api ───────────────────────────────────────────────────────────────
@@ -68,4 +80,42 @@ function statusLabel(status) {
     default:
       return status
   }
+}
+
+// ── event log ─────────────────────────────────────────────────────────
+// Event type → badge label + color variant (mirrors the dfa-op chip style).
+const EVENT_LABELS = {
+  promote: () => (isZh() ? '转正' : 'Promoted'),
+  'entry-init': () => (isZh() ? '初始化' : 'Init'),
+  'entry-dispose': () => (isZh() ? '释放' : 'Disposed'),
+  quarantine: () => (isZh() ? '隔离' : 'Quarantined'),
+  freeze: () => (isZh() ? '冻结' : 'Frozen'),
+  'update-failed': () => (isZh() ? '更新失败' : 'Update failed'),
+  safe: () => (isZh() ? '安全模式' : 'Safe mode'),
+  'safe-mode': () => (isZh() ? '安全模式' : 'Safe mode'),
+  skip: () => (isZh() ? '跳过' : 'Skipped'),
+}
+
+/** Badge color variant for an event type; unknown types fall back to the
+ *  neutral tertiary chip. */
+function eventVariant(type) {
+  switch (type) {
+    case 'promote':
+      return 'success'
+    case 'entry-init':
+      return 'accent'
+    case 'quarantine':
+    case 'update-failed':
+      return 'danger'
+    case 'freeze':
+    case 'safe':
+    case 'safe-mode':
+      return 'warn'
+    default:
+      return 'neutral'
+  }
+}
+
+function eventLabel(type) {
+  return (EVENT_LABELS[type] ?? (() => type))()
 }

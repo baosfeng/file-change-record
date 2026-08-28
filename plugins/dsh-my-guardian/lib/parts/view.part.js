@@ -31,7 +31,7 @@ function useGuardianState(visible) {
   const onAction = (kind, entry) => {
     const request = { id: entry.id }
     const path = kind === 'retry' ? 'retry' : 'remove'
-    api(path, request)
+    return api(path, request)
       .then(() => load())
       .catch(() => setLoadFailed(true))
   }
@@ -42,23 +42,47 @@ function useGuardianState(visible) {
       .catch(() => setLoadFailed(true))
   }
 
-  return { state, loadFailed, onAction, onSafeMode }
+  return { state, loadFailed, reload: load, onAction, onSafeMode }
 }
 
-/** Safe-mode switch header: checkbox + hint, wired to the host API. */
+/** Visual switch (role=switch): track + sliding thumb, checked = enabled.
+ *  Semantics match the previous checkbox exactly: clicking reports the NEW
+ *  checked state via onToggle. */
+function Switch({ checked, disabled, label, onToggle }) {
+  return createElement(
+    'button',
+    {
+      type: 'button',
+      role: 'switch',
+      'aria-checked': checked,
+      'aria-label': label,
+      className: `dsh-my-guardian-switch${checked ? ' dsh-my-guardian-switch-on' : ''}`,
+      disabled,
+      onClick: onToggle,
+    },
+    createElement(
+      'span',
+      { className: 'dsh-my-guardian-switch-track' },
+      createElement('span', { className: 'dsh-my-guardian-switch-thumb' }),
+    ),
+  )
+}
+
+/** Safe-mode switch bar: icon + title + switch + hint, wired to the host API. */
 function SafeModeBar({ safeMode, onSafeMode }) {
   return createElement(
     'div',
-    { className: 'dsh-my-guardian-safemode' },
+    { className: `dsh-my-guardian-safemode${safeMode ? ' dsh-my-guardian-safemode-on' : ''}` },
     createElement(
-      'label',
-      null,
-      createElement('input', {
-        type: 'checkbox',
+      'div',
+      { className: 'dsh-my-guardian-safemode-head' },
+      createElement('span', { className: 'dsh-my-guardian-safemode-icon' }, icon.settings(16)),
+      createElement('span', { className: 'dsh-my-guardian-safemode-title' }, strings.safeMode()),
+      createElement(Switch, {
         checked: safeMode === true,
-        onChange: (event) => onSafeMode(event.target.checked),
+        label: strings.safeMode(),
+        onToggle: () => onSafeMode(!safeMode),
       }),
-      createElement('span', null, strings.safeMode()),
     ),
     createElement('div', { className: 'dsh-my-guardian-hint' }, strings.safeModeDesc()),
   )
@@ -67,29 +91,45 @@ function SafeModeBar({ safeMode, onSafeMode }) {
 /** Staged + promoted entries as rows; empty state when there are none. */
 function EntryList({ rows, onAction }) {
   if (rows.length === 0) {
-    return createElement('div', { className: 'dsh-my-guardian-empty' }, strings.empty())
+    return createElement(
+      'div',
+      { className: 'dsh-my-guardian-empty' },
+      createElement('span', { className: 'dsh-my-guardian-empty-icon' }, icon.folder(20)),
+      strings.empty(),
+      createElement('span', { className: 'dsh-my-guardian-empty-hint' }, strings.emptyHint()),
+    )
   }
   return createElement(
     'div',
-    { className: 'dsh-my-guardian-list' },
-    rows.map(({ entry, source }) =>
-      createElement(EntryRow, {
-        key: `${source}:${entry.id}`,
-        entry,
-        source,
-        onAction,
-      }),
+    { className: 'dsh-my-guardian-section' },
+    createElement(
+      'div',
+      { className: 'dsh-my-guardian-section-head' },
+      createElement('span', { className: 'dsh-my-guardian-section-title' }, strings.entries()),
+      createElement('span', { className: 'dsh-my-guardian-section-count' }, String(rows.length)),
+    ),
+    createElement(
+      'div',
+      { className: 'dsh-my-guardian-list' },
+      rows.map(({ entry, source }) =>
+        createElement(EntryRow, {
+          key: `${source}:${entry.id}`,
+          entry,
+          source,
+          onAction,
+        }),
+      ),
     ),
   )
 }
 
-/** Recent guardian event log lines (time-stamped, one per entry). */
+/** Recent guardian event log: badge + key info + time per entry. */
 function EventList({ events }) {
   if (events.length === 0) return null
   return createElement(
     'div',
     { className: 'dsh-my-guardian-events' },
-    createElement('div', { className: 'dsh-my-guardian-events-title' }, strings.events()),
+    createElement('div', { className: 'dsh-my-guardian-events-title' }, icon.clock(14), strings.events()),
     events.map((event, index) =>
       createElement(
         'div',
@@ -98,17 +138,28 @@ function EventList({ events }) {
           key: index,
           title: event.message,
         },
-        `${formatTime(event.time)} [${event.type}] ${event.message}`,
+        createElement(
+          'span',
+          { className: `dsh-my-guardian-event-badge dsh-my-guardian-event-${eventVariant(event.type)}` },
+          eventLabel(event.type),
+        ),
+        createElement('span', { className: 'dsh-my-guardian-event-message' }, event.message),
+        createElement('span', { className: 'dsh-my-guardian-event-time' }, formatTime(event.time)),
       ),
     ),
   )
 }
 
 function GuardianView({ visible }) {
-  const { state, loadFailed, onAction, onSafeMode } = useGuardianState(visible)
+  const { state, loadFailed, reload, onAction, onSafeMode } = useGuardianState(visible)
 
   if (!state.loaded && !loadFailed) {
-    return createElement('div', { className: 'dsh-my-guardian-styles-placeholder' }, strings.loading())
+    return createElement(
+      'div',
+      { className: 'dsh-my-guardian-loading' },
+      createElement('span', { className: 'dsh-my-guardian-loading-icon' }, icon.refresh(14)),
+      strings.loading(),
+    )
   }
 
   const rows = [
@@ -118,9 +169,26 @@ function GuardianView({ visible }) {
 
   return createElement(
     'div',
-    { className: 'dsh-my-guardian-panel' },
+    { className: 'dsh-my-guardian-root' },
     createElement(SafeModeBar, { safeMode: state.safeMode, onSafeMode }),
-    loadFailed ? createElement('div', { className: 'dsh-my-guardian-error' }, strings.loadError()) : null,
+    loadFailed
+      ? createElement(
+          'div',
+          { className: 'dsh-my-guardian-error' },
+          createElement('span', { className: 'dsh-my-guardian-error-text' }, strings.loadError()),
+          createElement(
+            'button',
+            {
+              type: 'button',
+              className: 'dsh-my-guardian-iconbtn dsh-my-guardian-iconbtn-xs',
+              'aria-label': strings.retry(),
+              title: strings.retry(),
+              onClick: reload,
+            },
+            icon.refresh(14),
+          ),
+        )
+      : null,
     createElement(EntryList, { rows, onAction }),
     createElement(EventList, { events: state.events }),
   )
