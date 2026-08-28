@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-08-28
+
+### 变更
+
+- feat(ui): dsh-my-guardian 插件治理面板翻新——开关/图标/日志层级（issue #54）
+- refactor(shared): 抽取 dsh-shared 共享工具包，10 个插件迁移消除重复实现（issue #45）
+- chore(deps): 升级 react 19 兼容性——13 个插件 peer 声明 ^18.2.0 || ^19.2.0（issue #49）
+- style(format): 全仓 prettier 格式化（issue #44）
+- fix(ci): 并行化后的两个失败——Syntax check 对无 lib 的插件（dsh-plugin-dev-mode）用 if 结构；guardian waitFor 超时 3s→10s（并行环境更稳）
+
 ## [0.3.1] - 2026-08-27
 
 ### 变更
