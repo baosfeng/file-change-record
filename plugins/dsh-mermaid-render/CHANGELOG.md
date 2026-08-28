@@ -2,6 +2,15 @@
 
 本文件记录 dsh-mermaid-render 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.4] - 2026-08-28
+
+### 变更
+
+- feat(ui): dsh-mermaid-render 卡片翻新——图标/前缀/状态（issue #54）
+- chore(deps): 升级 react 19 兼容性——13 个插件 peer 声明 ^18.2.0 || ^19.2.0（issue #49）
+- style(format): 全仓 prettier 格式化（issue #44）
+- docs+test: 全面审查修复——文档同步补全 + mermaid 测试增强
+
 ## [0.1.3] - 2026-08-25
 
 ### 变更
