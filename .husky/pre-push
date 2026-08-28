@@ -1,0 +1,2 @@
+# 本地一键全量校验：push 前对齐 CI 全部门禁（默认不含 audit/mutation，详见 scripts/verify-local.mjs）
+node scripts/verify-local.mjs

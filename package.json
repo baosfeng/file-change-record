@@ -12,6 +12,7 @@
     "jscpd": "jscpd",
     "test": "bash scripts/test-all.sh",
     "test:scripts": "vitest run --coverage --config scripts/test/vitest.config.mjs",
+    "verify": "node scripts/verify-local.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky"
