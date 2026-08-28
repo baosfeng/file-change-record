@@ -9,7 +9,8 @@ import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { normalizeConfig, readConfigFile, writeConfigFile, findProjectRoot, globalConfigFile } from '../lib/config.js'
+import { findProjectRoot } from 'dsh-shared'
+import { normalizeConfig, readConfigFile, writeConfigFile, globalConfigFile } from '../lib/config.js'
 import { createDisablerProvider, disabledNamesOf } from '../lib/provider.js'
 
 const dir = mkdtempSync(join(tmpdir(), 'dsm-provider-test-'))

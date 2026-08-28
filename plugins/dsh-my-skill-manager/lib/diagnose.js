@@ -23,7 +23,7 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { findProjectRoot } from './config.js'
+import { findProjectRoot } from 'dsh-shared'
 
 /** 官方 skill 名语法：kebab-case（与 dsh-skill 的 SKILL_NAME 一致）。 */
 const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/

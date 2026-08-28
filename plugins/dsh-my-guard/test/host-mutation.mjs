@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { isTrustedApiRequest } from '../lib/fence.js'
+import { isTrustedApiRequest } from 'dsh-shared'
 import { stateFile } from '../lib/store.js'
 import { commandOf, sessionIdOf } from '../lib/guard.js'
 import {

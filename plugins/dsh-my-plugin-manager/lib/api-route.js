@@ -9,7 +9,7 @@
  * Every request passes the trust fence first; responses are JSON with
  * cache-control: no-cache.
  */
-import { readJsonBody, writeError, writeJson } from './http.js'
+import { readJsonBody, writeError, writeJson } from 'dsh-shared'
 import { installedVersionOf, installPlugin, uninstallPlugin, outdatedPlugins } from './manage.js'
 import { searchNpmPlugins } from './registry.js'
 

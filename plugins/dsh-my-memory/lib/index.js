@@ -17,7 +17,7 @@
  *    保存绿色）。
  */
 import { createApiHandler } from './api-route.js'
-import { isTrustedApiRequest } from './fence.js'
+import { isTrustedApiRequest } from 'dsh-shared'
 import { createMemorySection } from './prompt.js'
 import { createStore, globalMemoryFile, projectMemoryFileOf } from './store.js'
 import { createMemoryQueryTool } from './tool.js'

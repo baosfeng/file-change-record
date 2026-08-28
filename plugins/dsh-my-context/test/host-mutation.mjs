@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import { rmSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { isTrustedApiRequest } from '../lib/fence.js'
+import { isTrustedApiRequest } from 'dsh-shared'
 import { bootPlugin, mockRequest, mockResponse, invoke, jsonOf, settle } from './lib/helpers.mjs'
 
 const disposeAlls = []
@@ -410,7 +410,7 @@ test('meter: estimateToolSchema and estimateText malformed inputs', async () => 
 })
 
 test('fence: loopback hostname variants', async () => {
-  const { isTrustedApiRequest } = await import('../lib/fence.js')
+  const { isTrustedApiRequest } = await import('dsh-shared')
   assert.equal(isTrustedApiRequest(mockRequest({ host: '127.0.0.1:3080' }), []), true)
   assert.equal(isTrustedApiRequest(mockRequest({ host: '127.255.255.255:3080' }), []), true)
   assert.equal(isTrustedApiRequest(mockRequest({ host: '256.0.0.1:3080' }), []), false)

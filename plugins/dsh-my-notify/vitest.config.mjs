@@ -8,7 +8,7 @@ export default defineConfig({
     include: ['test/*.mjs'],
     coverage: {
       ...root.test.coverage,
-      include: ['lib/index.js', 'lib/config-store.js', 'lib/routes.js'],
+      include: ['lib/index.js', 'lib/routes.js'],
     },
   },
 })

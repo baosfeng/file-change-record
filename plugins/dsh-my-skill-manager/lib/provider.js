@@ -14,7 +14,7 @@
  */
 import { readConfigFile, globalConfigFile, readProjectConfig } from './config.js'
 
-export const PROVIDER_NAME = 'my-skill-manager'
+const PROVIDER_NAME = 'my-skill-manager'
 /** Below every filesystem rank (100–500) and the runtime rank (250). */
 const DISABLED_RANK = 0
 

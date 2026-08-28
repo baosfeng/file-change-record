@@ -37,7 +37,7 @@
 import { createNoticeBus } from './notice.js'
 import { attachListeners } from './listeners.js'
 import { registerNotifyRoutes } from './routes.js'
-import { currentProfile, patchFileOf, writePatchConfig } from './config-store.js'
+import { currentProfile, patchFileOf, writePatchConfig } from 'dsh-shared'
 
 export const name = 'dsh-my-notify'
 

@@ -9,7 +9,7 @@ import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { isTrustedApiRequest } from '../lib/fence.js'
+import { isTrustedApiRequest } from 'dsh-shared'
 import {
   bootPlugin,
   createTempHome,

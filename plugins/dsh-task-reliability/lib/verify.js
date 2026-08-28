@@ -116,7 +116,7 @@ export async function runVerification(ctx, store, task, agent, save) {
   continueWithConclusion(task, agent, save, conclusion)
 }
 
-export function parseConclusion(text) {
+function parseConclusion(text) {
   if (typeof text !== 'string' || text === '') return undefined
   try {
     const start = text.indexOf('{')

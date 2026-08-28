@@ -13,7 +13,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { extractConfig, writePatchConfig, patchFileOf, profileDirOf, currentProfile } from '../lib/config-store.js'
+import { extractConfig, writePatchConfig, patchFileOf, profileDirOf, currentProfile } from 'dsh-shared'
 
 const tmpDirs = []
 

@@ -13,8 +13,8 @@
  * Every request passes the trust fence first; responses are JSON with
  * cache-control: no-cache.
  */
-import { readJsonBody, writeError, writeJson } from './http.js'
-import { findProjectRoot } from './store.js'
+import { readJsonBody, writeError, writeJson } from 'dsh-shared'
+import { findProjectRoot } from 'dsh-shared'
 
 /** The cwd query parameter, normalized to undefined when absent. */
 function cwdOf(url) {

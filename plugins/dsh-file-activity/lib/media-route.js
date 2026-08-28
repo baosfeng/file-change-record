@@ -10,7 +10,8 @@
  */
 import { readFile, stat } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
-import { sessionCwdOf, writeJson } from './http.js'
+import { writeJson } from 'dsh-shared'
+import { sessionCwdOf } from './cwd.js'
 import { isRecordedPath } from './state.js'
 
 /** Cap for the plugin's own media route (bytes): images / PDFs only. */

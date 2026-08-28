@@ -14,13 +14,13 @@
  * State (recent history + per-file counts) is kept per session and persisted
  * to $DSH_HOME/file-activity.json (atomic tmp+rename, debounced).
  */
-import { isTrustedApiRequest } from './fence.js'
+import { isTrustedApiRequest } from 'dsh-shared'
 import { createApiHandler } from './api-route.js'
 import { createMediaHandler } from './media-route.js'
 import { createFsObserver } from './observer.js'
 import { createStore } from './store.js'
 import { parseBashFileOps } from './bash-parse.js'
-import { sessionCwdOf } from './http.js'
+import { sessionCwdOf } from './cwd.js'
 
 export const name = 'dsh-file-activity'
 

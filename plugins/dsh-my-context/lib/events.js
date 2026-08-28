@@ -16,7 +16,7 @@ import { estimateMessage, estimateSystem, estimateTools, isEmptyMessage } from '
 import { checkBudget } from './budget.js'
 
 /** 告警冷却（同一会话同一 scope 的重复告警间隔，防刷屏）。 */
-export const ALERT_COOLDOWN_MS = 60000
+const ALERT_COOLDOWN_MS = 60000
 
 /** 注册全部上下文监听；返回 disposer 数组（全部经 ctx.on 注册）。 */
 export function attachContextListeners(ctx, store, options) {

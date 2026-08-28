@@ -44,7 +44,7 @@ describe('import/no-unresolved（issue #48）', () => {
 
   it('server 端：node: 内置模块与存在的相对路径 → 不报错', async () => {
     const rules = await lintRules(
-      "import { join } from 'node:path'\nimport { isTrustedApiRequest } from './fence.js'\nexport const ok = join('a', 'b')",
+      "import { join } from 'node:path'\nimport { sessionCwdOf } from './cwd.js'\nexport const ok = join('a', 'b')",
       serverFile,
     )
     expect(rules).not.toContain('import/no-unresolved')

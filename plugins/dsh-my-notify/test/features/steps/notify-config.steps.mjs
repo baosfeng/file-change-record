@@ -9,7 +9,7 @@ import { When, Then } from '@cucumber/cucumber'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { parsePairs } from './world.mjs'
-import { extractConfig, patchFileOf } from '../../../lib/config-store.js'
+import { extractConfig, patchFileOf } from 'dsh-shared'
 
 // ── When ──────────────────────────────────────────────────────────────────
 When('读取配置接口', async function () {

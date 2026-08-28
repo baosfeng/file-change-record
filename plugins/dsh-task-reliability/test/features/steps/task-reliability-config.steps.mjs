@@ -9,7 +9,7 @@
 import { When, Then } from '@cucumber/cucumber'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { extractConfig, patchFileOf } from '../../../lib/config-store.js'
+import { extractConfig, patchFileOf } from 'dsh-shared'
 
 /** 解析 "key=value key2=value2" 为对象（布尔/数字/字符串）。 */
 function parsePairs(text) {

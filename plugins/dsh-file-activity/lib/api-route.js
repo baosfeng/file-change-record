@@ -3,7 +3,8 @@
  * Every request passes the trust fence first; responses are JSON with
  * cache-control: no-cache.
  */
-import { readJsonBody, sessionCwdOf, writeError, writeJson } from './http.js'
+import { readJsonBody, writeError, writeJson } from 'dsh-shared'
+import { sessionCwdOf } from './cwd.js'
 import { mapOp } from './state.js'
 
 export function createApiHandler({ ctx, store, fence }) {

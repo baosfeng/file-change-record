@@ -11,7 +11,7 @@ import { join } from 'node:path'
 import { randomId } from './util.js'
 import { STORE_FILE, MAX_DESC } from './constants.js'
 
-export function defaultStore() {
+function defaultStore() {
   return {
     version: 1,
     tasks: [],
@@ -85,7 +85,7 @@ export function taskById(store, id) {
   return store.tasks.find((task) => task.id === id)
 }
 
-export function findQuestionById(store, id) {
+function findQuestionById(store, id) {
   return store.questions.find((question) => question.id === id)
 }
 

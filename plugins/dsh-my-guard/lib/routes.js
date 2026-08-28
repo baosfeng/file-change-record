@@ -8,7 +8,7 @@
  *  - POST /scan-prompt             — 提示注入检测（body { text }）
  *  - POST /alerts/confirm          — 确认告警（body { id }，用户确认机制）
  */
-import { isTrustedApiRequest } from './fence.js'
+import { isTrustedApiRequest, readJsonBody, writeJson, writeError } from 'dsh-shared'
 import { resolveAndScan, localPathOf } from './poison.js'
 import { detectPromptInjection } from './injection.js'
 
@@ -160,26 +160,4 @@ function limitOf(url) {
   const raw = url.searchParams.get('limit')
   const parsed = raw === null ? 0 : Number(raw)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
-}
-
-/** Read a JSON request body (bounded). */
-async function readJsonBody(request) {
-  let body = ''
-  for await (const chunk of request) {
-    body += chunk
-    if (body.length > 1_000_000) throw new Error('request body too large')
-  }
-  if (body === '') return {}
-  return JSON.parse(body)
-}
-
-function writeJson(response, status, value) {
-  const payload = JSON.stringify(value)
-  response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-cache' })
-  response.end(payload)
-}
-
-function writeError(response, error) {
-  const message = error instanceof Error ? error.message : String(error)
-  writeJson(response, 400, { ok: false, error: { message } })
 }

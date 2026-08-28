@@ -10,7 +10,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createApiHandler, isOfficialModule } from '../../../lib/api-route.js'
-import { isTrustedApiRequest } from '../../../lib/fence.js'
+import { isTrustedApiRequest } from 'dsh-shared'
 
 class World {
   constructor() {

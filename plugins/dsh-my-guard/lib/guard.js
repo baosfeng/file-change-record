@@ -13,7 +13,7 @@
  * 是否覆盖；observe 模式一律原样返回下游决策。绝不吞掉 next()。
  */
 import { DESTRUCTIVE_PATTERNS, GUARD_MODES } from './constants.js'
-import { resolveAndScan } from './poison.js'
+import { scanPackageTarget } from './poison.js'
 
 /** 注册执行前护栏监听器；返回 disposer。 */
 export function attachGuardListener(ctx, options, recordAlert) {
@@ -47,20 +47,6 @@ export function attachGuardListener(ctx, options, recordAlert) {
     }
     return decision
   })
-}
-
-/** 扫描包目标（fire-and-forget 调用方负责 void）；发现可疑内容逐条回调告警。 */
-export async function scanPackageTarget(pkg, onAlert) {
-  const result = await resolveAndScan(pkg)
-  if (!result.ok) return
-  for (const finding of result.findings) {
-    onAlert({
-      type: 'poison',
-      severity: finding.severity,
-      message: finding.message,
-      detail: { file: finding.file, pattern: finding.pattern, target: pkg },
-    })
-  }
 }
 
 /** 从 exec 提取 bash 命令文本（非 bash 工具返回空串）。 */

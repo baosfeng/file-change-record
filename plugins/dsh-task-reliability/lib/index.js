@@ -49,12 +49,13 @@ import { join } from 'node:path'
 import { homedir } from 'node:os'
 
 import { loadStore, saveStore } from './store.js'
-import { isTrustedApiRequest } from './fence.js'
+import { isTrustedApiRequest } from 'dsh-shared'
 import { resumeActiveTasks, runWatchdog } from './verify.js'
 import { registerListeners } from './events.js'
 import { createApi } from './api.js'
 import { registerTaskCommand } from './command.js'
-import { currentProfile, patchFileOf, writePatchConfig } from './config-store.js'
+import { currentProfile, patchFileOf, writePatchConfig } from 'dsh-shared'
+import { configToPlain } from './util.js'
 import {
   RETRYABLE_CODES,
   RETRY_MAX,
@@ -132,26 +133,6 @@ function buildOptionsFrom(c) {
     askTimeoutMs: nonNegInt(c.askTimeoutMs, ASK_TIMEOUT_MS),
     watchdogIntervalMs: nonNegInt(c.watchdogIntervalMs, WATCHDOG_INTERVAL_MS),
     stallTimeoutMs: positiveInt(c.stallTimeoutMs, STALL_TIMEOUT_MS),
-  }
-}
-
-/** options → 可序列化纯对象（retryableCodes Set → 数组），供 patch 文件写入。 */
-function configToPlain(options) {
-  return {
-    apiToken: options.apiToken,
-    retryMax: options.retryMax,
-    maxLoop: options.maxLoop,
-    maxVerify: options.maxVerify,
-    retryableCodes: [...options.retryableCodes],
-    retryBaseMs: options.retryBaseMs,
-    autopilot: options.autopilot,
-    steerCooldownMs: options.steerCooldownMs,
-    saveDebounceMs: options.saveDebounceMs,
-    resumeGraceMs: options.resumeGraceMs,
-    rateMaxActions: options.rateMaxActions,
-    askTimeoutMs: options.askTimeoutMs,
-    watchdogIntervalMs: options.watchdogIntervalMs,
-    stallTimeoutMs: options.stallTimeoutMs,
   }
 }
 

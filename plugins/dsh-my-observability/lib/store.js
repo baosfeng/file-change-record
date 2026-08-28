@@ -9,12 +9,13 @@
  *    缓冲在 pending，加载后回放），重启后完整恢复；
  *  - 全局事件上限（MAX_TOTAL_EVENTS），超限按会话轮转淘汰最旧会话事件。
  */
-import { rename, writeFile, readFile, mkdir } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
+import { atomicWriteJson } from 'dsh-shared'
 import { homedir } from 'node:os'
-import { join, dirname } from 'node:path'
+import { join } from 'node:path'
 
-export const MAX_EVENTS_PER_SESSION = 2000
-export const MAX_TOTAL_EVENTS = 20000
+const MAX_EVENTS_PER_SESSION = 2000
+const MAX_TOTAL_EVENTS = 20000
 
 /** 审计数据文件：$DSH_HOME/observability/audit.json（fallback ~/.dsh/…）。 */
 export function stateFile() {
@@ -24,7 +25,7 @@ export function stateFile() {
 }
 
 /** 初始空状态。 */
-export function createState() {
+function createState() {
   return { version: 1, bySession: {} }
 }
 
@@ -195,20 +196,8 @@ function isValidEvent(event) {
 
 /** 原子写当前状态（经 dirtyChain 串行化；自动建目录）。 */
 function persistNow(handle) {
-  const snapshot = JSON.stringify(handle.store.state)
-  const tmp = `${handle.file}.tmp-${process.pid}`
   handle.dirtyChain = handle.dirtyChain
-    .then(async () => {
-      try {
-        await mkdir(dirname(handle.file), { recursive: true })
-        await writeFile(tmp, snapshot, 'utf8')
-        await rename(tmp, handle.file)
-      } catch (error) {
-        handle.ctx.logger?.warn(
-          `[dsh-my-observability] persist failed: ${error instanceof Error ? error.message : String(error)}`,
-        )
-      }
-    })
+    .then(() => atomicWriteJson(handle.file, handle.store.state, handle.ctx.logger, '[dsh-my-observability]'))
     .catch(() => {})
 }
 

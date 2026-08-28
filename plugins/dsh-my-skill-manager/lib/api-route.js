@@ -16,15 +16,9 @@
  * Every request passes the trust fence first; responses are JSON with
  * cache-control: no-cache.
  */
-import { readJsonBody, writeError, writeJson } from './http.js'
-import {
-  readConfigFile,
-  readProjectConfig,
-  globalConfigFile,
-  projectConfigFileOf,
-  writeConfigFile,
-  findProjectRoot,
-} from './config.js'
+import { readJsonBody, writeError, writeJson } from 'dsh-shared'
+import { findProjectRoot } from 'dsh-shared'
+import { readConfigFile, readProjectConfig, globalConfigFile, projectConfigFileOf, writeConfigFile } from './config.js'
 import { scanSkillRoots, viewRootsOf } from './diagnose.js'
 
 /** 项目来源判定：官方 source 值中 project 前缀只有 project-dsh / project-agents。 */

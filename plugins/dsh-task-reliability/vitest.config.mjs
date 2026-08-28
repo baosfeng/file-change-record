@@ -22,7 +22,7 @@ export default defineConfig({
         'lib/verify.js',
         'lib/events.js',
         'lib/api.js',
-        'lib/config-store.js',
+
         'lib/command.js',
       ],
       thresholds: {

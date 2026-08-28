@@ -1,5 +1,6 @@
 /**
- * dsh-task-reliability — 配置持久化（issue #27 配置可视化）。
+ * dsh-shared — 配置持久化（issue #27 配置可视化；由 dsh-my-notify /
+ * dsh-task-reliability 的 lib/config-store.js 抽取合并，issue #45）。
  *
  * DSH 插件配置 = cordis loader patch 行的 `config` 字段。用户层 patch
  * 文件为 `$DSH_HOME/profiles/<profile>/cordis.patch.yml`（profile 层）与

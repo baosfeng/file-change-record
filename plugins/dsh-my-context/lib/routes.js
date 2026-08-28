@@ -8,7 +8,7 @@
  *  - GET  /alerts?sessionId=       — 预算告警列表（最新在前）
  *  - POST /budget                  — 更新预算配置（body { perTurn, perSession, mode }）
  */
-import { isTrustedApiRequest } from './fence.js'
+import { isTrustedApiRequest, readJsonBody, writeError, writeJson } from 'dsh-shared'
 import { normalizeBudgetConfig } from './budget.js'
 
 /** 注册 /context/api 路由（effect 持有 disposer）。 */
@@ -126,26 +126,4 @@ async function handleBudget(request, response, options) {
 
 function queryOf(url, name) {
   return url.searchParams.get(name) ?? ''
-}
-
-/** Read a JSON request body (bounded). */
-async function readJsonBody(request) {
-  let body = ''
-  for await (const chunk of request) {
-    body += chunk
-    if (body.length > 1_000_000) throw new Error('request body too large')
-  }
-  if (body === '') return {}
-  return JSON.parse(body)
-}
-
-function writeJson(response, status, value) {
-  const payload = JSON.stringify(value)
-  response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-cache' })
-  response.end(payload)
-}
-
-function writeError(response, error) {
-  const message = error instanceof Error ? error.message : String(error)
-  writeJson(response, 400, { ok: false, error: { message } })
 }

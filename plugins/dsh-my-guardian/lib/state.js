@@ -20,13 +20,13 @@ export const ERROR_SNIP = 300
 
 /** Unique suffix for temp files (same-process instances must not collide). */
 let tmpSeq = 0
-export function uniqueSuffix() {
+function uniqueSuffix() {
   tmpSeq += 1
   return `${process.pid}-${Date.now().toString(36)}-${tmpSeq}`
 }
 
 /** Guardian state dir: $DSH_HOME/guardian (fallback: ~/.dsh/guardian). */
-export function guardianDir() {
+function guardianDir() {
   const home = process.env.DSH_HOME
   if (typeof home === 'string' && home !== '') return join(home, 'guardian')
   return join(homedir(), '.dsh', 'guardian')
@@ -50,7 +50,7 @@ export async function loadState() {
 }
 
 /** Persist state atomically (tmp + rename). Never throws to callers. */
-export async function persistState(state) {
+async function persistState(state) {
   const dir = guardianDir()
   const file = join(dir, 'state.json')
   const tmp = `${file}.tmp-${uniqueSuffix()}`

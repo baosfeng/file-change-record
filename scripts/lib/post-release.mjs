@@ -9,7 +9,7 @@
 import { execSync } from 'node:child_process'
 
 /** 轮询 GitHub API 确认 Release 已创建（tag push 后 workflow 需时间跑）。 */
-export async function waitForRelease(tag, timeoutMs = 300000) {
+async function waitForRelease(tag, timeoutMs = 300000) {
   const token = process.env.GH_TOKEN
   if (!token) return { ok: false, skipped: true }
   const deadline = Date.now() + timeoutMs
@@ -28,7 +28,7 @@ export async function waitForRelease(tag, timeoutMs = 300000) {
 }
 
 /** 确认 npm 已发布目标版本（npm view <pkg> version）。 */
-export async function waitForNpm(pkgName, version, timeoutMs = 300000) {
+async function waitForNpm(pkgName, version, timeoutMs = 300000) {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     try {

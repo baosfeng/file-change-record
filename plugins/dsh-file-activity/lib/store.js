@@ -4,7 +4,7 @@
  * (tmp+rename) and a teardown flush. The exposed store object carries a live
  * `state` reference so route handlers always read the current document.
  */
-import { rename, writeFile } from 'node:fs/promises'
+import { atomicWriteJson } from 'dsh-shared'
 import { applyRecord, createState, loadState, mapOp, stateFile, trimLoadedState } from './state.js'
 
 /** Build the per-apply store: { state, record, schedulePersist, dispose }. */
@@ -30,19 +30,8 @@ export function createStore(ctx) {
 
 /** Write the current state atomically (serialized through dirtyChain). */
 function persistNow(handle) {
-  const snapshot = JSON.stringify(handle.store.state)
-  const tmp = `${handle.file}.tmp-${process.pid}`
   handle.dirtyChain = handle.dirtyChain
-    .then(async () => {
-      try {
-        await writeFile(tmp, snapshot, 'utf8')
-        await rename(tmp, handle.file)
-      } catch (error) {
-        handle.ctx.logger?.warn(
-          `[dsh-file-activity] persist failed: ${error instanceof Error ? error.message : String(error)}`,
-        )
-      }
-    })
+    .then(() => atomicWriteJson(handle.file, handle.store.state, handle.ctx.logger, '[dsh-file-activity]'))
     .catch(() => {})
 }
 

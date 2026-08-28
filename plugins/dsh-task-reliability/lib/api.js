@@ -6,8 +6,8 @@
  * 及任务状态操作；所有请求先过 loopback 信任围栏，写操作要求 apiToken。
  */
 
-import { header } from './util.js'
-import { readJsonBody, writeJson, writeError } from './fence.js'
+import { configToPlain, header } from './util.js'
+import { readJsonBody, writeJson, writeError } from 'dsh-shared'
 import { registerTask, taskById, finishTask, answerQuestion } from './store.js'
 
 /** apiToken 校验：未配置 token 时放行，配置后要求请求头一致。 */
@@ -58,30 +58,10 @@ async function dispatchGet(method, request, response, shared) {
     return true
   }
   if (method === 'config') {
-    writeJson(response, 200, { ok: true, value: configValue(shared.options) })
+    writeJson(response, 200, { ok: true, value: configToPlain(shared.options) })
     return true
   }
   return false
-}
-
-/** 当前生效配置（设置页表单回填；retryableCodes Set → 数组）。 */
-function configValue(options) {
-  return {
-    apiToken: options.apiToken,
-    retryMax: options.retryMax,
-    maxLoop: options.maxLoop,
-    maxVerify: options.maxVerify,
-    retryableCodes: [...options.retryableCodes],
-    retryBaseMs: options.retryBaseMs,
-    autopilot: options.autopilot,
-    steerCooldownMs: options.steerCooldownMs,
-    saveDebounceMs: options.saveDebounceMs,
-    resumeGraceMs: options.resumeGraceMs,
-    rateMaxActions: options.rateMaxActions,
-    askTimeoutMs: options.askTimeoutMs,
-    watchdogIntervalMs: options.watchdogIntervalMs,
-    stallTimeoutMs: options.stallTimeoutMs,
-  }
 }
 
 // ── POST 路由 ──────────────────────────────────────────────────────────────

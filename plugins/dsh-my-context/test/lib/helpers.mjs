@@ -11,11 +11,11 @@ import { join } from 'node:path'
 import { apply } from '../../lib/index.js'
 
 /** 临时 DSH_HOME 目录（配合 cleanupHome 使用）。 */
-export function createTempHome(prefix = 'dsh-context-test-') {
+function createTempHome(prefix = 'dsh-context-test-') {
   return mkdtempSync(join(tmpdir(), prefix))
 }
 
-export function cleanupHome(home) {
+function cleanupHome(home) {
   rmSync(home, { recursive: true, force: true })
 }
 

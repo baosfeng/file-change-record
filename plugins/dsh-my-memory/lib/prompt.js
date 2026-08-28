@@ -13,10 +13,10 @@
  */
 
 /** Default cap on how many global memories are injected. */
-export const DEFAULT_MAX_ITEMS = 5
+const DEFAULT_MAX_ITEMS = 5
 
 /** Default cap on one injected memory's desc length (characters). */
-export const DEFAULT_MAX_DESC_LENGTH = 200
+const DEFAULT_MAX_DESC_LENGTH = 200
 
 /** Truncate one desc to the length cap (keeps the head). */
 export function truncateDesc(desc, maxLength) {

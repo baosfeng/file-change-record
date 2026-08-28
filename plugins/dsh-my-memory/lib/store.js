@@ -16,10 +16,11 @@
  * without touching disk; load() restores the cache at startup (restart
  * recovery).
  */
-import { readFile, rename, stat, writeFile } from 'node:fs/promises'
+import { readFile, rename, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { mkdir } from 'node:fs/promises'
+import { findProjectRoot } from 'dsh-shared'
 
 /** Global memory file: $DSH_HOME/memory.json (fallback ~/.dsh/memory.json). */
 export function globalMemoryFile() {
@@ -29,7 +30,7 @@ export function globalMemoryFile() {
 }
 
 /** Empty memory document. */
-export function emptyMemory() {
+function emptyMemory() {
   return { items: [] }
 }
 
@@ -75,7 +76,7 @@ function isMemoryItem(item) {
 }
 
 /** Write one memory file atomically (tmp + rename); creates the directory. */
-export async function writeMemoryFile(file, memory) {
+async function writeMemoryFile(file, memory) {
   await mkdir(dirname(file), { recursive: true })
   const tmp = `${file}.tmp-${process.pid}`
   await writeFile(tmp, JSON.stringify(memory, null, 2), 'utf8')
@@ -88,27 +89,8 @@ export async function projectMemoryFileOf(cwd) {
   return join(root, '.dsh', 'memory.json')
 }
 
-/**
- * Find the project root for a cwd: nearest ancestor containing a `.git`
- * directory; falls back to cwd itself. Returns cwd when nothing is found.
- */
-export async function findProjectRoot(cwd) {
-  let current = cwd
-  for (;;) {
-    try {
-      const st = await stat(join(current, '.git'))
-      if (st.isDirectory()) return current
-    } catch {
-      // no .git here — keep walking up
-    }
-    const parent = dirname(current)
-    if (parent === current) return cwd
-    current = parent
-  }
-}
-
 /** New memory item id: mem-<epoch>-<random>. */
-export function newMemoryId(now = Date.now()) {
+function newMemoryId(now = Date.now()) {
   return `mem-${now}-${Math.random().toString(36).slice(2, 8)}`
 }
 

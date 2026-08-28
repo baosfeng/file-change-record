@@ -7,14 +7,8 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import {
-  createStore,
-  findProjectRoot,
-  globalMemoryFile,
-  normalizeMemory,
-  projectMemoryFileOf,
-  readMemoryFile,
-} from '../lib/store.js'
+import { findProjectRoot } from 'dsh-shared'
+import { createStore, globalMemoryFile, normalizeMemory, projectMemoryFileOf, readMemoryFile } from '../lib/store.js'
 
 const dir = mkdtempSync(join(tmpdir(), 'dmm-store-test-'))
 process.env.DSH_HOME = dir

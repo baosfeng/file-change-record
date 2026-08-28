@@ -15,7 +15,7 @@ import { mkdtempSync, rmSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { apply } from '../lib/index.js'
-import { extractConfig, patchFileOf } from '../lib/config-store.js'
+import { extractConfig, patchFileOf } from 'dsh-shared'
 
 const tmpDirs = []
 const disposeAlls = []

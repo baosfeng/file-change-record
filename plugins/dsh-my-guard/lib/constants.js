@@ -6,22 +6,8 @@
  *  - INJECTION_RULES      — 提示注入检测规则（规则 + 启发式）
  *  - SUSPICIOUS_SCRIPT_PATTERNS / SECRET_PATTERNS / SUSPICIOUS_FILES /
  *    MALICIOUS_DEPENDENCIES — 投毒扫描检测项
- *  - ALERT_*              — 告警类型/严重度/上限
+ *  - MAX_ALERTS / GUARD_MODES — 告警上限与护栏模式
  */
-
-/** 告警类型。 */
-export const ALERT_TYPES = {
-  DESTRUCTIVE: 'destructive',
-  POISON: 'poison',
-  INJECTION: 'injection',
-}
-
-/** 严重度。 */
-export const SEVERITIES = {
-  HIGH: 'high',
-  MEDIUM: 'medium',
-  LOW: 'low',
-}
 
 /** 告警存储上限（FIFO 淘汰）。 */
 export const MAX_ALERTS = 500

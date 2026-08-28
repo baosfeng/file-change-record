@@ -1,0 +1,41 @@
+# language: zh-CN
+# 需求来源：issue #45（工程配置：dependabot/renovate + knip/jscpd 代码质量检测）
+# 验收基准：fence.mjs / http.mjs 的 Gherkin 化表达；共享工具包行为与抽取前各插件实现一致
+
+功能: 共享工具包（dsh-shared）
+  作为 DSH 插件开发者
+  我想要使用统一的信任围栏与 HTTP JSON 工具
+  以便多插件共用实现、消除复制粘贴（issue #45）
+
+  场景: loopback 请求放行
+    假如 请求 host 为 "127.0.0.1:3080"
+    那么 信任围栏判定为可信
+
+  场景: 非 loopback 且无受信权威时拒绝
+    假如 请求 host 为 "evil.example.com" 且无受信权威
+    那么 信任围栏判定为不可信
+
+  场景: 受信权威放行
+    假如 请求 host 为 "dsh.local:3080" 且受信权威含 "dsh.local"
+    那么 信任围栏判定为可信
+
+  场景: cross-site 请求拒绝
+    假如 请求 host 为 "127.0.0.1:3080" 且 sec-fetch-site 为 "cross-site"
+    那么 信任围栏判定为不可信
+
+  场景: 跨源 origin 拒绝
+    假如 请求 host 为 "127.0.0.1:3080" 且 origin 为 "http://evil.example.com"
+    那么 信任围栏判定为不可信
+
+  场景: JSON 请求体读取
+    假如 请求体为 "{\"a\":1}"
+    当 读取 JSON 请求体
+    那么 得到对象 "{\"a\":1}"
+
+  场景: JSON 响应写入
+    当 写入 JSON 响应 状态码 200 值 "{\"ok\":true}"
+    那么 响应状态码为 200 且内容为 "{\"ok\":true}"
+
+  场景: 错误响应写入
+    当 写入错误响应 消息 "boom"
+    那么 响应状态码为 400 且内容含错误消息 "boom"

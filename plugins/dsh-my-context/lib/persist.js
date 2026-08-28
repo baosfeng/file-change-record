@@ -6,13 +6,13 @@
  *  - 防抖 500ms + 原子写 tmp+rename（经 dirtyChain 串行化）；
  *  - 加载完成前 handle.pending 缓冲的变更在加载后回放（不丢事件）。
  */
-import { rename, writeFile, readFile, mkdir } from 'node:fs/promises'
-import { dirname } from 'node:path'
+import { readFile } from 'node:fs/promises'
+import { atomicWriteJson } from 'dsh-shared'
 import { createState, createSession, zeroUsage, zeroComposition } from './state.js'
 import { MAX_REQUESTS_PER_SESSION, MAX_ALERTS_PER_SESSION } from './constants.js'
 
 /** 防抖间隔（ms）。 */
-export const PERSIST_DEBOUNCE_MS = 500
+const PERSIST_DEBOUNCE_MS = 500
 
 /** 挂载持久化到 store handle（load 异步启动；dispose 冲刷）。 */
 export function attachPersistence(handle) {
@@ -95,20 +95,8 @@ function copyObject(target, raw, key, fallback) {
 
 /** 原子写当前状态（经 dirtyChain 串行化；自动建目录）。 */
 function persistNow(handle) {
-  const snapshot = JSON.stringify(handle.store.state)
-  const tmp = `${handle.file}.tmp-${process.pid}`
   handle.dirtyChain = handle.dirtyChain
-    .then(async () => {
-      try {
-        await mkdir(dirname(handle.file), { recursive: true })
-        await writeFile(tmp, snapshot, 'utf8')
-        await rename(tmp, handle.file)
-      } catch (error) {
-        handle.ctx.logger?.warn(
-          `[dsh-my-context] persist failed: ${error instanceof Error ? error.message : String(error)}`,
-        )
-      }
-    })
+    .then(() => atomicWriteJson(handle.file, handle.store.state, handle.ctx.logger, '[dsh-my-context]'))
     .catch(() => {})
 }
 

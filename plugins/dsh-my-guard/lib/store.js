@@ -9,9 +9,10 @@
  *    加载后回放），重启后完整恢复；
  *  - confirm(id) 标记告警已确认（用户确认机制）。
  */
-import { rename, writeFile, readFile, mkdir } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
+import { atomicWriteJson } from 'dsh-shared'
 import { homedir } from 'node:os'
-import { join, dirname } from 'node:path'
+import { join } from 'node:path'
 import { MAX_ALERTS } from './constants.js'
 
 /** 告警数据文件：$DSH_HOME/guard/alerts.json（fallback ~/.dsh/…）。 */
@@ -22,7 +23,7 @@ export function stateFile() {
 }
 
 /** 初始空状态。 */
-export function createState() {
+function createState() {
   return { version: 1, alerts: [] }
 }
 
@@ -154,20 +155,8 @@ function isValidAlert(alert) {
 
 /** 原子写当前状态（经 dirtyChain 串行化；自动建目录）。 */
 function persistNow(handle) {
-  const snapshot = JSON.stringify(handle.store.state)
-  const tmp = `${handle.file}.tmp-${process.pid}`
   handle.dirtyChain = handle.dirtyChain
-    .then(async () => {
-      try {
-        await mkdir(dirname(handle.file), { recursive: true })
-        await writeFile(tmp, snapshot, 'utf8')
-        await rename(tmp, handle.file)
-      } catch (error) {
-        handle.ctx.logger?.warn(
-          `[dsh-my-guard] persist failed: ${error instanceof Error ? error.message : String(error)}`,
-        )
-      }
-    })
+    .then(() => atomicWriteJson(handle.file, handle.store.state, handle.ctx.logger, '[dsh-my-guard]'))
     .catch(() => {})
 }
 

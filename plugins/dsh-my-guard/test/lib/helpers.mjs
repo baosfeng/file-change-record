@@ -15,7 +15,7 @@ export function createTempHome(prefix = 'dsh-guard-test-') {
   return mkdtempSync(join(tmpdir(), prefix))
 }
 
-export function cleanupHome(home) {
+function cleanupHome(home) {
   rmSync(home, { recursive: true, force: true })
 }
 

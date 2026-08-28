@@ -7,9 +7,9 @@
  * assistant/tool 分类），以及请求总 token 的构成拆分。
  */
 
-export const CHARS_PER_TOKEN = 4
-export const BLOCK_OVERHEAD = 4
-export const ROLE_OVERHEAD = 4
+const CHARS_PER_TOKEN = 4
+const BLOCK_OVERHEAD = 4
+const ROLE_OVERHEAD = 4
 
 /** 纯文本估算：ceil(len/4) + block 开销。 */
 export function estimateText(text) {

@@ -3,7 +3,10 @@
  *
  * 最底层工具模块：不依赖任何其他 lib 模块（仅标准库全局）。
  * 提供 ID 生成、延时、超时包装、请求头读取与消息构造。
+ * withTimeout / userMessage 由 dsh-shared 提供（issue #45 抽取），
+ * 此处 re-export 保持本模块 API 面不变。
  */
+export { withTimeout, userMessage } from 'dsh-shared'
 
 export function randomId(prefix) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-4)}`
@@ -11,22 +14,6 @@ export function randomId(prefix) {
 
 export function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-export function withTimeout(promise, ms) {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(undefined), ms)
-    Promise.resolve(promise).then(
-      (value) => {
-        clearTimeout(timer)
-        resolve(value)
-      },
-      () => {
-        clearTimeout(timer)
-        resolve(undefined)
-      },
-    )
-  })
 }
 
 export function header(headers, name) {
@@ -46,11 +33,22 @@ export function blocksText(blocks) {
     .trim()
 }
 
-export function userMessage(text) {
+/** options → 可序列化纯对象（retryableCodes Set → 数组），供 patch 文件写入/API 回填。 */
+export function configToPlain(options) {
   return {
-    id: `msg-${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`,
-    role: 'user',
-    content: [{ type: 'text', text }],
-    source: { kind: 'user' },
+    apiToken: options.apiToken,
+    retryMax: options.retryMax,
+    maxLoop: options.maxLoop,
+    maxVerify: options.maxVerify,
+    retryableCodes: [...options.retryableCodes],
+    retryBaseMs: options.retryBaseMs,
+    autopilot: options.autopilot,
+    steerCooldownMs: options.steerCooldownMs,
+    saveDebounceMs: options.saveDebounceMs,
+    resumeGraceMs: options.resumeGraceMs,
+    rateMaxActions: options.rateMaxActions,
+    askTimeoutMs: options.askTimeoutMs,
+    watchdogIntervalMs: options.watchdogIntervalMs,
+    stallTimeoutMs: options.stallTimeoutMs,
   }
 }

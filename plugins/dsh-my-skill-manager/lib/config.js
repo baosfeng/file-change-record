@@ -16,10 +16,11 @@
  * applies to every project. Reads are defensive: missing/corrupt files
  * degrade to empty lists; writes are atomic (tmp+rename).
  */
-import { readFile, rename, stat, writeFile } from 'node:fs/promises'
+import { readFile, rename, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { mkdir } from 'node:fs/promises'
+import { findProjectRoot } from 'dsh-shared'
 
 /** Global config file: $DSH_HOME/skills.enabled.json (fallback ~/.dsh/...). */
 export function globalConfigFile() {
@@ -29,7 +30,7 @@ export function globalConfigFile() {
 }
 
 /** Empty config document. */
-export function emptyConfig() {
+function emptyConfig() {
   return { global: { disabled: [] }, project: { disabled: [] } }
 }
 
@@ -74,23 +75,4 @@ export async function projectConfigFileOf(cwd) {
 /** Read the project config for a cwd (missing/corrupt → empty config). */
 export async function readProjectConfig(cwd) {
   return readConfigFile(await projectConfigFileOf(cwd))
-}
-
-/**
- * Find the project root for a cwd: nearest ancestor containing a `.git`
- * directory; falls back to cwd itself. Returns cwd when nothing is found.
- */
-export async function findProjectRoot(cwd) {
-  let current = cwd
-  for (;;) {
-    try {
-      const st = await stat(join(current, '.git'))
-      if (st.isDirectory()) return current
-    } catch {
-      // no .git here — keep walking up
-    }
-    const parent = dirname(current)
-    if (parent === current) return cwd
-    current = parent
-  }
 }

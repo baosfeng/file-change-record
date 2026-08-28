@@ -11,7 +11,7 @@
  * The project scope resolves its cwd from the calling agent's session
  * (`exec.agent.session.header.cwd`) unless the model passes one explicitly.
  */
-import { findProjectRoot } from './store.js'
+import { findProjectRoot } from 'dsh-shared'
 
 /** Filter items by a keyword substring (case-insensitive); no filter when empty. */
 export function filterItems(items, keyword) {

@@ -13,7 +13,7 @@
  *  - Client：官方 slots 注册「设置 → 插件」下的 Skill 管理页签（纯官方
  *    依赖，不依赖 dsh-better-sidebar）。
  */
-import { isTrustedApiRequest } from './fence.js'
+import { isTrustedApiRequest } from 'dsh-shared'
 import { createApiHandler } from './api-route.js'
 import { createDisablerProvider } from './provider.js'
 

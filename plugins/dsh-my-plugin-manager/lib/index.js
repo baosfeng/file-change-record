@@ -10,29 +10,12 @@
  * 安装/卸载通过 `dsh plugin --profile <p> add|remove` 落盘（与 CLI 同一
  * 数据源），新插件在下次重启时由 loader（或 guardian 候选区）加载。
  */
-import { join } from 'node:path'
-import { homedir } from 'node:os'
-import { isTrustedApiRequest } from './fence.js'
+import { currentProfile, isTrustedApiRequest, profileDirOf } from 'dsh-shared'
 import { createApiHandler } from './api-route.js'
 
 export const name = 'dsh-my-plugin-manager'
 
 export const inject = ['pluginInventory', 'webServer', 'webRuntime']
-
-/** Profile 名：进程参数 --profile 优先，否则默认 web。 */
-export function currentProfile() {
-  const argv = process.argv
-  const idx = argv.indexOf('--profile')
-  if (idx !== -1 && typeof argv[idx + 1] === 'string' && argv[idx + 1] !== '') return argv[idx + 1]
-  return 'web'
-}
-
-/** Profile 目录：$DSH_HOME/profiles/<profile>（fallback ~/.dsh/profiles/…）。 */
-export function profileDirOf(profile) {
-  const home = process.env.DSH_HOME
-  const base = typeof home === 'string' && home !== '' ? `${home}/profiles` : `${homedir()}/.dsh/profiles`
-  return join(base, profile)
-}
 
 export function apply(ctx) {
   const profile = currentProfile()

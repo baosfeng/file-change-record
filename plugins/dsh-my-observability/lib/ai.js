@@ -10,6 +10,7 @@
  * 参考 dsh-task-reliability 的校验 agent 模式（agents.create + whenIdle
  * 超时 + dispose）。
  */
+import { withTimeout, userMessage } from 'dsh-shared'
 import { REVIEW_TIMEOUT_MS } from './constants.js'
 
 /** diff 送入 prompt 的最大长度（截断防 token 爆炸）。 */
@@ -121,33 +122,6 @@ function issuesOf(raw) {
 function extractJsonBlock(text) {
   const match = /```(?:json)?\s*([\s\S]*?)```/.exec(text)
   return match !== null ? match[1].trim() : undefined
-}
-
-// ── helpers（与 dsh-task-reliability 同契约的轻量实现）────────────────────
-
-function withTimeout(promise, ms) {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(undefined), ms)
-    Promise.resolve(promise).then(
-      (value) => {
-        clearTimeout(timer)
-        resolve(value)
-      },
-      () => {
-        clearTimeout(timer)
-        resolve(undefined)
-      },
-    )
-  })
-}
-
-function userMessage(text) {
-  return {
-    id: `msg-${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`,
-    role: 'user',
-    content: [{ type: 'text', text }],
-    source: { kind: 'user' },
-  }
 }
 
 function lastAssistantText(session) {

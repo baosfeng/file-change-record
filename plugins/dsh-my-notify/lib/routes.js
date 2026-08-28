@@ -5,7 +5,7 @@
  * EventSource 长连接（心跳保活，卸载清理），trigger 为远程 webhook（可选
  * apiToken 校验），info 返回当前触发开关。
  */
-import { isTrustedApiRequest, header } from './fence.js'
+import { isTrustedApiRequest, header, readJsonBody, writeJson, writeError } from 'dsh-shared'
 
 /** 注册 /notify/api 路由与心跳清理（两个 effect，各自返回 disposer）。 */
 export function registerNotifyRoutes(ctx, options, bus, onConfigChange) {
@@ -186,25 +186,3 @@ async function handleConfigPut(request, response, onConfigChange) {
 }
 
 // ── HTTP helpers（与仓库其它插件的路由写法一致）─────────────────────────
-
-/** Read a JSON request body (bounded). */
-async function readJsonBody(request) {
-  let body = ''
-  for await (const chunk of request) {
-    body += chunk
-    if (body.length > 1_000_000) throw new Error('request body too large')
-  }
-  if (body === '') return {}
-  return JSON.parse(body)
-}
-
-function writeJson(response, status, value) {
-  const payload = JSON.stringify(value)
-  response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-cache' })
-  response.end(payload)
-}
-
-function writeError(response, error) {
-  const message = error instanceof Error ? error.message : String(error)
-  writeJson(response, 400, { ok: false, error: { message } })
-}

@@ -37,7 +37,8 @@ const registryMock = vi.hoisted(() => ({
 }))
 vi.mock('../lib/registry.js', () => registryMock)
 
-const { apply, currentProfile, profileDirOf } = await import('../lib/index.js')
+const { apply } = await import('../lib/index.js')
+const { currentProfile, profileDirOf } = await import('dsh-shared')
 
 test('currentProfile / profileDirOf resolve defaults', () => {
   assert.equal(currentProfile(), 'web')
