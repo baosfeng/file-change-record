@@ -15,7 +15,8 @@ const strings = {
   kindRemote: () => (isZh() ? '提示' : 'Notice'),
   untitled: (short) =>
     isZh() ? (short !== '' ? `会话 ${short}` : '会话') : short !== '' ? `Session ${short}` : 'Session',
-  hintClick: () => (isZh() ? '点击查看会话' : 'Click to view session'),
+  openSession: () => (isZh() ? '打开会话' : 'Open session'),
+  closeToast: () => (isZh() ? '关闭通知' : 'Dismiss notification'),
   // 设置页（issue #27 配置可视化）
   settingsTitle: () => (isZh() ? '通知提醒' : 'Notifications'),
   settingsTriggers: () => (isZh() ? '触发开关' : 'Triggers'),

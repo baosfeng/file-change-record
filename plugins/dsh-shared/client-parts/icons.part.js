@@ -82,6 +82,15 @@ const icon = {
       ],
       size,
     ),
+  help: (size = 16) =>
+    iconSvg(
+      [
+        createElement('circle', { cx: 12, cy: 12, r: 9 }),
+        createElement('path', { d: 'M9.1 9.2a3 3 0 0 1 5.8 1.2c0 1.8-2.7 2.4-2.7 3.6' }),
+        createElement('line', { x1: 12, y1: 17.2, x2: 12.01, y2: 17.2 }),
+      ],
+      size,
+    ),
   // ── generic action icons (issue #54 阶段 0) ─────────────────────────────
   // Added for the upcoming plugin UI refresh: save/confirm (check), add/
   // install (plus), market search (search), settings entry (settings).

@@ -1,38 +1,38 @@
 // ── 设置页视图：配置可视化（issue #27，官方 slots 扩展点）──────────
 const SETTINGS_STYLES = `
-.dns-settings{display:flex;flex-direction:column;gap:10px;padding:12px}
-.dns-section{display:flex;flex-direction:column;gap:8px}
-.dns-section-title{font:var(--dsw-font-xs-strong-13);color:var(--dsw-alias-label-secondary)}
-.dns-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-2)}
-.dns-info{display:flex;flex-direction:column;gap:2px;min-width:0}
-.dns-label{font:var(--dsw-font-xs-strong-13)}
-.dns-hint{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary);line-height:1.5}
-.dns-toggle{flex:none;width:34px;height:20px;border-radius:10px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);position:relative;cursor:pointer;transition:background 120ms var(--ds-ease-in-out)}
-.dns-toggle[data-on="true"]{background:var(--dsw-alias-state-info-primary);border-color:transparent}
-.dns-toggle::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--dsw-alias-label-primary);transition:transform 120ms var(--ds-ease-in-out)}
-.dns-toggle[data-on="true"]::after{transform:translateX(12px)}
-.dns-input{flex:none;width:180px;height:28px;padding:0 8px;border-radius:6px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xxs-12)}
-.dns-actions{display:flex;align-items:center;gap:8px}
-.dns-btn{height:28px;padding:0 14px;border-radius:6px;cursor:pointer;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-interactive-bg);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xxs-12)}
-.dns-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}
-.dns-saved{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-state-success-primary)}
-.dns-error{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-state-danger-primary)}
-.dns-status{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary)}
+.dsh-my-notify-settings{display:flex;flex-direction:column;gap:10px;padding:12px}
+.dsh-my-notify-section{display:flex;flex-direction:column;gap:8px}
+.dsh-my-notify-section-title{font:var(--dsw-font-xs-strong-13);color:var(--dsw-alias-label-secondary)}
+.dsh-my-notify-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-2)}
+.dsh-my-notify-info{display:flex;flex-direction:column;gap:2px;min-width:0}
+.dsh-my-notify-label{font:var(--dsw-font-xs-strong-13)}
+.dsh-my-notify-hint{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary);line-height:1.5}
+.dsh-my-notify-toggle{flex:none;width:34px;height:20px;border-radius:10px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);position:relative;cursor:pointer;transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+.dsh-my-notify-toggle[data-on="true"]{background:var(--dsw-alias-state-success-primary);border-color:transparent}
+.dsh-my-notify-toggle::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--dsw-alias-label-primary);transition:transform var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+.dsh-my-notify-toggle[data-on="true"]::after{transform:translateX(12px)}
+.dsh-my-notify-input{flex:none;width:180px;height:28px;padding:0 8px;border-radius:6px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xxs-12)}
+.dsh-my-notify-actions{display:flex;align-items:center;gap:8px}
+.dsh-my-notify-btn{height:28px;padding:0 14px;border-radius:6px;cursor:pointer;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-interactive-bg);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xxs-12)}
+.dsh-my-notify-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.dsh-my-notify-saved{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-state-success-primary)}
+.dsh-my-notify-error{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-state-danger-primary)}
+.dsh-my-notify-status{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary)}
 `
 
 /** 开关行（布尔配置项）。 */
 function SwitchRow({ label, hint, on, onChange }) {
   return createElement(
     'div',
-    { className: 'dns-row' },
+    { className: 'dsh-my-notify-row' },
     createElement(
       'div',
-      { className: 'dns-info' },
-      createElement('div', { className: 'dns-label' }, label),
-      createElement('div', { className: 'dns-hint' }, hint),
+      { className: 'dsh-my-notify-info' },
+      createElement('div', { className: 'dsh-my-notify-label' }, label),
+      createElement('div', { className: 'dsh-my-notify-hint' }, hint),
     ),
     createElement('div', {
-      className: 'dns-toggle',
+      className: 'dsh-my-notify-toggle',
       'data-on': String(on),
       role: 'switch',
       'aria-checked': String(on),
@@ -45,15 +45,15 @@ function SwitchRow({ label, hint, on, onChange }) {
 function TextRow({ label, hint, value, onChange, type }) {
   return createElement(
     'div',
-    { className: 'dns-row' },
+    { className: 'dsh-my-notify-row' },
     createElement(
       'div',
-      { className: 'dns-info' },
-      createElement('div', { className: 'dns-label' }, label),
-      createElement('div', { className: 'dns-hint' }, hint),
+      { className: 'dsh-my-notify-info' },
+      createElement('div', { className: 'dsh-my-notify-label' }, label),
+      createElement('div', { className: 'dsh-my-notify-hint' }, hint),
     ),
     createElement('input', {
-      className: 'dns-input',
+      className: 'dsh-my-notify-input',
       type: type ?? 'text',
       value,
       onChange: (event) => onChange(event.target.value),
@@ -65,11 +65,11 @@ function TextRow({ label, hint, value, onChange, type }) {
 function renderSettingsForm(draft, patch, save, saved, error) {
   return createElement(
     'div',
-    { className: 'dns-settings' },
+    { className: 'dsh-my-notify-settings' },
     createElement(
       'div',
-      { className: 'dns-section' },
-      createElement('div', { className: 'dns-section-title' }, strings.settingsTriggers()),
+      { className: 'dsh-my-notify-section' },
+      createElement('div', { className: 'dsh-my-notify-section-title' }, strings.settingsTriggers()),
       createElement(SwitchRow, {
         label: strings.settingsEnd(),
         hint: strings.settingsEndHint(),
@@ -97,8 +97,8 @@ function renderSettingsForm(draft, patch, save, saved, error) {
     ),
     createElement(
       'div',
-      { className: 'dns-section' },
-      createElement('div', { className: 'dns-section-title' }, strings.settingsAdvanced()),
+      { className: 'dsh-my-notify-section' },
+      createElement('div', { className: 'dsh-my-notify-section-title' }, strings.settingsAdvanced()),
       createElement(TextRow, {
         label: strings.settingsApiToken(),
         hint: strings.settingsApiTokenHint(),
@@ -115,10 +115,10 @@ function renderSettingsForm(draft, patch, save, saved, error) {
     ),
     createElement(
       'div',
-      { className: 'dns-actions' },
-      createElement('button', { className: 'dns-btn', onClick: save }, strings.save()),
-      saved ? createElement('span', { className: 'dns-saved' }, strings.saved()) : null,
-      error ? createElement('span', { className: 'dns-error' }, strings.saveFailed()) : null,
+      { className: 'dsh-my-notify-actions' },
+      createElement('button', { className: 'dsh-my-notify-btn', onClick: save }, strings.save()),
+      saved ? createElement('span', { className: 'dsh-my-notify-saved' }, strings.saved()) : null,
+      error ? createElement('span', { className: 'dsh-my-notify-error' }, strings.saveFailed()) : null,
     ),
   )
 }
@@ -166,15 +166,15 @@ function NotifySettingsView() {
   if (loading) {
     return createElement(
       'div',
-      { className: 'dns-settings' },
-      createElement('div', { className: 'dns-status' }, strings.loading()),
+      { className: 'dsh-my-notify-settings' },
+      createElement('div', { className: 'dsh-my-notify-status' }, strings.loading()),
     )
   }
   if (config === null) {
     return createElement(
       'div',
-      { className: 'dns-settings' },
-      createElement('div', { className: 'dns-error' }, strings.loadError()),
+      { className: 'dsh-my-notify-settings' },
+      createElement('div', { className: 'dsh-my-notify-error' }, strings.loadError()),
     )
   }
   const patch = (key, value) => setDraft({ ...draft, [key]: value })

@@ -35,6 +35,9 @@ window.__ModuleLoader__.load({
     // ── i18n 文案与本地偏好（lib/parts/i18n.js）────────────────────────
     /*__PART_I18N__*/
 
+    // ── 共享图标（dsh-shared/client-parts/icons.part.js，issue #54）────
+    /*__PART_ICONS__*/
+
     // ── 通知渲染：内容构造 / 提示音 / toast / 系统通知 / 样式 ───────────
     /*__PART_NOTIFY_RENDER__*/
 
