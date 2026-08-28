@@ -9,14 +9,17 @@
  *    profile via `dsh plugin add`; a restart loads them).
  *
  * Data source: GET/POST /my-plugin-manager/api/* (server half). Styling follows
- * the DSH design language: semantic tokens, flat surfaces, hairline borders.
+ * the DSH design language (issue #54): semantic tokens, flat surfaces, hairline
+ * borders, shared linear icons (dsh-shared client-parts), brand badges and
+ * icon buttons — the dsh-file-activity visual baseline.
  *
  * BUILD NOTE: this file is the SOURCE TEMPLATE. scripts/build.mjs splices the
- * `lib/parts/*.part.js` pieces into the PART placeholder markers below
- * (each piece is plain function-declaration text sharing this factory scope;
- * the browser ModuleLoader does not support relative-path require) and writes
- * lib/client.js — the file actually served by DSH, which MUST be committed
- * (CI runs node --check + tests against it, not against this template).
+ * `lib/parts/*.part.js` pieces (plus the shared dsh-shared client-parts) into
+ * the PART placeholder markers below (each piece is plain function-declaration
+ * text sharing this factory scope; the browser ModuleLoader does not support
+ * relative-path require) and writes lib/client.js — the file actually served
+ * by DSH, which MUST be committed (CI runs node --check + tests against it,
+ * not against this template).
  */
 window.__ModuleLoader__.load({
   id: 'dsh-my-plugin-manager',
@@ -29,6 +32,7 @@ window.__ModuleLoader__.load({
     // ── parts (injected by scripts/build.mjs; keep this exact order — the
     //    const initializers below run in splice order) ─────────────────────
     __PART_I18N__
+    __PART_ICONS__
     __PART_STYLES__
     __PART_API__
     __PART_VIEW__

@@ -140,11 +140,10 @@ const texts = []
 walkText(tree, texts)
 const joined = texts.join('|')
 assert.ok(joined.includes('dsh-a'), 'installed plugin name rendered')
-assert.ok(joined.includes('版本 1.0.0'), 'installed version rendered')
+assert.ok(joined.includes('v1.0.0'), 'installed version chip rendered')
 assert.ok(joined.includes('运行中'), 'enabled state label rendered')
 assert.ok(joined.includes('dsh-b'), 'second plugin rendered')
 assert.ok(joined.includes('卸载'), 'uninstall button rendered')
-assert.ok(joined.includes('检查更新'), 'update check button rendered')
 
 // ── update check flow ──────────────────────────────────────────────────────
 cannedResponses.push({
@@ -152,11 +151,23 @@ cannedResponses.push({
   value: { outdated: [{ name: 'dsh-a', current: '1.0.0', latest: '1.1.0' }] },
 })
 const buttons = []
+function textOf(node) {
+  if (node === null || node === undefined || typeof node === 'boolean') return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(textOf).join('')
+  if (typeof node.type === 'function') return textOf(node.type(node.props))
+  return textOf(node.props.children)
+}
 function collectButtons(node) {
   if (node === null || typeof node !== 'object') return
   const props = node.props ?? {}
-  if (typeof props.onClick === 'function' && typeof props.children === 'string') {
-    buttons.push({ label: props.children, onClick: props.onClick })
+  if (typeof props.onClick === 'function') {
+    buttons.push({
+      label: textOf(props.children),
+      title: props.title ?? '',
+      ariaLabel: props['aria-label'] ?? '',
+      onClick: props.onClick,
+    })
   }
   if (Array.isArray(node)) {
     for (const c of node) collectButtons(c)
@@ -169,8 +180,9 @@ function collectButtons(node) {
   collectButtons(props.children)
 }
 collectButtons(tree)
-const checkBtn = buttons.find((b) => b.label === '检查更新')
-assert.ok(checkBtn, 'update check button found')
+// the update check is an icon button (refresh) — find it by its aria-label
+const checkBtn = buttons.find((b) => b.title === '检查更新' || b.ariaLabel === '检查更新' || b.label === '检查更新')
+assert.ok(checkBtn, 'update check icon button found')
 checkBtn.onClick()
 await new Promise((resolve) => setTimeout(resolve, 0))
 const tree2 = renderView()

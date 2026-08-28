@@ -23,10 +23,17 @@ const strings = {
   loading: () => (isZh() ? '加载中…' : 'Loading…'),
   loadError: () => (isZh() ? '加载失败' : 'Load failed'),
   emptyInstalled: () => (isZh() ? '暂无已安装插件' : 'No plugins installed'),
-  emptySearch: () => (isZh() ? '输入关键词搜索 npm 插件市场' : 'Type a query to search the npm plugin market'),
+  emptyInstalledHint: () =>
+    isZh() ? '从市场搜索安装插件后，会显示在这里。' : 'Plugins installed from the market will appear here.',
+  emptySearch: () => (isZh() ? '搜索 npm 插件市场' : 'Search the npm plugin market'),
+  emptySearchHint: () => (isZh() ? '输入关键词，如 dsh-file-activity' : 'Type a keyword, e.g. dsh-file-activity'),
   noResults: () => (isZh() ? '没有匹配的插件' : 'No matching plugins'),
+  noResultsHint: () => (isZh() ? '换个关键词试试' : 'Try a different keyword'),
+  searchFailed: () => (isZh() ? '搜索失败，请重试' : 'Search failed, try again'),
   running: () => (isZh() ? '运行中' : 'running'),
   disabled: () => (isZh() ? '已禁用' : 'disabled'),
+  installing: () => (isZh() ? '安装中…' : 'Installing…'),
+  uninstalling: () => (isZh() ? '卸载中…' : 'Uninstalling…'),
   version: () => (isZh() ? '版本' : 'version'),
   installHint: () =>
     isZh()
