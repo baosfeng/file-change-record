@@ -45,6 +45,7 @@
 - **冒烟测试**：`test/host-smoke.mjs` 覆盖三类触发（含 waterfall `next()` 透传）、子代理过滤、去重、SSE 清理、fence/token 门禁。
 
 **真实环境验证**（独立端口 3081 隔离实例）：
+
 - 真实 agent 完成一轮对话 → SSE 收到 `kind: end` 通知帧；
 - 真实 agent 调用 `ask_user_question` → SSE 收到 `kind: ask` 通知帧（含真实会话标题「通知插件端到端验证」与问题摘要）；
 - `POST /notify/api/trigger` → SSE 广播 `kind: remote` 帧；跨域/非标 host 请求被 403 拒绝。

@@ -89,7 +89,9 @@ function isFlowArray(value) {
 }
 
 function parseFlowArray(value) {
-  return value.slice(1, -1).split(',')
+  return value
+    .slice(1, -1)
+    .split(',')
     .map((item) => parseYamlScalar(item))
     .filter((item) => item !== undefined)
 }

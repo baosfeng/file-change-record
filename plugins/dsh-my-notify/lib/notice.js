@@ -29,7 +29,11 @@ function broadcast(state, notice) {
       client.response.write(payload)
     } catch {
       state.clients.delete(client)
-      try { client.response.destroy() } catch { /* ignore */ }
+      try {
+        client.response.destroy()
+      } catch {
+        /* ignore */
+      }
     }
   }
 }

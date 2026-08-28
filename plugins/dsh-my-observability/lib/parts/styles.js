@@ -1,5 +1,5 @@
-    // ── 样式（DSH 语义 token，随 activation 注入 / teardown 卸载）──────
-    const STYLES = `
+// ── 样式（DSH 语义 token，随 activation 注入 / teardown 卸载）──────
+const STYLES = `
 .dso-panel{display:flex;flex-direction:column;gap:10px;padding:12px;color:var(--dsw-alias-label-primary)}
 .dso-toolbar{display:flex;flex-direction:column;gap:8px}
 .dso-select{flex:1;min-width:0;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-primary);
@@ -56,13 +56,13 @@
   border:1px dashed var(--dsw-alias-border-l2);border-radius:6px;padding:6px 8px}
 `
 
-    function injectStyles() {
-      if (typeof document === 'undefined' || typeof document.head === 'undefined') return () => {}
-      const style = document.createElement('style')
-      style.setAttribute('data-dsh-my-observability', 'styles')
-      style.textContent = STYLES
-      document.head.appendChild(style)
-      return () => {
-        if (style.parentNode !== null) style.parentNode.removeChild(style)
-      }
-    }
+function injectStyles() {
+  if (typeof document === 'undefined' || typeof document.head === 'undefined') return () => {}
+  const style = document.createElement('style')
+  style.setAttribute('data-dsh-my-observability', 'styles')
+  style.textContent = STYLES
+  document.head.appendChild(style)
+  return () => {
+    if (style.parentNode !== null) style.parentNode.removeChild(style)
+  }
+}

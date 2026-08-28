@@ -25,10 +25,13 @@ const stubbed = {
     hookIndex += 1
     if (!hookValues.has(idx)) {
       const value = typeof initial === 'function' ? initial() : initial
-      hookValues.set(idx, [value, (next) => {
-        const current = hookValues.get(idx)[0]
-        hookValues.set(idx, [typeof next === 'function' ? next(current) : next, hookValues.get(idx)[1]])
-      }])
+      hookValues.set(idx, [
+        value,
+        (next) => {
+          const current = hookValues.get(idx)[0]
+          hookValues.set(idx, [typeof next === 'function' ? next(current) : next, hookValues.get(idx)[1]])
+        },
+      ])
     }
     return hookValues.get(idx)
   },
@@ -52,7 +55,11 @@ function renderView() {
 // ── browser globals ────────────────────────────────────────────────────────
 let registered = null
 global.window = {
-  __ModuleLoader__: { load: (registration) => { registered = registration } },
+  __ModuleLoader__: {
+    load: (registration) => {
+      registered = registration
+    },
+  },
   location: { href: 'http://127.0.0.1:3080/app', search: '' },
 }
 Object.defineProperty(global, 'navigator', { value: { language: 'zh-CN' }, configurable: true })
@@ -93,18 +100,32 @@ assert.ok(capturedTab, 'settings tab registered')
 assert.equal(capturedTab.options.id, 'my-plugin-manager')
 
 // ── initial render: installed section loads from the API ───────────────────
-cannedResponses.push({ ok: true, value: { entries: [
-  { moduleName: 'dsh-a', enabled: true, fiberPhase: 'ready', version: '1.0.0' },
-  { moduleName: 'dsh-b', enabled: false, fiberPhase: null, version: '' },
-] } })
+cannedResponses.push({
+  ok: true,
+  value: {
+    entries: [
+      { moduleName: 'dsh-a', enabled: true, fiberPhase: 'ready', version: '1.0.0' },
+      { moduleName: 'dsh-b', enabled: false, fiberPhase: null, version: '' },
+    ],
+  },
+})
 
 const tree0 = renderView()
 const texts0 = []
 function walkText(node, out) {
   if (node === null || node === undefined || typeof node === 'boolean') return
-  if (typeof node === 'string' || typeof node === 'number') { out.push(String(node)); return }
-  if (Array.isArray(node)) { for (const child of node) walkText(child, out); return }
-  if (typeof node.type === 'function') { walkText(node.type(node.props), out); return }
+  if (typeof node === 'string' || typeof node === 'number') {
+    out.push(String(node))
+    return
+  }
+  if (Array.isArray(node)) {
+    for (const child of node) walkText(child, out)
+    return
+  }
+  if (typeof node.type === 'function') {
+    walkText(node.type(node.props), out)
+    return
+  }
   walkText(node.props.children, out)
 }
 walkText(tree0, texts0)
@@ -126,7 +147,10 @@ assert.ok(joined.includes('卸载'), 'uninstall button rendered')
 assert.ok(joined.includes('检查更新'), 'update check button rendered')
 
 // ── update check flow ──────────────────────────────────────────────────────
-cannedResponses.push({ ok: true, value: { outdated: [{ name: 'dsh-a', current: '1.0.0', latest: '1.1.0' }] } })
+cannedResponses.push({
+  ok: true,
+  value: { outdated: [{ name: 'dsh-a', current: '1.0.0', latest: '1.1.0' }] },
+})
 const buttons = []
 function collectButtons(node) {
   if (node === null || typeof node !== 'object') return
@@ -134,8 +158,14 @@ function collectButtons(node) {
   if (typeof props.onClick === 'function' && typeof props.children === 'string') {
     buttons.push({ label: props.children, onClick: props.onClick })
   }
-  if (Array.isArray(node)) { for (const c of node) collectButtons(c); return }
-  if (typeof node.type === 'function') { collectButtons(node.type(node.props)); return }
+  if (Array.isArray(node)) {
+    for (const c of node) collectButtons(c)
+    return
+  }
+  if (typeof node.type === 'function') {
+    collectButtons(node.type(node.props))
+    return
+  }
   collectButtons(props.children)
 }
 collectButtons(tree)
@@ -149,7 +179,10 @@ walkText(tree2, texts2)
 assert.ok(texts2.join('|').includes('1.0.0 → 1.1.0'), 'outdated version shown on the row')
 
 // the update check hit /updates
-assert.ok(fetchCalls.some((c) => c.url.startsWith('/my-plugin-manager/api/updates')), 'updates endpoint called')
+assert.ok(
+  fetchCalls.some((c) => c.url.startsWith('/my-plugin-manager/api/updates')),
+  'updates endpoint called',
+)
 
 console.log('ALL PLUGIN-MANAGER CLIENT RENDER-PATH TESTS PASSED')
 

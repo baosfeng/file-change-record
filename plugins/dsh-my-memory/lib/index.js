@@ -50,18 +50,26 @@ export function apply(ctx, config) {
   }, 'dsh-my-memory: store lifecycle')
 
   // ── 系统提示词注入（每次组装求值，记忆变更即时生效）────────────────
-  ctx.effect(() => ctx.systemPrompt.section(createMemorySection(globalStore, config)),
-    'dsh-my-memory: system prompt section')
+  ctx.effect(
+    () => ctx.systemPrompt.section(createMemorySection(globalStore, config)),
+    'dsh-my-memory: system prompt section',
+  )
 
   // ── memory_query 只读工具 ─────────────────────────────────────────────
-  ctx.effect(() => ctx.tools.register(createMemoryQueryTool({ globalStore, getProjectStore })),
-    'dsh-my-memory: memory_query tool')
+  ctx.effect(
+    () => ctx.tools.register(createMemoryQueryTool({ globalStore, getProjectStore })),
+    'dsh-my-memory: memory_query tool',
+  )
 
   // ── 写操作 API（需用户同意标记）──────────────────────────────────────
   const fence = (request) => isTrustedApiRequest(request, ctx.webRuntime.trustedHosts)
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'prefix',
-    path: '/my-memory/api',
-    handler: createApiHandler({ globalStore, getProjectStore, fence }),
-  }), 'dsh-my-memory: /my-memory/api routes')
+  ctx.effect(
+    () =>
+      ctx.webServer.register({
+        kind: 'prefix',
+        path: '/my-memory/api',
+        handler: createApiHandler({ globalStore, getProjectStore, fence }),
+      }),
+    'dsh-my-memory: /my-memory/api routes',
+  )
 }

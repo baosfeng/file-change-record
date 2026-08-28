@@ -10,9 +10,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import {
-  bootPlugin, mockRequest, mockResponse, dispatchEvent,
-} from '../../lib/helpers.mjs'
+import { bootPlugin, mockRequest, mockResponse, dispatchEvent } from '../../lib/helpers.mjs'
 
 class World {
   constructor() {

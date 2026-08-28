@@ -11,7 +11,15 @@ import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { isTrustedApiRequest } from '../lib/fence.js'
 import {
-  bootPlugin, createTempHome, cleanupHome, mockRequest, mockResponse, invoke, jsonOf, topAgent, dispatchEvent,
+  bootPlugin,
+  createTempHome,
+  cleanupHome,
+  mockRequest,
+  mockResponse,
+  invoke,
+  jsonOf,
+  topAgent,
+  dispatchEvent,
 } from './lib/helpers.mjs'
 
 const disposeAlls = []
@@ -49,7 +57,10 @@ test('fence: origin matching, missing host, trusted hosts', () => {
   // loopback + 同源 origin → 放行
   assert.equal(isTrustedApiRequest({ headers: { host: '127.0.0.1:3080', origin: 'http://127.0.0.1:3080' } }, []), true)
   // loopback + 不同源 origin → 拒绝
-  assert.equal(isTrustedApiRequest({ headers: { host: '127.0.0.1:3080', origin: 'http://evil.example.com' } }, []), false)
+  assert.equal(
+    isTrustedApiRequest({ headers: { host: '127.0.0.1:3080', origin: 'http://evil.example.com' } }, []),
+    false,
+  )
   // 无 host → 拒绝
   assert.equal(isTrustedApiRequest({ headers: {} }, []), false)
   // 非字符串 host → 拒绝
@@ -97,16 +108,31 @@ test('git routes: status/diff/commit via API on a real repo', async () => {
 
   // GET /git/status 非仓库 → 400
   const badRepo = mockResponse()
-  await invoke(api, mockRequest({ url: `/observability/api/git/status?repo=${encodeURIComponent('/nonexistent')}` }), badRepo)
+  await invoke(
+    api,
+    mockRequest({
+      url: `/observability/api/git/status?repo=${encodeURIComponent('/nonexistent')}`,
+    }),
+    badRepo,
+  )
   assert.equal(badRepo.writeHeadStatus, 400)
 
   // POST /git/commit
   const commitRes = mockResponse()
-  await invoke(api, mockRequest({
-    url: '/observability/api/git/commit',
-    method: 'POST',
-    body: JSON.stringify({ repoPath: repo, type: 'fix', scope: 'store', description: 'fix the thing' }),
-  }), commitRes)
+  await invoke(
+    api,
+    mockRequest({
+      url: '/observability/api/git/commit',
+      method: 'POST',
+      body: JSON.stringify({
+        repoPath: repo,
+        type: 'fix',
+        scope: 'store',
+        description: 'fix the thing',
+      }),
+    }),
+    commitRes,
+  )
   assert.equal(commitRes.writeHeadStatus, 200)
   const committed = jsonOf(commitRes).value
   assert.match(committed.hash, /^[0-9a-f]{7,40}$/)
@@ -119,11 +145,15 @@ test('git routes: status/diff/commit via API on a real repo', async () => {
 
   // POST /git/commit 非法请求 → 400
   const invalid = mockResponse()
-  await invoke(api, mockRequest({
-    url: '/observability/api/git/commit',
-    method: 'POST',
-    body: JSON.stringify({ repoPath: repo, type: 'nope', description: 'x' }),
-  }), invalid)
+  await invoke(
+    api,
+    mockRequest({
+      url: '/observability/api/git/commit',
+      method: 'POST',
+      body: JSON.stringify({ repoPath: repo, type: 'nope', description: 'x' }),
+    }),
+    invalid,
+  )
   assert.equal(invalid.writeHeadStatus, 400)
 })
 
@@ -137,7 +167,11 @@ test('git routes: staged diff and review staged flag', async () => {
   const { api } = boot({})
   await settle()
   const diffRes = mockResponse()
-  await invoke(api, mockRequest({ url: `/observability/api/git/diff?repo=${encodeURIComponent(repo)}&staged=1` }), diffRes)
+  await invoke(
+    api,
+    mockRequest({ url: `/observability/api/git/diff?repo=${encodeURIComponent(repo)}&staged=1` }),
+    diffRes,
+  )
   assert.equal(diffRes.writeHeadStatus, 200)
   assert.ok(jsonOf(diffRes).value.text.includes('+const y = 2'), 'staged diff returned')
 })
@@ -187,7 +221,9 @@ test('store filters structurally invalid events on load', async () => {
     const state = {
       version: 1,
       bySession: {
-        'good-session': { events: [{ id: 1, time: 1, sessionId: 'good-session', type: 'agent_status', data: {} }] },
+        'good-session': {
+          events: [{ id: 1, time: 1, sessionId: 'good-session', type: 'agent_status', data: {} }],
+        },
         'bad-session': { events: [{ time: 'nope' }, { sessionId: 'x' }, null] },
       },
     }
@@ -227,8 +263,15 @@ test('audit ignores null agents and null args', async () => {
   await settle()
   await dispatchEvent(listeners, 'agent/status', { agent: null, status: 'idle' })
   await dispatchEvent(listeners, 'tools/pre-execute', { name: 'bash', agent: null }, async () => {})
-  await dispatchEvent(listeners, 'tools/pre-execute', { name: 'bash', agent: topAgent('s1'), arguments: null }, async () => {})
-  const events = jsonOf(await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=s1' }), mockResponse())).value
+  await dispatchEvent(
+    listeners,
+    'tools/pre-execute',
+    { name: 'bash', agent: topAgent('s1'), arguments: null },
+    async () => {},
+  )
+  const events = jsonOf(
+    await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=s1' }), mockResponse()),
+  ).value
   assert.equal(events.length, 1, 'only the valid args record lands')
   assert.deepEqual(events[0].data.args, { keys: [] }, 'null args → empty keys')
 })
@@ -237,7 +280,9 @@ test('audit marks unknown agent type without session header', async () => {
   const { listeners, api } = boot({})
   await settle()
   await dispatchEvent(listeners, 'agent/status', { agent: { id: 'strange' }, status: 'idle' })
-  const events = jsonOf(await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=strange' }), mockResponse())).value
+  const events = jsonOf(
+    await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=strange' }), mockResponse()),
+  ).value
   assert.equal(events[0].data.agentType, 'unknown', 'no header → unknown')
 })
 
@@ -246,7 +291,9 @@ test('tool_result flags object errors and tolerates non-objects', async () => {
   await settle()
   await dispatchEvent(listeners, 'tools/execute', { name: 'bash', agent: topAgent('s1') }, async () => null)
   await dispatchEvent(listeners, 'tools/execute', { name: 'bash', agent: topAgent('s1') }, async () => ({ error: {} }))
-  const events = jsonOf(await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=s1&type=tool_result' }), mockResponse())).value
+  const events = jsonOf(
+    await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=s1&type=tool_result' }), mockResponse()),
+  ).value
   assert.equal(events.length, 2)
   assert.equal(events[0].data.ok, true, 'null result is ok')
   assert.equal(events[1].data.ok, true, 'empty error object is ok')
@@ -255,10 +302,15 @@ test('tool_result flags object errors and tolerates non-objects', async () => {
 test('tool_call summary picks the first known text key', async () => {
   const { listeners, api } = boot({})
   await settle()
-  await dispatchEvent(listeners, 'tools/pre-execute',
+  await dispatchEvent(
+    listeners,
+    'tools/pre-execute',
     { name: 'write', agent: topAgent('s1'), arguments: { content: 'hello world' } },
-    async () => {})
-  const events = jsonOf(await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=s1' }), mockResponse())).value
+    async () => {},
+  )
+  const events = jsonOf(
+    await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=s1' }), mockResponse()),
+  ).value
   assert.equal(events[0].data.args.summary, 'hello world')
 })
 
@@ -283,11 +335,15 @@ test('AI timeout degrades with a note', async () => {
   const { api } = boot({ aiTimeoutMs: 300 }, { agents })
   await settle()
   const res = mockResponse()
-  await invoke(api, mockRequest({
-    url: '/observability/api/review',
-    method: 'POST',
-    body: JSON.stringify({ repoPath: repo }),
-  }), res)
+  await invoke(
+    api,
+    mockRequest({
+      url: '/observability/api/review',
+      method: 'POST',
+      body: JSON.stringify({ repoPath: repo }),
+    }),
+    res,
+  )
   assert.equal(res.writeHeadStatus, 200)
   const value = jsonOf(res).value
   assert.equal(value.ai.enabled, true)
@@ -317,11 +373,15 @@ test('per-session cap boundary: exactly 2000 kept, 2001 trims one', async () => 
   for (let i = 0; i < 2000; i += 1) {
     await dispatchEvent(listeners, 'agent/status', { agent: topAgent('edge'), status: `s${i}` })
   }
-  const exact = jsonOf(await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=edge' }), mockResponse())).value
+  const exact = jsonOf(
+    await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=edge' }), mockResponse()),
+  ).value
   assert.equal(exact.length, 2000, 'exactly 2000 kept at boundary')
   assert.equal(exact[0].data.status, 's0', 'oldest kept at boundary')
   await dispatchEvent(listeners, 'agent/status', { agent: topAgent('edge'), status: 's2000' })
-  const trimmed = jsonOf(await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=edge' }), mockResponse())).value
+  const trimmed = jsonOf(
+    await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=edge' }), mockResponse()),
+  ).value
   assert.equal(trimmed.length, 2000, 'still capped after overflow')
   assert.equal(trimmed[0].data.status, 's1', 'oldest trimmed')
 })
@@ -348,13 +408,21 @@ test('events query tolerates null type and odd limits', async () => {
   await settle()
   await dispatchEvent(listeners, 'agent/status', { agent: topAgent('s1'), status: 'running' })
   await dispatchEvent(listeners, 'agent/status', { agent: topAgent('s1'), status: 'idle' })
-  const all = jsonOf(await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=s1' }), mockResponse())).value
+  const all = jsonOf(
+    await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=s1' }), mockResponse()),
+  ).value
   assert.equal(all.length, 2, 'no type filter → all')
-  const zero = jsonOf(await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=s1&limit=0' }), mockResponse())).value
+  const zero = jsonOf(
+    await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=s1&limit=0' }), mockResponse()),
+  ).value
   assert.equal(zero.length, 2, 'limit 0 → all')
-  const neg = jsonOf(await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=s1&limit=-5' }), mockResponse())).value
+  const neg = jsonOf(
+    await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=s1&limit=-5' }), mockResponse()),
+  ).value
   assert.equal(neg.length, 2, 'negative limit → all')
-  const nan = jsonOf(await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=s1&limit=abc' }), mockResponse())).value
+  const nan = jsonOf(
+    await invoke(api, mockRequest({ url: '/observability/api/events?sessionId=s1&limit=abc' }), mockResponse()),
+  ).value
   assert.equal(nan.length, 2, 'non-numeric limit → all')
 })
 
@@ -379,13 +447,18 @@ test('dispose before store load flushes buffered events', async () => {
   try {
     const first = bootPlugin({}, { home })
     // 立即 record（store 可能未 ready → 缓冲）
-    await dispatchEvent(first.listeners, 'agent/status', { agent: topAgent('early'), status: 'running' })
+    await dispatchEvent(first.listeners, 'agent/status', {
+      agent: topAgent('early'),
+      status: 'running',
+    })
     first.disposeAll() // 未 ready 时回放 pending + 落盘
     await settle()
     const second = bootPlugin({}, { home })
     disposeAlls.push(second.disposeAll)
     await settle()
-    const events = jsonOf(await invoke(second.api, mockRequest({ url: '/observability/api/events?sessionId=early' }), mockResponse())).value
+    const events = jsonOf(
+      await invoke(second.api, mockRequest({ url: '/observability/api/events?sessionId=early' }), mockResponse()),
+    ).value
     assert.equal(events.length, 1, 'buffered event survives dispose')
   } finally {
     cleanupHome(home)
@@ -398,11 +471,21 @@ function aiAgents(sessionText, onPrompt) {
   return {
     create: async () => ({
       agent: {
-        followup: (msg) => { if (onPrompt !== undefined) onPrompt(msg.content[0].text) },
+        followup: (msg) => {
+          if (onPrompt !== undefined) onPrompt(msg.content[0].text)
+        },
         whenIdle: async () => {},
-        session: sessionText === ''
-          ? { events: [] }
-          : { events: [{ type: 'assistant/message', data: { message: { content: [{ type: 'text', text: sessionText }] } } }] },
+        session:
+          sessionText === ''
+            ? { events: [] }
+            : {
+                events: [
+                  {
+                    type: 'assistant/message',
+                    data: { message: { content: [{ type: 'text', text: sessionText }] } },
+                  },
+                ],
+              },
       },
       dispose: async () => {},
     }),
@@ -411,11 +494,15 @@ function aiAgents(sessionText, onPrompt) {
 
 async function reviewWith(api, repo) {
   const res = mockResponse()
-  await invoke(api, mockRequest({
-    url: '/observability/api/review',
-    method: 'POST',
-    body: JSON.stringify({ repoPath: repo }),
-  }), res)
+  await invoke(
+    api,
+    mockRequest({
+      url: '/observability/api/review',
+      method: 'POST',
+      body: JSON.stringify({ repoPath: repo }),
+    }),
+    res,
+  )
   return jsonOf(res).value
 }
 
@@ -441,7 +528,14 @@ test('AI prompt truncates oversized diffs', async () => {
   git(repo, 'commit', '-m', 'chore: seed')
   writeFileSync(join(repo, 'src/a.js'), `const x = 1\n${'y'.repeat(9000)}\n`)
   let promptText = ''
-  const { api } = boot({}, { agents: aiAgents('{"verdict":"approve","summary":"ok","topIssues":[]}', (t) => { promptText = t }) })
+  const { api } = boot(
+    {},
+    {
+      agents: aiAgents('{"verdict":"approve","summary":"ok","topIssues":[]}', (t) => {
+        promptText = t
+      }),
+    },
+  )
   await settle()
   const value = await reviewWith(api, repo)
   assert.equal(value.ai.verdict, 'approve')
@@ -458,7 +552,14 @@ test('AI prompt handles empty rule issues', async () => {
   mkdirSync(join(repo, 'test'), { recursive: true })
   writeFileSync(join(repo, 'test/a.test.js'), 'test("x", () => {})\n')
   let promptText = ''
-  const { api } = boot({}, { agents: aiAgents('{"verdict":"approve","summary":"ok","topIssues":[]}', (t) => { promptText = t }) })
+  const { api } = boot(
+    {},
+    {
+      agents: aiAgents('{"verdict":"approve","summary":"ok","topIssues":[]}', (t) => {
+        promptText = t
+      }),
+    },
+  )
   await settle()
   const value = await reviewWith(api, repo)
   assert.equal(value.ai.verdict, 'approve')
@@ -508,9 +609,21 @@ test('AI conclusion with empty session text degrades', async () => {
 
 test('fence: bare loopback and trusted host with port', () => {
   assert.equal(isTrustedApiRequest({ headers: { host: '127.0.0.1' } }, []), true, 'bare loopback allowed')
-  assert.equal(isTrustedApiRequest({ headers: { host: 'obs.example.com:9443' } }, ['obs.example.com:9443']), true, 'trusted host with port allowed')
-  assert.equal(isTrustedApiRequest({ headers: { host: 'obs.example.com:9443' } }, ['obs.example.com']), true, 'hostname-only entry matches any port')
-  assert.equal(isTrustedApiRequest({ headers: { host: 'obs.example.com:8080' } }, ['obs.example.com:9443']), false, 'explicit port mismatch rejected')
+  assert.equal(
+    isTrustedApiRequest({ headers: { host: 'obs.example.com:9443' } }, ['obs.example.com:9443']),
+    true,
+    'trusted host with port allowed',
+  )
+  assert.equal(
+    isTrustedApiRequest({ headers: { host: 'obs.example.com:9443' } }, ['obs.example.com']),
+    true,
+    'hostname-only entry matches any port',
+  )
+  assert.equal(
+    isTrustedApiRequest({ headers: { host: 'obs.example.com:8080' } }, ['obs.example.com:9443']),
+    false,
+    'explicit port mismatch rejected',
+  )
 })
 
 test('routes tolerate malformed webRuntime', async () => {

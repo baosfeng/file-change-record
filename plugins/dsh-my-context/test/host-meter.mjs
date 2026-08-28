@@ -5,8 +5,13 @@
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import {
-  estimateText, estimateBlocks, estimateMessage, estimateSystem,
-  estimateTools, estimateToolSchema, isEmptyMessage,
+  estimateText,
+  estimateBlocks,
+  estimateMessage,
+  estimateSystem,
+  estimateTools,
+  estimateToolSchema,
+  isEmptyMessage,
 } from '../lib/meter.js'
 
 test('estimateText: ~4 chars per token + block overhead', () => {

@@ -153,9 +153,18 @@ test('config API suite', async () => {
       await invoke(api, mockRequest({ url: '/notify/api/config' }), res)
       assert.equal(res.writeHeadStatus, 200, 'GET config is 200')
       const body = JSON.parse(res.written.join(''))
-      assert.deepEqual(body.value, {
-        end: true, ask: true, approval: true, subagentEnd: false, apiToken: '', dedupeMs: 3000,
-      }, 'defaults reported')
+      assert.deepEqual(
+        body.value,
+        {
+          end: true,
+          ask: true,
+          approval: true,
+          subagentEnd: false,
+          apiToken: '',
+          dedupeMs: 3000,
+        },
+        'defaults reported',
+      )
     }
 
     // ── 2. GET /config 反映应用层 config 覆盖 ──────────────────────────
@@ -164,27 +173,56 @@ test('config API suite', async () => {
       const res = mockResponse()
       await invoke(api, mockRequest({ url: '/notify/api/config' }), res)
       const body = JSON.parse(res.written.join(''))
-      assert.deepEqual(body.value, {
-        end: false, ask: true, approval: true, subagentEnd: false, apiToken: '', dedupeMs: 5000,
-      }, 'app-level config reflected')
+      assert.deepEqual(
+        body.value,
+        {
+          end: false,
+          ask: true,
+          approval: true,
+          subagentEnd: false,
+          apiToken: '',
+          dedupeMs: 5000,
+        },
+        'app-level config reflected',
+      )
     }
 
     // ── 3. PUT /config 保存 → GET 读取 → 值正确 ────────────────────────
     {
       const { api } = boot({})
       const put = mockResponse()
-      await invoke(api, mockRequest({
-        url: '/notify/api/config',
-        method: 'PUT',
-        body: JSON.stringify({ end: false, ask: true, approval: false, subagentEnd: true, apiToken: 'tok-1', dedupeMs: 7000 }),
-      }), put)
+      await invoke(
+        api,
+        mockRequest({
+          url: '/notify/api/config',
+          method: 'PUT',
+          body: JSON.stringify({
+            end: false,
+            ask: true,
+            approval: false,
+            subagentEnd: true,
+            apiToken: 'tok-1',
+            dedupeMs: 7000,
+          }),
+        }),
+        put,
+      )
       assert.equal(put.writeHeadStatus, 200, 'PUT config is 200')
       const get = mockResponse()
       await invoke(api, mockRequest({ url: '/notify/api/config' }), get)
       const body = JSON.parse(get.written.join(''))
-      assert.deepEqual(body.value, {
-        end: false, ask: true, approval: false, subagentEnd: true, apiToken: 'tok-1', dedupeMs: 7000,
-      }, 'saved config read back')
+      assert.deepEqual(
+        body.value,
+        {
+          end: false,
+          ask: true,
+          approval: false,
+          subagentEnd: true,
+          apiToken: 'tok-1',
+          dedupeMs: 7000,
+        },
+        'saved config read back',
+      )
     }
 
     // ── 4. 保存后监听器立即按新配置工作（end: false 不再推送） ────────
@@ -196,11 +234,22 @@ test('config API suite', async () => {
       assert.ok(stream.written.join('').includes('data: '), 'end notice before save')
 
       const put = mockResponse()
-      await invoke(api, mockRequest({
-        url: '/notify/api/config',
-        method: 'PUT',
-        body: JSON.stringify({ end: false, ask: true, approval: true, subagentEnd: false, apiToken: '', dedupeMs: 3000 }),
-      }), put)
+      await invoke(
+        api,
+        mockRequest({
+          url: '/notify/api/config',
+          method: 'PUT',
+          body: JSON.stringify({
+            end: false,
+            ask: true,
+            approval: true,
+            subagentEnd: false,
+            apiToken: '',
+            dedupeMs: 3000,
+          }),
+        }),
+        put,
+      )
       assert.equal(put.writeHeadStatus, 200, 'save ok')
 
       const before = stream.written.length
@@ -214,14 +263,28 @@ test('config API suite', async () => {
       const stream = mockResponse()
       await invoke(api, mockRequest({ url: '/notify/api/stream' }), stream)
       const put = mockResponse()
-      await invoke(api, mockRequest({
-        url: '/notify/api/config',
-        method: 'PUT',
-        body: JSON.stringify({ end: true, ask: true, approval: true, subagentEnd: true, apiToken: '', dedupeMs: 3000 }),
-      }), put)
+      await invoke(
+        api,
+        mockRequest({
+          url: '/notify/api/config',
+          method: 'PUT',
+          body: JSON.stringify({
+            end: true,
+            ask: true,
+            approval: true,
+            subagentEnd: true,
+            apiToken: '',
+            dedupeMs: 3000,
+          }),
+        }),
+        put,
+      )
       const before = stream.written.length
       await dispatchEvent(listeners, 'agent/status', {
-        agent: { id: 'sub1', session: { header: { cwd: '/work', origin: 'subagent' }, __title: '子' } },
+        agent: {
+          id: 'sub1',
+          session: { header: { cwd: '/work', origin: 'subagent' }, __title: '子' },
+        },
         status: 'idle',
       })
       const frames = stream.written.slice(before).filter((c) => c.includes('data: '))
@@ -233,7 +296,14 @@ test('config API suite', async () => {
     // ── 6. 持久化：保存 → 模拟重启（重新 apply）→ 配置生效 ────────────
     {
       const { api, home, disposeAll } = boot({})
-      const saved = { end: false, ask: true, approval: true, subagentEnd: true, apiToken: 'persist-tok', dedupeMs: 9000 }
+      const saved = {
+        end: false,
+        ask: true,
+        approval: true,
+        subagentEnd: true,
+        apiToken: 'persist-tok',
+        dedupeMs: 9000,
+      }
       const put = mockResponse()
       await invoke(api, mockRequest({ url: '/notify/api/config', method: 'PUT', body: JSON.stringify(saved) }), put)
       assert.equal(put.writeHeadStatus, 200, 'save ok')
@@ -264,11 +334,15 @@ test('config API suite', async () => {
     {
       const { api } = boot({})
       const bad = mockResponse()
-      await invoke(api, mockRequest({
-        url: '/notify/api/config',
-        method: 'PUT',
-        body: JSON.stringify({ end: 'yes', dedupeMs: 'fast' }),
-      }), bad)
+      await invoke(
+        api,
+        mockRequest({
+          url: '/notify/api/config',
+          method: 'PUT',
+          body: JSON.stringify({ end: 'yes', dedupeMs: 'fast' }),
+        }),
+        bad,
+      )
       assert.equal(bad.writeHeadStatus, 400, 'invalid types rejected')
       const get = mockResponse()
       await invoke(api, mockRequest({ url: '/notify/api/config' }), get)
@@ -280,7 +354,16 @@ test('config API suite', async () => {
     {
       const { api } = boot({})
       const evil = mockResponse()
-      await invoke(api, mockRequest({ url: '/notify/api/config', method: 'PUT', host: 'evil.example.com', body: '{}' }), evil)
+      await invoke(
+        api,
+        mockRequest({
+          url: '/notify/api/config',
+          method: 'PUT',
+          host: 'evil.example.com',
+          body: '{}',
+        }),
+        evil,
+      )
       assert.equal(evil.writeHeadStatus, 403, 'cross-authority host rejected')
     }
 

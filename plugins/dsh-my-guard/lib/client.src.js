@@ -38,13 +38,17 @@ window.__ModuleLoader__.load({
       ctx.effect(() => injectStyles(), 'dsh-my-guard: styles')
       const service = ctx.betterSidebar
       if (service === undefined) return
-      ctx.effect(() => service.registerTab({
-        id: 'dsh-my-guard:guard',
-        title: () => strings.tabTitle(),
-        order: 42,
-        single: true,
-        component: (props) => createElement(GuardPanel, props),
-      }), 'dsh-my-guard: guard tab registration')
+      ctx.effect(
+        () =>
+          service.registerTab({
+            id: 'dsh-my-guard:guard',
+            title: () => strings.tabTitle(),
+            order: 42,
+            single: true,
+            component: (props) => createElement(GuardPanel, props),
+          }),
+        'dsh-my-guard: guard tab registration',
+      )
     }
 
     return module.exports

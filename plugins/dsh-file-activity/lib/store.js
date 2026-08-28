@@ -32,14 +32,18 @@ export function createStore(ctx) {
 function persistNow(handle) {
   const snapshot = JSON.stringify(handle.store.state)
   const tmp = `${handle.file}.tmp-${process.pid}`
-  handle.dirtyChain = handle.dirtyChain.then(async () => {
-    try {
-      await writeFile(tmp, snapshot, 'utf8')
-      await rename(tmp, handle.file)
-    } catch (error) {
-      handle.ctx.logger?.warn(`[dsh-file-activity] persist failed: ${error instanceof Error ? error.message : String(error)}`)
-    }
-  }).catch(() => {})
+  handle.dirtyChain = handle.dirtyChain
+    .then(async () => {
+      try {
+        await writeFile(tmp, snapshot, 'utf8')
+        await rename(tmp, handle.file)
+      } catch (error) {
+        handle.ctx.logger?.warn(
+          `[dsh-file-activity] persist failed: ${error instanceof Error ? error.message : String(error)}`,
+        )
+      }
+    })
+    .catch(() => {})
 }
 
 /** Debounced (500ms) schedule of a persist. */

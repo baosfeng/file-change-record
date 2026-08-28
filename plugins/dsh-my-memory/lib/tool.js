@@ -23,9 +23,12 @@ export function filterItems(items, keyword) {
 /** Render one query result as model-facing text. */
 export function renderQueryResult(value) {
   const scopeLabel = value.scope === 'project' ? '项目' : '全局'
-  const where = value.scope === 'project' && value.projectRoot !== ''
-    ? `（项目：${value.projectRoot}）`
-    : value.scope === 'project' ? '（项目目录未知）' : ''
+  const where =
+    value.scope === 'project' && value.projectRoot !== ''
+      ? `（项目：${value.projectRoot}）`
+      : value.scope === 'project'
+        ? '（项目目录未知）'
+        : ''
   if (value.items.length === 0) return `没有找到${scopeLabel}记忆${where}。`
   const lines = value.items.map((item) => `- [${item.id}] ${item.desc}`)
   return `${scopeLabel}记忆${where}（${value.items.length} 条）：\n${lines.join('\n')}`
@@ -83,7 +86,8 @@ const QUERY_OUTPUT = {
 export function createMemoryQueryTool({ globalStore, getProjectStore }) {
   return {
     name: 'memory_query',
-    description: '查询记忆详情（只读）：列出全局或项目记忆条目，可按关键词过滤。全局记忆在会话开始时已注入系统提示词；此工具用于查看完整记忆列表或项目记忆。',
+    description:
+      '查询记忆详情（只读）：列出全局或项目记忆条目，可按关键词过滤。全局记忆在会话开始时已注入系统提示词；此工具用于查看完整记忆列表或项目记忆。',
     parameters: QUERY_PARAMETERS,
     output: {
       schema: QUERY_OUTPUT,

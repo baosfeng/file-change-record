@@ -14,12 +14,22 @@ const PROFILE = '/tmp/dsh-fa-cdp2'
 const log = (...args) => console.log('[e2e]', ...args)
 
 rmSync(PROFILE, { recursive: true, force: true })
-const chrome = spawn(CHROME, [
-  '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
-  `--remote-debugging-port=${PORT}`, `--user-data-dir=${PROFILE}`,
-  '--remote-allow-origins=*', '--disable-background-networking', '--disable-component-update',
-  'about:blank',
-], { stdio: 'ignore' })
+const chrome = spawn(
+  CHROME,
+  [
+    '--headless=new',
+    '--disable-gpu',
+    '--no-first-run',
+    '--no-default-browser-check',
+    `--remote-debugging-port=${PORT}`,
+    `--user-data-dir=${PROFILE}`,
+    '--remote-allow-origins=*',
+    '--disable-background-networking',
+    '--disable-component-update',
+    'about:blank',
+  ],
+  { stdio: 'ignore' },
+)
 
 async function cdpJson(path, timeoutMs = 3000) {
   const controller = new AbortController()
@@ -35,9 +45,22 @@ async function cdpJson(path, timeoutMs = 3000) {
 function connect(wsUrl) {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(wsUrl)
-    const timer = setTimeout(() => { try { ws.close() } catch { /* already closed */ } ; reject(new Error('ws connect timeout')) }, 4000)
-    ws.onopen = () => { clearTimeout(timer); resolve(ws) }
-    ws.onerror = () => { clearTimeout(timer); reject(new Error('ws error')) }
+    const timer = setTimeout(() => {
+      try {
+        ws.close()
+      } catch {
+        /* already closed */
+      }
+      reject(new Error('ws connect timeout'))
+    }, 4000)
+    ws.onopen = () => {
+      clearTimeout(timer)
+      resolve(ws)
+    }
+    ws.onerror = () => {
+      clearTimeout(timer)
+      reject(new Error('ws error'))
+    }
   })
 }
 
@@ -50,7 +73,11 @@ function cdpCall(ws, method, params = {}, timeoutMs = 6000) {
     }, timeoutMs)
     const onMessage = (event) => {
       let msg
-      try { msg = JSON.parse(event.data) } catch { return }
+      try {
+        msg = JSON.parse(event.data)
+      } catch {
+        return
+      }
       if (msg.id === id) {
         clearTimeout(timer)
         ws.removeEventListener('message', onMessage)
@@ -75,7 +102,9 @@ try {
     try {
       targets = await cdpJson('/json/list')
       if (targets.length > 0) break
-    } catch { /* retry */ }
+    } catch {
+      /* retry */
+    }
     await sleep(300)
   }
   if (targets.length === 0) throw new Error('CDP endpoint did not come up')
@@ -97,7 +126,10 @@ try {
     await sleep(2000)
     try {
       bodyText = (await evaluate(ws, 'document.body ? document.body.innerText : ""')) || ''
-      if (i % 3 === 0) log(`poll ${i}: body ${bodyText.length} chars, hasTab=${bodyText.includes('文件活动') || bodyText.includes('File Activity')}`)
+      if (i % 3 === 0)
+        log(
+          `poll ${i}: body ${bodyText.length} chars, hasTab=${bodyText.includes('文件活动') || bodyText.includes('File Activity')}`,
+        )
       if (bodyText.includes('文件活动') || bodyText.includes('File Activity')) break
     } catch (error) {
       log('poll error (ignored):', error.message)
@@ -109,7 +141,10 @@ try {
   log('tab rendered:', checks.tabRendered)
 
   try {
-    const lsValue = await evaluate(ws, 'JSON.stringify(Array.from({length: localStorage.length}, (_, i) => { const k = localStorage.key(i); return [k, localStorage.getItem(k)] }).filter(([k]) => k.includes("file-activity") || k.includes("better-sidebar") || k.includes("dsh-sidebar")))')
+    const lsValue = await evaluate(
+      ws,
+      'JSON.stringify(Array.from({length: localStorage.length}, (_, i) => { const k = localStorage.key(i); return [k, localStorage.getItem(k)] }).filter(([k]) => k.includes("file-activity") || k.includes("better-sidebar") || k.includes("dsh-sidebar")))',
+    )
     checks.localStorage = lsValue ?? '{}'
     log('localStorage plugin/sidebar keys:', String(checks.localStorage).slice(0, 1200))
   } catch (error) {
@@ -118,7 +153,10 @@ try {
 
   // Sidebar panel DOM presence (better-sidebar mounts a portal host)
   try {
-    const panelInfo = await evaluate(ws, 'JSON.stringify({ panelHost: !!document.querySelector("[data-dsh-panel-host]"), sidebarRoot: !!document.querySelector("[data-dsh-sidebar]"), bodyLen: document.body.innerText.length })')
+    const panelInfo = await evaluate(
+      ws,
+      'JSON.stringify({ panelHost: !!document.querySelector("[data-dsh-panel-host]"), sidebarRoot: !!document.querySelector("[data-dsh-sidebar]"), bodyLen: document.body.innerText.length })',
+    )
     log('panel DOM:', panelInfo)
   } catch (error) {
     log('panel DOM read failed:', error.message)
@@ -129,6 +167,10 @@ try {
 } catch (error) {
   console.error('[e2e] FAILED:', error.message)
 } finally {
-  try { chrome.kill('SIGKILL') } catch { /* already dead */ }
+  try {
+    chrome.kill('SIGKILL')
+  } catch {
+    /* already dead */
+  }
   process.exit(0)
 }

@@ -66,13 +66,17 @@ function pushIf(issues, issue) {
 
 /** 调试残留（console.* / debugger / print 族）。 */
 function debugIssue(file, added) {
-  if (!/console\.(log|debug|warn|info|error)|debugger\b|\bprint\(|println\(|System\.out\.print/.test(added.text)) return undefined
+  if (!/console\.(log|debug|warn|info|error)|debugger\b|\bprint\(|println\(|System\.out\.print/.test(added.text))
+    return undefined
   return issue('warning', 'debug-statement', file, added, '调试残留语句（console/print/debugger）')
 }
 
 /** 密钥/凭据硬编码。 */
 function secretIssue(file, added) {
-  if (!/(password|passwd|api[_-]?key|secret|access[_-]?token|auth[_-]?token)\s*[:=]\s*['"][^'"]{4,}['"]/i.test(added.text)) return undefined
+  if (
+    !/(password|passwd|api[_-]?key|secret|access[_-]?token|auth[_-]?token)\s*[:=]\s*['"][^'"]{4,}['"]/i.test(added.text)
+  )
+    return undefined
   return issue('error', 'secret-leak', file, added, '疑似硬编码密钥/凭据')
 }
 

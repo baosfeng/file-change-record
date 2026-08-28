@@ -30,7 +30,9 @@ const stubbed = {
   useState: (initial) => {
     const i = hookCall++
     if (hookSlots[i] === undefined) hookSlots[i] = typeof initial === 'function' ? initial() : initial
-    const set = (v) => { hookSlots[i] = typeof v === 'function' ? v(hookSlots[i]) : v }
+    const set = (v) => {
+      hookSlots[i] = typeof v === 'function' ? v(hookSlots[i]) : v
+    }
     return [hookSlots[i], set]
   },
   useEffect: (fn) => fn(),
@@ -40,7 +42,9 @@ const stubbed = {
 let capturedRender = null
 const stubbedReactDomClient = {
   createRoot: (_container) => ({
-    render: (el) => { capturedRender = el },
+    render: (el) => {
+      capturedRender = el
+    },
     unmount: () => {},
   }),
 }
@@ -55,10 +59,22 @@ function makeElement(tag, attrs = {}) {
     style: {},
     dataset: {},
     parentNode: null,
-    appendChild(child) { this.children.push(child); child.parentNode = this; this.textContent += child.textContent; return child },
-    removeChild(child) { const i = this.children.indexOf(child); if (i >= 0) this.children.splice(i, 1) },
-    setAttribute(k, v) { this[k] = v },
-    getAttribute(k) { return this[k] },
+    appendChild(child) {
+      this.children.push(child)
+      child.parentNode = this
+      this.textContent += child.textContent
+      return child
+    },
+    removeChild(child) {
+      const i = this.children.indexOf(child)
+      if (i >= 0) this.children.splice(i, 1)
+    },
+    setAttribute(k, v) {
+      this[k] = v
+    },
+    getAttribute(k) {
+      return this[k]
+    },
     querySelector(sel) {
       const walk = (els) => {
         for (const e of els) {
@@ -144,18 +160,31 @@ global.window = {
 global.document = {
   body: bodyEl,
   head: {
-    appendChild(el) { styleTags.push(el); return el },
+    appendChild(el) {
+      styleTags.push(el)
+      return el
+    },
     removeChild() {},
   },
-  createElement(tag) { return makeElement(tag) },
+  createElement(tag) {
+    return makeElement(tag)
+  },
 }
 global.Element = function Element() {}
-global.MutationObserver = class { constructor() {} observe() {} disconnect() {} }
+global.MutationObserver = class {
+  constructor() {}
+  observe() {}
+  disconnect() {}
+}
 global.NodeFilter = { SHOW_TEXT: 4 }
 
 // ── load bundle ───────────────────────────────────────────────────────────
 let registered = null
-global.window.__ModuleLoader__ = { load: (reg) => { registered = reg } }
+global.window.__ModuleLoader__ = {
+  load: (reg) => {
+    registered = reg
+  },
+}
 
 // P2 parts 化后 client.src.js 是含 __PART_*__ 占位符的模板，不可直接
 // eval；这里加载构建产物 lib/client.js（与 dsh-file-activity /
@@ -172,7 +201,12 @@ assert.equal(typeof exportsObj.apply, 'function')
 
 // ── apply with a mock ctx (effects run immediately) ───────────────────────
 const effects = []
-const ctx = { effect: (fn, label) => { effects.push(label); return fn() } }
+const ctx = {
+  effect: (fn, label) => {
+    effects.push(label)
+    return fn()
+  },
+}
 exportsObj.apply(ctx)
 
 try {
@@ -199,10 +233,19 @@ try {
   const texts = []
   function walk(node) {
     if (node === null || node === undefined || typeof node === 'boolean') return
-    if (typeof node === 'string' || typeof node === 'number') { texts.push(String(node)); return }
-    if (Array.isArray(node)) { for (const c of node) walk(c); return }
+    if (typeof node === 'string' || typeof node === 'number') {
+      texts.push(String(node))
+      return
+    }
+    if (Array.isArray(node)) {
+      for (const c of node) walk(c)
+      return
+    }
     const props = node.props ?? {}
-    if (typeof node.type === 'function') { walk(node.type(props)); return }
+    if (typeof node.type === 'function') {
+      walk(node.type(props))
+      return
+    }
     walk(props.children)
   }
   walk(cardTree)
@@ -211,14 +254,22 @@ try {
 
   // 错误渲染兜底：mermaid.render 失败 → 卡片显示错误横幅（不崩溃、保留原始块）
   hookCall = 0
-  global.window.mermaid.render = async () => { throw new Error('render boom') }
+  global.window.mermaid.render = async () => {
+    throw new Error('render boom')
+  }
   cardEl.type(cardEl.props) // 第二次渲染：effect 同步执行 → render reject（微任务）
   await new Promise((r) => setTimeout(r, 0)) // 等 catch 回调（setError/setStatus）执行
   hookCall = 0
   const errorTree = cardEl.type(cardEl.props) // 第三次渲染：error 状态
   walk(errorTree) // walk 闭包写入 texts（与 cardTree 同一数组）
-  assert.ok(texts.some((t) => t.includes('render boom')), '错误信息显示在卡片中')
-  assert.ok(texts.some((t) => t.includes('渲染失败') || t.includes('失败')), '错误横幅出现')
+  assert.ok(
+    texts.some((t) => t.includes('render boom')),
+    '错误信息显示在卡片中',
+  )
+  assert.ok(
+    texts.some((t) => t.includes('渲染失败') || t.includes('失败')),
+    '错误横幅出现',
+  )
 
   console.log('ALL CLIENT RENDER-PATH TESTS PASSED')
 } finally {

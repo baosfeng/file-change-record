@@ -57,7 +57,15 @@ export function mockResponse() {
   return res
 }
 
-export function mockRequest({ url, method = 'GET', host = '127.0.0.1:3080', secFetchSite, origin, token, body = '' } = {}) {
+export function mockRequest({
+  url,
+  method = 'GET',
+  host = '127.0.0.1:3080',
+  secFetchSite,
+  origin,
+  token,
+  body = '',
+} = {}) {
   const headers = { host }
   if (secFetchSite !== undefined) headers['sec-fetch-site'] = secFetchSite
   if (origin !== undefined) headers.origin = origin
@@ -157,11 +165,14 @@ class World {
 
   async putConfig(payload) {
     const res = mockResponse()
-    await this.invoke(mockRequest({
-      url: '/notify/api/config',
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    }), res)
+    await this.invoke(
+      mockRequest({
+        url: '/notify/api/config',
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      }),
+      res,
+    )
     this.lastResponse = { status: res.writeHeadStatus }
   }
 

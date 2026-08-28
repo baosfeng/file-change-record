@@ -15,6 +15,7 @@
 - **测试**：`test/host-audit.mjs`（事件监听/会话隔离/重启恢复/上限/fence）、`test/host-git.mjs`（真实临时 git 仓库 status/diff/commit）、`test/host-review.mjs`（规则引擎 + AI 各路径）、`test/host-mutation.mjs`（变异补充）、Gherkin 验收（observability/git/review 3 个 feature 16 场景）；覆盖率 行 95% / 分支 85%；变异测试 ≥70%。
 
 **真实环境验证**（独立端口 3081 隔离实例）：
+
 - 侧边栏「轨迹回放」页签出现，时间轴展示真实 agent 行为（状态/模型流/工具调用）；
 - 「Git 工具」页签：真实仓库状态/差异/类型化提交/提交前审查全流程可用；
 - 重启验证实例后审计事件恢复。

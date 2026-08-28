@@ -2,29 +2,29 @@
 # 有安全漏洞（含 qs 这类 advisory）时自动开 PR，保持依赖安全。
 version: 2
 updates:
-  - package-ecosystem: "npm"
-    directory: "/"
+  - package-ecosystem: 'npm'
+    directory: '/'
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "Asia/Shanghai"
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+      timezone: 'Asia/Shanghai'
     open-pull-requests-limit: 5
     labels:
-      - "dependencies"
+      - 'dependencies'
     commit-message:
-      prefix: "chore(deps)"
+      prefix: 'chore(deps)'
     # 安全更新（security updates）默认开启，无需额外配置
 
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: 'github-actions'
+    directory: '/'
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
-      timezone: "Asia/Shanghai"
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+      timezone: 'Asia/Shanghai'
     open-pull-requests-limit: 5
     labels:
-      - "dependencies"
+      - 'dependencies'
     commit-message:
-      prefix: "chore(deps)"
+      prefix: 'chore(deps)'

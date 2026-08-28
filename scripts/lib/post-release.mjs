@@ -14,9 +14,12 @@ export async function waitForRelease(tag, timeoutMs = 300000) {
   if (!token) return { ok: false, skipped: true }
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
-    const res = await fetch(`https://api.github.com/repos/baosfeng/my-dsh-plugins/releases/tags/${encodeURIComponent(tag)}`, {
-      headers: { Authorization: `Bearer ${token}`, 'X-GitHub-Api-Version': '2022-11-28' },
-    })
+    const res = await fetch(
+      `https://api.github.com/repos/baosfeng/my-dsh-plugins/releases/tags/${encodeURIComponent(tag)}`,
+      {
+        headers: { Authorization: `Bearer ${token}`, 'X-GitHub-Api-Version': '2022-11-28' },
+      },
+    )
     if (res.status === 200) return { ok: true }
     if (res.status !== 404) return { ok: false, http: res.status }
     await new Promise((r) => setTimeout(r, 10000))
@@ -48,7 +51,9 @@ export async function verifyPostRelease(pkgName, name, version) {
   } else if (release.ok) {
     console.log(`✓ GitHub Release ${tag} 已创建`)
   } else {
-    console.error(`✗ GitHub Release ${tag} 未在 5 分钟内创建（workflow 可能失败）— 请检查 https://github.com/baosfeng/my-dsh-plugins/actions`)
+    console.error(
+      `✗ GitHub Release ${tag} 未在 5 分钟内创建（workflow 可能失败）— 请检查 https://github.com/baosfeng/my-dsh-plugins/actions`,
+    )
     process.exit(1)
   }
   const npm = await waitForNpm(pkgName, version)

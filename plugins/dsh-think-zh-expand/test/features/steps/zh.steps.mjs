@@ -44,7 +44,11 @@ class World {
     // require 其 MarkdownView），再加载本插件。
     const registrations = []
     global.window = {
-      __ModuleLoader__: { load: (registration) => { registrations.push(registration) } },
+      __ModuleLoader__: {
+        load: (registration) => {
+          registrations.push(registration)
+        },
+      },
       location: { href: 'http://127.0.0.1:3080/app', search: '' },
       confirm: () => true,
       fetch: () => Promise.resolve({ json: () => Promise.resolve({ ok: true, value: {} }) }),
@@ -80,8 +84,14 @@ class World {
     const ctx = {
       effect: (fn) => fn(),
       slots: {
-        inject: (_name, fn) => { registerFn = fn; return () => {} },
-        register: (_desc, renderer) => { world.renderer = renderer; return () => {} },
+        inject: (_name, fn) => {
+          registerFn = fn
+          return () => {}
+        },
+        register: (_desc, renderer) => {
+          world.renderer = renderer
+          return () => {}
+        },
       },
     }
     this.exportsObj.apply(ctx)
@@ -96,8 +106,14 @@ class World {
     const texts = []
     function walk(node) {
       if (node === null || node === undefined || typeof node === 'boolean') return
-      if (typeof node === 'string' || typeof node === 'number') { texts.push(String(node)); return }
-      if (Array.isArray(node)) { for (const c of node) walk(c); return }
+      if (typeof node === 'string' || typeof node === 'number') {
+        texts.push(String(node))
+        return
+      }
+      if (Array.isArray(node)) {
+        for (const c of node) walk(c)
+        return
+      }
       const props = node.props ?? {}
       if (typeof node.type === 'string') {
         tags.push(node.type)

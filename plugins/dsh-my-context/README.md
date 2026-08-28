@@ -14,13 +14,13 @@
 
 Server 端监听 `session/event` 统计每次请求的上下文：
 
-| 事件 | 统计内容 | 说明 |
-|------|---------|------|
-| `request/header` | system prompt + tools 估算 | 与 dsh token-meter 一致的固定密度估算（~4 字符 ≈ 1 token + 4/block + 4/role） |
-| `assistant/message` | 真实 usage | `inputTokens` / `outputTokens` / `cacheReadTokens` / `cacheWriteTokens`（disjoint 计数，prompt = input + cacheRead + cacheWrite） |
-| `user/message` | user / 注入构成 | 注入来源（source.kind 非 user 或带 form）计入 inject 分类 |
-| `tool/result` | tool 构成 | 工具结果消息估算 |
-| `request/context` | 模型 / 上下文窗口 | contextWindow 展示 |
+| 事件                | 统计内容                   | 说明                                                                                                                              |
+| ------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `request/header`    | system prompt + tools 估算 | 与 dsh token-meter 一致的固定密度估算（~4 字符 ≈ 1 token + 4/block + 4/role）                                                     |
+| `assistant/message` | 真实 usage                 | `inputTokens` / `outputTokens` / `cacheReadTokens` / `cacheWriteTokens`（disjoint 计数，prompt = input + cacheRead + cacheWrite） |
+| `user/message`      | user / 注入构成            | 注入来源（source.kind 非 user 或带 form）计入 inject 分类                                                                         |
+| `tool/result`       | tool 构成                  | 工具结果消息估算                                                                                                                  |
+| `request/context`   | 模型 / 上下文窗口          | contextWindow 展示                                                                                                                |
 
 - **KV 缓存命中率**：`cacheRead / (input + cacheRead)`，长会话的缓存收益一目了然；
 - **上下文构成**：按 system / tools / user / inject / assistant / tool 六类拆分，每次请求快照构成；
@@ -74,11 +74,11 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-my-context
 
 插件配置（`cordis.yml` 中 `my-context` 行的 `config:` 块，均可省略）：
 
-| 配置项 | 默认值 | 说明 |
-|--------|--------|------|
-| `perTurn` | `0` | 每轮 token 上限（0 = 不限制） |
-| `perSession` | `0` | 每会话 token 上限（0 = 不限制） |
-| `mode` | `'warn'` | 超限行为：`warn` 提醒 / `deny` 拦截 |
+| 配置项       | 默认值   | 说明                                |
+| ------------ | -------- | ----------------------------------- |
+| `perTurn`    | `0`      | 每轮 token 上限（0 = 不限制）       |
+| `perSession` | `0`      | 每会话 token 上限（0 = 不限制）     |
+| `mode`       | `'warn'` | 超限行为：`warn` 提醒 / `deny` 拦截 |
 
 也可在侧边栏面板「预算设置」中动态修改（`POST /context/api/budget`）。
 

@@ -8,9 +8,7 @@
 
 import { withTimeout, userMessage } from './util.js'
 import { lastAssistantText, summarizeSession } from './text.js'
-import {
-  DIRECT_CONTINUE_TEXT, RESUME_CONTINUE_TEXT, VERIFY_TIMEOUT_MS, WAKE_CONTINUE_TEXT,
-} from './constants.js'
+import { DIRECT_CONTINUE_TEXT, RESUME_CONTINUE_TEXT, VERIFY_TIMEOUT_MS, WAKE_CONTINUE_TEXT } from './constants.js'
 
 function verifyPrompt(task, summary) {
   return `你是一个任务完成度校验员。请阅读以下任务与当前会话进展，判断任务是否已经真正完成。
@@ -41,7 +39,8 @@ function continueDirect(task, agent, save) {
 
 async function sessionSummary(ctx, agent, task) {
   const sessionQuery = ctx.get('sessionQuery')
-  if (sessionQuery === undefined || sessionQuery === null || typeof sessionQuery.readSession !== 'function') return task.description
+  if (sessionQuery === undefined || sessionQuery === null || typeof sessionQuery.readSession !== 'function')
+    return task.description
   try {
     const log = await sessionQuery.readSession(agent.id)
     return summarizeSession(log, task.description)
@@ -87,11 +86,13 @@ async function disposeHandle(handle) {
 function continueWithConclusion(task, agent, save, conclusion) {
   task.status = 'active'
   const reason = conclusion?.reason !== undefined && conclusion.reason !== '' ? conclusion.reason : ''
-  agent.followup(userMessage(
-    reason !== ''
-      ? `【任务校验】校验员判断任务尚未完成：${reason}。请继续完成剩余部分。`
-      : DIRECT_CONTINUE_TEXT(task.description),
-  ))
+  agent.followup(
+    userMessage(
+      reason !== ''
+        ? `【任务校验】校验员判断任务尚未完成：${reason}。请继续完成剩余部分。`
+        : DIRECT_CONTINUE_TEXT(task.description),
+    ),
+  )
   task.loopCount += 1
   save()
 }
@@ -192,10 +193,15 @@ export async function wakeStalledTask(ctx, task, save) {
   let agent
   try {
     const live = agents.get(task.sessionId)
-    agent = live !== undefined ? live : (await agents.resume({
-      resumeSessionId: task.sessionId,
-      agentOptions: {},
-    })).agent
+    agent =
+      live !== undefined
+        ? live
+        : (
+            await agents.resume({
+              resumeSessionId: task.sessionId,
+              agentOptions: {},
+            })
+          ).agent
   } catch {
     return false
   }

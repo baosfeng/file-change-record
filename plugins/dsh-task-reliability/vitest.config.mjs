@@ -11,7 +11,20 @@ export default defineConfig({
     fileParallelism: false,
     coverage: {
       provider: 'v8',
-      include: ['lib/index.js', 'lib/constants.js', 'lib/util.js', 'lib/fence.js', 'lib/text.js', 'lib/repeat.js', 'lib/store.js', 'lib/verify.js', 'lib/events.js', 'lib/api.js', 'lib/config-store.js', 'lib/command.js'],
+      include: [
+        'lib/index.js',
+        'lib/constants.js',
+        'lib/util.js',
+        'lib/fence.js',
+        'lib/text.js',
+        'lib/repeat.js',
+        'lib/store.js',
+        'lib/verify.js',
+        'lib/events.js',
+        'lib/api.js',
+        'lib/config-store.js',
+        'lib/command.js',
+      ],
       thresholds: {
         lines: 85,
         branches: 75,

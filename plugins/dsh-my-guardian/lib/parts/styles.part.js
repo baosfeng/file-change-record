@@ -1,5 +1,5 @@
-    // ── styles ─────────────────────────────────────────────────────────────
-    const STYLES = `
+// ── styles ─────────────────────────────────────────────────────────────
+const STYLES = `
 .dsh-my-guardian-panel { padding: 8px 10px; font-size: 12px; color: var(--dsw-alias-text-primary, #d6d6d6); display: flex; flex-direction: column; gap: 8px; }
 .dsh-my-guardian-safemode { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid var(--dsw-alias-border, rgba(128,128,128,.3)); border-radius: 8px; background: var(--dsw-alias-bg-soft, rgba(128,128,128,.08)); }
 .dsh-my-guardian-safemode label { display: flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer; }

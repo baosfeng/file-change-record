@@ -106,7 +106,10 @@ class World {
     assert.ok(route, 'api route registered')
     const res = makeResponse()
     await route.handler(makeRequest(method, `/guardian/api/${path}`, body, overrides), res)
-    this.lastResponse = { status: res._status, json: res._body === '' ? null : JSON.parse(res._body) }
+    this.lastResponse = {
+      status: res._status,
+      json: res._body === '' ? null : JSON.parse(res._body),
+    }
     return this.lastResponse
   }
 }
@@ -128,7 +131,11 @@ function makeRequest(method, url, body, overrides) {
   const req = {
     method,
     url,
-    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://127.0.0.1:3080' },
+    headers: {
+      host: '127.0.0.1:3080',
+      'sec-fetch-site': 'same-origin',
+      origin: 'http://127.0.0.1:3080',
+    },
     ...(overrides ?? {}),
     [Symbol.asyncIterator]() {
       const chunks = body === undefined ? [] : [JSON.stringify(body)]
@@ -166,18 +173,35 @@ Given('loader 已有条目 {string}', async function (id) {
 
 Given('安全模式已开启', async function () {
   mkdirSync(join(this.dir, 'guardian'), { recursive: true })
-  writeFileSync(this.stateFile(), JSON.stringify({ version: 1, safeMode: true, staged: {}, promoted: {}, events: [] }), 'utf8')
+  writeFileSync(
+    this.stateFile(),
+    JSON.stringify({ version: 1, safeMode: true, staged: {}, promoted: {}, events: [] }),
+    'utf8',
+  )
 })
 
 Given('状态文件已记录转正条目 {string}', async function (id) {
   mkdirSync(join(this.dir, 'guardian'), { recursive: true })
-  writeFileSync(this.stateFile(), JSON.stringify({
-    version: 1,
-    safeMode: false,
-    staged: {},
-    promoted: { [id]: { name: 'old-plugin', attempts: 0, lastError: null, lastFailedAt: null, frozen: false, promotedAt: 1 } },
-    events: [],
-  }), 'utf8')
+  writeFileSync(
+    this.stateFile(),
+    JSON.stringify({
+      version: 1,
+      safeMode: false,
+      staged: {},
+      promoted: {
+        [id]: {
+          name: 'old-plugin',
+          attempts: 0,
+          lastError: null,
+          lastFailedAt: null,
+          frozen: false,
+          promotedAt: 1,
+        },
+      },
+      events: [],
+    }),
+    'utf8',
+  )
 })
 
 Given('守护进程启动', async function () {
@@ -229,7 +253,10 @@ Then('条目 {string} 的失败次数为 {int}', async function (id, count) {
 
 Then('候选区文件仍包含 {string}', async function (id) {
   const entries = JSON.parse(readFileSync(this.stagedFile(), 'utf8'))
-  assert.ok(entries.some((e) => e?.id === id), `candidate file still contains ${id}`)
+  assert.ok(
+    entries.some((e) => e?.id === id),
+    `candidate file still contains ${id}`,
+  )
 })
 
 Then('状态记录包含失败原因', async function () {

@@ -157,10 +157,7 @@ function fieldValue(block, key) {
   if (match === null) return undefined
   const value = match[1].trim()
   if (value === '') return undefined
-  if (
-    (value.startsWith('"') && value.endsWith('"')) ||
-    (value.startsWith("'") && value.endsWith("'"))
-  ) {
+  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
     return value.slice(1, -1)
   }
   return value

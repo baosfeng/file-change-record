@@ -31,7 +31,6 @@ cordis.staged.json（候选区）
 
 > 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-my-guardian`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。
 
-
 ### 方式一：dsh plugin（推荐）
 
 ```sh
@@ -64,9 +63,7 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-my-guardian
 新建 `~/.dsh/profiles/web/cordis.staged.json`（与 `cordis.patch.yml` 同目录）：
 
 ```json
-[
-  { "id": "my-plugin", "name": "dsh-my-plugin", "config": { "option": 1 } }
-]
+[{ "id": "my-plugin", "name": "dsh-my-plugin", "config": { "option": 1 } }]
 ```
 
 - `id`：唯一标识（不能与现有插件行 id 冲突）
@@ -79,12 +76,12 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-my-guardian
 
 侧边栏 → "插件守护"页签：
 
-| 状态 | 含义 | 操作 |
-|------|------|------|
-| 运行中 | 已挂载 | 移除 |
-| 待加载 | 尚未处理（安全模式等） | — |
-| 失败 ×N | 挂载失败 N 次 | 重试 / 移除 |
-| 冻结 | 连续失败 3 次 | 重试（解除冻结）/ 移除 |
+| 状态    | 含义                   | 操作                   |
+| ------- | ---------------------- | ---------------------- |
+| 运行中  | 已挂载                 | 移除                   |
+| 待加载  | 尚未处理（安全模式等） | —                      |
+| 失败 ×N | 挂载失败 N 次          | 重试 / 移除            |
+| 冻结    | 连续失败 3 次          | 重试（解除冻结）/ 移除 |
 
 ### 效果截图（真实 DSH 实例验证）
 
@@ -110,12 +107,12 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-my-guardian
 
 ## 依赖
 
-| 依赖 | 用途 | 可选 |
-|---|---|---|
-| `cordis` | 插件运行时 | 是（宿主提供） |
+| 依赖                 | 用途                                                                                                           | 可选           |
+| -------------------- | -------------------------------------------------------------------------------------------------------------- | -------------- |
+| `cordis`             | 插件运行时                                                                                                     | 是（宿主提供） |
 | `dsh-better-sidebar` | 侧边栏「插件守护」诊断面板（**可选增强，不参与依赖声明**：未安装时自动跳过面板注册，API / 候选区治理不受影响） | 否（可选增强） |
-| `react` | client 端组件 | 是（宿主提供） |
-| `dsh-my-notify` | 失败 / 冻结事件浏览器通知 | 是 |
+| `react`              | client 端组件                                                                                                  | 是（宿主提供） |
+| `dsh-my-notify`      | 失败 / 冻结事件浏览器通知                                                                                      | 是             |
 
 ## 相关文档
 

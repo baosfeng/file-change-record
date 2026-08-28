@@ -18,7 +18,10 @@ import fs from 'node:fs'
 
 // ── stubbed react (self-contained: no react install needed) ───────────────
 const stubbed = {
-  createElement: (type, props, ...children) => ({ type, props: { ...(props || {}), children: children.flat() } }),
+  createElement: (type, props, ...children) => ({
+    type,
+    props: { ...(props || {}), children: children.flat() },
+  }),
   useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
   useEffect: () => {},
   useMemo: (fn) => fn(),
@@ -28,12 +31,20 @@ const stubbed = {
 // ── load bundle ────────────────────────────────────────────────────────────
 let registered = null
 global.window = {
-  __ModuleLoader__: { load: (registration) => { registered = registration } },
+  __ModuleLoader__: {
+    load: (registration) => {
+      registered = registration
+    },
+  },
   location: { href: 'http://127.0.0.1:3080/app', search: '' },
 }
 global.document = undefined
 global.Element = function Element() {}
-global.MutationObserver = class { constructor() {} observe() {} disconnect() {} }
+global.MutationObserver = class {
+  constructor() {}
+  observe() {}
+  disconnect() {}
+}
 
 eval(fs.readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8'))
 assert.ok(registered, 'bundle registered')
@@ -49,7 +60,14 @@ test('标准 GFM 表格（首尾管道符）解析成功', () => {
   const t = parseTable('| 插件 | 版本 |\n| --- | --- |\n| dsh-file-activity | 0.4.2 |\n| dsh-think-zh-expand | 0.4.2 |')
   assert.ok(t, 'standard GFM table parsed')
   assert.deepEqual(t.header, ['插件', '版本'], 'header cells')
-  assert.deepEqual(t.rows, [['dsh-file-activity', '0.4.2'], ['dsh-think-zh-expand', '0.4.2']], 'data rows')
+  assert.deepEqual(
+    t.rows,
+    [
+      ['dsh-file-activity', '0.4.2'],
+      ['dsh-think-zh-expand', '0.4.2'],
+    ],
+    'data rows',
+  )
   assert.deepEqual(t.aligns, ['left', 'left'], 'default alignment is left')
 })
 
@@ -154,7 +172,9 @@ test('isTableLine / isSeparatorLine / splitRow / parseAlign 基础行为', () =>
 
 test('思考模式回归：标准表格（reasoning 块同款输入）解析不受影响', () => {
   // 与 dsh-think-zh-expand client-render.mjs 的表格用例同款输入
-  const t = parseTable('| 插件 | 版本 |\n|:-----|:----:|\n| dsh-file-activity | **0.4.2** |\n| dsh-think-zh-expand | `0.2.0` |')
+  const t = parseTable(
+    '| 插件 | 版本 |\n|:-----|:----:|\n| dsh-file-activity | **0.4.2** |\n| dsh-think-zh-expand | `0.2.0` |',
+  )
   assert.ok(t, 'standard table parsed')
   assert.deepEqual(t.aligns, ['left', 'center'], 'alignment from separator row')
   assert.equal(t.rows.length, 2, 'two data rows')

@@ -15,11 +15,20 @@ import { searchNpmPlugins } from './registry.js'
 
 export function createApiHandler({ ctx, profile, profileDir, fence }) {
   const handlers = {
-    installed: { method: 'GET', run: (url, request, response) => handleInstalled(ctx, profileDir, response) },
+    installed: {
+      method: 'GET',
+      run: (url, request, response) => handleInstalled(ctx, profileDir, response),
+    },
     search: { method: 'GET', run: (url, request, response) => handleSearch(url, response) },
     updates: { method: 'GET', run: (url, request, response) => handleUpdates(profile, response) },
-    install: { method: 'POST', run: (url, request, response) => handleInstall(profile, request, response) },
-    uninstall: { method: 'POST', run: (url, request, response) => handleUninstall(profile, request, response) },
+    install: {
+      method: 'POST',
+      run: (url, request, response) => handleInstall(profile, request, response),
+    },
+    uninstall: {
+      method: 'POST',
+      run: (url, request, response) => handleUninstall(profile, request, response),
+    },
   }
   return async (request, response) => {
     if (!fence(request)) {
@@ -31,7 +40,10 @@ export function createApiHandler({ ctx, profile, profileDir, fence }) {
       const method = apiMethodOf(url)
       const spec = method === undefined ? undefined : handlers[method]
       if (spec === undefined || spec.method !== request.method) {
-        writeJson(response, 404, { ok: false, error: { message: 'unknown my-plugin-manager API method' } })
+        writeJson(response, 404, {
+          ok: false,
+          error: { message: 'unknown my-plugin-manager API method' },
+        })
         return
       }
       await spec.run(url, request, response)

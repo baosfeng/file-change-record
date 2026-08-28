@@ -38,13 +38,17 @@ export async function loadState(file) {
 /** Map a raw operation kind (tool name or client op) to 'read' | 'write' | 'edit' | 'delete'. */
 export function mapOp(op) {
   switch (op) {
-    case 'write': return 'write'
+    case 'write':
+      return 'write'
     case 'edit':
-    case 'str_replace_editor': return 'edit'
-    case 'delete': return 'delete'
+    case 'str_replace_editor':
+      return 'edit'
+    case 'delete':
+      return 'delete'
     case 'read':
     case 'read_image':
-    default: return 'read'
+    default:
+      return 'read'
   }
 }
 
@@ -91,8 +95,9 @@ function pushRecent(recent, path, op, time) {
 
 /** A record target is valid when both ids are non-empty strings (no NUL). */
 function isValidRecordTarget(sessionId, path) {
-  return typeof sessionId === 'string' && sessionId !== ''
-    && typeof path === 'string' && path !== '' && !path.includes('\0')
+  return (
+    typeof sessionId === 'string' && sessionId !== '' && typeof path === 'string' && path !== '' && !path.includes('\0')
+  )
 }
 
 /** 'write' → create/modify by the known-file registry; 'edit' → modify; else read. */
@@ -119,7 +124,8 @@ function bumpCount(counts, finalOp, firstSeen, timestamp) {
  * Returns { state, trimmed } where trimmed reports whether anything changed.
  */
 export function trimLoadedState(loaded) {
-  if (loaded.sessions === undefined || loaded.sessions === null || typeof loaded.sessions !== 'object') loaded.sessions = {}
+  if (loaded.sessions === undefined || loaded.sessions === null || typeof loaded.sessions !== 'object')
+    loaded.sessions = {}
   let trimmed = false
   for (const session of Object.values(loaded.sessions)) {
     if (Array.isArray(session.recent)) {
@@ -150,7 +156,8 @@ export function trimLoadedState(loaded) {
 export function isRecordedPath(state, sessionId, path) {
   const session = state.sessions[sessionId]
   if (session === undefined) return false
-  if (session.counts !== undefined && typeof session.counts[path] === 'object' && session.counts[path] !== null) return true
+  if (session.counts !== undefined && typeof session.counts[path] === 'object' && session.counts[path] !== null)
+    return true
   // Deleted files no longer exist on disk — a delete history entry must not
   // authorize media preview for them.
   if (Array.isArray(session.recent)) return session.recent.some((entry) => entry.path === path && entry.op !== 'delete')

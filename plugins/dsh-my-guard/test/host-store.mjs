@@ -8,7 +8,14 @@ import { writeFileSync, mkdirSync, rmSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { MAX_ALERTS } from '../lib/constants.js'
 import {
-  bootPlugin, createTempHome, mockRequest, mockResponse, invoke, jsonOf, settle, dispatchEvent,
+  bootPlugin,
+  createTempHome,
+  mockRequest,
+  mockResponse,
+  invoke,
+  jsonOf,
+  settle,
+  dispatchEvent,
 } from './lib/helpers.mjs'
 
 const disposeAlls = []
@@ -25,7 +32,12 @@ function boot(config, opts) {
 }
 
 function bashExec(agentId, command) {
-  return { name: 'bash', callId: `call-${Math.random()}`, agent: { id: agentId }, arguments: { command } }
+  return {
+    name: 'bash',
+    callId: `call-${Math.random()}`,
+    agent: { id: agentId },
+    arguments: { command },
+  }
 }
 
 function dispatch(listeners, exec, next) {
@@ -102,7 +114,11 @@ test('confirm marks an alert as confirmed', async () => {
   const id = alerts[0].id
   assert.equal(alerts[0].confirmed, false)
   const res = mockResponse()
-  await invoke(api, mockRequest({ url: '/guard/api/alerts/confirm', method: 'POST', body: JSON.stringify({ id }) }), res)
+  await invoke(
+    api,
+    mockRequest({ url: '/guard/api/alerts/confirm', method: 'POST', body: JSON.stringify({ id }) }),
+    res,
+  )
   assert.equal(res.writeHeadStatus, 200)
   assert.equal(jsonOf(res).value.confirmed, true)
   const after = await fetchAlerts(api)
@@ -114,7 +130,15 @@ test('confirm marks an alert as confirmed', async () => {
 test('confirm with unknown id returns confirmed:false', async () => {
   const { api, disposeAll } = boot({})
   const res = mockResponse()
-  await invoke(api, mockRequest({ url: '/guard/api/alerts/confirm', method: 'POST', body: JSON.stringify({ id: 9999 }) }), res)
+  await invoke(
+    api,
+    mockRequest({
+      url: '/guard/api/alerts/confirm',
+      method: 'POST',
+      body: JSON.stringify({ id: 9999 }),
+    }),
+    res,
+  )
   assert.equal(jsonOf(res).value.confirmed, false)
   disposeAll()
 })
@@ -134,14 +158,17 @@ test('invalid alert entries are filtered on load', async () => {
   const home = createTempHome()
   tmpDirs.push(home)
   mkdirSync(join(home, 'guard'), { recursive: true })
-  writeFileSync(join(home, 'guard', 'alerts.json'), JSON.stringify({
-    version: 1,
-    alerts: [
-      { time: 1, type: 'destructive', message: 'ok' },
-      { time: 'bad', type: 'destructive', message: 'bad time' },
-      { type: 'no-time' },
-    ],
-  }))
+  writeFileSync(
+    join(home, 'guard', 'alerts.json'),
+    JSON.stringify({
+      version: 1,
+      alerts: [
+        { time: 1, type: 'destructive', message: 'ok' },
+        { time: 'bad', type: 'destructive', message: 'bad time' },
+        { type: 'no-time' },
+      ],
+    }),
+  )
   const { api, disposeAll } = boot({}, { home })
   const alerts = await fetchAlerts(api)
   assert.equal(alerts.length, 1)

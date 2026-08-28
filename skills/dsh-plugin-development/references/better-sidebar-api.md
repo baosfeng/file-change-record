@@ -68,13 +68,13 @@ ctx.betterSidebar.features                         // ['badge','tabLifecycle','u
 
 fetchStrategy 对照：
 
-| 策略 | 字节来源 | 组件字段 |
-|---|---|---|
-| none | 无 | — |
-| fsRead | `/sidebar/api/fs.read` | content, truncated |
-| mediaUrl | `/sidebar/file` 路由 URL | mediaUrl |
-| custom | 你的 load() | customData |
-| binary-download | 不预览，下载按钮 | — |
+| 策略            | 字节来源                 | 组件字段           |
+| --------------- | ------------------------ | ------------------ |
+| none            | 无                       | —                  |
+| fsRead          | `/sidebar/api/fs.read`   | content, truncated |
+| mediaUrl        | `/sidebar/file` 路由 URL | mediaUrl           |
+| custom          | 你的 load()              | customData         |
+| binary-download | 不预览，下载按钮         | —                  |
 
 内置 viewer：image(0) / pdf(0) / markdown(0,fsRead) / html(0,fsRead) / code(-100,catch-all,fsRead) / binary-download(-50)。同扩展名 + 更高 priority 即可覆盖内置。
 
@@ -87,7 +87,7 @@ const res = await fetch('/sidebar/api/fs.read', {
   headers: { 'content-type': 'application/json' },
   body: JSON.stringify({ sessionId: scope.sessionId, path }),
 })
-const { value } = await res.json()   // 文本: { kind:'text', content, truncated }；二进制: { kind:'binary', size, truncated, head }
+const { value } = await res.json() // 文本: { kind:'text', content, truncated }；二进制: { kind:'binary', size, truncated, head }
 
 // 媒体 URL（<img src> 直接用）
 const url = `/sidebar/file?${new URLSearchParams({ sessionId: scope.sessionId, path })}`
@@ -118,8 +118,12 @@ settings: {
 ## 版本与能力探测
 
 ```js
-if (ctx.betterSidebar.features.includes('openFile')) { /* 用 openFile */ }
-if (ctx.betterSidebar.version >= '0.12.0') { /* minor 只增，字符串比较即可 */ }
+if (ctx.betterSidebar.features.includes('openFile')) {
+  /* 用 openFile */
+}
+if (ctx.betterSidebar.version >= '0.12.0') {
+  /* minor 只增，字符串比较即可 */
+}
 ```
 
 ## 生命周期要点

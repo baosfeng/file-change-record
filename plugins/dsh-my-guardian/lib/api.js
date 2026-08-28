@@ -41,15 +41,21 @@ function ensureApi(ctx, shared) {
   const webRuntime = ctx.get('webRuntime')
   shared.apiRegistered = true
   try {
-    ctx.effect(() => webServer.register({
-      kind: 'prefix',
-      path: '/guardian/api',
-      handler: (request, response) => handleApiRequest(ctx, shared, webRuntime, request, response),
-    }), 'dsh-my-guardian: /guardian/api routes')
+    ctx.effect(
+      () =>
+        webServer.register({
+          kind: 'prefix',
+          path: '/guardian/api',
+          handler: (request, response) => handleApiRequest(ctx, shared, webRuntime, request, response),
+        }),
+      'dsh-my-guardian: /guardian/api routes',
+    )
   } catch (error) {
     // registration failed: allow a later poll tick to retry
     shared.apiRegistered = false
-    ctx.logger?.warn(`[dsh-my-guardian] api registration failed: ${error instanceof Error ? error.message : String(error)}`)
+    ctx.logger?.warn(
+      `[dsh-my-guardian] api registration failed: ${error instanceof Error ? error.message : String(error)}`,
+    )
   }
 }
 
@@ -64,7 +70,10 @@ async function handleApiRequest(ctx, shared, webRuntime, request, response) {
   try {
     await dispatchApiMethod(ctx, shared, method, request, response)
   } catch (error) {
-    writeJson(response, 400, { ok: false, error: { message: error instanceof Error ? error.message : String(error) } })
+    writeJson(response, 400, {
+      ok: false,
+      error: { message: error instanceof Error ? error.message : String(error) },
+    })
   }
 }
 
@@ -112,7 +121,10 @@ async function handleStagedPost(ctx, shared, request, response) {
   }
   const entries = await readStagedFile(shared.stagedFile)
   if (entries.some((item) => item?.id === id)) {
-    writeJson(response, 409, { ok: false, error: { message: `"${id}" already in the staged file` } })
+    writeJson(response, 409, {
+      ok: false,
+      error: { message: `"${id}" already in the staged file` },
+    })
     return
   }
   entries.push({ id, name, ...(payload.config !== undefined ? { config: payload.config } : {}) })
@@ -170,7 +182,13 @@ function snapshot(shared) {
       frozen: record.frozen,
       lastError: record.lastError,
       lastFailedAt: record.lastFailedAt,
-      status: shared.mounted.has(id) ? 'running' : record.frozen ? 'frozen' : record.attempts > 0 ? 'failed' : 'pending',
+      status: shared.mounted.has(id)
+        ? 'running'
+        : record.frozen
+          ? 'frozen'
+          : record.attempts > 0
+            ? 'failed'
+            : 'pending',
     })
   }
   const promotedList = []
@@ -183,8 +201,19 @@ function snapshot(shared) {
       lastError: record.lastError,
       lastFailedAt: record.lastFailedAt,
       promotedAt: record.promotedAt,
-      status: shared.mounted.has(id) ? 'running' : record.frozen ? 'frozen' : record.attempts > 0 ? 'failed' : 'pending',
+      status: shared.mounted.has(id)
+        ? 'running'
+        : record.frozen
+          ? 'frozen'
+          : record.attempts > 0
+            ? 'failed'
+            : 'pending',
     })
   }
-  return { safeMode: shared.state.safeMode, staged: stagedList, promoted: promotedList, events: shared.state.events.slice(-10) }
+  return {
+    safeMode: shared.state.safeMode,
+    staged: stagedList,
+    promoted: promotedList,
+    events: shared.state.events.slice(-10),
+  }
 }

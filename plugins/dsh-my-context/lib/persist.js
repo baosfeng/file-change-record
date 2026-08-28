@@ -97,15 +97,19 @@ function copyObject(target, raw, key, fallback) {
 function persistNow(handle) {
   const snapshot = JSON.stringify(handle.store.state)
   const tmp = `${handle.file}.tmp-${process.pid}`
-  handle.dirtyChain = handle.dirtyChain.then(async () => {
-    try {
-      await mkdir(dirname(handle.file), { recursive: true })
-      await writeFile(tmp, snapshot, 'utf8')
-      await rename(tmp, handle.file)
-    } catch (error) {
-      handle.ctx.logger?.warn(`[dsh-my-context] persist failed: ${error instanceof Error ? error.message : String(error)}`)
-    }
-  }).catch(() => {})
+  handle.dirtyChain = handle.dirtyChain
+    .then(async () => {
+      try {
+        await mkdir(dirname(handle.file), { recursive: true })
+        await writeFile(tmp, snapshot, 'utf8')
+        await rename(tmp, handle.file)
+      } catch (error) {
+        handle.ctx.logger?.warn(
+          `[dsh-my-context] persist failed: ${error instanceof Error ? error.message : String(error)}`,
+        )
+      }
+    })
+    .catch(() => {})
 }
 
 /** 防抖调度持久化。 */

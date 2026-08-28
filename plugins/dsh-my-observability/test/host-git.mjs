@@ -9,7 +9,13 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
-  COMMIT_TYPES, formatCommitMessage, parseCommitRequest, isGitRepo, gitStatus, gitDiff, gitCommit,
+  COMMIT_TYPES,
+  formatCommitMessage,
+  parseCommitRequest,
+  isGitRepo,
+  gitStatus,
+  gitDiff,
+  gitCommit,
 } from '../lib/git.js'
 
 const tmpDirs = []
@@ -34,17 +40,31 @@ test('formatCommitMessage covers all shapes', () => {
   assert.equal(formatCommitMessage({ type: 'feat', description: 'add widget' }), 'feat: add widget')
   assert.equal(formatCommitMessage({ type: 'fix', scope: 'store', description: 'fix leak' }), 'fix(store): fix leak')
   assert.equal(
-    formatCommitMessage({ type: 'docs', scope: '', description: 'update readme', body: 'line1\nline2' }),
+    formatCommitMessage({
+      type: 'docs',
+      scope: '',
+      description: 'update readme',
+      body: 'line1\nline2',
+    }),
     'docs: update readme\n\nline1\nline2',
   )
 })
 
 test('parseCommitRequest validates type/scope/description', () => {
-  const ok = parseCommitRequest({ type: 'feat', scope: 'panel', description: '  add timeline  ', body: '  body  ' })
+  const ok = parseCommitRequest({
+    type: 'feat',
+    scope: 'panel',
+    description: '  add timeline  ',
+    body: '  body  ',
+  })
   assert.deepEqual(ok, { type: 'feat', scope: 'panel', description: 'add timeline', body: 'body' })
   assert.equal(parseCommitRequest({ type: 'nope', description: 'x' }), undefined, 'unknown type rejected')
   assert.equal(parseCommitRequest({ type: 'feat', description: '   ' }), undefined, 'empty description rejected')
-  assert.equal(parseCommitRequest({ type: 'feat', scope: 'Bad Scope!', description: 'x' }), undefined, 'bad scope rejected')
+  assert.equal(
+    parseCommitRequest({ type: 'feat', scope: 'Bad Scope!', description: 'x' }),
+    undefined,
+    'bad scope rejected',
+  )
   assert.equal(parseCommitRequest({ type: 'feat', scope: 'ok-scope1', description: 'x' }).scope, 'ok-scope1')
   assert.equal(parseCommitRequest(null), undefined, 'null rejected')
   assert.equal(parseCommitRequest({ type: 'feat', description: 'x', body: 42 }), undefined, 'non-string body rejected')

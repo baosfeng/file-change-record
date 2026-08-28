@@ -119,14 +119,30 @@ function boot(config = {}, services = {}) {
       return undefined
     },
   }
-  const shared = apply(ctx, { saveDebounceMs: 0, resumeGraceMs: 60000, steerCooldownMs: 0, retryBaseMs: 0, ...config })
+  const shared = apply(ctx, {
+    saveDebounceMs: 0,
+    resumeGraceMs: 60000,
+    steerCooldownMs: 0,
+    retryBaseMs: 0,
+    ...config,
+  })
   const api = routes.find((r) => r.path === '/task-reliability/api' && r.kind === 'prefix')
   const disposeAll = () => {
     for (const dispose of disposers.splice(0)) dispose()
     process.env.DSH_HOME = oldHome
   }
   disposeAlls.push(disposeAll)
-  return { ctx, listeners, api, mainAgent, agents, commandDefs, dir, disposeAll, store: shared.store }
+  return {
+    ctx,
+    listeners,
+    api,
+    mainAgent,
+    agents,
+    commandDefs,
+    dir,
+    disposeAll,
+    store: shared.store,
+  }
 }
 
 function taskCommand(env) {
@@ -147,11 +163,14 @@ async function runCommand(env, rawInput, agent = env.mainAgent) {
 
 async function callApi(env, url, method = 'GET', body) {
   const response = mockResponse()
-  await env.api.handler(mockRequest({
-    url,
-    method,
-    body: body === undefined ? '' : JSON.stringify(body),
-  }), response)
+  await env.api.handler(
+    mockRequest({
+      url,
+      method,
+      body: body === undefined ? '' : JSON.stringify(body),
+    }),
+    response,
+  )
   return { response, body: JSON.parse(response.written.join('') || 'null') }
 }
 
@@ -162,11 +181,16 @@ function dispatchOne(env, name, ...args) {
 }
 
 async function addQuestionViaAsk(env) {
-  await dispatchOne(env, 'tools/pre-execute', {
-    name: 'ask_user_question',
-    agent: env.mainAgent,
-    arguments: { questions: [{ header: '需要确认' }] },
-  }, () => Promise.resolve({ kind: 'allow' }))
+  await dispatchOne(
+    env,
+    'tools/pre-execute',
+    {
+      name: 'ask_user_question',
+      agent: env.mainAgent,
+      arguments: { questions: [{ header: '需要确认' }] },
+    },
+    () => Promise.resolve({ kind: 'allow' }),
+  )
 }
 
 // ── 命令注册 ─────────────────────────────────────────────────────────────
@@ -202,7 +226,11 @@ test('解析：status/continue', () => {
 
 test('解析：answer 带 id 和文本（含多词文本）', () => {
   assert.deepEqual(parseTaskCommand('answer q-1 好的'), { kind: 'answer', id: 'q-1', text: '好的' })
-  assert.deepEqual(parseTaskCommand('answer q-1 多词 文本'), { kind: 'answer', id: 'q-1', text: '多词 文本' })
+  assert.deepEqual(parseTaskCommand('answer q-1 多词 文本'), {
+    kind: 'answer',
+    id: 'q-1',
+    text: '多词 文本',
+  })
 })
 
 test('解析：answer 缺参数 → invalid-answer', () => {
@@ -221,7 +249,10 @@ test('解析：autopilot 无效参数 → invalid-autopilot', () => {
 })
 
 test('解析：register 带描述', () => {
-  assert.deepEqual(parseTaskCommand('register 开发一个功能'), { kind: 'register', description: '开发一个功能' })
+  assert.deepEqual(parseTaskCommand('register 开发一个功能'), {
+    kind: 'register',
+    description: '开发一个功能',
+  })
 })
 
 test('解析：register 空描述 → invalid-register', () => {
@@ -246,7 +277,10 @@ test('status：无任务无问题时显示模式状态', async () => {
 
 test('status：显示活动任务与待确认问题', async () => {
   const env = boot({ autopilot: true })
-  await callApi(env, '/task-reliability/api/tasks', 'POST', { sessionId: 'session-cmd', description: '开发一个功能' })
+  await callApi(env, '/task-reliability/api/tasks', 'POST', {
+    sessionId: 'session-cmd',
+    description: '开发一个功能',
+  })
   await addQuestionViaAsk(env)
   const result = await runCommand(env, 'status')
   assert.equal(result.kind, 'success')
@@ -258,8 +292,15 @@ test('status：显示活动任务与待确认问题', async () => {
 
 test('status：显示 tracking/verify 开启与 checking 任务，已回答问题不列出', async () => {
   const env = boot({ autopilot: true })
-  await callApi(env, '/task-reliability/api/mode', 'POST', { tracking: true, verify: true, autopilot: true })
-  await callApi(env, '/task-reliability/api/tasks', 'POST', { sessionId: 'session-cmd', description: '开发一个功能' })
+  await callApi(env, '/task-reliability/api/mode', 'POST', {
+    tracking: true,
+    verify: true,
+    autopilot: true,
+  })
+  await callApi(env, '/task-reliability/api/tasks', 'POST', {
+    sessionId: 'session-cmd',
+    description: '开发一个功能',
+  })
   env.store.tasks[0].status = 'checking'
   await addQuestionViaAsk(env)
   const qid = env.store.questions[0].id
@@ -278,7 +319,10 @@ test('status：显示 tracking/verify 开启与 checking 任务，已回答问�
 // ── continue 子命令 ───────────────────────────────────────────────────────
 test('continue：唤醒当前会话活动任务', async () => {
   const env = boot()
-  await callApi(env, '/task-reliability/api/tasks', 'POST', { sessionId: 'session-cmd', description: '开发一个功能' })
+  await callApi(env, '/task-reliability/api/tasks', 'POST', {
+    sessionId: 'session-cmd',
+    description: '开发一个功能',
+  })
   const result = await runCommand(env, 'continue')
   assert.equal(result.kind, 'success')
   assert.ok(result.text.includes('已唤醒任务继续执行'))
@@ -296,7 +340,10 @@ test('continue：无活动任务返回错误', async () => {
 
 test('continue：唤醒失败返回错误', async () => {
   const env = boot({}, { noAgents: true })
-  await callApi(env, '/task-reliability/api/tasks', 'POST', { sessionId: 'session-cmd', description: '开发一个功能' })
+  await callApi(env, '/task-reliability/api/tasks', 'POST', {
+    sessionId: 'session-cmd',
+    description: '开发一个功能',
+  })
   const result = await runCommand(env, 'continue')
   assert.equal(result.kind, 'error')
   assert.ok(result.text.includes('唤醒任务失败'))
@@ -304,7 +351,10 @@ test('continue：唤醒失败返回错误', async () => {
 
 test('continue：resume 返回无 agent 时唤醒失败', async () => {
   const env = boot()
-  await callApi(env, '/task-reliability/api/tasks', 'POST', { sessionId: 'session-cmd', description: '开发一个功能' })
+  await callApi(env, '/task-reliability/api/tasks', 'POST', {
+    sessionId: 'session-cmd',
+    description: '开发一个功能',
+  })
   env.agents.resume = async () => ({ agent: undefined, async dispose() {} })
   const result = await runCommand(env, 'continue')
   assert.equal(result.kind, 'error')
@@ -313,8 +363,13 @@ test('continue：resume 返回无 agent 时唤醒失败', async () => {
 
 test('continue：followup 失败时返回错误', async () => {
   const env = boot()
-  await callApi(env, '/task-reliability/api/tasks', 'POST', { sessionId: 'session-cmd', description: '开发一个功能' })
-  env.mainAgent.followup = () => { throw new Error('followup failed') }
+  await callApi(env, '/task-reliability/api/tasks', 'POST', {
+    sessionId: 'session-cmd',
+    description: '开发一个功能',
+  })
+  env.mainAgent.followup = () => {
+    throw new Error('followup failed')
+  }
   const result = await runCommand(env, 'continue')
   assert.equal(result.kind, 'error')
   assert.ok(result.text.includes('唤醒任务失败'))
@@ -322,7 +377,10 @@ test('continue：followup 失败时返回错误', async () => {
 
 test('continue：唤醒成功后状态落盘', async () => {
   const env = boot()
-  await callApi(env, '/task-reliability/api/tasks', 'POST', { sessionId: 'session-cmd', description: '开发一个功能' })
+  await callApi(env, '/task-reliability/api/tasks', 'POST', {
+    sessionId: 'session-cmd',
+    description: '开发一个功能',
+  })
   await new Promise((resolve) => setTimeout(resolve, 20))
   const before = JSON.parse(readFileSync(join(env.dir, 'task-reliability.json'), 'utf8')).tasks[0].updatedAt
   await runCommand(env, 'continue')
@@ -444,7 +502,10 @@ test('复用：autopilot 子命令与 HTTP API mode 动作效果一致（同一 
 test('复用：register 子命令与 HTTP API 注册效果一致（同一 registerTask）', async () => {
   const env = boot()
   await runCommand(env, 'register 命令任务')
-  await callApi(env, '/task-reliability/api/tasks', 'POST', { sessionId: 'session-api', description: 'API任务' })
+  await callApi(env, '/task-reliability/api/tasks', 'POST', {
+    sessionId: 'session-api',
+    description: 'API任务',
+  })
   assert.equal(env.store.tasks.length, 2)
   for (const task of env.store.tasks) {
     assert.equal(task.status, 'active')
@@ -466,7 +527,10 @@ test('复用：answer 子命令与 HTTP API 回答效果一致（同一 answerQu
 
 test('复用：continue 与看门狗唤醒走同一恢复逻辑（同一 wakeStalledTask）', async () => {
   const env = boot()
-  await callApi(env, '/task-reliability/api/tasks', 'POST', { sessionId: 'session-cmd', description: '开发一个功能' })
+  await callApi(env, '/task-reliability/api/tasks', 'POST', {
+    sessionId: 'session-cmd',
+    description: '开发一个功能',
+  })
   await runCommand(env, 'continue')
   assert.equal(env.mainAgent.followed.length, 1)
   const { runWatchdog } = await import('../lib/verify.js')

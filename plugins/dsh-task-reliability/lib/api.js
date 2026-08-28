@@ -12,7 +12,9 @@ import { registerTask, taskById, finishTask, answerQuestion } from './store.js'
 
 /** apiToken 校验：未配置 token 时放行，配置后要求请求头一致。 */
 function tokenOk(request, shared) {
-  return shared.options.apiToken === '' || header(request.headers, 'x-task-reliability-token') === shared.options.apiToken
+  return (
+    shared.options.apiToken === '' || header(request.headers, 'x-task-reliability-token') === shared.options.apiToken
+  )
 }
 
 function parsePath(url) {
@@ -208,7 +210,11 @@ async function triggerMode(body, response, shared) {
 }
 
 async function triggerAnswer(body, response, shared) {
-  const result = answerQuestion(shared.store, typeof body.id === 'string' ? body.id : '', typeof body.answer === 'string' ? body.answer : '')
+  const result = answerQuestion(
+    shared.store,
+    typeof body.id === 'string' ? body.id : '',
+    typeof body.answer === 'string' ? body.answer : '',
+  )
   if (!result.ok) {
     writeJson(response, 400, { ok: false, error: { message: result.error } })
     return true
@@ -278,7 +284,10 @@ async function handleApi(request, response, shared) {
   const method = parsePath(request.url)
   try {
     if (!(await dispatch(method, request.method, request, response, shared))) {
-      writeJson(response, 404, { ok: false, error: { message: 'unknown dsh-task-reliability API method' } })
+      writeJson(response, 404, {
+        ok: false,
+        error: { message: 'unknown dsh-task-reliability API method' },
+      })
     }
   } catch (error) {
     writeError(response, error)

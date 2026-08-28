@@ -80,9 +80,7 @@ function agentTypeOf(agent) {
   if (header === undefined || header === null) return 'unknown'
   if (header.origin === 'subagent') return 'subagent'
   if (typeof header.delegationDepth === 'number' && header.delegationDepth > 0) return 'subagent'
-  return typeof agent.options?.subagentDepth === 'number' && agent.options.subagentDepth > 0
-    ? 'subagent'
-    : 'top'
+  return typeof agent.options?.subagentDepth === 'number' && agent.options.subagentDepth > 0 ? 'subagent' : 'top'
 }
 
 /** 工具结果 ok 判定：非对象视为成功；error 字段非空视为失败。 */
@@ -131,9 +129,17 @@ function wrapStream(sessionId, stream, record) {
         }
         yield chunk
       }
-      record({ type: 'llm_stream', sessionId, data: streamSummary('end', startedAt, chunks, chars) })
+      record({
+        type: 'llm_stream',
+        sessionId,
+        data: streamSummary('end', startedAt, chunks, chars),
+      })
     } catch (error) {
-      record({ type: 'llm_stream', sessionId, data: streamSummary('error', startedAt, chunks, chars, error) })
+      record({
+        type: 'llm_stream',
+        sessionId,
+        data: streamSummary('error', startedAt, chunks, chars, error),
+      })
       throw error
     }
   })()

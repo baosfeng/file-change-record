@@ -29,10 +29,13 @@ const stubbed = {
     hookIndex += 1
     if (!hookValues.has(idx)) {
       const value = typeof initial === 'function' ? initial() : initial
-      hookValues.set(idx, [value, (next) => {
-        const current = hookValues.get(idx)[0]
-        hookValues.set(idx, [typeof next === 'function' ? next(current) : next, hookValues.get(idx)[1]])
-      }])
+      hookValues.set(idx, [
+        value,
+        (next) => {
+          const current = hookValues.get(idx)[0]
+          hookValues.set(idx, [typeof next === 'function' ? next(current) : next, hookValues.get(idx)[1]])
+        },
+      ])
     }
     return hookValues.get(idx)
   },
@@ -56,7 +59,11 @@ function renderView() {
 // ── browser globals ────────────────────────────────────────────────────────
 let registered = null
 global.window = {
-  __ModuleLoader__: { load: (registration) => { registered = registration } },
+  __ModuleLoader__: {
+    load: (registration) => {
+      registered = registration
+    },
+  },
   location: { href: 'http://127.0.0.1:3080/app', search: '' },
 }
 Object.defineProperty(global, 'navigator', { value: { language: 'zh-CN' }, configurable: true })
@@ -65,7 +72,10 @@ const fetchCalls = []
 let cannedResponses = []
 global.fetch = (url, options) => {
   fetchCalls.push({ url: String(url), options })
-  const canned = cannedResponses.shift() ?? { ok: true, value: { scope: 'global', cwd: '', projectRoot: '', items: [] } }
+  const canned = cannedResponses.shift() ?? {
+    ok: true,
+    value: { scope: 'global', cwd: '', projectRoot: '', items: [] },
+  }
   return Promise.resolve({ json: () => Promise.resolve(canned) })
 }
 
@@ -100,9 +110,18 @@ assert.equal(typeof capturedTab.component, 'function')
 // ── helpers ────────────────────────────────────────────────────────────────
 function walkText(node, out) {
   if (node === null || node === undefined || typeof node === 'boolean') return
-  if (typeof node === 'string' || typeof node === 'number') { out.push(String(node)); return }
-  if (Array.isArray(node)) { for (const child of node) walkText(child, out); return }
-  if (typeof node.type === 'function') { walkText(node.type(node.props), out); return }
+  if (typeof node === 'string' || typeof node === 'number') {
+    out.push(String(node))
+    return
+  }
+  if (Array.isArray(node)) {
+    for (const child of node) walkText(child, out)
+    return
+  }
+  if (typeof node.type === 'function') {
+    walkText(node.type(node.props), out)
+    return
+  }
   walkText(node.props.children, out)
 }
 
@@ -112,8 +131,14 @@ function collectButtons(node, out) {
   if (typeof props.onClick === 'function' && typeof props['aria-label'] === 'string') {
     out.push({ label: props['aria-label'], onClick: props.onClick })
   }
-  if (Array.isArray(node)) { for (const c of node) collectButtons(c, out); return }
-  if (typeof node.type === 'function') { collectButtons(node.type(node.props), out); return }
+  if (Array.isArray(node)) {
+    for (const c of node) collectButtons(c, out)
+    return
+  }
+  if (typeof node.type === 'function') {
+    collectButtons(node.type(node.props), out)
+    return
+  }
   collectButtons(props.children, out)
 }
 
@@ -121,8 +146,14 @@ function collectInputs(node, out) {
   if (node === null || typeof node !== 'object') return
   const props = node.props ?? {}
   if (props.className === 'dmm-add-input' || props.className === 'dmm-path-input') out.push(props)
-  if (Array.isArray(node)) { for (const c of node) collectInputs(c, out); return }
-  if (typeof node.type === 'function') { collectInputs(node.type(node.props), out); return }
+  if (Array.isArray(node)) {
+    for (const c of node) collectInputs(c, out)
+    return
+  }
+  if (typeof node.type === 'function') {
+    collectInputs(node.type(node.props), out)
+    return
+  }
   collectInputs(props.children, out)
 }
 
@@ -131,7 +162,10 @@ function countSections(node) {
   const props = node.props ?? {}
   const cls = props.className
   let count = typeof cls === 'string' && (cls === 'dmm-section' || cls.startsWith('dmm-section ')) ? 1 : 0
-  if (Array.isArray(node)) { for (const c of node) count += countSections(c); return count }
+  if (Array.isArray(node)) {
+    for (const c of node) count += countSections(c)
+    return count
+  }
   if (typeof node.type === 'function') return count + countSections(node.type(node.props))
   return count + countSections(props.children)
 }
@@ -141,7 +175,10 @@ function countConfirmPanels(node) {
   const props = node.props ?? {}
   const cls = props.className
   let count = typeof cls === 'string' && (cls === 'dmm-confirm' || cls.startsWith('dmm-confirm ')) ? 1 : 0
-  if (Array.isArray(node)) { for (const c of node) count += countConfirmPanels(c); return count }
+  if (Array.isArray(node)) {
+    for (const c of node) count += countConfirmPanels(c)
+    return count
+  }
   if (typeof node.type === 'function') return count + countConfirmPanels(node.type(node.props))
   return count + countConfirmPanels(props.children)
 }
@@ -149,15 +186,21 @@ function countConfirmPanels(node) {
 // ── render the view with canned two-scope data ─────────────────────────────
 const globalValue = {
   ok: true,
-  value: { scope: 'global', cwd: '', projectRoot: '', items: [
-    { id: 'g1', desc: '回复使用中文', createdAt: 1, updatedAt: 2 },
-  ] },
+  value: {
+    scope: 'global',
+    cwd: '',
+    projectRoot: '',
+    items: [{ id: 'g1', desc: '回复使用中文', createdAt: 1, updatedAt: 2 }],
+  },
 }
 const projectValue = {
   ok: true,
-  value: { scope: 'project', cwd: '/work/proj', projectRoot: '/work/proj', items: [
-    { id: 'p1', desc: '本项目用 vitest', createdAt: 1, updatedAt: 2 },
-  ] },
+  value: {
+    scope: 'project',
+    cwd: '/work/proj',
+    projectRoot: '/work/proj',
+    items: [{ id: 'p1', desc: '本项目用 vitest', createdAt: 1, updatedAt: 2 }],
+  },
 }
 cannedResponses.push(globalValue)
 
@@ -236,11 +279,16 @@ deleteBtn.onClick()
 const tree4 = renderView()
 const confirmDelete = collectConfirmOk(tree4)
 assert.ok(confirmDelete, 'confirm-delete button found')
-cannedResponses.push({ ok: true, value: { scope: 'project', cwd: '/work/proj', projectRoot: '/work/proj', items: [] } })
+cannedResponses.push({
+  ok: true,
+  value: { scope: 'project', cwd: '/work/proj', projectRoot: '/work/proj', items: [] },
+})
 confirmDelete.onClick()
 await new Promise((resolve) => setTimeout(resolve, 0))
 
-const deleteCall = fetchCalls.find((c) => c.options !== undefined && c.options.method === 'POST' && JSON.parse(c.options.body).action === 'delete')
+const deleteCall = fetchCalls.find(
+  (c) => c.options !== undefined && c.options.method === 'POST' && JSON.parse(c.options.body).action === 'delete',
+)
 assert.ok(deleteCall, 'confirmed delete issues a POST')
 const deletePayload = JSON.parse(deleteCall.options.body)
 assert.equal(deletePayload.action, 'delete')
@@ -269,14 +317,24 @@ assert.ok(joined7.includes('确认新增这条记忆'), 'add confirmation text s
 assert.ok(joined7.includes('确认保存'), 'green confirm-save button shown')
 const confirmSave = collectConfirmOk(tree7)
 assert.ok(confirmSave, 'confirm-save button found')
-cannedResponses.push({ ok: true, value: { scope: 'global', cwd: '', projectRoot: '', items: [
-  { id: 'g1', desc: '回复使用中文', createdAt: 1, updatedAt: 2 },
-  { id: 'g2', desc: '新记忆内容', createdAt: 3, updatedAt: 3 },
-] } })
+cannedResponses.push({
+  ok: true,
+  value: {
+    scope: 'global',
+    cwd: '',
+    projectRoot: '',
+    items: [
+      { id: 'g1', desc: '回复使用中文', createdAt: 1, updatedAt: 2 },
+      { id: 'g2', desc: '新记忆内容', createdAt: 3, updatedAt: 3 },
+    ],
+  },
+})
 confirmSave.onClick()
 await new Promise((resolve) => setTimeout(resolve, 0))
 
-const addCall = fetchCalls.find((c) => c.options !== undefined && c.options.method === 'POST' && JSON.parse(c.options.body).action === 'add')
+const addCall = fetchCalls.find(
+  (c) => c.options !== undefined && c.options.method === 'POST' && JSON.parse(c.options.body).action === 'add',
+)
 assert.ok(addCall, 'confirmed add issues a POST')
 const addPayload = JSON.parse(addCall.options.body)
 assert.equal(addPayload.action, 'add')
@@ -313,13 +371,21 @@ walkText(tree11, texts11)
 assert.ok(texts11.join('|').includes('确认保存这条记忆'), 'update confirmation text shown')
 const confirmUpdate = collectConfirmOk(tree11)
 assert.ok(confirmUpdate, 'confirm-update button found')
-cannedResponses.push({ ok: true, value: { scope: 'global', cwd: '', projectRoot: '', items: [
-  { id: 'g1', desc: '回复必须使用中文', createdAt: 1, updatedAt: 4 },
-] } })
+cannedResponses.push({
+  ok: true,
+  value: {
+    scope: 'global',
+    cwd: '',
+    projectRoot: '',
+    items: [{ id: 'g1', desc: '回复必须使用中文', createdAt: 1, updatedAt: 4 }],
+  },
+})
 confirmUpdate.onClick()
 await new Promise((resolve) => setTimeout(resolve, 0))
 
-const updateCall = fetchCalls.find((c) => c.options !== undefined && c.options.method === 'POST' && JSON.parse(c.options.body).action === 'update')
+const updateCall = fetchCalls.find(
+  (c) => c.options !== undefined && c.options.method === 'POST' && JSON.parse(c.options.body).action === 'update',
+)
 assert.ok(updateCall, 'confirmed update issues a POST')
 const updatePayload = JSON.parse(updateCall.options.body)
 assert.equal(updatePayload.action, 'update')
@@ -339,7 +405,10 @@ const buttons13 = []
 collectButtons(tree13, buttons13)
 const loadBtn = buttons13.find((b) => b.label.includes('加载'))
 assert.ok(loadBtn, 'load button rendered')
-cannedResponses.push(globalValue, { ok: true, value: { scope: 'project', cwd: '/work/other', projectRoot: '/work/other', items: [] } })
+cannedResponses.push(globalValue, {
+  ok: true,
+  value: { scope: 'project', cwd: '/work/other', projectRoot: '/work/other', items: [] },
+})
 loadBtn.onClick()
 await new Promise((resolve) => setTimeout(resolve, 0))
 const tree14 = renderView()
@@ -364,7 +433,13 @@ function collectByClass(node, className) {
   const props = node.props ?? {}
   const cls = props.className
   if (typeof cls === 'string' && cls.split(' ').includes(className) && typeof props.onClick === 'function') return props
-  if (Array.isArray(node)) { for (const c of node) { const hit = collectByClass(c, className); if (hit) return hit } return undefined }
+  if (Array.isArray(node)) {
+    for (const c of node) {
+      const hit = collectByClass(c, className)
+      if (hit) return hit
+    }
+    return undefined
+  }
   if (typeof node.type === 'function') return collectByClass(node.type(node.props), className)
   return collectByClass(props.children, className)
 }

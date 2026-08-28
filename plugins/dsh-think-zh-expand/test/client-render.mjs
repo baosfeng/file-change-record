@@ -40,7 +40,11 @@ const stubbed = {
 // ── load bundles: dsh-md-render first (think-zh-expand requires it) ───────
 let registrations = []
 global.window = {
-  __ModuleLoader__: { load: (registration) => { registrations.push(registration) } },
+  __ModuleLoader__: {
+    load: (registration) => {
+      registrations.push(registration)
+    },
+  },
   location: { href: 'http://127.0.0.1:3080/app', search: '' },
   confirm: () => true,
   fetch: () => Promise.resolve({ json: () => Promise.resolve({ ok: true, value: {} }) }),
@@ -78,8 +82,14 @@ let capturedRenderer = null
 const ctx = {
   effect: (fn) => fn(),
   slots: {
-    inject: (_name, fn) => { registerFn = fn; return () => {} },
-    register: (_desc, renderer) => { capturedRenderer = renderer; return () => {} },
+    inject: (_name, fn) => {
+      registerFn = fn
+      return () => {}
+    },
+    register: (_desc, renderer) => {
+      capturedRenderer = renderer
+      return () => {}
+    },
   },
 }
 exportsObj.apply(ctx)
@@ -95,8 +105,14 @@ function renderText(text) {
   const thStyles = []
   function walk(node) {
     if (node === null || node === undefined || typeof node === 'boolean') return
-    if (typeof node === 'string' || typeof node === 'number') { texts.push(String(node)); return }
-    if (Array.isArray(node)) { for (const c of node) walk(c); return }
+    if (typeof node === 'string' || typeof node === 'number') {
+      texts.push(String(node))
+      return
+    }
+    if (Array.isArray(node)) {
+      for (const c of node) walk(c)
+      return
+    }
     const props = node.props ?? {}
     if (typeof node.type === 'string') {
       tags.push(node.type)
@@ -117,7 +133,9 @@ function renderText(text) {
 // ── assertions ────────────────────────────────────────────────────────────
 try {
   // 1. standard table: header + separator + data rows
-  const t1 = renderText('| 插件 | 版本 |\n|:-----|:----:|\n| dsh-file-activity | **0.4.2** |\n| dsh-think-zh-expand | `0.2.0` |')
+  const t1 = renderText(
+    '| 插件 | 版本 |\n|:-----|:----:|\n| dsh-file-activity | **0.4.2** |\n| dsh-think-zh-expand | `0.2.0` |',
+  )
   assert.ok(t1.tags.includes('table'), 'table rendered')
   assert.ok(t1.tags.includes('thead'), 'thead rendered')
   assert.ok(t1.tags.includes('tbody'), 'tbody rendered')
@@ -148,19 +166,33 @@ try {
   assert.ok(r4.tags.includes('p'), 'paragraph fallback for non-table pipes')
 
   // 5. reasoning block still renders as think block (regression: default expanded)
-  const think = capturedRenderer({ node: { data: { blocks: [{ kind: 'reasoning', text: '第一行\n第二行' }] } } })
+  const think = capturedRenderer({
+    node: { data: { blocks: [{ kind: 'reasoning', text: '第一行\n第二行' }] } },
+  })
   const thinkTexts = []
   function walkText(node) {
     if (node === null || node === undefined || typeof node === 'boolean') return
-    if (typeof node === 'string' || typeof node === 'number') { thinkTexts.push(String(node)); return }
-    if (Array.isArray(node)) { for (const c of node) walkText(c); return }
+    if (typeof node === 'string' || typeof node === 'number') {
+      thinkTexts.push(String(node))
+      return
+    }
+    if (Array.isArray(node)) {
+      for (const c of node) walkText(c)
+      return
+    }
     const props = node.props ?? {}
-    if (typeof node.type === 'function') { walkText(node.type(props)); return }
+    if (typeof node.type === 'function') {
+      walkText(node.type(props))
+      return
+    }
     walkText(props.children)
   }
   walkText(think)
   assert.ok(thinkTexts.includes('思考'), 'think block title')
-  assert.ok(thinkTexts.some((t) => t.includes('第一行')), 'thinking content expanded')
+  assert.ok(
+    thinkTexts.some((t) => t.includes('第一行')),
+    'thinking content expanded',
+  )
 
   // 6. fenced code blocks keep their language marker (```mermaid → language-mermaid)
   //    and are wrapped in the host `md-code-block` container, so third-party
@@ -169,14 +201,33 @@ try {
   let mdCodeBlockWrappers = 0
   function walkLangs(node) {
     if (node === null || node === undefined || typeof node === 'boolean') return
-    if (Array.isArray(node)) { for (const c of node) walkLangs(c); return }
+    if (Array.isArray(node)) {
+      for (const c of node) walkLangs(c)
+      return
+    }
     const props = node.props ?? {}
-    if (typeof node.type === 'function') { walkLangs(node.type(props)); return }
+    if (typeof node.type === 'function') {
+      walkLangs(node.type(props))
+      return
+    }
     if (node.type === 'div' && props.className === 'md-code-block') mdCodeBlockWrappers += 1
     if (node.type === 'code' && typeof props.className === 'string') codeLangs.push(props.className)
     walkLangs(props.children)
   }
-  walkLangs(capturedRenderer({ node: { data: { blocks: [{ kind: 'text', text: '```mermaid\nflowchart TD\n    A --> B\n```\n\n```js\nconst x = 1\n```' }] } } }))
+  walkLangs(
+    capturedRenderer({
+      node: {
+        data: {
+          blocks: [
+            {
+              kind: 'text',
+              text: '```mermaid\nflowchart TD\n    A --> B\n```\n\n```js\nconst x = 1\n```',
+            },
+          ],
+        },
+      },
+    }),
+  )
   assert.ok(codeLangs.includes('language-mermaid'), 'mermaid fence keeps language class')
   assert.ok(codeLangs.includes('language-js'), 'js fence keeps language class')
   assert.ok(mdCodeBlockWrappers >= 2, 'fenced blocks wrapped in md-code-block for third-party renderers')
@@ -189,10 +240,19 @@ try {
     const out = []
     function walk(n) {
       if (n === null || n === undefined || typeof n === 'boolean') return
-      if (typeof n === 'string' || typeof n === 'number') { out.push(String(n)); return }
-      if (Array.isArray(n)) { for (const c of n) walk(c); return }
+      if (typeof n === 'string' || typeof n === 'number') {
+        out.push(String(n))
+        return
+      }
+      if (Array.isArray(n)) {
+        for (const c of n) walk(c)
+        return
+      }
       const props = n.props ?? {}
-      if (typeof n.type === 'function') { walk(n.type(props)); return }
+      if (typeof n.type === 'function') {
+        walk(n.type(props))
+        return
+      }
       walk(props.children)
     }
     walk(node)
@@ -203,32 +263,70 @@ try {
     const allTexts = []
     function walk(node) {
       if (node === null || node === undefined || typeof node === 'boolean') return
-      if (typeof node === 'string' || typeof node === 'number') { allTexts.push(String(node)); return }
-      if (Array.isArray(node)) { for (const c of node) walk(c); return }
+      if (typeof node === 'string' || typeof node === 'number') {
+        allTexts.push(String(node))
+        return
+      }
+      if (Array.isArray(node)) {
+        for (const c of node) walk(c)
+        return
+      }
       const props = node.props ?? {}
-      if (typeof node.type === 'function') { walk(node.type(props)); return }
+      if (typeof node.type === 'function') {
+        walk(node.type(props))
+        return
+      }
       if (node.type === 'code') codeTexts.push(constText(props.children))
       walk(props.children)
     }
     walk(tree)
     return { codeTexts, allTexts }
   }
-  const r7 = collectCode(capturedRenderer({ node: { data: { blocks: [{ kind: 'text', text: '思考内容中的 `` `agent/status` `` 应该会被 `mdInline` 解析' }] } } }))
-  assert.deepEqual(r7.codeTexts, ['`agent/status`', 'mdInline'], 'double-backtick span renders whole token as code, single backtick still works')
+  const r7 = collectCode(
+    capturedRenderer({
+      node: {
+        data: {
+          blocks: [{ kind: 'text', text: '思考内容中的 `` `agent/status` `` 应该会被 `mdInline` 解析' }],
+        },
+      },
+    }),
+  )
+  assert.deepEqual(
+    r7.codeTexts,
+    ['`agent/status`', 'mdInline'],
+    'double-backtick span renders whole token as code, single backtick still works',
+  )
   assert.ok(!r7.codeTexts.includes(' '), 'no whitespace-only code artifact')
   assert.ok(!r7.codeTexts.includes(''), 'no empty code artifact')
 
   // 8. 混合：双反引号（紧凑/带空格）与单反引号共存
-  const r8 = collectCode(capturedRenderer({ node: { data: { blocks: [{ kind: 'text', text: '`` `job_list` `` 与 `agent/status`' }] } } }))
+  const r8 = collectCode(
+    capturedRenderer({
+      node: { data: { blocks: [{ kind: 'text', text: '`` `job_list` `` 与 `agent/status`' }] } },
+    }),
+  )
   assert.deepEqual(r8.codeTexts, ['`job_list`', 'agent/status'], 'mixed multi/single backticks')
 
   // 9. 无内容的连续反引号串（4 连）保持字面量，不解析为 code
-  const r9 = collectCode(capturedRenderer({ node: { data: { blocks: [{ kind: 'text', text: '无内容反引号串 ```` 原样' }] } } }))
+  const r9 = collectCode(
+    capturedRenderer({
+      node: { data: { blocks: [{ kind: 'text', text: '无内容反引号串 ```` 原样' }] } },
+    }),
+  )
   assert.ok(!r9.codeTexts.some((t) => t.includes('`')), 'four consecutive backticks stay literal')
-  assert.ok(r9.allTexts.some((t) => t.includes('````')), 'four backticks text retained')
+  assert.ok(
+    r9.allTexts.some((t) => t.includes('````')),
+    'four backticks text retained',
+  )
 
   // 10. 思考块（reasoning）内的双反引号同样渲染为 code（用户场景回归）
-  const r10 = collectCode(capturedRenderer({ node: { data: { blocks: [{ kind: 'reasoning', text: '调用 `` `agent/status` `` 查看状态' }] } } }))
+  const r10 = collectCode(
+    capturedRenderer({
+      node: {
+        data: { blocks: [{ kind: 'reasoning', text: '调用 `` `agent/status` `` 查看状态' }] },
+      },
+    }),
+  )
   assert.ok(r10.codeTexts.includes('`agent/status`'), 'reasoning block renders multi-backtick code')
 
   // 11. 工具中文化映射（需求 3a）：卡片标题 / 工具名 / 工具描述 / others 摘要
@@ -253,7 +351,7 @@ try {
   assert.equal(
     exportsObj.zhCardSummary('ask_user_question · {"text":"确认"}'),
     '询问用户 · {"text":"确认"}',
-    'others summary tool-name prefix localized'
+    'others summary tool-name prefix localized',
   )
   assert.equal(exportsObj.zhCardSummary('web_search · 关键词'), '网络搜索 · 关键词', 'others summary web_search')
   assert.equal(exportsObj.zhCardSummary('no_prefix_here'), null, 'summary without tool prefix untouched')

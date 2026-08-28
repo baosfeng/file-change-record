@@ -134,7 +134,11 @@ export const INJECTION_RULES = [
 export const SUSPICIOUS_SCRIPT_PATTERNS = [
   { id: 'download-exec', re: /\b(curl|wget)\b[^|;]*\|\s*(ba)?sh\b/, message: '下载并执行脚本' },
   { id: 'eval', re: /\beval\s*[("']/, message: 'eval 动态执行' },
-  { id: 'base64-decode', re: /\bbase64\s+-d\b|\becho\s+[^|]*\|\s*base64\s+-d/, message: 'base64 解码执行' },
+  {
+    id: 'base64-decode',
+    re: /\bbase64\s+-d\b|\becho\s+[^|]*\|\s*base64\s+-d/,
+    message: 'base64 解码执行',
+  },
   { id: 'chmod-exec', re: /\bchmod\s+\+?x\b/, message: '赋予执行权限' },
   { id: 'curl-post', re: /\bcurl\b[^|;]*-X\s+POST\b/, message: 'curl POST 外传' },
   { id: 'node-eval', re: /\bnode\s+-e\b/, message: 'node -e 内联执行' },
@@ -148,13 +152,21 @@ export const SUSPICIOUS_SCRIPT_PATTERNS = [
 
 /** 密钥/凭据模式（对包内文件内容匹配）。 */
 export const SECRET_PATTERNS = [
-  { id: 'private-key', re: /-----BEGIN\s+(RSA\s+|EC\s+|OPENSSH\s+|DSA\s+|)PRIVATE\s+KEY-----/, message: '私钥' },
+  {
+    id: 'private-key',
+    re: /-----BEGIN\s+(RSA\s+|EC\s+|OPENSSH\s+|DSA\s+|)PRIVATE\s+KEY-----/,
+    message: '私钥',
+  },
   { id: 'aws-key', re: /\bAKIA[0-9A-Z]{16}\b/, message: 'AWS Access Key' },
   { id: 'github-pat', re: /\bghp_[A-Za-z0-9]{36}\b/, message: 'GitHub Personal Access Token' },
   { id: 'openai-key', re: /\bsk-[A-Za-z0-9]{20,}\b/, message: 'OpenAI API Key' },
   { id: 'slack-token', re: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/, message: 'Slack Token' },
   { id: 'google-api', re: /\bAIza[0-9A-Za-z_-]{35}\b/, message: 'Google API Key' },
-  { id: 'generic-token', re: /\b(token|api[_-]?key|secret|password)\s*[=:]\s*['"][A-Za-z0-9_\-.]{16,}['"]/i, message: '硬编码凭据' },
+  {
+    id: 'generic-token',
+    re: /\b(token|api[_-]?key|secret|password)\s*[=:]\s*['"][A-Za-z0-9_\-.]{16,}['"]/i,
+    message: '硬编码凭据',
+  },
 ]
 
 /** 可疑文件（按文件名匹配）。 */

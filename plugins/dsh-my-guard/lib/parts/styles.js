@@ -1,5 +1,5 @@
-    // ── 样式（DSH 语义 token，随 activation 注入 / teardown 卸载）──────
-    const STYLES = `
+// ── 样式（DSH 语义 token，随 activation 注入 / teardown 卸载）──────
+const STYLES = `
 .dso-panel{display:flex;flex-direction:column;gap:10px;padding:12px;color:var(--dsw-alias-label-primary)}
 .dso-timeline{display:flex;flex-direction:column;gap:6px;max-height:calc(100vh - 320px);overflow-y:auto}
 .dso-alert{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:6px 10px}
@@ -46,13 +46,13 @@
 .dso-issue-msg{color:var(--dsw-alias-label-primary);line-height:1.5}
 `
 
-    function injectStyles() {
-      if (typeof document === 'undefined' || typeof document.head === 'undefined') return () => {}
-      const style = document.createElement('style')
-      style.setAttribute('data-dsh-my-guard', 'styles')
-      style.textContent = STYLES
-      document.head.appendChild(style)
-      return () => {
-        if (style.parentNode !== null) style.parentNode.removeChild(style)
-      }
-    }
+function injectStyles() {
+  if (typeof document === 'undefined' || typeof document.head === 'undefined') return () => {}
+  const style = document.createElement('style')
+  style.setAttribute('data-dsh-my-guard', 'styles')
+  style.textContent = STYLES
+  document.head.appendChild(style)
+  return () => {
+    if (style.parentNode !== null) style.parentNode.removeChild(style)
+  }
+}

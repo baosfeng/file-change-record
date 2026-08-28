@@ -14,16 +14,21 @@ import { normalizeBudgetConfig } from './budget.js'
 /** 注册 /context/api 路由（effect 持有 disposer）。 */
 export function registerContextRoutes(ctx, store, options) {
   const webRuntime = ctx.get ? ctx.get('webRuntime') : undefined
-  const trustedHosts = webRuntime !== undefined && webRuntime !== null && Array.isArray(webRuntime.trustedHosts)
-    ? webRuntime.trustedHosts
-    : []
+  const trustedHosts =
+    webRuntime !== undefined && webRuntime !== null && Array.isArray(webRuntime.trustedHosts)
+      ? webRuntime.trustedHosts
+      : []
   const fence = (request) => isTrustedApiRequest(request, trustedHosts)
 
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'prefix',
-    path: '/context/api',
-    handler: apiHandler(fence, store, options),
-  }), 'dsh-my-context: /context/api routes')
+  ctx.effect(
+    () =>
+      ctx.webServer.register({
+        kind: 'prefix',
+        path: '/context/api',
+        handler: apiHandler(fence, store, options),
+      }),
+    'dsh-my-context: /context/api routes',
+  )
 }
 
 /** 统一 handler：fence → 方法分派 → 404/错误兜底。 */
@@ -39,7 +44,10 @@ function apiHandler(fence, store, options) {
     try {
       const handled = await dispatchMethod(method, request, response, url, store, options)
       if (!handled) {
-        writeJson(response, 404, { ok: false, error: { message: 'unknown dsh-my-context API method' } })
+        writeJson(response, 404, {
+          ok: false,
+          error: { message: 'unknown dsh-my-context API method' },
+        })
       }
     } catch (error) {
       writeError(response, error)

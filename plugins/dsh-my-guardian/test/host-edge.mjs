@@ -73,15 +73,16 @@ function makeLoaderAndTree(opts = {}) {
 
 function makeCtx(fake, opts = {}) {
   const services = {
-    webServer: opts.webServer === false
-      ? undefined
-      : {
-          register: (route) => {
-            if (opts.registerThrows) throw new Error('register exploded')
-            if (route.kind === 'prefix' && route.path === '/guardian/api') fake.apiRoute = route
-            return () => {}
+    webServer:
+      opts.webServer === false
+        ? undefined
+        : {
+            register: (route) => {
+              if (opts.registerThrows) throw new Error('register exploded')
+              if (route.kind === 'prefix' && route.path === '/guardian/api') fake.apiRoute = route
+              return () => {}
+            },
           },
-        },
     webRuntime: { trustedHosts: opts.trustedHosts ?? [] },
   }
   const effects = []
@@ -89,10 +90,12 @@ function makeCtx(fake, opts = {}) {
   const ctx = {
     logger: { warn: () => {} },
     loader: fake.loader,
-    timer: { interval: (callback) => {
-      intervals.push(callback)
-      return () => {}
-    } },
+    timer: {
+      interval: (callback) => {
+        intervals.push(callback)
+        return () => {}
+      },
+    },
     get(name) {
       return services[name]
     },
@@ -128,7 +131,11 @@ function makeRequest(method, url, body, overrides) {
   const req = {
     method,
     url,
-    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://127.0.0.1:3080' },
+    headers: {
+      host: '127.0.0.1:3080',
+      'sec-fetch-site': 'same-origin',
+      origin: 'http://127.0.0.1:3080',
+    },
     ...(overrides ?? {}),
     [Symbol.asyncIterator]() {
       const chunks = body === undefined ? [] : [JSON.stringify(body)]
@@ -164,7 +171,10 @@ async function shutdown(ctx) {
 test('findRootTree falls back to the first include-like tree without cordis.yml', async () => {
   const fake = makeLoaderAndTree({ filename: join(dir, 'alt', 'profile.yml') })
   mkdirSync(join(dir, 'alt'), { recursive: true })
-  writeFileSync(join(dir, 'alt', 'cordis.staged.json'), JSON.stringify([{ id: 'alt-plugin', name: 'dsh-alt' }], null, 2))
+  writeFileSync(
+    join(dir, 'alt', 'cordis.staged.json'),
+    JSON.stringify([{ id: 'alt-plugin', name: 'dsh-alt' }], null, 2),
+  )
   const ctx = boot(fake)
   await sleep(150)
   assert.deepEqual(fake.created, ['alt-plugin'], 'entry mounted via the fallback tree')
@@ -174,10 +184,16 @@ test('findRootTree falls back to the first include-like tree without cordis.yml'
 test('malformed host header is refused by the fence (403)', async () => {
   const fake = makeLoaderAndTree()
   mkdirSync(join(dir, 'guardian'), { recursive: true })
-  writeFileSync(join(dir, 'guardian', 'state.json'), JSON.stringify({ version: 1, safeMode: false, staged: {}, promoted: {}, events: [] }), 'utf8')
+  writeFileSync(
+    join(dir, 'guardian', 'state.json'),
+    JSON.stringify({ version: 1, safeMode: false, staged: {}, promoted: {}, events: [] }),
+    'utf8',
+  )
   const ctx = boot(fake)
   await sleep(120)
-  const r = await callApi(fake, 'GET', 'state', undefined, { headers: { host: 'not a valid authority' } })
+  const r = await callApi(fake, 'GET', 'state', undefined, {
+    headers: { host: 'not a valid authority' },
+  })
   assert.equal(r.status, 403)
   await shutdown(ctx)
 })
@@ -185,10 +201,16 @@ test('malformed host header is refused by the fence (403)', async () => {
 test('malformed origin is refused by the fence (403)', async () => {
   const fake = makeLoaderAndTree()
   mkdirSync(join(dir, 'guardian'), { recursive: true })
-  writeFileSync(join(dir, 'guardian', 'state.json'), JSON.stringify({ version: 1, safeMode: false, staged: {}, promoted: {}, events: [] }), 'utf8')
+  writeFileSync(
+    join(dir, 'guardian', 'state.json'),
+    JSON.stringify({ version: 1, safeMode: false, staged: {}, promoted: {}, events: [] }),
+    'utf8',
+  )
   const ctx = boot(fake)
   await sleep(120)
-  const r = await callApi(fake, 'GET', 'state', undefined, { headers: { host: '127.0.0.1:3080', origin: 'http://[' } })
+  const r = await callApi(fake, 'GET', 'state', undefined, {
+    headers: { host: '127.0.0.1:3080', origin: 'http://[' },
+  })
   assert.equal(r.status, 403)
   await shutdown(ctx)
 })
@@ -196,10 +218,16 @@ test('malformed origin is refused by the fence (403)', async () => {
 test('trustedHosts entry without explicit port is honored', async () => {
   const fake = makeLoaderAndTree()
   mkdirSync(join(dir, 'guardian'), { recursive: true })
-  writeFileSync(join(dir, 'guardian', 'state.json'), JSON.stringify({ version: 1, safeMode: false, staged: {}, promoted: {}, events: [] }), 'utf8')
+  writeFileSync(
+    join(dir, 'guardian', 'state.json'),
+    JSON.stringify({ version: 1, safeMode: false, staged: {}, promoted: {}, events: [] }),
+    'utf8',
+  )
   const ctx = boot(fake, { trustedHosts: ['guardian.example.com'] })
   await sleep(120)
-  const r = await callApi(fake, 'GET', 'state', undefined, { headers: { host: 'guardian.example.com:3080', origin: 'http://guardian.example.com:3080' } })
+  const r = await callApi(fake, 'GET', 'state', undefined, {
+    headers: { host: 'guardian.example.com:3080', origin: 'http://guardian.example.com:3080' },
+  })
   assert.equal(r.status, 200, 'trusted host without port accepted')
   await shutdown(ctx)
 })
@@ -225,13 +253,26 @@ test('unmount failures are swallowed (best effort)', async () => {
 test('promoted entries are skipped in safe mode', async () => {
   const fake = makeLoaderAndTree()
   mkdirSync(join(dir, 'guardian'), { recursive: true })
-  writeFileSync(join(dir, 'guardian', 'state.json'), JSON.stringify({
-    version: 1,
-    safeMode: true,
-    staged: {},
-    promoted: { 'old-p': { name: 'dsh-p', attempts: 0, lastError: null, lastFailedAt: null, frozen: false, promotedAt: 1 } },
-    events: [],
-  }), 'utf8')
+  writeFileSync(
+    join(dir, 'guardian', 'state.json'),
+    JSON.stringify({
+      version: 1,
+      safeMode: true,
+      staged: {},
+      promoted: {
+        'old-p': {
+          name: 'dsh-p',
+          attempts: 0,
+          lastError: null,
+          lastFailedAt: null,
+          frozen: false,
+          promotedAt: 1,
+        },
+      },
+      events: [],
+    }),
+    'utf8',
+  )
   const ctx = boot(fake)
   await sleep(120)
   assert.deepEqual(fake.created, [], 'promoted entries skipped in safe mode')
@@ -250,7 +291,11 @@ test('watcher degradation when the staged file cannot be watched', async () => {
 test('diagnostic events are recorded (entry-init / dispose / update-failed)', async () => {
   const fake = makeLoaderAndTree()
   mkdirSync(join(dir, 'guardian'), { recursive: true })
-  writeFileSync(join(dir, 'guardian', 'state.json'), JSON.stringify({ version: 1, safeMode: false, staged: {}, promoted: {}, events: [] }), 'utf8')
+  writeFileSync(
+    join(dir, 'guardian', 'state.json'),
+    JSON.stringify({ version: 1, safeMode: false, staged: {}, promoted: {}, events: [] }),
+    'utf8',
+  )
   const ctx = boot(fake)
   await sleep(120)
   for (const { name, listener } of fake.events) {
@@ -260,22 +305,37 @@ test('diagnostic events are recorded (entry-init / dispose / update-failed)', as
   }
   await waitFor(() => {
     const s = readStateOrNull()
-    return s !== null
-      && s.events.some((e) => e.type === 'entry-init')
-      && s.events.some((e) => e.type === 'entry-dispose')
-      && s.events.some((e) => e.type === 'update-failed')
+    return (
+      s !== null &&
+      s.events.some((e) => e.type === 'entry-init') &&
+      s.events.some((e) => e.type === 'entry-dispose') &&
+      s.events.some((e) => e.type === 'update-failed')
+    )
   })
   const state = JSON.parse(readFileSync(join(dir, 'guardian', 'state.json'), 'utf8'))
-  assert.ok(state.events.some((e) => e.type === 'entry-init'), 'entry-init logged')
-  assert.ok(state.events.some((e) => e.type === 'entry-dispose'), 'entry-dispose logged')
-  assert.ok(state.events.some((e) => e.type === 'update-failed'), 'update-failed logged')
+  assert.ok(
+    state.events.some((e) => e.type === 'entry-init'),
+    'entry-init logged',
+  )
+  assert.ok(
+    state.events.some((e) => e.type === 'entry-dispose'),
+    'entry-dispose logged',
+  )
+  assert.ok(
+    state.events.some((e) => e.type === 'update-failed'),
+    'update-failed logged',
+  )
   await shutdown(ctx)
 })
 
 test('staged API rejects missing id/name (400) and conflicts (409)', async () => {
   const fake = makeLoaderAndTree()
   mkdirSync(join(dir, 'guardian'), { recursive: true })
-  writeFileSync(join(dir, 'guardian', 'state.json'), JSON.stringify({ version: 1, safeMode: false, staged: {}, promoted: {}, events: [] }), 'utf8')
+  writeFileSync(
+    join(dir, 'guardian', 'state.json'),
+    JSON.stringify({ version: 1, safeMode: false, staged: {}, promoted: {}, events: [] }),
+    'utf8',
+  )
   fake.store['taken'] = { options: {} }
   fake.failMap['dup'] = 'stays staged' // a failed entry REMAINS in the staged file
   writeFileSync(join(dir, 'cordis.staged.json'), JSON.stringify([{ id: 'dup', name: 'dsh-dup' }], null, 2))
@@ -301,7 +361,11 @@ test('staged API rejects missing id/name (400) and conflicts (409)', async () =>
 test('retry of an unknown entry returns 404', async () => {
   const fake = makeLoaderAndTree()
   mkdirSync(join(dir, 'guardian'), { recursive: true })
-  writeFileSync(join(dir, 'guardian', 'state.json'), JSON.stringify({ version: 1, safeMode: false, staged: {}, promoted: {}, events: [] }), 'utf8')
+  writeFileSync(
+    join(dir, 'guardian', 'state.json'),
+    JSON.stringify({ version: 1, safeMode: false, staged: {}, promoted: {}, events: [] }),
+    'utf8',
+  )
   const ctx = boot(fake)
   await sleep(120)
   const r = await callApi(fake, 'POST', 'retry', { id: 'nope' })
@@ -312,13 +376,26 @@ test('retry of an unknown entry returns 404', async () => {
 test('retry of a promoted entry remounts it', async () => {
   const fake = makeLoaderAndTree()
   mkdirSync(join(dir, 'guardian'), { recursive: true })
-  writeFileSync(join(dir, 'guardian', 'state.json'), JSON.stringify({
-    version: 1,
-    safeMode: false,
-    staged: {},
-    promoted: { 'retry-p': { name: 'dsh-rp', attempts: 1, lastError: 'x', lastFailedAt: 1, frozen: false, promotedAt: 1 } },
-    events: [],
-  }), 'utf8')
+  writeFileSync(
+    join(dir, 'guardian', 'state.json'),
+    JSON.stringify({
+      version: 1,
+      safeMode: false,
+      staged: {},
+      promoted: {
+        'retry-p': {
+          name: 'dsh-rp',
+          attempts: 1,
+          lastError: 'x',
+          lastFailedAt: 1,
+          frozen: false,
+          promotedAt: 1,
+        },
+      },
+      events: [],
+    }),
+    'utf8',
+  )
   const ctx = boot(fake)
   await sleep(120)
   const r = await callApi(fake, 'POST', 'retry', { id: 'retry-p' })
@@ -331,13 +408,26 @@ test('retry of a promoted entry remounts it', async () => {
 test('safe-mode unlock re-scans staged and remounts promoted', async () => {
   const fake = makeLoaderAndTree()
   mkdirSync(join(dir, 'guardian'), { recursive: true })
-  writeFileSync(join(dir, 'guardian', 'state.json'), JSON.stringify({
-    version: 1,
-    safeMode: true,
-    staged: {},
-    promoted: { 'unlock-p': { name: 'dsh-up', attempts: 0, lastError: null, lastFailedAt: null, frozen: false, promotedAt: 1 } },
-    events: [],
-  }), 'utf8')
+  writeFileSync(
+    join(dir, 'guardian', 'state.json'),
+    JSON.stringify({
+      version: 1,
+      safeMode: true,
+      staged: {},
+      promoted: {
+        'unlock-p': {
+          name: 'dsh-up',
+          attempts: 0,
+          lastError: null,
+          lastFailedAt: null,
+          frozen: false,
+          promotedAt: 1,
+        },
+      },
+      events: [],
+    }),
+    'utf8',
+  )
   writeFileSync(join(dir, 'cordis.staged.json'), JSON.stringify([{ id: 'unlock-s', name: 'dsh-us' }], null, 2))
   const ctx = boot(fake)
   await sleep(120)
@@ -354,23 +444,34 @@ test('safe-mode unlock re-scans staged and remounts promoted', async () => {
 test('malformed JSON body returns 400', async () => {
   const fake = makeLoaderAndTree()
   mkdirSync(join(dir, 'guardian'), { recursive: true })
-  writeFileSync(join(dir, 'guardian', 'state.json'), JSON.stringify({ version: 1, safeMode: false, staged: {}, promoted: {}, events: [] }), 'utf8')
+  writeFileSync(
+    join(dir, 'guardian', 'state.json'),
+    JSON.stringify({ version: 1, safeMode: false, staged: {}, promoted: {}, events: [] }),
+    'utf8',
+  )
   const ctx = boot(fake)
   await sleep(120)
   const route = fake.apiRoute
   const res = makeResponse()
-  await route.handler({
-    method: 'POST',
-    url: '/guardian/api/staged',
-    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://127.0.0.1:3080' },
-    [Symbol.asyncIterator]() {
-      const chunks = ['{bad json']
-      let i = 0
-      return {
-        next: () => Promise.resolve(i < chunks.length ? { value: chunks[i++], done: false } : { done: true }),
-      }
+  await route.handler(
+    {
+      method: 'POST',
+      url: '/guardian/api/staged',
+      headers: {
+        host: '127.0.0.1:3080',
+        'sec-fetch-site': 'same-origin',
+        origin: 'http://127.0.0.1:3080',
+      },
+      [Symbol.asyncIterator]() {
+        const chunks = ['{bad json']
+        let i = 0
+        return {
+          next: () => Promise.resolve(i < chunks.length ? { value: chunks[i++], done: false } : { done: true }),
+        }
+      },
     },
-  }, res)
+    res,
+  )
   assert.equal(res._status, 400, 'malformed JSON body rejected')
   await shutdown(ctx)
 })
@@ -410,13 +511,10 @@ test('snapshot lists staged records with status', async () => {
 
 test('malformed staged entries (null / missing id / missing name) are ignored', async () => {
   const fake = makeLoaderAndTree()
-  writeFileSync(join(dir, 'cordis.staged.json'), JSON.stringify([
-    null,
-    42,
-    { name: 'dsh-no-id' },
-    { id: 'no-name' },
-    { id: 'good', name: 'dsh-good' },
-  ], null, 2))
+  writeFileSync(
+    join(dir, 'cordis.staged.json'),
+    JSON.stringify([null, 42, { name: 'dsh-no-id' }, { id: 'no-name' }, { id: 'good', name: 'dsh-good' }], null, 2),
+  )
   const ctx = boot(fake)
   await sleep(150)
   assert.deepEqual(fake.created, ['good'], 'only the well-formed entry is mounted')
@@ -441,24 +539,35 @@ test('retry of a staged entry missing from the staged file returns missing', asy
 test('request body over the size limit is rejected (400)', async () => {
   const fake = makeLoaderAndTree()
   mkdirSync(join(dir, 'guardian'), { recursive: true })
-  writeFileSync(join(dir, 'guardian', 'state.json'), JSON.stringify({ version: 1, safeMode: false, staged: {}, promoted: {}, events: [] }), 'utf8')
+  writeFileSync(
+    join(dir, 'guardian', 'state.json'),
+    JSON.stringify({ version: 1, safeMode: false, staged: {}, promoted: {}, events: [] }),
+    'utf8',
+  )
   const ctx = boot(fake)
   await sleep(120)
   const route = fake.apiRoute
   const res = makeResponse()
   const big = 'x'.repeat(1_000_001)
-  await route.handler({
-    method: 'POST',
-    url: '/guardian/api/staged',
-    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://127.0.0.1:3080' },
-    [Symbol.asyncIterator]() {
-      const chunks = [big]
-      let i = 0
-      return {
-        next: () => Promise.resolve(i < chunks.length ? { value: chunks[i++], done: false } : { done: true }),
-      }
+  await route.handler(
+    {
+      method: 'POST',
+      url: '/guardian/api/staged',
+      headers: {
+        host: '127.0.0.1:3080',
+        'sec-fetch-site': 'same-origin',
+        origin: 'http://127.0.0.1:3080',
+      },
+      [Symbol.asyncIterator]() {
+        const chunks = [big]
+        let i = 0
+        return {
+          next: () => Promise.resolve(i < chunks.length ? { value: chunks[i++], done: false } : { done: true }),
+        }
+      },
     },
-  }, res)
+    res,
+  )
   assert.equal(res._status, 400, 'oversized body rejected')
   await shutdown(ctx)
 })

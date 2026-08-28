@@ -28,8 +28,16 @@ export const WATCHDOG_INTERVAL_MS = 5 * 60 * 1000
 export const STALL_TIMEOUT_MS = 10 * 60 * 1000
 
 export const RETRYABLE_CODES = new Set([
-  'TIMEOUT', 'ETIMEDOUT', 'ECONNRESET', 'ECONNABORTED', 'STREAM_IDLE_TIMEOUT',
-  'TRANSPORT', 'NETWORK', 'SERVER', 'RATE_LIMIT', 'EMPTY_RESPONSE',
+  'TIMEOUT',
+  'ETIMEDOUT',
+  'ECONNRESET',
+  'ECONNABORTED',
+  'STREAM_IDLE_TIMEOUT',
+  'TRANSPORT',
+  'NETWORK',
+  'SERVER',
+  'RATE_LIMIT',
+  'EMPTY_RESPONSE',
 ])
 
 export const DIRECT_CONTINUE_TEXT = (desc) =>
@@ -39,8 +47,8 @@ export const DIRECT_CONTINUE_TEXT = (desc) =>
 
 export const REPEAT_BREAK_TEXT = (level) =>
   level >= 2
-    ? '【检测到思考重复循环】你正在反复输出相同的思考内容。请立即停止重复推理，'
-      + '以最简方式基于已有信息直接给出结论，并继续执行任务，不要再次重复思考。'
+    ? '【检测到思考重复循环】你正在反复输出相同的思考内容。请立即停止重复推理，' +
+      '以最简方式基于已有信息直接给出结论，并继续执行任务，不要再次重复思考。'
     : '【检测到思考重复】检测到思考过程出现重复。请收敛思考，避免重复推理，直接基于已有信息给出结论并继续。'
 
 export const AUTOPILOT_DENY_REASON =

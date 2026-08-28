@@ -38,7 +38,12 @@ class World {
     return {
       method,
       url,
-      headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://127.0.0.1:3080', ...(headers ?? {}) },
+      headers: {
+        host: '127.0.0.1:3080',
+        'sec-fetch-site': 'same-origin',
+        origin: 'http://127.0.0.1:3080',
+        ...(headers ?? {}),
+      },
       [Symbol.asyncIterator]() {
         const chunks = []
         let i = 0
@@ -87,7 +92,10 @@ When('请求已安装清单', async function () {
 })
 
 When('用非回环 host 请求已安装清单', async function () {
-  await this.call('GET', '/my-plugin-manager/api/installed', { host: 'evil.example', 'sec-fetch-site': 'cross-site' })
+  await this.call('GET', '/my-plugin-manager/api/installed', {
+    host: 'evil.example',
+    'sec-fetch-site': 'cross-site',
+  })
 })
 
 When('搜索关键词 {string} 返回官方与用户结果', async function (query) {
@@ -97,8 +105,28 @@ When('搜索关键词 {string} 返回官方与用户结果', async function (que
     status: 200,
     json: async () => ({
       objects: [
-        { package: { name: '@deepseek-ai/dsh-base', version: '1.0.0', description: 'official', author: 'deepseek', date: '', homepage: '', repository: '' } },
-        { package: { name: 'dsh-a', version: '0.1.0', description: 'user', author: 'alice', date: '', homepage: '', repository: '' } },
+        {
+          package: {
+            name: '@deepseek-ai/dsh-base',
+            version: '1.0.0',
+            description: 'official',
+            author: 'deepseek',
+            date: '',
+            homepage: '',
+            repository: '',
+          },
+        },
+        {
+          package: {
+            name: 'dsh-a',
+            version: '0.1.0',
+            description: 'user',
+            author: 'alice',
+            date: '',
+            homepage: '',
+            repository: '',
+          },
+        },
       ],
     }),
   })
@@ -138,7 +166,10 @@ Then('该插件不被判定为官方', function () {
 })
 
 Then('搜索结果包含 {string}', function (name) {
-  assert.ok(this.lastJson.value.results.some((r) => r.name === name), `search result ${name} present`)
+  assert.ok(
+    this.lastJson.value.results.some((r) => r.name === name),
+    `search result ${name} present`,
+  )
 })
 
 Then('响应状态码为 {int}', function (status) {

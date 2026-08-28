@@ -26,12 +26,13 @@ const GLOBAL_ITEMS = [
   { id: 'g1', desc: '回复使用中文', createdAt: 1, updatedAt: 2 },
   { id: 'g2', desc: '代码注释用中文', createdAt: 1, updatedAt: 3 },
 ]
-const PROJECT_ITEMS = [
-  { id: 'p1', desc: '本项目使用 vitest', createdAt: 1, updatedAt: 2 },
-]
+const PROJECT_ITEMS = [{ id: 'p1', desc: '本项目使用 vitest', createdAt: 1, updatedAt: 2 }]
 
 test('global query returns the global items (read-only)', async () => {
-  const tool = createMemoryQueryTool({ globalStore: fakeStore(GLOBAL_ITEMS), getProjectStore: fakeProjectStores(new Map()) })
+  const tool = createMemoryQueryTool({
+    globalStore: fakeStore(GLOBAL_ITEMS),
+    getProjectStore: fakeProjectStores(new Map()),
+  })
   const value = await tool.execute({ scope: 'global' }, {})
   assert.equal(value.scope, 'global')
   assert.equal(value.items.length, 2)
@@ -39,7 +40,10 @@ test('global query returns the global items (read-only)', async () => {
 })
 
 test('keyword filter narrows the result (case-insensitive)', async () => {
-  const tool = createMemoryQueryTool({ globalStore: fakeStore(GLOBAL_ITEMS), getProjectStore: fakeProjectStores(new Map()) })
+  const tool = createMemoryQueryTool({
+    globalStore: fakeStore(GLOBAL_ITEMS),
+    getProjectStore: fakeProjectStores(new Map()),
+  })
   const value = await tool.execute({ scope: 'global', keyword: '中文' }, {})
   assert.equal(value.items.length, 2, 'both items contain 中文')
   const narrow = await tool.execute({ scope: 'global', keyword: '代码' }, {})
@@ -50,7 +54,10 @@ test('keyword filter narrows the result (case-insensitive)', async () => {
 })
 
 test('project query resolves the cwd from the calling agent session', async () => {
-  const tool = createMemoryQueryTool({ globalStore: fakeStore(GLOBAL_ITEMS), getProjectStore: fakeProjectStores(new Map([[dir, PROJECT_ITEMS]])) })
+  const tool = createMemoryQueryTool({
+    globalStore: fakeStore(GLOBAL_ITEMS),
+    getProjectStore: fakeProjectStores(new Map([[dir, PROJECT_ITEMS]])),
+  })
   const exec = { agent: { session: { header: { cwd: dir } } } }
   const value = await tool.execute({ scope: 'project' }, exec)
   assert.equal(value.scope, 'project')
@@ -60,14 +67,20 @@ test('project query resolves the cwd from the calling agent session', async () =
 })
 
 test('project query accepts an explicit cwd argument', async () => {
-  const tool = createMemoryQueryTool({ globalStore: fakeStore(GLOBAL_ITEMS), getProjectStore: fakeProjectStores(new Map([[dir, PROJECT_ITEMS]])) })
+  const tool = createMemoryQueryTool({
+    globalStore: fakeStore(GLOBAL_ITEMS),
+    getProjectStore: fakeProjectStores(new Map([[dir, PROJECT_ITEMS]])),
+  })
   const value = await tool.execute({ scope: 'project', cwd: dir }, {})
   assert.equal(value.cwd, dir)
   assert.equal(value.items.length, 1)
 })
 
 test('project query without any cwd returns an empty result', async () => {
-  const tool = createMemoryQueryTool({ globalStore: fakeStore(GLOBAL_ITEMS), getProjectStore: fakeProjectStores(new Map()) })
+  const tool = createMemoryQueryTool({
+    globalStore: fakeStore(GLOBAL_ITEMS),
+    getProjectStore: fakeProjectStores(new Map()),
+  })
   const value = await tool.execute({ scope: 'project' }, {})
   assert.equal(value.cwd, '')
   assert.equal(value.items.length, 0, 'no cwd → no project memories')
@@ -75,7 +88,10 @@ test('project query without any cwd returns an empty result', async () => {
 
 test('the tool never mutates the stores (read-only)', async () => {
   const globalStore = fakeStore(GLOBAL_ITEMS)
-  const tool = createMemoryQueryTool({ globalStore, getProjectStore: fakeProjectStores(new Map([[dir, PROJECT_ITEMS]])) })
+  const tool = createMemoryQueryTool({
+    globalStore,
+    getProjectStore: fakeProjectStores(new Map([[dir, PROJECT_ITEMS]])),
+  })
   await tool.execute({ scope: 'global' }, {})
   await tool.execute({ scope: 'project', cwd: dir }, {})
   assert.equal(globalStore.list().length, 2, 'global store untouched')
@@ -102,7 +118,12 @@ test('renderQueryResult renders scopes, counts and items', () => {
   assert.ok(text.includes('全局记忆'), 'global label')
   assert.ok(text.includes('2 条'), 'count')
   assert.ok(text.includes('回复使用中文'), 'item desc')
-  const project = renderQueryResult({ scope: 'project', cwd: dir, projectRoot: dir, items: PROJECT_ITEMS })
+  const project = renderQueryResult({
+    scope: 'project',
+    cwd: dir,
+    projectRoot: dir,
+    items: PROJECT_ITEMS,
+  })
   assert.ok(project.includes('项目记忆'), 'project label')
   assert.ok(project.includes(dir), 'project root shown')
   const empty = renderQueryResult({ scope: 'global', cwd: '', projectRoot: '', items: [] })
@@ -110,19 +131,30 @@ test('renderQueryResult renders scopes, counts and items', () => {
   const unknown = renderQueryResult({ scope: 'project', cwd: '', projectRoot: '', items: [] })
   assert.ok(unknown.includes('项目目录未知'), 'unknown project dir message')
   // 全局 scope 即使带 projectRoot 也不显示项目根（scope 决定 where）
-  const globalWithRoot = renderQueryResult({ scope: 'global', cwd: '', projectRoot: '/x', items: [] })
+  const globalWithRoot = renderQueryResult({
+    scope: 'global',
+    cwd: '',
+    projectRoot: '/x',
+    items: [],
+  })
   assert.ok(!globalWithRoot.includes('（项目：'), 'global scope never shows a project root')
 })
 
 test('project query tolerates a missing exec (no agent session)', async () => {
-  const tool = createMemoryQueryTool({ globalStore: fakeStore(GLOBAL_ITEMS), getProjectStore: fakeProjectStores(new Map()) })
+  const tool = createMemoryQueryTool({
+    globalStore: fakeStore(GLOBAL_ITEMS),
+    getProjectStore: fakeProjectStores(new Map()),
+  })
   const value = await tool.execute({ scope: 'project' }, undefined)
   assert.equal(value.cwd, '')
   assert.equal(value.items.length, 0, 'no exec → no project memories, no throw')
 })
 
 test('the tool schema declares scope required with global/project enum', () => {
-  const tool = createMemoryQueryTool({ globalStore: fakeStore(GLOBAL_ITEMS), getProjectStore: fakeProjectStores(new Map()) })
+  const tool = createMemoryQueryTool({
+    globalStore: fakeStore(GLOBAL_ITEMS),
+    getProjectStore: fakeProjectStores(new Map()),
+  })
   const params = tool.parameters
   assert.equal(params.type, 'object')
   assert.deepEqual(params.required, ['scope'], 'scope is the only required parameter')
@@ -134,7 +166,10 @@ test('the tool schema declares scope required with global/project enum', () => {
 })
 
 test('the tool output schema declares the query result shape', () => {
-  const tool = createMemoryQueryTool({ globalStore: fakeStore(GLOBAL_ITEMS), getProjectStore: fakeProjectStores(new Map()) })
+  const tool = createMemoryQueryTool({
+    globalStore: fakeStore(GLOBAL_ITEMS),
+    getProjectStore: fakeProjectStores(new Map()),
+  })
   const schema = tool.output.schema
   assert.equal(schema.type, 'object')
   assert.equal(schema.additionalProperties, false)
@@ -155,8 +190,14 @@ test('the tool output schema declares the query result shape', () => {
 })
 
 test('the tool render produces text blocks', () => {
-  const tool = createMemoryQueryTool({ globalStore: fakeStore(GLOBAL_ITEMS), getProjectStore: fakeProjectStores(new Map()) })
-  const blocks = tool.output.render({ scope: 'global' }, { scope: 'global', cwd: '', projectRoot: '', items: GLOBAL_ITEMS })
+  const tool = createMemoryQueryTool({
+    globalStore: fakeStore(GLOBAL_ITEMS),
+    getProjectStore: fakeProjectStores(new Map()),
+  })
+  const blocks = tool.output.render(
+    { scope: 'global' },
+    { scope: 'global', cwd: '', projectRoot: '', items: GLOBAL_ITEMS },
+  )
   assert.equal(blocks.length, 1)
   assert.equal(blocks[0].type, 'text')
   assert.ok(blocks[0].text.includes('回复使用中文'))

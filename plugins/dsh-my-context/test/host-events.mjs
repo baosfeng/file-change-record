@@ -5,7 +5,17 @@
 import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 import { rmSync } from 'node:fs'
-import { bootPlugin, dispatchEvent, sessionEvent, preStepPayload, settle, mockRequest, mockResponse, invoke, jsonOf } from './lib/helpers.mjs'
+import {
+  bootPlugin,
+  dispatchEvent,
+  sessionEvent,
+  preStepPayload,
+  settle,
+  mockRequest,
+  mockResponse,
+  invoke,
+  jsonOf,
+} from './lib/helpers.mjs'
 import { isInjection } from '../lib/events.js'
 
 const disposeAlls = []
@@ -25,7 +35,11 @@ test('session/event: request/header updates system/tools estimates', async () =>
   const handle = boot({})
   await settle()
   const { session, event } = sessionEvent('s-1', 'request/header', {
-    header: { system: 'abcd', tools: [{ name: 'bash' }], config: { model: 'deepseek-v4', provider: 'deepseek' } },
+    header: {
+      system: 'abcd',
+      tools: [{ name: 'bash' }],
+      config: { model: 'deepseek-v4', provider: 'deepseek' },
+    },
     reason: 'initial',
   })
   await dispatchEvent(handle.listeners, 'session/event', session, event)
@@ -59,7 +73,10 @@ test('session/event: assistant/message records request with real usage', async (
   const { session, event } = sessionEvent('s-1', 'assistant/message', {
     turn: 1,
     step: 2,
-    message: { content: [{ type: 'text', text: 'hello world' }], source: { provider: 'deepseek', model: 'deepseek-v4' } },
+    message: {
+      content: [{ type: 'text', text: 'hello world' }],
+      source: { provider: 'deepseek', model: 'deepseek-v4' },
+    },
     usage: { inputTokens: 100, outputTokens: 20, cacheReadTokens: 30 },
   })
   await dispatchEvent(handle.listeners, 'session/event', session, event)
@@ -111,7 +128,8 @@ test('session/event: turn/start resets turn usage', async () => {
   const handle = boot({})
   await settle()
   const { session, event } = sessionEvent('s-1', 'assistant/message', {
-    turn: 1, step: 1,
+    turn: 1,
+    step: 1,
     message: { content: [{ type: 'text', text: 'x' }] },
     usage: { inputTokens: 50, outputTokens: 5 },
   })
@@ -130,7 +148,8 @@ test('agent/pre-step: warn mode records alert and passes through', async () => {
   const handle = boot({ perTurn: 10, mode: 'warn' })
   await settle()
   const { session, event } = sessionEvent('s-1', 'assistant/message', {
-    turn: 1, step: 1,
+    turn: 1,
+    step: 1,
     message: { content: [{ type: 'text', text: 'x' }] },
     usage: { inputTokens: 50, outputTokens: 5 },
   })
@@ -154,7 +173,8 @@ test('agent/pre-step: deny mode rejects and records blocked alert', async () => 
   const handle = boot({ perTurn: 10, mode: 'deny' })
   await settle()
   const { session, event } = sessionEvent('s-1', 'assistant/message', {
-    turn: 1, step: 1,
+    turn: 1,
+    step: 1,
     message: { content: [{ type: 'text', text: 'x' }] },
     usage: { inputTokens: 50, outputTokens: 5 },
   })
@@ -177,13 +197,17 @@ test('agent/pre-step: under budget passes through without alert', async () => {
   const handle = boot({ perTurn: 1000, mode: 'deny' })
   await settle()
   const { session, event } = sessionEvent('s-1', 'assistant/message', {
-    turn: 1, step: 1,
+    turn: 1,
+    step: 1,
     message: { content: [{ type: 'text', text: 'x' }] },
     usage: { inputTokens: 5, outputTokens: 1 },
   })
   await dispatchEvent(handle.listeners, 'session/event', session, event)
   await settle()
-  const decision = await dispatchEvent(handle.listeners, 'agent/pre-step', preStepPayload('s-1'), async () => ({ kind: 'enter', messages: [] }))
+  const decision = await dispatchEvent(handle.listeners, 'agent/pre-step', preStepPayload('s-1'), async () => ({
+    kind: 'enter',
+    messages: [],
+  }))
   assert.equal(decision.kind, 'enter')
   const stats = await sessionStats(handle, 's-1')
   assert.equal(stats.alerts.length, 0)
@@ -193,9 +217,15 @@ test('agent/pre-step: under budget passes through without alert', async () => {
 test('agent/pre-step: unknown session or missing agent passes through', async () => {
   const handle = boot({ perTurn: 1, mode: 'deny' })
   await settle()
-  const decision1 = await dispatchEvent(handle.listeners, 'agent/pre-step', preStepPayload('ghost'), async () => ({ kind: 'enter', messages: [] }))
+  const decision1 = await dispatchEvent(handle.listeners, 'agent/pre-step', preStepPayload('ghost'), async () => ({
+    kind: 'enter',
+    messages: [],
+  }))
   assert.equal(decision1.kind, 'enter')
-  const decision2 = await dispatchEvent(handle.listeners, 'agent/pre-step', { turn: 1 }, async () => ({ kind: 'enter', messages: [] }))
+  const decision2 = await dispatchEvent(handle.listeners, 'agent/pre-step', { turn: 1 }, async () => ({
+    kind: 'enter',
+    messages: [],
+  }))
   assert.equal(decision2.kind, 'enter')
   handle.disposeAll()
 })
@@ -204,14 +234,21 @@ test('agent/pre-step: alert cooldown suppresses duplicate alerts', async () => {
   const handle = boot({ perTurn: 10, mode: 'warn' })
   await settle()
   const { session, event } = sessionEvent('s-1', 'assistant/message', {
-    turn: 1, step: 1,
+    turn: 1,
+    step: 1,
     message: { content: [{ type: 'text', text: 'x' }] },
     usage: { inputTokens: 50, outputTokens: 5 },
   })
   await dispatchEvent(handle.listeners, 'session/event', session, event)
   await settle()
-  await dispatchEvent(handle.listeners, 'agent/pre-step', preStepPayload('s-1'), async () => ({ kind: 'enter', messages: [] }))
-  await dispatchEvent(handle.listeners, 'agent/pre-step', preStepPayload('s-1'), async () => ({ kind: 'enter', messages: [] }))
+  await dispatchEvent(handle.listeners, 'agent/pre-step', preStepPayload('s-1'), async () => ({
+    kind: 'enter',
+    messages: [],
+  }))
+  await dispatchEvent(handle.listeners, 'agent/pre-step', preStepPayload('s-1'), async () => ({
+    kind: 'enter',
+    messages: [],
+  }))
   await settle()
   const stats = await sessionStats(handle, 's-1')
   assert.equal(stats.alerts.length, 1, 'cooldown suppresses duplicate alert')

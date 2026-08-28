@@ -12,9 +12,7 @@ import { mkdtempSync, rmSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
-import {
-  bootPlugin, mockRequest, mockResponse, dispatchEvent,
-} from '../../lib/helpers.mjs'
+import { bootPlugin, mockRequest, mockResponse, dispatchEvent } from '../../lib/helpers.mjs'
 
 class World {
   constructor() {

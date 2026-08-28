@@ -13,17 +13,24 @@ Given('安全护栏插件已启动且模式为 {string}', async function (mode) 
 
 // ── When ──────────────────────────────────────────────────────────────────
 When('代理 {string} 执行命令 {string}', async function (agentId, command) {
-  await this.dispatch('tools/pre-execute', bashExec(agentId, command), async () => ({ kind: 'allow' }))
+  await this.dispatch('tools/pre-execute', bashExec(agentId, command), async () => ({
+    kind: 'allow',
+  }))
 })
 
 When('代理 {string} 执行命令 {string} 且下游决策为拒绝', async function (agentId, command) {
-  await this.dispatch('tools/pre-execute', bashExec(agentId, command), async () => ({ kind: 'deny', reason: 'sandbox denied' }))
+  await this.dispatch('tools/pre-execute', bashExec(agentId, command), async () => ({
+    kind: 'deny',
+    reason: 'sandbox denied',
+  }))
 })
 
 When('代理 {string} 调用非 bash 工具', async function (agentId) {
-  await this.dispatch('tools/pre-execute',
+  await this.dispatch(
+    'tools/pre-execute',
     { name: 'read', callId: 'c1', agent: { id: agentId }, arguments: { file_path: '/x' } },
-    async () => ({ kind: 'allow' }))
+    async () => ({ kind: 'allow' }),
+  )
 })
 
 // ── Then ────────────────────────────────────────────────────────────────────

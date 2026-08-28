@@ -40,8 +40,8 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-my-memory
 ```jsonc
 // cordis.yml 中 my-memory 的 config 字段
 {
-  "maxItems": 5,        // 注入系统提示词的全局记忆条数上限（默认 5）
-  "maxDescLength": 200  // 单条记忆注入长度上限（字符，默认 200）
+  "maxItems": 5, // 注入系统提示词的全局记忆条数上限（默认 5）
+  "maxDescLength": 200, // 单条记忆注入长度上限（字符，默认 200）
 }
 ```
 

@@ -14,8 +14,16 @@ vi.mock('node:child_process', () => ({
   spawn: (command, args, options) => {
     const listeners = { stdout: [], stderr: [], error: null, close: null }
     const handle = {
-      stdout: { on: (event, cb) => { if (event === 'data') listeners.stdout.push(cb) } },
-      stderr: { on: (event, cb) => { if (event === 'data') listeners.stderr.push(cb) } },
+      stdout: {
+        on: (event, cb) => {
+          if (event === 'data') listeners.stdout.push(cb)
+        },
+      },
+      stderr: {
+        on: (event, cb) => {
+          if (event === 'data') listeners.stderr.push(cb)
+        },
+      },
       on: (event, cb) => {
         if (event === 'error') listeners.error = cb
         if (event === 'close') listeners.close = cb
@@ -26,7 +34,8 @@ vi.mock('node:child_process', () => ({
   },
 }))
 
-const { runDsh, pluginArgs, installPlugin, uninstallPlugin, outdatedPlugins, installedVersionOf } = await import('../lib/manage.js')
+const { runDsh, pluginArgs, installPlugin, uninstallPlugin, outdatedPlugins, installedVersionOf } =
+  await import('../lib/manage.js')
 
 /** Drive the last spawned child: emit output, then close or error. */
 function settleLast({ stdout = '', stderr = '', code = 0, error = null }) {
@@ -73,7 +82,13 @@ test('runDsh resolves not-ok on nonzero close and on spawn error', async () => {
 
 test('outdatedPlugins parses pnpm outdated --json', async () => {
   const promise = outdatedPlugins('web')
-  settleLast({ stdout: JSON.stringify({ 'dsh-a': { current: '1.0.0', latest: '1.1.0' }, 'dsh-b': { current: '2.0.0', latest: '2.0.0' } }), code: 0 })
+  settleLast({
+    stdout: JSON.stringify({
+      'dsh-a': { current: '1.0.0', latest: '1.1.0' },
+      'dsh-b': { current: '2.0.0', latest: '2.0.0' },
+    }),
+    code: 0,
+  })
   const result = await promise
   assert.equal(result.ok, true)
   assert.deepEqual(result.outdated, [
@@ -113,7 +128,10 @@ test('installedVersionOf reads plain and scoped packages', () => {
   mkdirSync(join(dir, 'node_modules', 'dsh-a'), { recursive: true })
   mkdirSync(join(dir, 'node_modules', '@scope', 'dsh-b'), { recursive: true })
   writeFileSync(join(dir, 'node_modules', 'dsh-a', 'package.json'), JSON.stringify({ name: 'dsh-a', version: '0.3.1' }))
-  writeFileSync(join(dir, 'node_modules', '@scope', 'dsh-b', 'package.json'), JSON.stringify({ name: '@scope/dsh-b', version: '1.2.3' }))
+  writeFileSync(
+    join(dir, 'node_modules', '@scope', 'dsh-b', 'package.json'),
+    JSON.stringify({ name: '@scope/dsh-b', version: '1.2.3' }),
+  )
   assert.equal(installedVersionOf(dir, 'dsh-a'), '0.3.1')
   assert.equal(installedVersionOf(dir, '@scope/dsh-b'), '1.2.3')
   assert.equal(installedVersionOf(dir, 'ghost-pkg'), '', 'missing package → empty version')

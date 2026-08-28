@@ -10,16 +10,21 @@ import { isTrustedApiRequest, header } from './fence.js'
 /** 注册 /notify/api 路由与心跳清理（两个 effect，各自返回 disposer）。 */
 export function registerNotifyRoutes(ctx, options, bus, onConfigChange) {
   const webRuntime = ctx.get ? ctx.get('webRuntime') : undefined
-  const trustedHosts = webRuntime !== undefined && webRuntime !== null && Array.isArray(webRuntime.trustedHosts)
-    ? webRuntime.trustedHosts
-    : []
+  const trustedHosts =
+    webRuntime !== undefined && webRuntime !== null && Array.isArray(webRuntime.trustedHosts)
+      ? webRuntime.trustedHosts
+      : []
   const fence = (request) => isTrustedApiRequest(request, trustedHosts)
 
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'prefix',
-    path: '/notify/api',
-    handler: apiHandler(fence, options, bus, onConfigChange),
-  }), 'dsh-my-notify: /notify/api routes')
+  ctx.effect(
+    () =>
+      ctx.webServer.register({
+        kind: 'prefix',
+        path: '/notify/api',
+        handler: apiHandler(fence, options, bus, onConfigChange),
+      }),
+    'dsh-my-notify: /notify/api routes',
+  )
 
   // 卸载时清理心跳（客户端集合随各 response close 自动清空）。
   ctx.effect(() => bus.stopHeartbeat, 'dsh-my-notify: heartbeat teardown')
@@ -41,7 +46,10 @@ function apiHandler(fence, options, bus, onConfigChange) {
     try {
       const handled = await dispatchMethod(method, request, response, options, bus, onConfigChange)
       if (!handled) {
-        writeJson(response, 404, { ok: false, error: { message: 'unknown dsh-my-notify API method' } })
+        writeJson(response, 404, {
+          ok: false,
+          error: { message: 'unknown dsh-my-notify API method' },
+        })
       }
     } catch (error) {
       writeError(response, error)
@@ -104,7 +112,10 @@ function handleStream(response, bus) {
 async function handleTrigger(request, response, options, bus) {
   const token = header(request.headers, 'x-notify-token')
   if (options.apiToken !== '' && token !== options.apiToken) {
-    writeJson(response, 403, { ok: false, error: { code: 'forbidden', message: 'invalid x-notify-token' } })
+    writeJson(response, 403, {
+      ok: false,
+      error: { code: 'forbidden', message: 'invalid x-notify-token' },
+    })
     return
   }
   const payload = await readJsonBody(request)

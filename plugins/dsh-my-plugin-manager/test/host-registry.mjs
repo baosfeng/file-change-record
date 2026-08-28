@@ -26,8 +26,26 @@ test('searchNpmPlugins maps the npm search payload', async () => {
     ok: true,
     body: {
       objects: [
-        { package: { name: 'dsh-a', version: '1.0.0', description: 'desc a', author: { name: 'alice' }, date: '2026-01-01', links: { homepage: 'https://a', repository: 'https://r' } } },
-        { package: { name: 'dsh-b', version: '0.2.0', description: 'desc b', author: 'bob', date: '', links: {} } },
+        {
+          package: {
+            name: 'dsh-a',
+            version: '1.0.0',
+            description: 'desc a',
+            author: { name: 'alice' },
+            date: '2026-01-01',
+            links: { homepage: 'https://a', repository: 'https://r' },
+          },
+        },
+        {
+          package: {
+            name: 'dsh-b',
+            version: '0.2.0',
+            description: 'desc b',
+            author: 'bob',
+            date: '',
+            links: {},
+          },
+        },
         { package: {} },
       ],
     },

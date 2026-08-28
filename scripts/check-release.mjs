@@ -58,7 +58,9 @@ const remoteTags = new Set(
 // GitHub Releases（一次拉取；无 token 时跳过）
 let releases = []
 if (GH_TOKEN) {
-  const out = sh(`curl -sS -H "Authorization: Bearer ${GH_TOKEN}" "https://api.github.com/repos/baosfeng/my-dsh-plugins/releases?per_page=100"`)
+  const out = sh(
+    `curl -sS -H "Authorization: Bearer ${GH_TOKEN}" "https://api.github.com/repos/baosfeng/my-dsh-plugins/releases?per_page=100"`,
+  )
   if (out) {
     try {
       releases = JSON.parse(out)

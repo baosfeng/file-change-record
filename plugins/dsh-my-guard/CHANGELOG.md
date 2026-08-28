@@ -14,6 +14,7 @@
 - **测试**：`test/host-guard.mjs`（破坏性检测/三种模式/联动扫描）、`test/host-poison.mjs`（扫描引擎各检测项/tarball/目标解析）、`test/host-injection.mjs`（规则引擎/监听器/插件消息过滤）、`test/host-store.mjs`（持久化/重启恢复/缓冲/上限/确认）、`test/host-mutation.mjs`（变异补充）；Gherkin 验收（guard/poison/injection 3 个 feature 18 场景）；覆盖率 行 95% / 分支 88%；变异测试 ≥70%。
 
 **真实环境验证**（独立端口 3081 隔离实例）：
+
 - 侧边栏「安全护栏」页签出现，告警列表/扫描工具/注入检测工具可用；
 - 破坏性命令、投毒扫描、提示注入三类告警真实产生并可确认；
 - 重启验证实例后告警恢复。

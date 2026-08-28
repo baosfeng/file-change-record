@@ -39,13 +39,17 @@ window.__ModuleLoader__.load({
       ctx.effect(() => injectStyles(), 'dsh-my-context: styles')
       const service = ctx.betterSidebar
       if (service === undefined) return
-      ctx.effect(() => service.registerTab({
-        id: 'dsh-my-context:context',
-        title: () => strings.tabTitle(),
-        order: 43,
-        single: true,
-        component: (props) => createElement(ContextPanel, props),
-      }), 'dsh-my-context: context tab registration')
+      ctx.effect(
+        () =>
+          service.registerTab({
+            id: 'dsh-my-context:context',
+            title: () => strings.tabTitle(),
+            order: 43,
+            single: true,
+            component: (props) => createElement(ContextPanel, props),
+          }),
+        'dsh-my-context: context tab registration',
+      )
     }
 
     return module.exports

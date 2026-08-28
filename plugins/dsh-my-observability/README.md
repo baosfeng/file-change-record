@@ -15,12 +15,12 @@
 
 Server 端只读观察 DSH 生命周期事件并记录审计日志：
 
-| 事件 | 审计记录 | 说明 |
-|------|---------|------|
-| `agent/status` | `agent_status` | 状态变化 + 顶层/子代理标记 |
-| `llm/stream` | `llm_stream` | 流开始/结束/错误 + chunk/字符/耗时统计（同步包装流，透传全部 chunk） |
-| `tools/pre-execute` | `tool_call` | 工具名 + 参数键列表 + 主要文本参数截断摘要 |
-| `tools/execute` | `tool_result` | 工具名 + 成功/失败 + 耗时 |
+| 事件                | 审计记录       | 说明                                                                 |
+| ------------------- | -------------- | -------------------------------------------------------------------- |
+| `agent/status`      | `agent_status` | 状态变化 + 顶层/子代理标记                                           |
+| `llm/stream`        | `llm_stream`   | 流开始/结束/错误 + chunk/字符/耗时统计（同步包装流，透传全部 chunk） |
+| `tools/pre-execute` | `tool_call`    | 工具名 + 参数键列表 + 主要文本参数截断摘要                           |
+| `tools/execute`     | `tool_result`  | 工具名 + 成功/失败 + 耗时                                            |
 
 - **会话隔离**：事件按会话分桶，切换会话互不串扰；
 - **重启恢复**：持久化到 `$DSH_HOME/observability/audit.json`（防抖 + 原子写），重启后完整恢复；
@@ -43,16 +43,16 @@ Server 端只读观察 DSH 生命周期事件并记录审计日志：
 
 「提交前审查」按钮对增量 diff 运行规则引擎（确定性、可测试）：
 
-| 规则 | 严重级别 | 检查内容 |
-|------|---------|---------|
-| `secret-leak` | error | 密钥/凭据硬编码（password/api_key/secret/token） |
-| `conflict-marker` | error | 合并冲突标记残留（`<<<<<<<` / `=======` / `>>>>>>>`） |
-| `debug-statement` | warning | 调试残留（console.* / debugger / print 族） |
-| `large-diff` | warning | 单文件变更 > 300 行 |
-| `binary-file` | warning | 二进制文件变更 |
-| `todo-marker` | info | TODO/FIXME/HACK 标记 |
-| `trailing-space` | info | 行尾多余空格 |
-| `no-test-change` | info | 有源码变更但无测试变更 |
+| 规则              | 严重级别 | 检查内容                                              |
+| ----------------- | -------- | ----------------------------------------------------- |
+| `secret-leak`     | error    | 密钥/凭据硬编码（password/api_key/secret/token）      |
+| `conflict-marker` | error    | 合并冲突标记残留（`<<<<<<<` / `=======` / `>>>>>>>`） |
+| `debug-statement` | warning  | 调试残留（console.* / debugger / print 族）           |
+| `large-diff`      | warning  | 单文件变更 > 300 行                                   |
+| `binary-file`     | warning  | 二进制文件变更                                        |
+| `todo-marker`     | info     | TODO/FIXME/HACK 标记                                  |
+| `trailing-space`  | info     | 行尾多余空格                                          |
+| `no-test-change`  | info     | 有源码变更但无测试变更                                |
 
 - **可选 AI 审查**：配置 `aiReview`（默认开）且 agents 服务可用时，创建独立审查 agent 阅读 diff 输出总评（verdict/summary/topIssues）；超时/失败/解析失败自动降级，规则引擎结果不受影响（AI 是增强，不是门禁）。
 
@@ -82,17 +82,17 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-my-observability
 - insert:
     - id: observability
       name: 'dsh-my-observability'
-    - config:            # 传给 apply(ctx, config)
-        aiReview: true   # 增量 diff 审查启用 AI 增强（默认 true；agents 服务不可用时自动降级）
-        aiTimeoutMs: 60000  # AI 审查超时（毫秒，默认 60000）
+    - config: # 传给 apply(ctx, config)
+        aiReview: true # 增量 diff 审查启用 AI 增强（默认 true；agents 服务不可用时自动降级）
+        aiTimeoutMs: 60000 # AI 审查超时（毫秒，默认 60000）
 ```
 
 ## 依赖
 
-| 依赖 | 用途 | 可选 |
-|------|------|------|
-| `cordis` | 插件运行时 | 是（宿主提供） |
-| `react` | client 端组件 | 是（宿主提供） |
+| 依赖     | 用途          | 可选           |
+| -------- | ------------- | -------------- |
+| `cordis` | 插件运行时    | 是（宿主提供） |
+| `react`  | client 端组件 | 是（宿主提供） |
 
 ## 限制与说明
 

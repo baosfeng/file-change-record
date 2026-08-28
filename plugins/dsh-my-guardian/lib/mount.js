@@ -119,7 +119,13 @@ async function promote(shared, recordKey, id, name, entry, record) {
     const next = entries.filter((item) => item?.id !== id)
     if (next.length !== entries.length) await writeStagedFile(shared.stagedFile, next)
   } else {
-    shared.state.promoted[id] = { ...record, attempts: 0, lastError: null, lastFailedAt: null, frozen: false }
+    shared.state.promoted[id] = {
+      ...record,
+      attempts: 0,
+      lastError: null,
+      lastFailedAt: null,
+      frozen: false,
+    }
   }
   logEvent(shared, 'promote', `mounted ${name} (${id})`)
   shared.persistSoon()
@@ -199,7 +205,13 @@ async function retryEntry(shared, id) {
   }
   const promoted = shared.state.promoted[id]
   if (promoted !== undefined) {
-    shared.state.promoted[id] = { ...promoted, attempts: 0, lastError: null, lastFailedAt: null, frozen: false }
+    shared.state.promoted[id] = {
+      ...promoted,
+      attempts: 0,
+      lastError: null,
+      lastFailedAt: null,
+      frozen: false,
+    }
     shared.persistSoon()
     if (shared.state.safeMode) return 'safe'
     shared.attempted.delete(`promoted:${id}`)

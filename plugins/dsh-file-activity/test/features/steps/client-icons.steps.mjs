@@ -36,7 +36,11 @@ const stubbed = {
 
 let registered = null
 global.window = {
-  __ModuleLoader__: { load: (registration) => { registered = registration } },
+  __ModuleLoader__: {
+    load: (registration) => {
+      registered = registration
+    },
+  },
   location: { href: 'http://127.0.0.1:3080/app', search: '' },
   confirm: () => true,
   fetch: () => Promise.resolve({ json: () => Promise.resolve({ ok: true, value: {} }) }),
@@ -115,11 +119,16 @@ function collectIcons(tree) {
   const walk = (node) => {
     if (node === null || node === undefined || typeof node === 'boolean') return
     if (typeof node === 'string' || typeof node === 'number') return
-    if (Array.isArray(node)) { for (const c of node) walk(c); return }
+    if (Array.isArray(node)) {
+      for (const c of node) walk(c)
+      return
+    }
     const props = node.props ?? {}
     if (props.className === 'dfa-row' && typeof props.title === 'string' && props.title.startsWith('/')) {
       const children = Array.isArray(props.children) ? props.children : [props.children]
-      const iconSpan = children.find((c) => c && typeof c === 'object' && String(c.props?.className ?? '').startsWith('dfa-row-icon'))
+      const iconSpan = children.find(
+        (c) => c && typeof c === 'object' && String(c.props?.className ?? '').startsWith('dfa-row-icon'),
+      )
       if (iconSpan) byTitle.set(props.title, iconSpan.props.children)
     }
     walk(props.children)
@@ -132,7 +141,10 @@ function collectIcons(tree) {
 Given('客户端已加载文件活动页签', function () {
   let capturedTab = null
   const mockService = {
-    registerTab: (descriptor) => { capturedTab = descriptor; return () => {} },
+    registerTab: (descriptor) => {
+      capturedTab = descriptor
+      return () => {}
+    },
     features: ['openFile'],
     isTabEnabled: () => true,
     openFile: () => {},

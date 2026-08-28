@@ -27,7 +27,10 @@ export function createApiHandler({ ctx, store, fence }) {
         await handleClear(store, request, response)
         return
       }
-      writeJson(response, 404, { ok: false, error: { message: 'unknown file-activity API method' } })
+      writeJson(response, 404, {
+        ok: false,
+        error: { message: 'unknown file-activity API method' },
+      })
     } catch (error) {
       writeError(response, error)
     }
@@ -61,10 +64,20 @@ function handleStats(ctx, store, url, response) {
     return
   }
   // Snapshot the leaf fields only — no live objects cross the wire.
-  const recent = session.recent.map((entry) => ({ path: entry.path, op: entry.op, time: entry.time }))
+  const recent = session.recent.map((entry) => ({
+    path: entry.path,
+    op: entry.op,
+    time: entry.time,
+  }))
   const counts = {}
   for (const [path, counter] of Object.entries(session.counts)) {
-    counts[path] = { read: counter.read, create: counter.create, modify: counter.modify, firstSeen: counter.firstSeen, lastSeen: counter.lastSeen }
+    counts[path] = {
+      read: counter.read,
+      create: counter.create,
+      modify: counter.modify,
+      firstSeen: counter.firstSeen,
+      lastSeen: counter.lastSeen,
+    }
   }
   writeJson(response, 200, { ok: true, value: { recent, counts, cwd } })
 }

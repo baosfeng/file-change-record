@@ -1,8 +1,8 @@
-    // ── themed stylesheet (injected once per activation) ──────────────────
-    // Mirrors the better-sidebar explorer surface: tight 2px 6px 8px body,
-    // 30px rows, box-sizing border-box indentation, folder rows use the
-    // strong type face to read as directories, files stay regular.
-    const STYLES = `
+// ── themed stylesheet (injected once per activation) ──────────────────
+// Mirrors the better-sidebar explorer surface: tight 2px 6px 8px body,
+// 30px rows, box-sizing border-box indentation, folder rows use the
+// strong type face to read as directories, files stay regular.
+const STYLES = `
 .dfa { display:flex; flex-direction:column; height:100%; overflow-y:auto; overflow-x:hidden;
   padding:2px 6px 8px; gap:2px; font:var(--dsw-font-s-14); color:var(--dsw-alias-label-primary); }
 .dfa-iconbtn { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; padding:0;

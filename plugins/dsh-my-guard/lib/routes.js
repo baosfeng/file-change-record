@@ -15,16 +15,21 @@ import { detectPromptInjection } from './injection.js'
 /** 注册 /guard/api 路由（effect 持有 disposer）。 */
 export function registerGuardRoutes(ctx, store, options) {
   const webRuntime = ctx.get ? ctx.get('webRuntime') : undefined
-  const trustedHosts = webRuntime !== undefined && webRuntime !== null && Array.isArray(webRuntime.trustedHosts)
-    ? webRuntime.trustedHosts
-    : []
+  const trustedHosts =
+    webRuntime !== undefined && webRuntime !== null && Array.isArray(webRuntime.trustedHosts)
+      ? webRuntime.trustedHosts
+      : []
   const fence = (request) => isTrustedApiRequest(request, trustedHosts)
 
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'prefix',
-    path: '/guard/api',
-    handler: apiHandler(fence, store, options),
-  }), 'dsh-my-guard: /guard/api routes')
+  ctx.effect(
+    () =>
+      ctx.webServer.register({
+        kind: 'prefix',
+        path: '/guard/api',
+        handler: apiHandler(fence, store, options),
+      }),
+    'dsh-my-guard: /guard/api routes',
+  )
 }
 
 /** 统一 handler：fence → 方法分派 → 404/错误兜底。 */
@@ -40,7 +45,10 @@ function apiHandler(fence, store, options) {
     try {
       const handled = await dispatchMethod(method, request, response, url, store, options)
       if (!handled) {
-        writeJson(response, 404, { ok: false, error: { message: 'unknown dsh-my-guard API method' } })
+        writeJson(response, 404, {
+          ok: false,
+          error: { message: 'unknown dsh-my-guard API method' },
+        })
       }
     } catch (error) {
       writeError(response, error)

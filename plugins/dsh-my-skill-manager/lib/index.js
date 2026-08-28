@@ -31,9 +31,13 @@ export function apply(ctx) {
   ctx.effect(() => disposer, 'dsh-my-skill-manager: disabler provider')
 
   const fence = (request) => isTrustedApiRequest(request, ctx.webRuntime.trustedHosts)
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'prefix',
-    path: '/my-skill-manager/api',
-    handler: createApiHandler({ ctx, invalidate, fence }),
-  }), 'dsh-my-skill-manager: /my-skill-manager/api routes')
+  ctx.effect(
+    () =>
+      ctx.webServer.register({
+        kind: 'prefix',
+        path: '/my-skill-manager/api',
+        handler: createApiHandler({ ctx, invalidate, fence }),
+      }),
+    'dsh-my-skill-manager: /my-skill-manager/api routes',
+  )
 }

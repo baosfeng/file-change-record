@@ -143,25 +143,32 @@ function parseLoaded(text) {
 
 /** 告警结构校验（时间/类型/消息为合理形态）。 */
 function isValidAlert(alert) {
-  return alert !== null && typeof alert === 'object'
-    && typeof alert.time === 'number'
-    && typeof alert.type === 'string'
-    && typeof alert.message === 'string'
+  return (
+    alert !== null &&
+    typeof alert === 'object' &&
+    typeof alert.time === 'number' &&
+    typeof alert.type === 'string' &&
+    typeof alert.message === 'string'
+  )
 }
 
 /** 原子写当前状态（经 dirtyChain 串行化；自动建目录）。 */
 function persistNow(handle) {
   const snapshot = JSON.stringify(handle.store.state)
   const tmp = `${handle.file}.tmp-${process.pid}`
-  handle.dirtyChain = handle.dirtyChain.then(async () => {
-    try {
-      await mkdir(dirname(handle.file), { recursive: true })
-      await writeFile(tmp, snapshot, 'utf8')
-      await rename(tmp, handle.file)
-    } catch (error) {
-      handle.ctx.logger?.warn(`[dsh-my-guard] persist failed: ${error instanceof Error ? error.message : String(error)}`)
-    }
-  }).catch(() => {})
+  handle.dirtyChain = handle.dirtyChain
+    .then(async () => {
+      try {
+        await mkdir(dirname(handle.file), { recursive: true })
+        await writeFile(tmp, snapshot, 'utf8')
+        await rename(tmp, handle.file)
+      } catch (error) {
+        handle.ctx.logger?.warn(
+          `[dsh-my-guard] persist failed: ${error instanceof Error ? error.message : String(error)}`,
+        )
+      }
+    })
+    .catch(() => {})
 }
 
 /** 防抖（500ms）调度持久化。 */

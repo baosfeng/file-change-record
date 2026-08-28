@@ -29,9 +29,24 @@ class World {
     const ctx = {
       logger: { warn: () => {} },
       webRuntime: { trustedHosts: [] },
-      webServer: { register: (route) => { this.apiHolder.set(route); return () => {} } },
-      systemPrompt: { section: (section) => { this.sections.push(section); return () => {} } },
-      tools: { register: (tool) => { this.tools.push(tool); return () => {} } },
+      webServer: {
+        register: (route) => {
+          this.apiHolder.set(route)
+          return () => {}
+        },
+      },
+      systemPrompt: {
+        section: (section) => {
+          this.sections.push(section)
+          return () => {}
+        },
+      },
+      tools: {
+        register: (tool) => {
+          this.tools.push(tool)
+          return () => {}
+        },
+      },
       events: [],
       effectCallbacks: [],
       on() {},
@@ -51,7 +66,10 @@ class World {
     assert.ok(route, 'route registered')
     const res = makeResponse()
     await route.handler(makeRequest(method, url, body), res)
-    this.lastResponse = { status: res._status, json: res._body === '' ? null : JSON.parse(res._body) }
+    this.lastResponse = {
+      status: res._status,
+      json: res._body === '' ? null : JSON.parse(res._body),
+    }
     return this.lastResponse
   }
 
@@ -96,7 +114,11 @@ function makeRequest(method, url, body) {
   const req = {
     method,
     url,
-    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://127.0.0.1:3080' },
+    headers: {
+      host: '127.0.0.1:3080',
+      'sec-fetch-site': 'same-origin',
+      origin: 'http://127.0.0.1:3080',
+    },
     [Symbol.asyncIterator]() {
       const chunks = body === undefined ? [] : [JSON.stringify(body)]
       let i = 0
@@ -116,7 +138,11 @@ After(function () {
 
 // ── 场景 1：写操作必须携带用户同意标记 ──────────────────────────────────
 When('提交未携带同意标记的写操作', async function () {
-  await this.callRoute('POST', '/my-memory/api/memory', { action: 'add', scope: 'global', desc: '静默写入' })
+  await this.callRoute('POST', '/my-memory/api/memory', {
+    action: 'add',
+    scope: 'global',
+    desc: '静默写入',
+  })
 })
 
 Then('接口返回 400', function () {
@@ -130,7 +156,12 @@ Then('记忆列表为空', async function () {
 
 // ── 场景 2：新增/修改/删除全局记忆 ──────────────────────────────────────
 When('用户确认新增全局记忆 {string}', async function (desc) {
-  await this.callRoute('POST', '/my-memory/api/memory', { action: 'add', scope: 'global', desc, confirmed: true })
+  await this.callRoute('POST', '/my-memory/api/memory', {
+    action: 'add',
+    scope: 'global',
+    desc,
+    confirmed: true,
+  })
 })
 
 When('查询全局记忆', async function () {
@@ -139,19 +170,33 @@ When('查询全局记忆', async function () {
 
 Then('全局记忆包含 {string}', function (desc) {
   const items = this.lastResponse.json.value.items
-  assert.ok(items.some((i) => i.desc === desc), `global memory contains ${desc}`)
+  assert.ok(
+    items.some((i) => i.desc === desc),
+    `global memory contains ${desc}`,
+  )
 })
 
 When('用户确认修改该记忆为 {string}', async function (desc) {
   const items = this.lastResponse.json.value.items
   const id = items[0].id
-  await this.callRoute('POST', '/my-memory/api/memory', { action: 'update', scope: 'global', id, desc, confirmed: true })
+  await this.callRoute('POST', '/my-memory/api/memory', {
+    action: 'update',
+    scope: 'global',
+    id,
+    desc,
+    confirmed: true,
+  })
 })
 
 When('用户确认删除该记忆', async function () {
   const items = this.lastResponse.json.value.items
   const id = items[0].id
-  await this.callRoute('POST', '/my-memory/api/memory', { action: 'delete', scope: 'global', id, confirmed: true })
+  await this.callRoute('POST', '/my-memory/api/memory', {
+    action: 'delete',
+    scope: 'global',
+    id,
+    confirmed: true,
+  })
 })
 
 Then('全局记忆为空', function () {
@@ -162,13 +207,22 @@ Then('全局记忆为空', function () {
 When('用户确认在项目 {string} 新增项目记忆 {string}', async function (cwd, desc) {
   const projectDir = join(this.dir, cwd)
   mkdirSync(join(projectDir, '.git'), { recursive: true })
-  await this.callRoute('POST', '/my-memory/api/memory', { action: 'add', scope: 'project', cwd: projectDir, desc, confirmed: true })
+  await this.callRoute('POST', '/my-memory/api/memory', {
+    action: 'add',
+    scope: 'project',
+    cwd: projectDir,
+    desc,
+    confirmed: true,
+  })
 })
 
 Then('全局记忆包含 {string} 且不包含 {string}', async function (present, absent) {
   const r = await this.callRoute('GET', '/my-memory/api/memory?scope=global')
   const items = r.json.value.items
-  assert.ok(items.some((i) => i.desc === present), `global memory contains ${present}`)
+  assert.ok(
+    items.some((i) => i.desc === present),
+    `global memory contains ${present}`,
+  )
   assert.ok(!items.some((i) => i.desc === absent), `global memory excludes ${absent}`)
 })
 
@@ -179,7 +233,10 @@ When('查询项目 {string} 的记忆', async function (cwd) {
 
 Then('项目记忆包含 {string} 且不包含 {string}', function (present, absent) {
   const items = this.lastResponse.json.value.items
-  assert.ok(items.some((i) => i.desc === present), `project memory contains ${present}`)
+  assert.ok(
+    items.some((i) => i.desc === present),
+    `project memory contains ${present}`,
+  )
   assert.ok(!items.some((i) => i.desc === absent), `project memory excludes ${absent}`)
 })
 
@@ -209,7 +266,12 @@ Then('section 文本包含 {string}', function (desc) {
 When('清空全局记忆', async function () {
   const r = await this.callRoute('GET', '/my-memory/api/memory?scope=global')
   for (const item of r.json.value.items) {
-    await this.callRoute('POST', '/my-memory/api/memory', { action: 'delete', scope: 'global', id: item.id, confirmed: true })
+    await this.callRoute('POST', '/my-memory/api/memory', {
+      action: 'delete',
+      scope: 'global',
+      id: item.id,
+      confirmed: true,
+    })
   }
   this.lastSectionText = this.section().text({})
 })

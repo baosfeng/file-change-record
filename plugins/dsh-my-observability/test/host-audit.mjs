@@ -6,7 +6,15 @@
 import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
 import {
-  bootPlugin, createTempHome, cleanupHome, mockRequest, mockResponse, topAgent, dispatchEvent, invoke, jsonOf,
+  bootPlugin,
+  createTempHome,
+  cleanupHome,
+  mockRequest,
+  mockResponse,
+  topAgent,
+  dispatchEvent,
+  invoke,
+  jsonOf,
 } from './lib/helpers.mjs'
 
 const disposeAlls = []
@@ -76,7 +84,7 @@ test('audit suite', async () => {
     const chunks = [
       { type: 'reasoning-delta', index: 0, text: 'hello ' },
       { type: 'reasoning-delta', index: 0, text: 'world' },
-      { type: 'text-delta', index: 1, text: '!', },
+      { type: 'text-delta', index: 1, text: '!' },
     ]
     async function* fakeStream() {
       for (const chunk of chunks) yield chunk
@@ -109,7 +117,9 @@ test('audit suite', async () => {
     }
     const wrapped = await dispatchEvent(listeners, 'llm/stream', { sessionId: 's1' }, () => failingStream())
     await assert.rejects(async () => {
-      for await (const chunk of wrapped) { void chunk }
+      for await (const chunk of wrapped) {
+        void chunk
+      }
     }, /boom/)
     const events = await eventsOf(api, '?sessionId=s1&type=llm_stream')
     assert.equal(events.length, 2, 'start + error events')
@@ -137,9 +147,14 @@ test('audit suite', async () => {
     const { listeners, api } = boot({})
     await settle()
     let nextCalled = false
-    await dispatchEvent(listeners, 'tools/pre-execute',
+    await dispatchEvent(
+      listeners,
+      'tools/pre-execute',
       { name: 'bash', agent: topAgent('s1'), arguments: { command: 'ls -la' } },
-      async () => { nextCalled = true })
+      async () => {
+        nextCalled = true
+      },
+    )
     assert.equal(nextCalled, true, 'next() called')
     const events = await eventsOf(api, '?sessionId=s1&type=tool_call')
     assert.equal(events.length, 1)
@@ -153,9 +168,12 @@ test('audit suite', async () => {
     const { listeners, api } = boot({})
     await settle()
     const long = `${'x'.repeat(300)}\nsecond line`
-    await dispatchEvent(listeners, 'tools/pre-execute',
+    await dispatchEvent(
+      listeners,
+      'tools/pre-execute',
       { name: 'bash', agent: topAgent('s1'), arguments: { command: long } },
-      async () => {})
+      async () => {},
+    )
     const events = await eventsOf(api, '?sessionId=s1&type=tool_call')
     assert.ok(events[0].data.args.summary.length <= 201, 'summary truncated')
     assert.ok(events[0].data.args.summary.endsWith('…'), 'truncation marker')
@@ -167,9 +185,15 @@ test('audit suite', async () => {
     const { listeners, api } = boot({})
     await settle()
     let nextCalled = false
-    const result = await dispatchEvent(listeners, 'tools/execute',
+    const result = await dispatchEvent(
+      listeners,
+      'tools/execute',
       { name: 'bash', agent: topAgent('s1') },
-      async () => { nextCalled = true; return { stdout: 'ok' } })
+      async () => {
+        nextCalled = true
+        return { stdout: 'ok' }
+      },
+    )
     assert.equal(nextCalled, true)
     assert.deepEqual(result, { stdout: 'ok' }, 'tool result passes through')
     const events = await eventsOf(api, '?sessionId=s1&type=tool_result')
@@ -183,9 +207,9 @@ test('audit suite', async () => {
   {
     const { listeners, api } = boot({})
     await settle()
-    await dispatchEvent(listeners, 'tools/execute',
-      { name: 'bash', agent: topAgent('s1') },
-      async () => ({ error: { message: 'failed' } }))
+    await dispatchEvent(listeners, 'tools/execute', { name: 'bash', agent: topAgent('s1') }, async () => ({
+      error: { message: 'failed' },
+    }))
     const events = await eventsOf(api, '?sessionId=s1&type=tool_result')
     assert.equal(events[0].data.ok, false, 'error result flagged')
   }
@@ -195,7 +219,9 @@ test('audit suite', async () => {
     const { listeners, api } = boot({})
     await settle()
     let nextCalled = false
-    await dispatchEvent(listeners, 'tools/pre-execute', { name: 'bash' }, async () => { nextCalled = true })
+    await dispatchEvent(listeners, 'tools/pre-execute', { name: 'bash' }, async () => {
+      nextCalled = true
+    })
     assert.equal(nextCalled, true)
     const events = await eventsOf(api, '?sessionId=x')
     assert.equal(events.length, 0, 'no session → no record')
@@ -214,9 +240,15 @@ test('audit suite', async () => {
     assert.equal(eventsB.length, 1)
     assert.equal(eventsA[0].sessionId, 'sA')
     assert.equal(eventsB[0].sessionId, 'sB')
-    const sessions = jsonOf(await invoke(api, mockRequest({ url: '/observability/api/sessions' }), mockResponse())).value
+    const sessions = jsonOf(
+      await invoke(api, mockRequest({ url: '/observability/api/sessions' }), mockResponse()),
+    ).value
     assert.equal(sessions.length, 2, 'both sessions listed')
-    assert.deepEqual(sessions.map((s) => s.sessionId), ['sB', 'sA'], 'sorted by last activity desc')
+    assert.deepEqual(
+      sessions.map((s) => s.sessionId),
+      ['sB', 'sA'],
+      'sorted by last activity desc',
+    )
   }
 
   // ── 13. type 过滤 + limit ────────────────────────────────────────────
@@ -236,11 +268,18 @@ test('audit suite', async () => {
     try {
       const first = bootPlugin({}, { home: sharedHome })
       await settle()
-      await dispatchEvent(first.listeners, 'agent/status', { agent: topAgent('persist-1'), status: 'running' })
-      const wrapped = await dispatchEvent(first.listeners, 'llm/stream', { sessionId: 'persist-1' }, () => (async function* () {
-        yield { type: 'text-delta', index: 0, text: 'hi' }
-      })())
-      for await (const chunk of wrapped) { void chunk }
+      await dispatchEvent(first.listeners, 'agent/status', {
+        agent: topAgent('persist-1'),
+        status: 'running',
+      })
+      const wrapped = await dispatchEvent(first.listeners, 'llm/stream', { sessionId: 'persist-1' }, () =>
+        (async function* () {
+          yield { type: 'text-delta', index: 0, text: 'hi' }
+        })(),
+      )
+      for await (const chunk of wrapped) {
+        void chunk
+      }
       await settle()
       first.disposeAll() // flush
       await settle()
@@ -252,7 +291,9 @@ test('audit suite', async () => {
       assert.equal(events[0].type, 'agent_status')
       assert.equal(events[1].type, 'llm_stream')
       assert.equal(events[2].type, 'llm_stream')
-      const sessions = jsonOf(await invoke(second.api, mockRequest({ url: '/observability/api/sessions' }), mockResponse())).value
+      const sessions = jsonOf(
+        await invoke(second.api, mockRequest({ url: '/observability/api/sessions' }), mockResponse()),
+      ).value
       assert.equal(sessions[0].sessionId, 'persist-1')
       second.disposeAll()
     } finally {
@@ -281,11 +322,15 @@ test('audit suite', async () => {
     await invoke(api, mockRequest({ url: '/observability/api/status', host: 'evil.example.com' }), evil)
     assert.equal(evil.writeHeadStatus, 403, 'cross-authority rejected')
     const cross = mockResponse()
-    await invoke(api, mockRequest({
-      url: '/observability/api/status',
-      secFetchSite: 'cross-site',
-      origin: 'http://evil.example.com',
-    }), cross)
+    await invoke(
+      api,
+      mockRequest({
+        url: '/observability/api/status',
+        secFetchSite: 'cross-site',
+        origin: 'http://evil.example.com',
+      }),
+      cross,
+    )
     assert.equal(cross.writeHeadStatus, 403, 'cross-site rejected')
   }
 

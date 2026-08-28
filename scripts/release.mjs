@@ -25,8 +25,14 @@ import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  extractDshRequires, findUndeclaredPeers, findUnpublishedDeps,
-  collectClientSources, buildPluginIndex, findFreePort, versionGte, rangeMin,
+  extractDshRequires,
+  findUndeclaredPeers,
+  findUnpublishedDeps,
+  collectClientSources,
+  buildPluginIndex,
+  findFreePort,
+  versionGte,
+  rangeMin,
 } from './lib/release-checks.mjs'
 import { verifyPostRelease } from './lib/post-release.mjs'
 
@@ -36,7 +42,7 @@ const name = args.find((a) => !a.startsWith('--'))
 const push = args.includes('--push')
 const skipRealVerify = args.includes('--skip-real-verify')
 const bumpIdx = args.indexOf('--bump')
-const bump = bumpIdx >= 0 ? (args[bumpIdx + 1] || '') : ''
+const bump = bumpIdx >= 0 ? args[bumpIdx + 1] || '' : ''
 const BUMP_TYPES = new Set(['patch', 'minor', 'major'])
 
 /**
@@ -71,17 +77,26 @@ if (bump !== '') {
     process.exit(1)
   }
   const [maj, min, pat] = version.split('.').map(Number)
-  const next = bump === 'major' ? `${maj + 1}.0.0`
-    : bump === 'minor' ? `${maj}.${min + 1}.0`
-    : `${maj}.${min}.${pat + 1}`
+  const next =
+    bump === 'major' ? `${maj + 1}.0.0` : bump === 'minor' ? `${maj}.${min + 1}.0` : `${maj}.${min}.${pat + 1}`
   // 最近一个 <name>@v* tag（按版本倒序），用于提取自上次发版以来的提交
-  const tags = execSync(`git tag --list "${name}@v*" --sort=-v:refname`, { cwd: root, encoding: 'utf8' })
-    .split('\n').map((t) => t.trim()).filter(Boolean)
+  const tags = execSync(`git tag --list "${name}@v*" --sort=-v:refname`, {
+    cwd: root,
+    encoding: 'utf8',
+  })
+    .split('\n')
+    .map((t) => t.trim())
+    .filter(Boolean)
   const prevTag = tags[0] || null
   let logLines = []
   if (prevTag) {
-    logLines = execSync(`git log ${prevTag}..HEAD --oneline -- plugins/${name}/`, { cwd: root, encoding: 'utf8' })
-      .split('\n').map((l) => l.trim()).filter(Boolean)
+    logLines = execSync(`git log ${prevTag}..HEAD --oneline -- plugins/${name}/`, {
+      cwd: root,
+      encoding: 'utf8',
+    })
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
   }
   if (logLines.length === 0) {
     console.error(`✗ --bump 需要至少一个自上次 tag（${prevTag ?? '无'}）以来的提交（git log 为空）`)
@@ -152,10 +167,19 @@ const pluginIndex = buildPluginIndex(root)
 const isPublished = (dep, range) => {
   const min = rangeMin(range)
   if (!min) return false
-  try { return versionGte(execSync(`npm view ${dep} version`, { encoding: 'utf8' }).trim(), min) } catch { return false }
+  try {
+    return versionGte(execSync(`npm view ${dep} version`, { encoding: 'utf8' }).trim(), min)
+  } catch {
+    return false
+  }
 }
 const isTagged = (dir, version) => {
-  try { execSync(`git rev-parse -q --verify refs/tags/${dir}@v${version}`, { cwd: root }); return true } catch { return false }
+  try {
+    execSync(`git rev-parse -q --verify refs/tags/${dir}@v${version}`, { cwd: root })
+    return true
+  } catch {
+    return false
+  }
 }
 const depProblems = findUnpublishedDeps(peers, pluginIndex, isPublished, isTagged)
 if (depProblems.length > 0) {
@@ -164,7 +188,8 @@ if (depProblems.length > 0) {
   process.exit(1)
 }
 const inRepoDeps = Object.keys(peers).filter((d) => pluginIndex.has(d))
-if (inRepoDeps.length > 0) console.log(`✓ 仓库内 dsh-* 依赖均已发布且已打 tag（发布顺序正确）: ${inRepoDeps.join(', ')}`)
+if (inRepoDeps.length > 0)
+  console.log(`✓ 仓库内 dsh-* 依赖均已发布且已打 tag（发布顺序正确）: ${inRepoDeps.join(', ')}`)
 
 // 2. CHANGELOG section
 const changelog = readFileSync(join(pluginDir, 'CHANGELOG.md'), 'utf8')
@@ -193,7 +218,10 @@ if (skipReal) {
   const port = await findFreePort(3087)
   console.log(`- 真实环境验证（verify-real-profile.mjs --addons plugins/${name} --port ${port}）…`)
   try {
-    execSync(`node scripts/verify-real-profile.mjs --addons plugins/${name} --port ${port}`, { cwd: root, stdio: 'inherit' })
+    execSync(`node scripts/verify-real-profile.mjs --addons plugins/${name} --port ${port}`, {
+      cwd: root,
+      stdio: 'inherit',
+    })
     console.log('✓ 真实环境验证通过（实例启动 + 配置组合 + 日志无错误）')
   } catch {
     console.error('✗ 真实环境验证失败 — 发版阻断。请先修复插件加载/配置问题，再重新发版')
@@ -210,7 +238,8 @@ let screenshotRefs = 0
 if (existsSync(plugReadmePath)) {
   const plugReadme = readFileSync(plugReadmePath, 'utf8')
   // markdown 图片与 HTML <img> 的两种引用形态
-  const imgRe = /(?:!\[[^\]]*\]\((?:\.\/assets\/([^)]+)|https:\/\/unpkg\.com\/[^"/]+\/assets\/([^)]+))\)|<img[^>]*src="(?:\.\/assets\/([^"]+)|https:\/\/unpkg\.com\/[^"/]+\/assets\/([^"]+))")/g
+  const imgRe =
+    /(?:!\[[^\]]*\]\((?:\.\/assets\/([^)]+)|https:\/\/unpkg\.com\/[^"/]+\/assets\/([^)]+))\)|<img[^>]*src="(?:\.\/assets\/([^"]+)|https:\/\/unpkg\.com\/[^"/]+\/assets\/([^"]+))")/g
   const refs = []
   for (const m of plugReadme.matchAll(imgRe)) refs.push(m[1] || m[2] || m[3] || m[4])
   screenshotRefs = refs.length
@@ -221,7 +250,9 @@ if (existsSync(plugReadmePath)) {
   }
 }
 if (screenshotRefs === 0) {
-  console.error(`✗ ${name}/README.md has no real screenshot reference (./assets/... or unpkg URL) — update README + assets/ per the 效果图规范`)
+  console.error(
+    `✗ ${name}/README.md has no real screenshot reference (./assets/... or unpkg URL) — update README + assets/ per the 效果图规范`,
+  )
   process.exit(1)
 }
 console.log(`✓ README references ${screenshotRefs} screenshot(s) under assets/`)
@@ -234,7 +265,9 @@ let agents = readFileSync(agentsPath, 'utf8')
 let changed = false
 
 // README plugin table: | [<name>](plugins/<name>/README.md) | <old> | ...
-const readmeRe = new RegExp(`(\\| \\[${escapeRegExp(name)}\\]\\(plugins/${escapeRegExp(name)}/README\\.md\\) \\| )\\d+\\.\\d+\\.\\d+( \\|)`)
+const readmeRe = new RegExp(
+  `(\\| \\[${escapeRegExp(name)}\\]\\(plugins/${escapeRegExp(name)}/README\\.md\\) \\| )\\d+\\.\\d+\\.\\d+( \\|)`,
+)
 if (readmeRe.test(readme)) {
   const next = readme.replace(readmeRe, `$1${version}$2`)
   if (next !== readme) {

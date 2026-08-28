@@ -38,7 +38,6 @@
 
 > 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-file-activity`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。
 
-
 前置：已安装 `dsh-better-sidebar`（v0.12+，推荐 v0.14）。
 
 ```sh
@@ -93,10 +92,10 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-file-activity
 
 ## 依赖
 
-| 依赖 | 用途 | 可选 |
-|---|---|---|
+| 依赖                 | 用途                              | 可选                           |
+| -------------------- | --------------------------------- | ------------------------------ |
 | `dsh-better-sidebar` | 侧边栏页签注册 + 浮窗 file viewer | 否（前置，v0.12+，推荐 v0.14） |
-| `cordis` | 插件运行时 | 是（宿主提供） |
+| `cordis`             | 插件运行时                        | 是（宿主提供）                 |
 
 ## 相关文档
 

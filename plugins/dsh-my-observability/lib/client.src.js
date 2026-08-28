@@ -41,20 +41,28 @@ window.__ModuleLoader__.load({
       ctx.effect(() => injectStyles(), 'dsh-my-observability: styles')
       const service = ctx.betterSidebar
       if (service === undefined) return
-      ctx.effect(() => service.registerTab({
-        id: 'dsh-my-observability:replay',
-        title: () => strings.replayTitle(),
-        order: 40,
-        single: true,
-        component: (props) => createElement(ReplayPanel, props),
-      }), 'dsh-my-observability: replay tab registration')
-      ctx.effect(() => service.registerTab({
-        id: 'dsh-my-observability:git',
-        title: () => strings.gitTitle(),
-        order: 41,
-        single: true,
-        component: (props) => createElement(GitPanel, props),
-      }), 'dsh-my-observability: git tab registration')
+      ctx.effect(
+        () =>
+          service.registerTab({
+            id: 'dsh-my-observability:replay',
+            title: () => strings.replayTitle(),
+            order: 40,
+            single: true,
+            component: (props) => createElement(ReplayPanel, props),
+          }),
+        'dsh-my-observability: replay tab registration',
+      )
+      ctx.effect(
+        () =>
+          service.registerTab({
+            id: 'dsh-my-observability:git',
+            title: () => strings.gitTitle(),
+            order: 41,
+            single: true,
+            component: (props) => createElement(GitPanel, props),
+          }),
+        'dsh-my-observability: git tab registration',
+      )
     }
 
     return module.exports

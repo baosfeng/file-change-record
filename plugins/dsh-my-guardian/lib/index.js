@@ -52,7 +52,9 @@ export function apply(ctx) {
   try {
     applyInner(ctx)
   } catch (error) {
-    ctx.logger?.warn(`[dsh-my-guardian] apply failed — guardian degraded: ${error instanceof Error ? error.message : String(error)}`)
+    ctx.logger?.warn(
+      `[dsh-my-guardian] apply failed — guardian degraded: ${error instanceof Error ? error.message : String(error)}`,
+    )
   }
 }
 
@@ -99,7 +101,9 @@ function scheduleInitialScan(ctx, shared) {
   void Promise.resolve().then(() => {
     initialScan(shared).catch((error) => {
       // the scan must never take the process down
-      ctx.logger?.warn(`[dsh-my-guardian] initial scan failed: ${error instanceof Error ? error.message : String(error)}`)
+      ctx.logger?.warn(
+        `[dsh-my-guardian] initial scan failed: ${error instanceof Error ? error.message : String(error)}`,
+      )
     })
   })
 }
@@ -124,18 +128,21 @@ function startWatchers(ctx, shared) {
 
 /** teardown: unmount everything the guardian mounted, then persist. */
 function registerTeardown(ctx, shared) {
-  ctx.effect(() => () => {
-    if (shared.watcher !== null) {
-      try {
-        shared.watcher.close()
-      } catch {
-        // ignore
+  ctx.effect(
+    () => () => {
+      if (shared.watcher !== null) {
+        try {
+          shared.watcher.close()
+        } catch {
+          // ignore
+        }
+        shared.watcher = null
       }
-      shared.watcher = null
-    }
-    for (const id of [...shared.mounted]) {
-      void shared.unmount(id)
-    }
-    void shared.persistSoon()
-  }, 'dsh-my-guardian: teardown')
+      for (const id of [...shared.mounted]) {
+        void shared.unmount(id)
+      }
+      void shared.persistSoon()
+    },
+    'dsh-my-guardian: teardown',
+  )
 }

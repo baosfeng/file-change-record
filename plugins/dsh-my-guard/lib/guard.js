@@ -36,7 +36,10 @@ export function attachGuardListener(ctx, options, recordAlert) {
         detail: { command: truncateCommand(command), pattern: hit.id },
       })
       if (options.mode === 'ask') {
-        return { kind: 'ask', reason: `安全护栏：检测到破坏性命令（${hit.message}），请确认是否执行` }
+        return {
+          kind: 'ask',
+          reason: `安全护栏：检测到破坏性命令（${hit.message}），请确认是否执行`,
+        }
       }
       if (options.mode === 'deny') {
         return { kind: 'deny', reason: `安全护栏：已拦截破坏性命令（${hit.message}）` }

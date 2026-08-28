@@ -62,26 +62,42 @@ test('config-store suite', async () => {
         '    resumeGraceMs: 1000',
         '    rateMaxActions: 20',
       ].join('\n')
-      assert.deepEqual(extractConfig(text, 'task-reliability'), {
-        apiToken: 'tok-1',
-        retryMax: 5,
-        maxLoop: 10,
-        maxVerify: 2,
-        retryableCodes: ['TIMEOUT', 'ETIMEDOUT', 'ECONNRESET'],
-        retryBaseMs: 2000,
-        autopilot: true,
-        steerCooldownMs: 5000,
-        saveDebounceMs: 300,
-        resumeGraceMs: 1000,
-        rateMaxActions: 20,
-      }, 'config block parsed with correct types')
+      assert.deepEqual(
+        extractConfig(text, 'task-reliability'),
+        {
+          apiToken: 'tok-1',
+          retryMax: 5,
+          maxLoop: 10,
+          maxVerify: 2,
+          retryableCodes: ['TIMEOUT', 'ETIMEDOUT', 'ECONNRESET'],
+          retryBaseMs: 2000,
+          autopilot: true,
+          steerCooldownMs: 5000,
+          saveDebounceMs: 300,
+          resumeGraceMs: 1000,
+          rateMaxActions: 20,
+        },
+        'config block parsed with correct types',
+      )
     }
 
     // ── 4. writePatchConfig：文件不存在 → 创建 ─────────────────────────
     {
       const dir = tempDir()
       const file = join(dir, 'cordis.patch.yml')
-      const saved = { apiToken: '', retryMax: 3, maxLoop: 8, maxVerify: 3, retryableCodes: ['TIMEOUT'], retryBaseMs: 1000, autopilot: false, steerCooldownMs: 8000, saveDebounceMs: 500, resumeGraceMs: 2000, rateMaxActions: 12 }
+      const saved = {
+        apiToken: '',
+        retryMax: 3,
+        maxLoop: 8,
+        maxVerify: 3,
+        retryableCodes: ['TIMEOUT'],
+        retryBaseMs: 1000,
+        autopilot: false,
+        steerCooldownMs: 8000,
+        saveDebounceMs: 500,
+        resumeGraceMs: 2000,
+        rateMaxActions: 12,
+      }
       await writePatchConfig(file, 'task-reliability', saved)
       assert.ok(existsSync(file), 'patch file created')
       const text = readFileSync(file, 'utf8')
@@ -112,14 +128,30 @@ test('config-store suite', async () => {
       const text = readFileSync(file, 'utf8')
       const count = text.split('\n').filter((line) => line === '- id: task-reliability').length
       assert.equal(count, 1, 'old row replaced, no duplicate')
-      assert.deepEqual(extractConfig(text, 'task-reliability'), { retryMax: 6, autopilot: false }, 'replaced config readable')
+      assert.deepEqual(
+        extractConfig(text, 'task-reliability'),
+        { retryMax: 6, autopilot: false },
+        'replaced config readable',
+      )
     }
 
     // ── 7. 持久化闭环：写入 → 重新读取 → 值正确（模拟重启） ────────────
     {
       const dir = tempDir()
       const file = join(dir, 'cordis.patch.yml')
-      const saved = { apiToken: 'tok-9', retryMax: 7, maxLoop: 12, maxVerify: 4, retryableCodes: ['TIMEOUT', 'SERVER'], retryBaseMs: 500, autopilot: true, steerCooldownMs: 3000, saveDebounceMs: 200, resumeGraceMs: 500, rateMaxActions: 30 }
+      const saved = {
+        apiToken: 'tok-9',
+        retryMax: 7,
+        maxLoop: 12,
+        maxVerify: 4,
+        retryableCodes: ['TIMEOUT', 'SERVER'],
+        retryBaseMs: 500,
+        autopilot: true,
+        steerCooldownMs: 3000,
+        saveDebounceMs: 200,
+        resumeGraceMs: 500,
+        rateMaxActions: 30,
+      }
       await writePatchConfig(file, 'task-reliability', saved)
       const text = readFileSync(file, 'utf8')
       const restored = extractConfig(text, 'task-reliability')
@@ -132,7 +164,11 @@ test('config-store suite', async () => {
       const file = join(dir, 'cordis.patch.yml')
       await writePatchConfig(file, 'task-reliability', { apiToken: "it's a token" })
       const text = readFileSync(file, 'utf8')
-      assert.deepEqual(extractConfig(text, 'task-reliability'), { apiToken: "it's a token" }, "single-quoted string round-trips")
+      assert.deepEqual(
+        extractConfig(text, 'task-reliability'),
+        { apiToken: "it's a token" },
+        'single-quoted string round-trips',
+      )
     }
 
     // ── 9. currentProfile：--profile 空参数 → 默认 web ────────────────
@@ -163,7 +199,11 @@ test('config-store suite', async () => {
         '    apiToken:', // 无值键 → 忽略
         '    autopilot: true',
       ].join('\n')
-      assert.deepEqual(extractConfig(text, 'task-reliability'), { retryMax: 5, autopilot: true }, 'comments/blank/valueless keys skipped')
+      assert.deepEqual(
+        extractConfig(text, 'task-reliability'),
+        { retryMax: 5, autopilot: true },
+        'comments/blank/valueless keys skipped',
+      )
     }
 
     // ── 11. parseYamlScalar：双引号/裸字符串/浮点数/空值 ───────────────
@@ -176,21 +216,25 @@ test('config-store suite', async () => {
         '    retryBaseMs: 1.5',
         '    empty:',
       ].join('\n')
-      assert.deepEqual(extractConfig(text, 'task-reliability'), {
-        apiToken: 'double-quoted',
-        note: 'bare-string',
-        retryBaseMs: 1.5,
-      }, 'double-quoted/bare/float parsed; empty value skipped')
+      assert.deepEqual(
+        extractConfig(text, 'task-reliability'),
+        {
+          apiToken: 'double-quoted',
+          note: 'bare-string',
+          retryBaseMs: 1.5,
+        },
+        'double-quoted/bare/float parsed; empty value skipped',
+      )
     }
 
     // ── 12. parseFlowArray：数组含空项被过滤 ───────────────────────────
     {
-      const text = [
-        '- id: task-reliability',
-        '  config:',
-        '    codes: [TIMEOUT, , SERVER]',
-      ].join('\n')
-      assert.deepEqual(extractConfig(text, 'task-reliability'), { codes: ['TIMEOUT', 'SERVER'] }, 'empty array items filtered')
+      const text = ['- id: task-reliability', '  config:', '    codes: [TIMEOUT, , SERVER]'].join('\n')
+      assert.deepEqual(
+        extractConfig(text, 'task-reliability'),
+        { codes: ['TIMEOUT', 'SERVER'] },
+        'empty array items filtered',
+      )
     }
 
     // ── 13. writePatchConfig：null 值序列化为 null ─────────────────────
@@ -207,19 +251,27 @@ test('config-store suite', async () => {
     {
       const dir = tempDir()
       const file = join(dir, 'cordis.patch.yml')
-      writeFileSync(file, [
-        '- id: think-zh-expand',
-        '  name: dsh-think-zh-expand',
-        '- id: task-reliability',
-        '  config:',
-        '    retryMax: 1',
-        '- id: guardian',
-        '  name: dsh-my-guardian',
-      ].join('\n'), 'utf8')
+      writeFileSync(
+        file,
+        [
+          '- id: think-zh-expand',
+          '  name: dsh-think-zh-expand',
+          '- id: task-reliability',
+          '  config:',
+          '    retryMax: 1',
+          '- id: guardian',
+          '  name: dsh-my-guardian',
+        ].join('\n'),
+        'utf8',
+      )
       await writePatchConfig(file, 'task-reliability', { retryMax: 6 })
       const text = readFileSync(file, 'utf8')
       const lines = text.split('\n')
-      assert.equal(lines.filter((line) => line === '- id: task-reliability').length, 1, 'middle row replaced, no duplicate')
+      assert.equal(
+        lines.filter((line) => line === '- id: task-reliability').length,
+        1,
+        'middle row replaced, no duplicate',
+      )
       assert.ok(text.includes('- id: think-zh-expand'), 'row before preserved')
       assert.ok(text.includes('- id: guardian'), 'row after preserved')
       assert.deepEqual(extractConfig(text, 'task-reliability'), { retryMax: 6 }, 'middle row config readable')

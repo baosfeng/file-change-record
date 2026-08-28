@@ -86,15 +86,19 @@ function boot(config = {}, opts = {}) {
     },
     get(name) {
       if (name === 'sessionTitle') return opts.sessionTitle === false ? undefined : ctx.sessionTitle
-      if (name === 'webRuntime') return opts.trustedHosts === undefined ? undefined : { trustedHosts: opts.trustedHosts }
+      if (name === 'webRuntime')
+        return opts.trustedHosts === undefined ? undefined : { trustedHosts: opts.trustedHosts }
       return undefined
     },
-    sessionTitle: opts.sessionTitle === false ? undefined : {
-      get() {
-        if (opts.titleThrows) throw new Error('title lookup exploded')
-        return { title: '' } // empty snapshot → fall through to cwd
-      },
-    },
+    sessionTitle:
+      opts.sessionTitle === false
+        ? undefined
+        : {
+            get() {
+              if (opts.titleThrows) throw new Error('title lookup exploded')
+              return { title: '' } // empty snapshot → fall through to cwd
+            },
+          },
   }
   apply(ctx, config)
   const api = routes.find((r) => r.path === '/notify/api' && r.kind === 'prefix')
@@ -138,7 +142,15 @@ test('malformed host header is refused by the fence (403)', async () => {
 test('trustedHosts entry without explicit port is honored', async () => {
   const { api } = boot({}, { trustedHosts: ['notify.example.com'] })
   const res = mockResponse()
-  await invoke(api, mockRequest({ url: '/notify/api/info', host: 'notify.example.com:3080', origin: 'http://notify.example.com:3080' }), res)
+  await invoke(
+    api,
+    mockRequest({
+      url: '/notify/api/info',
+      host: 'notify.example.com:3080',
+      origin: 'http://notify.example.com:3080',
+    }),
+    res,
+  )
   assert.equal(res.writeHeadStatus, 200, 'trusted host without port accepted')
 })
 
@@ -181,9 +193,16 @@ test('ask note falls back to the first question line (truncated at 80 chars)', a
   const res = mockResponse()
   await invoke(api, mockRequest({ url: '/notify/api/stream' }), res)
   const longQuestion = 'q'.repeat(120)
-  await dispatchEvent(listeners, 'tools/pre-execute',
-    { name: 'ask_user_question', agent: topAgent('askq1'), arguments: { questions: [{ question: `${longQuestion}\n第二行` }] } },
-    async () => {})
+  await dispatchEvent(
+    listeners,
+    'tools/pre-execute',
+    {
+      name: 'ask_user_question',
+      agent: topAgent('askq1'),
+      arguments: { questions: [{ question: `${longQuestion}\n第二行` }] },
+    },
+    async () => {},
+  )
   const frame = res.written.join('')
   const notice = JSON.parse(frame.slice(frame.indexOf('data: ') + 6))
   assert.equal(notice.kind, 'ask')
@@ -196,7 +215,9 @@ test('a failing SSE client is dropped and destroyed on broadcast', async () => {
   const res = mockResponse()
   await invoke(api, mockRequest({ url: '/notify/api/stream' }), res)
   // the socket breaks AFTER the SSE handshake: later writes must throw
-  res.write = () => { throw new Error('socket gone') }
+  res.write = () => {
+    throw new Error('socket gone')
+  }
   await dispatchEvent(listeners, 'agent/status', { agent: topAgent('bad1'), status: 'idle' })
   assert.equal(res.destroyed, true, 'broken client destroyed')
   // the client was dropped: a second notice must not throw

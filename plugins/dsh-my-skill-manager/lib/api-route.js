@@ -17,7 +17,14 @@
  * cache-control: no-cache.
  */
 import { readJsonBody, writeError, writeJson } from './http.js'
-import { readConfigFile, readProjectConfig, globalConfigFile, projectConfigFileOf, writeConfigFile, findProjectRoot } from './config.js'
+import {
+  readConfigFile,
+  readProjectConfig,
+  globalConfigFile,
+  projectConfigFileOf,
+  writeConfigFile,
+  findProjectRoot,
+} from './config.js'
 import { scanSkillRoots, viewRootsOf } from './diagnose.js'
 
 /** 项目来源判定：官方 source 值中 project 前缀只有 project-dsh / project-agents。 */
@@ -45,7 +52,10 @@ export function createApiHandler({ ctx, invalidate, fence }) {
         await handleConfig(request, response, invalidate)
         return
       }
-      writeJson(response, 404, { ok: false, error: { message: 'unknown my-skill-manager API method' } })
+      writeJson(response, 404, {
+        ok: false,
+        error: { message: 'unknown my-skill-manager API method' },
+      })
     } catch (error) {
       writeError(response, error)
     }
@@ -149,7 +159,10 @@ async function handleConfig(request, response, invalidate) {
     ? payload.disabled.filter((name) => typeof name === 'string' && name !== '')
     : []
   if (scope !== 'global' && scope !== 'project') {
-    writeJson(response, 400, { ok: false, error: { message: 'scope must be "global" or "project"' } })
+    writeJson(response, 400, {
+      ok: false,
+      error: { message: 'scope must be "global" or "project"' },
+    })
     return
   }
   if (scope === 'global') {

@@ -44,7 +44,11 @@ const stubbed = {
 // ── browser globals ────────────────────────────────────────────────────────
 let registered = null
 global.window = {
-  __ModuleLoader__: { load: (registration) => { registered = registration } },
+  __ModuleLoader__: {
+    load: (registration) => {
+      registered = registration
+    },
+  },
   location: { href: 'http://127.0.0.1:3080/app', search: '' },
   confirm: () => true,
   fetch: () => Promise.resolve({ json: () => Promise.resolve({ ok: true, value: {} }) }),
@@ -76,8 +80,12 @@ const mockService = {
   },
   features: ['openFile'],
   isTabEnabled: () => true,
-  openFile: (scope, path) => { openFileCalls.push({ scope, path }) },
-  openTab: (seed) => { openTabCalls.push(seed) },
+  openFile: (scope, path) => {
+    openFileCalls.push({ scope, path })
+  },
+  openTab: (seed) => {
+    openTabCalls.push(seed)
+  },
   getSnapshot: () => undefined,
   subscribeState: () => () => {},
 }
@@ -186,10 +194,18 @@ assert.ok(titles.includes('/work/README.md'), 'root file row present')
 // Directory rows are clickable collapse toggles carrying their folder path.
 const dirRows = rows.filter((r) => typeof r.title === 'string' && r.title.endsWith('/'))
 assert.equal(dirRows.length, 4, `expected 4 directory rows, got ${dirRows.length}`)
-assert.ok(dirRows.every((r) => typeof r.onClick === 'function'), 'directory rows toggle collapse on click')
+assert.ok(
+  dirRows.every((r) => typeof r.onClick === 'function'),
+  'directory rows toggle collapse on click',
+)
 
 // recent entries are also clickable (4 recent rows with path titles)
-const recentRows = rows.filter((r) => r.title === '/work/a/b/c/d/e.txt' || r.title === '/work/README.md' || r.title === '/work/src/components/ui/Button.tsx')
+const recentRows = rows.filter(
+  (r) =>
+    r.title === '/work/a/b/c/d/e.txt' ||
+    r.title === '/work/README.md' ||
+    r.title === '/work/src/components/ui/Button.tsx',
+)
 assert.ok(recentRows.length >= 4, 'recent entries clickable')
 
 // ── per-type file icons (issue #24) ────────────────────────────────────────
@@ -200,12 +216,19 @@ const iconByFile = new Map()
 function collectFileIcons(node) {
   if (node === null || node === undefined || typeof node === 'boolean') return
   if (typeof node === 'string' || typeof node === 'number') return
-  if (Array.isArray(node)) { for (const c of node) collectFileIcons(c); return }
+  if (Array.isArray(node)) {
+    for (const c of node) collectFileIcons(c)
+    return
+  }
   const props = node.props ?? {}
   if (props.className === 'dfa-row') {
     const children = Array.isArray(props.children) ? props.children : [props.children]
-    const iconSpan = children.find((c) => c && typeof c === 'object' && String(c.props?.className ?? '').startsWith('dfa-row-icon'))
-    const nameSpan = children.find((c) => c && typeof c === 'object' && String(c.props?.className ?? '').startsWith('dfa-row-name'))
+    const iconSpan = children.find(
+      (c) => c && typeof c === 'object' && String(c.props?.className ?? '').startsWith('dfa-row-icon'),
+    )
+    const nameSpan = children.find(
+      (c) => c && typeof c === 'object' && String(c.props?.className ?? '').startsWith('dfa-row-name'),
+    )
     if (iconSpan && nameSpan) iconByFile.set(textOf(nameSpan), iconSpan.props.children)
   }
   collectFileIcons(props.children)
@@ -241,7 +264,10 @@ let dirIconSvg = null
 function collectDirIcon(node) {
   if (node === null || node === undefined || typeof node === 'boolean') return
   if (typeof node === 'string' || typeof node === 'number') return
-  if (Array.isArray(node)) { for (const c of node) collectDirIcon(c); return }
+  if (Array.isArray(node)) {
+    for (const c of node) collectDirIcon(c)
+    return
+  }
   const props = node.props ?? {}
   if (props.className === 'dfa-row-icon dfa-icon-folder') dirIconSvg = props.children
   collectDirIcon(props.children)
@@ -273,7 +299,10 @@ assert.ok(texts.includes('old.txt'), 'deleted file name still visible in recent'
 
 // ── click behavior: every clickable file row opens the FLOATING preview ──
 // (which reuses the sidebar's native viewer), NOT the sidebar editor tab.
-const clickableRows = rows.filter((r) => typeof r.onClick === 'function' && typeof r.title === 'string' && r.title.startsWith('/') && !r.title.endsWith('/'))
+const clickableRows = rows.filter(
+  (r) =>
+    typeof r.onClick === 'function' && typeof r.title === 'string' && r.title.startsWith('/') && !r.title.endsWith('/'),
+)
 for (const row of clickableRows) row.onClick()
 assert.equal(openFileCalls.length, 0, 'clicking a row does not open the sidebar editor tab')
 assert.equal(openTabCalls.length, 0, 'clicking a row does not open any sidebar tab')
@@ -289,16 +318,28 @@ let closeBtn = null
 const fpTexts = []
 const walkFp = (node) => {
   if (node === null || node === undefined || typeof node === 'boolean') return
-  if (typeof node === 'string' || typeof node === 'number') { fpTexts.push(String(node)); return }
-  if (Array.isArray(node)) { for (const c of node) walkFp(c); return }
-  if (typeof node.type === 'function') { walkFp(node.type(node.props)); return }
+  if (typeof node === 'string' || typeof node === 'number') {
+    fpTexts.push(String(node))
+    return
+  }
+  if (Array.isArray(node)) {
+    for (const c of node) walkFp(c)
+    return
+  }
+  if (typeof node.type === 'function') {
+    walkFp(node.type(node.props))
+    return
+  }
   const props = node.props ?? {}
   if (props.className === 'dfa-fp-overlay') overlay = props
   if (props['aria-label'] === '关闭预览') closeBtn = props
   walkFp(props.children)
 }
 walkFp(fpTree)
-assert.ok(fpTexts.includes('加载中…') || fpTexts.includes('Loading…'), 'floating preview shows its loading state (viewer mounts in a real browser)')
+assert.ok(
+  fpTexts.includes('加载中…') || fpTexts.includes('Loading…'),
+  'floating preview shows its loading state (viewer mounts in a real browser)',
+)
 assert.ok(overlay && typeof overlay.onClick === 'function', 'scrim overlay present (click-outside dismisses)')
 // Clicking OUTSIDE the window dismisses it.
 overlay.onClick()

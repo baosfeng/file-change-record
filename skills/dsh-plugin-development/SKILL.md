@@ -27,12 +27,12 @@ description: 在本仓库（my-dsh-plugins）中新建、修改、调试或发�
 
 ## 插件形态（先决策）
 
-| 形态 | 面向 | 关键 API |
-|---|---|---|
-| **工具型插件**（注册 agent 工具） | 提供 agent 可调用的函数（天气/搜索/记忆等纯工具） | server 端 `ctx.tools.register(defineTool(...))`，详见 [dsh-tools-api.md](references/dsh-tools-api.md) |
-| **侧边栏页签 / 预览器**（消费 better-sidebar） | 在侧边栏提供新页面或文件预览 | client 端 `ctx.betterSidebar.registerTab` / `registerFileViewer` |
-| **纯 server 插件** | 事件监听 / HTTP 路由 / 持久化 | `apply(ctx)` + `ctx.on` / `webServer` |
-| **两者混合**（最常见） | 页面 + 后端逻辑 | 两端都写，client 通过 HTTP 路由或事件上报 server |
+| 形态                                           | 面向                                              | 关键 API                                                                                              |
+| ---------------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **工具型插件**（注册 agent 工具）              | 提供 agent 可调用的函数（天气/搜索/记忆等纯工具） | server 端 `ctx.tools.register(defineTool(...))`，详见 [dsh-tools-api.md](references/dsh-tools-api.md) |
+| **侧边栏页签 / 预览器**（消费 better-sidebar） | 在侧边栏提供新页面或文件预览                      | client 端 `ctx.betterSidebar.registerTab` / `registerFileViewer`                                      |
+| **纯 server 插件**                             | 事件监听 / HTTP 路由 / 持久化                     | `apply(ctx)` + `ctx.on` / `webServer`                                                                 |
+| **两者混合**（最常见）                         | 页面 + 后端逻辑                                   | 两端都写，client 通过 HTTP 路由或事件上报 server                                                      |
 
 > `ctx.betterSidebar` **只存在于 client 端**。server 端需要侧边栏数据时走 `/sidebar/api/*` HTTP 路由，不要假设服务存在。
 
@@ -50,6 +50,7 @@ description: 在本仓库（my-dsh-plugins）中新建、修改、调试或发�
    - **可用**：输出 `npm error code E404` / `404 Not Found`（无版本信息）→ 包名未被占用。
    - **被占用**：输出版本号、maintainers 等元数据 → 已被占用；`npm view <包名> maintainers` 可查看占用者。
    - 想发现近似名/同功能包：`npm search <关键词> --registry=https://registry.npmjs.org`。
+
 3. **被占用 → 改名**：统一加 `my-` 前缀为 `dsh-my-<功能>`，参考本仓库改名先例 `dsh-my-skill-manager`（原 `dsh-skill-manager` 被占）、`dsh-my-plugin-manager`（原 `dsh-plugin-manager` 被占）。改名后重新执行第 2 步确认新名可用再继续。
 4. **记录检索结果（强制）**：候选名 + 占用情况记入插件需求清单 `docs/<模块>/需求清单.md`（如 `R1 包名 dsh-my-xxx：候选 dsh-xxx 已被 maintainer xxx 占用（2026-xx 检索）`），发布前复查一次。
 
@@ -98,7 +99,7 @@ client bundle 由浏览器模块加载器装载，**不是 Node ESM**。照抄�
 ```js
 // lib/client.js
 window.__ModuleLoader__.load({
-  id: 'dsh-<功能>',                                  // = 包名
+  id: 'dsh-<功能>', // = 包名
   factory: (require) => {
     var module = { exports: {} }
     var exports = module.exports
@@ -111,12 +112,12 @@ window.__ModuleLoader__.load({
       // 注册页签：disposer 必须包在 effect 里
       ctx.effect(() =>
         ctx.betterSidebar.registerTab({
-          id: 'dsh-<功能>:<页面>',                     // 包名:xxx 前缀
-          title: () => '页面名',                       // 或字符串；中文用 i18n 判断
+          id: 'dsh-<功能>:<页面>', // 包名:xxx 前缀
+          title: () => '页面名', // 或字符串；中文用 i18n 判断
           order: 50,
           single: true,
           component: ({ scope, visible }) => createElement(Page, { sessionId: scope.sessionId }),
-        })
+        }),
       )
     }
 
@@ -137,12 +138,26 @@ window.__ModuleLoader__.load({
   "version": "0.1.0",
   "type": "module",
   "main": "lib/index.js",
-  "exports": { ".": { "default": "./lib/index.js" }, "./client": { "default": "./lib/client.js" }, "./package.json": "./package.json" },
+  "exports": {
+    ".": { "default": "./lib/index.js" },
+    "./client": { "default": "./lib/client.js" },
+    "./package.json": "./package.json",
+  },
   "files": ["lib", "cordis.patch.yml", "README.md", "CHANGELOG.md", "LICENSE"],
-  "dsh": { "bundle": { "patch": "./cordis.patch.yml" }, "client": { "platform": "web", "inject": ["@deepseek-ai/dsh-client-runtime"] } },
-  "peerDependencies": { "dsh-better-sidebar": "^0.14.0", "cordis": "^4.0.0-rc.8", "react": "^18.2.0" },
-  "peerDependenciesMeta": { "dsh-better-sidebar": { "optional": true }, "cordis": { "optional": true } },
-  "scripts": { "test": "node test/host-smoke.mjs" }
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": { "platform": "web", "inject": ["@deepseek-ai/dsh-client-runtime"] },
+  },
+  "peerDependencies": {
+    "dsh-better-sidebar": "^0.14.0",
+    "cordis": "^4.0.0-rc.8",
+    "react": "^18.2.0",
+  },
+  "peerDependenciesMeta": {
+    "dsh-better-sidebar": { "optional": true },
+    "cordis": { "optional": true },
+  },
+  "scripts": { "test": "node test/host-smoke.mjs" },
 }
 ```
 
@@ -177,20 +192,28 @@ window.__ModuleLoader__.load({
 ```js
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
-export const name = 'my-tool'              // 必须与 cordis.patch.yml 的 id 一致
-export const inject = ['tools']            // 必须：否则 ctx.tools undefined
+export const name = 'my-tool' // 必须与 cordis.patch.yml 的 id 一致
+export const inject = ['tools'] // 必须：否则 ctx.tools undefined
 
 export function apply(ctx) {
-  ctx.tools.register(defineTool({
-    name: 'my_tool_func',
-    description: '做某件事（agent 据此决定是否调用）',
-    parameters: { arg: { type: 'string', description: '参数说明', required: true } },
-    output: {
-      schema: { type: 'object', properties: { ok: { type: 'boolean', required: true } }, additionalProperties: false },
-      render: (_args, value) => [{ type: 'text', text: String(value.ok) }],
-    },
-    async execute(args) { return { ok: true } },   // 是 execute 不是 run
-  }))
+  ctx.tools.register(
+    defineTool({
+      name: 'my_tool_func',
+      description: '做某件事（agent 据此决定是否调用）',
+      parameters: { arg: { type: 'string', description: '参数说明', required: true } },
+      output: {
+        schema: {
+          type: 'object',
+          properties: { ok: { type: 'boolean', required: true } },
+          additionalProperties: false,
+        },
+        render: (_args, value) => [{ type: 'text', text: String(value.ok) }],
+      },
+      async execute(args) {
+        return { ok: true }
+      }, // 是 execute 不是 run
+    }),
+  )
 }
 ```
 
@@ -203,7 +226,7 @@ export function apply(ctx) {
 > 调研整理（2026-08）：官方资源、插件市场收录机制、生态差异。完整参考见 [references/dsh-ecosystem.md](references/dsh-ecosystem.md)。
 
 - **官方权威 skill**：`dsh-io/dsh-plugin-skill`（defineTool API 唯一权威）；better-sidebar 外部插件指南 `omdsh-dev/DSH-better-sidebar/docs/external-plugin-guide.md`。
-- **官方仓库写法（最高权威）**：DeepSeek-Harness 仓库 `packages/` 实际代码——工具型看 `workflow/tool-workflow`（schemastery Config、prompt section、ToolCallView），UI 型看 `client/ui-workflow-run`（slots.inject/register keyed slot、locale.register、conversationEvents），组合看 `bundle/web-app/cordis.patch.yml`（`!!js` 表达式、行覆盖），打包看 `client/tsdown.client.ts`（__ModuleLoader__ 协议、纯度门）。完整提炼见 [references/dsh-official-writing.md](references/dsh-official-writing.md)。
+- **官方仓库写法（最高权威）**：DeepSeek-Harness 仓库 `packages/` 实际代码——工具型看 `workflow/tool-workflow`（schemastery Config、prompt section、ToolCallView），UI 型看 `client/ui-workflow-run`（slots.inject/register keyed slot、locale.register、conversationEvents），组合看 `bundle/web-app/cordis.patch.yml`（`!!js` 表达式、行覆盖），打包看 `client/tsdown.client.ts`（**ModuleLoader** 协议、纯度门）。完整提炼见 [references/dsh-official-writing.md](references/dsh-official-writing.md)。
 - **UI 插件实现思路**：调研了 dsh-web-ui 全家桶（18+ 包）、better-sidebar、open-design、reactive-resume 等 5 个项目——官方 Slot 系统 / settings 分区 / 全局挂载三种注册方式、host 安全双层（loopback + workspace 门）、SSE/轮询通信。完整分析见 [references/ui-plugin-patterns.md](references/ui-plugin-patterns.md)。
 - **市场收录**：给公开仓库打 GitHub topic `dsh-plugin` 即被 dshfind.com 与 DSH 1024Store（deepseek1024.com，4100+ 插件）自动聚合收录；1024Store 收录前静态校验 `package.json` + `dsh.bundle.patch` + patch 文件齐备。
 - **本仓库分发约定（双通道）**：GitHub Release + **npm 官方 registry**（release.yml 读仓库 `NPM_TOKEN` secret 自动发布；未配置时仅警告跳过）。完整流程见 [docs/开发指南/发版流程.md](../../docs/开发指南/发版流程.md)。
@@ -218,19 +241,19 @@ export function apply(ctx) {
 
 ## 常见错误
 
-| 症状 | 根因 | 解决 |
-|---|---|---|
-| `"tab type ... already registered"` | 重复注册：HMR 残留或 id 冲突 | 注册必须包 `ctx.effect`；id 全局唯一（内置 explorer/git/terminal 等不可占用） |
-| `"no service available"`（tools） | 工具型插件没声明 `inject: ['tools']` | `export const inject = ['tools']` |
-| 工具注册了但 agent 从不调用 | `description` 写得不够好 | description 是 agent 决策依据，写清用途与参数 |
-| Release workflow 在 `Verify the git tag matches package.json version` 失败 | 校验比较格式不一致（历史 bug：`expected` 带 `v` 前缀而 tag 解析的 `VERSION` 不带） | 校验必须比较**裸版本**：`expected="$(node -p ...)"`（不带 v），与 tag `@v` 后部分一致；改后删 tag 重推（`git tag -d <tag> && git push origin :refs/tags/<tag>`） |
-| schema 类型推断/校验失败 | `required` 数组、`required: false`、缺 `additionalProperties` | 属性级 `required: true`；对象 schema 显式 `additionalProperties: false`（见 dsh-tools-api.md） |
-| 页面没效果 | 只改了 server 端没重启；或没硬刷新 | server 改动重启 `dsh web`；client 改动 Cmd/Ctrl+Shift+R |
-| `duplicate loader entry id` | profile 里手动 insert + bundle patch 自动插入重复 | 删掉手动行，只用 `dsh plugin` 安装 |
-| `ctx.betterSidebar` undefined | 没声明 inject，或服务未加载 | `inject: ['betterSidebar']`；可选场景 `ctx.get` 判空降级 |
-| 双 Cordis / 类型分裂 | 同时引用 unscoped 与 scoped cordis | 全链统一一个 cordis（本仓库用 `cordis` peer + link 安装） |
-| HMR 后状态错乱 | disposer 没被 fiber 持有 | `ctx.effect(() => register(...))`，绝不裸调 |
-| 页签偶发"纯文字无样式" | 样式注入放在服务判空早退（`if (service === undefined) return`）之后，HMR/服务重载瞬间跳过注入 | **样式注入必须放 `apply` 最前、无条件执行**（不依赖任何服务），每个 fiber 持自己的 `<style>`、disposer 只删自己的（详见 [踩坑：插件页签样式丢失](../../docs/踩坑/插件页签样式丢失.md)） |
+| 症状                                                                       | 根因                                                                                          | 解决                                                                                                                                                                                    |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `"tab type ... already registered"`                                        | 重复注册：HMR 残留或 id 冲突                                                                  | 注册必须包 `ctx.effect`；id 全局唯一（内置 explorer/git/terminal 等不可占用）                                                                                                           |
+| `"no service available"`（tools）                                          | 工具型插件没声明 `inject: ['tools']`                                                          | `export const inject = ['tools']`                                                                                                                                                       |
+| 工具注册了但 agent 从不调用                                                | `description` 写得不够好                                                                      | description 是 agent 决策依据，写清用途与参数                                                                                                                                           |
+| Release workflow 在 `Verify the git tag matches package.json version` 失败 | 校验比较格式不一致（历史 bug：`expected` 带 `v` 前缀而 tag 解析的 `VERSION` 不带）            | 校验必须比较**裸版本**：`expected="$(node -p ...)"`（不带 v），与 tag `@v` 后部分一致；改后删 tag 重推（`git tag -d <tag> && git push origin :refs/tags/<tag>`）                        |
+| schema 类型推断/校验失败                                                   | `required` 数组、`required: false`、缺 `additionalProperties`                                 | 属性级 `required: true`；对象 schema 显式 `additionalProperties: false`（见 dsh-tools-api.md）                                                                                          |
+| 页面没效果                                                                 | 只改了 server 端没重启；或没硬刷新                                                            | server 改动重启 `dsh web`；client 改动 Cmd/Ctrl+Shift+R                                                                                                                                 |
+| `duplicate loader entry id`                                                | profile 里手动 insert + bundle patch 自动插入重复                                             | 删掉手动行，只用 `dsh plugin` 安装                                                                                                                                                      |
+| `ctx.betterSidebar` undefined                                              | 没声明 inject，或服务未加载                                                                   | `inject: ['betterSidebar']`；可选场景 `ctx.get` 判空降级                                                                                                                                |
+| 双 Cordis / 类型分裂                                                       | 同时引用 unscoped 与 scoped cordis                                                            | 全链统一一个 cordis（本仓库用 `cordis` peer + link 安装）                                                                                                                               |
+| HMR 后状态错乱                                                             | disposer 没被 fiber 持有                                                                      | `ctx.effect(() => register(...))`，绝不裸调                                                                                                                                             |
+| 页签偶发"纯文字无样式"                                                     | 样式注入放在服务判空早退（`if (service === undefined) return`）之后，HMR/服务重载瞬间跳过注入 | **样式注入必须放 `apply` 最前、无条件执行**（不依赖任何服务），每个 fiber 持自己的 `<style>`、disposer 只删自己的（详见 [踩坑：插件页签样式丢失](../../docs/踩坑/插件页签样式丢失.md)） |
 
 ## 需要避免的坑
 

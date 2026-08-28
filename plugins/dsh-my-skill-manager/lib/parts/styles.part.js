@@ -1,5 +1,5 @@
-    // ── styles (DSH semantic tokens, injected on activate, removed on teardown) ──
-    const STYLES = `
+// ── styles (DSH semantic tokens, injected on activate, removed on teardown) ──
+const STYLES = `
 .dsm-root { display:flex; flex-direction:column; gap:10px; padding:12px; }
 .dsm-pathbar { display:flex; gap:6px; align-items:center; }
 .dsm-path-input { flex:1; min-width:0; height:28px; padding:0 8px; border-radius:6px;
@@ -50,4 +50,4 @@
   color:var(--dsw-alias-label-tertiary, #888); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 `.trim()
 
-    const STYLE_TAG = 'data-dsh-my-skill-manager'
+const STYLE_TAG = 'data-dsh-my-skill-manager'

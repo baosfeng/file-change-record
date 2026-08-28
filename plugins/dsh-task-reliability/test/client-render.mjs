@@ -34,7 +34,11 @@ function loadBundle() {
   hookIndex = 0
   let registered = null
   global.window = {
-    __ModuleLoader__: { load: (registration) => { registered = registration } },
+    __ModuleLoader__: {
+      load: (registration) => {
+        registered = registration
+      },
+    },
   }
   Object.defineProperty(global, 'navigator', { value: { language: 'en-US' }, configurable: true })
   eval(fs.readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8'))
@@ -218,10 +222,20 @@ test('client bundle registers settings tab via slots and renders the config form
 
   // ── 预置 state：loading=false，config/draft 有值 → 渲染表单 ──────────
   const configValue = {
-    apiToken: 'tok', retryMax: 5, maxLoop: 10, maxVerify: 2,
-    retryableCodes: ['TIMEOUT', 'SERVER'], retryBaseMs: 2000, autopilot: true,
-    steerCooldownMs: 5000, saveDebounceMs: 300, resumeGraceMs: 1000, rateMaxActions: 20,
-    askTimeoutMs: 900000, watchdogIntervalMs: 120000, stallTimeoutMs: 300000,
+    apiToken: 'tok',
+    retryMax: 5,
+    maxLoop: 10,
+    maxVerify: 2,
+    retryableCodes: ['TIMEOUT', 'SERVER'],
+    retryBaseMs: 2000,
+    autopilot: true,
+    steerCooldownMs: 5000,
+    saveDebounceMs: 300,
+    resumeGraceMs: 1000,
+    rateMaxActions: 20,
+    askTimeoutMs: 900000,
+    watchdogIntervalMs: 120000,
+    stallTimeoutMs: 300000,
   }
   hookValues.set(0, [configValue, () => {}])
   hookValues.set(1, [{ ...configValue, retryableCodesText: 'TIMEOUT, SERVER' }, () => {}])

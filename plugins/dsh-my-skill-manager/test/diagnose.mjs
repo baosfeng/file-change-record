@@ -23,7 +23,10 @@ afterAll(() => {
 
 test('viewRootsOf(undefined) returns the global roots only', async () => {
   const roots = await viewRootsOf(undefined)
-  assert.deepEqual(roots.map((r) => r.source), ['user-dsh', 'user-agents'])
+  assert.deepEqual(
+    roots.map((r) => r.source),
+    ['user-dsh', 'user-agents'],
+  )
   assert.equal(roots[0].path, join(dir, 'skills'))
   assert.equal(roots[1].path, join(dir, 'agents', 'skills'))
 })
@@ -31,7 +34,10 @@ test('viewRootsOf(undefined) returns the global roots only', async () => {
 test('viewRootsOf(cwd) adds the project roots', async () => {
   mkdirSync(join(dir, 'repo', '.git'), { recursive: true })
   const roots = await viewRootsOf(join(dir, 'repo', 'sub'))
-  assert.deepEqual(roots.map((r) => r.source), ['user-dsh', 'user-agents', 'project-dsh', 'project-agents'])
+  assert.deepEqual(
+    roots.map((r) => r.source),
+    ['user-dsh', 'user-agents', 'project-dsh', 'project-agents'],
+  )
   assert.equal(roots[2].path, join(dir, 'repo', '.dsh', 'skills'))
   assert.equal(roots[3].path, join(dir, 'repo', '.agents', 'skills'))
 })
@@ -72,7 +78,11 @@ test('scanSkillRoots skips non-skill, .system and absent entries', async () => {
   writeFileSync(join(skillsDir, '.system', 'SKILL.md'), '---\nname: system-x\ndescription: 系统\n---\nbody')
 
   const { skills, issues } = await scanSkillRoots([{ path: skillsDir, source: 'user-dsh' }])
-  assert.deepEqual(skills.map((s) => s.name), ['known'], 'non-skill and .system entries are not scanned')
+  assert.deepEqual(
+    skills.map((s) => s.name),
+    ['known'],
+    'non-skill and .system entries are not scanned',
+  )
   assert.deepEqual(issues, [], 'no issues for clean entries')
 
   const absent = await scanSkillRoots([{ path: join(dir, 'no-such-dir'), source: 'user-dsh' }])

@@ -37,7 +37,11 @@ function makeRequest(method, url, body, overrides) {
   const req = {
     method,
     url,
-    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://127.0.0.1:3080' },
+    headers: {
+      host: '127.0.0.1:3080',
+      'sec-fetch-site': 'same-origin',
+      origin: 'http://127.0.0.1:3080',
+    },
     ...(overrides ?? {}),
     [Symbol.asyncIterator]() {
       const chunks = body === undefined ? [] : [JSON.stringify(body)]
@@ -69,7 +73,13 @@ async function boot() {
     logger: { warn: () => {} },
     webRuntime: { trustedHosts: [] },
     sessions: { get: () => undefined },
-    webServer: { register: (route) => { apiHolder.set(route); mediaHolder.set(route); return () => {} } },
+    webServer: {
+      register: (route) => {
+        apiHolder.set(route)
+        mediaHolder.set(route)
+        return () => {}
+      },
+    },
     events: [],
     effectCallbacks: [],
     on(name, listener) {
@@ -97,7 +107,9 @@ async function callRoute(getRoute, method, url, body, overrides) {
 
 test('missing host header is refused by the fence (403)', async () => {
   const { getRoute } = await boot()
-  const r = await callRoute(getRoute, 'GET', '/file-activity/api/stats?sessionId=s', undefined, { headers: {} })
+  const r = await callRoute(getRoute, 'GET', '/file-activity/api/stats?sessionId=s', undefined, {
+    headers: {},
+  })
   assert.equal(r.status, 403)
   assert.equal(r.json.ok, false, 'body ok flag false')
   assert.equal(r.json.error.code, 'forbidden', 'body error code')
@@ -126,7 +138,11 @@ test('malformed origin is refused by the fence (403)', async () => {
 test('cross-site requests are refused by the fence (403)', async () => {
   const { getRoute } = await boot()
   const r = await callRoute(getRoute, 'GET', '/file-activity/api/stats?sessionId=s', undefined, {
-    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'cross-site', origin: 'http://evil.example' },
+    headers: {
+      host: '127.0.0.1:3080',
+      'sec-fetch-site': 'cross-site',
+      origin: 'http://evil.example',
+    },
   })
   assert.equal(r.status, 403)
   assert.equal(r.json.ok, false, 'body ok flag false')
@@ -140,7 +156,13 @@ test('trustedHosts entry without explicit port matches host:port requests', asyn
     logger: { warn: () => {} },
     webRuntime: { trustedHosts: ['dsh.example.com'] },
     sessions: { get: () => undefined },
-    webServer: { register: (route) => { apiHolder.set(route); mediaHolder.set(route); return () => {} } },
+    webServer: {
+      register: (route) => {
+        apiHolder.set(route)
+        mediaHolder.set(route)
+        return () => {}
+      },
+    },
     events: [],
     effectCallbacks: [],
     on() {},
@@ -166,7 +188,11 @@ test('malformed JSON body returns 400', async () => {
   const req = {
     method: 'POST',
     url: '/file-activity/api/record',
-    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://127.0.0.1:3080' },
+    headers: {
+      host: '127.0.0.1:3080',
+      'sec-fetch-site': 'same-origin',
+      origin: 'http://127.0.0.1:3080',
+    },
     [Symbol.asyncIterator]() {
       const chunks = ['{not json']
       let i = 0
@@ -196,7 +222,11 @@ test('media route authorizes paths present only in recent history', async () => 
   const mediaFile = join(tmpdir(), `dfa-edge-${Date.now()}.png`)
   writeFileSync(mediaFile, Buffer.from([0x89, 0x50, 0x4e, 0x47]))
   const { listener } = ctx.events.find((e) => e.name === 'fs/observed')
-  listener({ displayPath: mediaFile }, { kind: 'present' }, { name: 'read', agent: { id: 'edge-session' }, arguments: {} })
+  listener(
+    { displayPath: mediaFile },
+    { kind: 'present' },
+    { name: 'read', agent: { id: 'edge-session' }, arguments: {} },
+  )
   await new Promise((resolve) => setTimeout(resolve, 600)) // let it persist
   const res = makeResponse()
   await getMediaRoute().handler(
@@ -213,7 +243,13 @@ test('records arriving before state load are buffered and applied', async () => 
     logger: { warn: () => {} },
     webRuntime: { trustedHosts: [] },
     sessions: { get: () => undefined },
-    webServer: { register: (route) => { apiHolder.set(route); mediaHolder.set(route); return () => {} } },
+    webServer: {
+      register: (route) => {
+        apiHolder.set(route)
+        mediaHolder.set(route)
+        return () => {}
+      },
+    },
     events: [],
     effectCallbacks: [],
     on(name, listener) {
@@ -227,7 +263,11 @@ test('records arriving before state load are buffered and applied', async () => 
   apply(ctx)
   // Record immediately — before the 50ms async state load completes.
   const { listener } = ctx.events.find((e) => e.name === 'fs/observed')
-  listener({ displayPath: '/work/buffered.txt' }, { kind: 'present' }, { name: 'read', agent: { id: 'edge-session' }, arguments: {} })
+  listener(
+    { displayPath: '/work/buffered.txt' },
+    { kind: 'present' },
+    { name: 'read', agent: { id: 'edge-session' }, arguments: {} },
+  )
   await new Promise((resolve) => setTimeout(resolve, 100))
   const r = await callRoute(() => apiHolder.get(), 'GET', '/file-activity/api/stats?sessionId=edge-session')
   assert.equal(r.status, 200)
@@ -236,7 +276,11 @@ test('records arriving before state load are buffered and applied', async () => 
 
 test('invalid session ids are ignored by record', async () => {
   const { getRoute } = await boot()
-  const r = await callRoute(getRoute, 'POST', '/file-activity/api/record', { sessionId: '', path: '/x', op: 'read' })
+  const r = await callRoute(getRoute, 'POST', '/file-activity/api/record', {
+    sessionId: '',
+    path: '/x',
+    op: 'read',
+  })
   assert.equal(r.status, 200)
   const stats = await callRoute(getRoute, 'GET', '/file-activity/api/stats?sessionId=')
   assert.deepEqual(stats.json.value.counts, {}, 'empty session id creates no state')
@@ -245,7 +289,11 @@ test('invalid session ids are ignored by record', async () => {
 test('fs/observed falls back to the file_path argument when displayPath is empty', async () => {
   const { ctx, getRoute } = await boot()
   const { listener } = ctx.events.find((e) => e.name === 'fs/observed')
-  listener({ displayPath: '' }, { kind: 'present' }, { name: 'read', agent: { id: 'arg-session' }, arguments: { file_path: '/work/via-args.txt' } })
+  listener(
+    { displayPath: '' },
+    { kind: 'present' },
+    { name: 'read', agent: { id: 'arg-session' }, arguments: { file_path: '/work/via-args.txt' } },
+  )
   await new Promise((resolve) => setTimeout(resolve, 600))
   const r = await callRoute(getRoute, 'GET', '/file-activity/api/stats?sessionId=arg-session')
   assert.equal(r.json.value.counts['/work/via-args.txt'].read, 1)
@@ -259,7 +307,13 @@ test('teardown flushes pending persistence', async () => {
     logger: { warn: () => {} },
     webRuntime: { trustedHosts: [] },
     sessions: { get: () => undefined },
-    webServer: { register: (route) => { apiHolder.set(route); mediaHolder.set(route); return () => {} } },
+    webServer: {
+      register: (route) => {
+        apiHolder.set(route)
+        mediaHolder.set(route)
+        return () => {}
+      },
+    },
     events: [],
     on(name, listener) {
       this.events.push({ name, listener })
@@ -273,7 +327,11 @@ test('teardown flushes pending persistence', async () => {
   apply(ctx)
   await new Promise((resolve) => setTimeout(resolve, 50))
   const { listener } = ctx.events.find((e) => e.name === 'fs/observed')
-  listener({ displayPath: '/work/teardown.txt' }, { kind: 'present' }, { name: 'read', agent: { id: 'td-session' }, arguments: {} })
+  listener(
+    { displayPath: '/work/teardown.txt' },
+    { kind: 'present' },
+    { name: 'read', agent: { id: 'td-session' }, arguments: {} },
+  )
   // Run every disposer (teardown) without waiting for the 500ms debounce.
   for (const disposer of disposers) disposer()
   await new Promise((resolve) => setTimeout(resolve, 300))

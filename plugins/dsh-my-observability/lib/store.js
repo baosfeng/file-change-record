@@ -179,32 +179,37 @@ function isValidRoot(parsed) {
 
 /** 会话桶事件规整：过滤非法事件 + 截断到每会话上限。 */
 function validEventsOf(bucket) {
-  return Array.isArray(bucket?.events)
-    ? bucket.events.filter(isValidEvent).slice(-MAX_EVENTS_PER_SESSION)
-    : []
+  return Array.isArray(bucket?.events) ? bucket.events.filter(isValidEvent).slice(-MAX_EVENTS_PER_SESSION) : []
 }
 
 /** 事件结构校验（时间/会话/类型为字符串与数字的合理形态）。 */
 function isValidEvent(event) {
-  return event !== null && typeof event === 'object'
-    && typeof event.time === 'number'
-    && typeof event.sessionId === 'string'
-    && typeof event.type === 'string'
+  return (
+    event !== null &&
+    typeof event === 'object' &&
+    typeof event.time === 'number' &&
+    typeof event.sessionId === 'string' &&
+    typeof event.type === 'string'
+  )
 }
 
 /** 原子写当前状态（经 dirtyChain 串行化；自动建目录）。 */
 function persistNow(handle) {
   const snapshot = JSON.stringify(handle.store.state)
   const tmp = `${handle.file}.tmp-${process.pid}`
-  handle.dirtyChain = handle.dirtyChain.then(async () => {
-    try {
-      await mkdir(dirname(handle.file), { recursive: true })
-      await writeFile(tmp, snapshot, 'utf8')
-      await rename(tmp, handle.file)
-    } catch (error) {
-      handle.ctx.logger?.warn(`[dsh-my-observability] persist failed: ${error instanceof Error ? error.message : String(error)}`)
-    }
-  }).catch(() => {})
+  handle.dirtyChain = handle.dirtyChain
+    .then(async () => {
+      try {
+        await mkdir(dirname(handle.file), { recursive: true })
+        await writeFile(tmp, snapshot, 'utf8')
+        await rename(tmp, handle.file)
+      } catch (error) {
+        handle.ctx.logger?.warn(
+          `[dsh-my-observability] persist failed: ${error instanceof Error ? error.message : String(error)}`,
+        )
+      }
+    })
+    .catch(() => {})
 }
 
 /** 防抖（500ms）调度持久化。 */

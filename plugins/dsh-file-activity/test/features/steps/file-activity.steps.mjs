@@ -25,7 +25,12 @@ class World {
       logger: { warn: () => {} },
       webRuntime: { trustedHosts: [] },
       sessions: { get: () => undefined },
-      webServer: { register: (route) => { this.apiHolder.set(route); return () => {} } },
+      webServer: {
+        register: (route) => {
+          this.apiHolder.set(route)
+          return () => {}
+        },
+      },
       events: [],
       effectCallbacks: [],
       on(name, listener) {
@@ -46,11 +51,11 @@ class World {
   emitAgent(sessionId, toolName, path, opts) {
     const { listener } = this.ctx.events.find((e) => e.name === 'fs/observed')
     const { observation, args } = opts ?? {}
-    listener(
-      { displayPath: path },
-      observation ?? { kind: 'present' },
-      { name: toolName, agent: { id: sessionId }, arguments: args ?? { file_path: path } },
-    )
+    listener({ displayPath: path }, observation ?? { kind: 'present' }, {
+      name: toolName,
+      agent: { id: sessionId },
+      arguments: args ?? { file_path: path },
+    })
   }
 
   async callRoute(method, url, body, overrides) {
@@ -58,7 +63,10 @@ class World {
     assert.ok(route, 'route registered')
     const res = makeResponse()
     await route.handler(makeRequest(method, url, body, overrides), res)
-    this.lastResponse = { status: res._status, json: res._body === '' ? null : JSON.parse(res._body) }
+    this.lastResponse = {
+      status: res._status,
+      json: res._body === '' ? null : JSON.parse(res._body),
+    }
     return this.lastResponse
   }
 
@@ -95,7 +103,11 @@ function makeRequest(method, url, body, overrides) {
   const req = {
     method,
     url,
-    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://127.0.0.1:3080' },
+    headers: {
+      host: '127.0.0.1:3080',
+      'sec-fetch-site': 'same-origin',
+      origin: 'http://127.0.0.1:3080',
+    },
     ...(overrides ?? {}),
     [Symbol.asyncIterator]() {
       const chunks = body === undefined ? [] : [JSON.stringify(body)]
@@ -162,7 +174,11 @@ When('等待持久化完成', async function () {
 When('插件实例重启', async function () {
   const disposers = this.ctx.effectCallbacks.filter((e) => e.disposer)
   for (const d of disposers) {
-    try { d.disposer() } catch { /* ignore */ }
+    try {
+      d.disposer()
+    } catch {
+      /* ignore */
+    }
   }
   this.ctx = null
   this.apiHolder = captureRoute('/file-activity/api')
@@ -182,7 +198,10 @@ When('清空会话 {string} 的记录', async function (sessionId) {
 // ── Then ──────────────────────────────────────────────────────────────────
 Then('最近访问列表包含 {string}', async function (path) {
   const value = await this.stats(this.sessionId)
-  assert.ok(value.recent.some((e) => e.path === path), `recent contains ${path}`)
+  assert.ok(
+    value.recent.some((e) => e.path === path),
+    `recent contains ${path}`,
+  )
 })
 
 Then('该文件 {string} 的读取计数为 {int}', async function (path, count) {

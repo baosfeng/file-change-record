@@ -32,5 +32,8 @@ Then('告警规则为 {string}', async function (rule) {
 
 Then('检测结果包含 {string} 规则', function (rule) {
   assert.equal(this.lastResponse.status, 200)
-  assert.ok(this.lastValue.hits.some((h) => h.id === rule), `hits: ${JSON.stringify(this.lastValue.hits)}`)
+  assert.ok(
+    this.lastValue.hits.some((h) => h.id === rule),
+    `hits: ${JSON.stringify(this.lastValue.hits)}`,
+  )
 })

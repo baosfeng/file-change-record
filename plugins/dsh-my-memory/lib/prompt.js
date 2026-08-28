@@ -37,7 +37,8 @@ ${lines.join('\n')}`
 /** Build the system-prompt section registration for a global store. */
 export function createMemorySection(globalStore, config) {
   const maxItems = Number.isInteger(config?.maxItems) && config.maxItems > 0 ? config.maxItems : DEFAULT_MAX_ITEMS
-  const maxDescLength = Number.isInteger(config?.maxDescLength) && config.maxDescLength > 0 ? config.maxDescLength : DEFAULT_MAX_DESC_LENGTH
+  const maxDescLength =
+    Number.isInteger(config?.maxDescLength) && config.maxDescLength > 0 ? config.maxDescLength : DEFAULT_MAX_DESC_LENGTH
   return {
     name: 'dsh-my-memory',
     order: -95,

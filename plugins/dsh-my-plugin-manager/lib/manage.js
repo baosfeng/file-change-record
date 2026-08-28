@@ -17,9 +17,15 @@ export function runDsh(args, options = {}) {
     const child = spawn('dsh', args, { stdio: ['ignore', 'pipe', 'pipe'], ...options })
     let stdout = ''
     let stderr = ''
-    child.stdout.on('data', (chunk) => { stdout += chunk })
-    child.stderr.on('data', (chunk) => { stderr += chunk })
-    child.on('error', (error) => resolve({ ok: false, code: -1, stdout, stderr, error: String(error?.message ?? error) }))
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk
+    })
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk
+    })
+    child.on('error', (error) =>
+      resolve({ ok: false, code: -1, stdout, stderr, error: String(error?.message ?? error) }),
+    )
     child.on('close', (code) => resolve({ ok: code === 0, code, stdout, stderr }))
   })
 }
@@ -41,7 +47,11 @@ export function uninstallPlugin(profile, name) {
 /** pnpm outdated --json: { "<pkg>": { current, latest, ... } } or empty {} . */
 export async function outdatedPlugins(profile) {
   const result = await runDsh(['plugin', '--profile', profile, 'outdated', '--json'])
-  if (!result.ok) return { ok: false, error: result.stderr.trim() || result.stdout.trim() || `exit ${result.code}` }
+  if (!result.ok)
+    return {
+      ok: false,
+      error: result.stderr.trim() || result.stdout.trim() || `exit ${result.code}`,
+    }
   try {
     const parsed = JSON.parse(result.stdout.trim() || '{}')
     return {
@@ -61,7 +71,9 @@ export async function outdatedPlugins(profile) {
 export function installedVersionOf(profileDir, moduleName) {
   try {
     const scope = moduleName.startsWith('@') ? moduleName.split('/')[0] : null
-    const base = scope ? join(profileDir, 'node_modules', scope, moduleName.slice(scope.length + 1)) : join(profileDir, 'node_modules', moduleName)
+    const base = scope
+      ? join(profileDir, 'node_modules', scope, moduleName.slice(scope.length + 1))
+      : join(profileDir, 'node_modules', moduleName)
     const pkg = JSON.parse(readFileSync(join(base, 'package.json'), 'utf8'))
     return typeof pkg.version === 'string' ? pkg.version : ''
   } catch {

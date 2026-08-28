@@ -49,12 +49,12 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-md-render
 
 无需任何操作，插件激活即生效。模型输出表格（含不标准格式）时自动渲染：
 
-````markdown
-插件 | 版本
---- | ---
-dsh-file-activity | 0.4.2
-dsh-think-zh-expand | 0.4.2
-````
+```markdown
+| 插件                | 版本  |
+| ------------------- | ----- |
+| dsh-file-activity   | 0.4.2 |
+| dsh-think-zh-expand | 0.4.2 |
+```
 
 上面的表格（无首尾管道符）会自动渲染为带表头、边框、对齐的表格；列数 ≥4 的宽表格支持横向滚动。行内公式 `$x^2$` 与块级公式 `$$E=mc^2$$` 以公式样式显示。
 
@@ -82,11 +82,11 @@ npm test
 
 ## 依赖
 
-| 依赖 | 用途 | 可选 |
-|---|---|---|
-| `cordis` | 插件运行时 | 是（宿主提供） |
-| `react` | client 端 MarkdownView 组件 | — |
-| `dsh-think-zh-expand` | 其 assistant-step 渲染器跨插件 require 本插件 MarkdownView（依赖方向：think-zh-expand → 本插件） | 是（可配合） |
+| 依赖                  | 用途                                                                                             | 可选           |
+| --------------------- | ------------------------------------------------------------------------------------------------ | -------------- |
+| `cordis`              | 插件运行时                                                                                       | 是（宿主提供） |
+| `react`               | client 端 MarkdownView 组件                                                                      | —              |
+| `dsh-think-zh-expand` | 其 assistant-step 渲染器跨插件 require 本插件 MarkdownView（依赖方向：think-zh-expand → 本插件） | 是（可配合）   |
 
 ## 相关文档
 

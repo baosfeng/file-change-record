@@ -1,5 +1,5 @@
-    // ── styles (DSH semantic tokens, injected on activate, removed on teardown) ──
-    const STYLES = `
+// ── styles (DSH semantic tokens, injected on activate, removed on teardown) ──
+const STYLES = `
 .dmm-root { display:flex; flex-direction:column; gap:12px; padding:12px; }
 .dmm-pathbar { display:flex; gap:6px; align-items:center; }
 .dmm-path-input { flex:1; min-width:0; height:28px; padding:0 8px; border-radius:6px;
@@ -81,4 +81,4 @@
   font:var(--dsw-font-xxxs-11, 11px sans-serif); }
 `.trim()
 
-    const STYLE_TAG = 'data-dsh-my-memory'
+const STYLE_TAG = 'data-dsh-my-memory'

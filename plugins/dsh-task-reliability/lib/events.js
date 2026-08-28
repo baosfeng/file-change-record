@@ -12,7 +12,12 @@ import { isTopLevelAgent } from './text.js'
 import { wrapStreamForLoop } from './repeat.js'
 import { runVerification } from './verify.js'
 import {
-  ASK_TIMEOUT_CONTINUE_TEXT, AUTOPILOT_DENY_REASON, DIRECT_CONTINUE_TEXT, REPEAT_BREAK_TEXT, RETRY_MAX_DELAY_MS, RATE_WINDOW_MS,
+  ASK_TIMEOUT_CONTINUE_TEXT,
+  AUTOPILOT_DENY_REASON,
+  DIRECT_CONTINUE_TEXT,
+  REPEAT_BREAK_TEXT,
+  RETRY_MAX_DELAY_MS,
+  RATE_WINDOW_MS,
 } from './constants.js'
 
 /** ask 超时竞争标记（Promise.race 胜出方）。 */
@@ -246,9 +251,13 @@ function simulatedAskAnswer(argumentsValue) {
   for (const question of questions) {
     if (question === null || typeof question !== 'object' || typeof question.id !== 'string') continue
     const options = Array.isArray(question.options)
-      ? question.options.filter((option) => option !== null && typeof option === 'object' && typeof option.label === 'string')
+      ? question.options.filter(
+          (option) => option !== null && typeof option === 'object' && typeof option.label === 'string',
+        )
       : []
-    answers.push(options.length > 0 ? { id: question.id, selected: [options[0].label] } : { id: question.id, selected: [] })
+    answers.push(
+      options.length > 0 ? { id: question.id, selected: [options[0].label] } : { id: question.id, selected: [] },
+    )
   }
   return { value: { answers } }
 }
@@ -263,10 +272,7 @@ async function handleToolExecute(exec, next, shared) {
   if (shared.options.askTimeoutMs <= 0) return next()
   const agent = exec.agent
   if (!isTopLevelAgent(agent)) return next()
-  const result = await Promise.race([
-    next(),
-    sleep(shared.options.askTimeoutMs).then(() => ASK_TIMEOUT),
-  ])
+  const result = await Promise.race([next(), sleep(shared.options.askTimeoutMs).then(() => ASK_TIMEOUT)])
   if (result !== ASK_TIMEOUT) return result
   addQuestion(shared.store, agent.id, askNoteOf(exec.arguments))
   shared.save()

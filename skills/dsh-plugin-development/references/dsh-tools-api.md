@@ -9,29 +9,32 @@
 // src/index.ts（或 lib/index.js）
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
-export const name = 'my-tool'              // 插件 id —— 必须与 cordis.patch.yml 的 id 一致
-export const inject = ['tools']            // 必须：否则 ctx.tools 为 undefined，插件崩溃
+export const name = 'my-tool' // 插件 id —— 必须与 cordis.patch.yml 的 id 一致
+export const inject = ['tools'] // 必须：否则 ctx.tools 为 undefined，插件崩溃
 
 export function apply(ctx) {
   ctx.tools.register(
     defineTool({
-      name: 'get_weather',                 // agent 调用的工具名
-      description: 'Get current weather for a city.',  // agent 决策依据，务必写好
-      parameters: {                        // 输入 JSON Schema（对象）
+      name: 'get_weather', // agent 调用的工具名
+      description: 'Get current weather for a city.', // agent 决策依据，务必写好
+      parameters: {
+        // 输入 JSON Schema（对象）
         city: { type: 'string', description: 'City name', required: true },
       },
-      output: {                            // 必填，无默认值
+      output: {
+        // 必填，无默认值
         schema: {
           type: 'object',
           properties: {
             temperature: { type: 'number', required: true },
             condition: { type: 'string', required: true },
           },
-          additionalProperties: false,     // 对象 schema 必须显式声明
+          additionalProperties: false, // 对象 schema 必须显式声明
         },
         render: (_args, value) => [{ type: 'text', text: `${value.temperature}°C, ${value.condition}` }],
       },
-      async execute(args) {               // 注意是 execute，不是 run
+      async execute(args) {
+        // 注意是 execute，不是 run
         return { temperature: 22, condition: 'sunny' }
       },
     }),
@@ -41,13 +44,13 @@ export function apply(ctx) {
 
 ## schema DSL 硬规则
 
-| 规则 | 详情 |
-|------|------|
-| `required` 是属性级 | 在每个属性内写 `required: true`。**没有** `required` 数组，**没有** `required: false`，两者都会破坏类型推断 |
-| `additionalProperties` | 每个对象 schema 必须显式设置（`false` 禁止额外键） |
-| `output` 必填 | 没有 `output` 无法通过类型检查；必须含 `schema`（对象 schema）+ `render(args, value)` 返回 `ContentBlock[]` |
-| render 块 | 返回 `{ type: 'text', text: string }` 项（`@deepseek-ai/dsh-llm` 的 `ContentBlock`） |
-| `execute(args)` | 直接返回值（JS 对象/字符串）；不是 `run`；需要执行上下文时用 `execute(args, exec)` |
+| 规则                   | 详情                                                                                                        |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `required` 是属性级    | 在每个属性内写 `required: true`。**没有** `required` 数组，**没有** `required: false`，两者都会破坏类型推断 |
+| `additionalProperties` | 每个对象 schema 必须显式设置（`false` 禁止额外键）                                                          |
+| `output` 必填          | 没有 `output` 无法通过类型检查；必须含 `schema`（对象 schema）+ `render(args, value)` 返回 `ContentBlock[]` |
+| render 块              | 返回 `{ type: 'text', text: string }` 项（`@deepseek-ai/dsh-llm` 的 `ContentBlock`）                        |
+| `execute(args)`        | 直接返回值（JS 对象/字符串）；不是 `run`；需要执行上下文时用 `execute(args, exec)`                          |
 
 ## 项目布局
 
@@ -93,7 +96,7 @@ my-tool/
 
 ```yaml
 overrides:
-  "@deepseek-ai/dsh-type-meta": "npm:@deepseek-ai/dsh-invariants@0.0.1-rc.1"
+  '@deepseek-ai/dsh-type-meta': 'npm:@deepseek-ai/dsh-invariants@0.0.1-rc.1'
 ```
 
 ## 开发流程
@@ -107,33 +110,33 @@ overrides:
 
 ## 常见错误
 
-| 错误 | 修复 |
-|------|------|
-| `ctx.tools.register('name', { run(...) })` 或对象映射 | API 是 `ctx.tools.register(defineTool({...}))` —— 每个工具一个对象，用 `execute` 不是 `run` |
-| 忘记 `export const inject = ['tools']` | 运行时 `ctx.tools` 是 undefined，插件崩溃 "no service available" |
-| 省略 `output` | 类型不合法，defineTool 必填 |
-| `required: ['city']` 数组或 `required: false` | 只用属性级 `required: true`；其他写法破坏类型推断 |
-| 对象 schema 缺 `additionalProperties` | 显式加 `additionalProperties: false` |
-| 从 `koishi` / `@koishijs/...` 导入 | dsh 用 `@deepseek-ai/cordis`；类型来自 `@deepseek-ai/dsh-tools`（augment cordis 的 Context） |
-| patch 的 `id` 与 `export const name` 不一致 | 合并按 id 进行；不一致会静默导致工具未注册 |
-| patch 相对路径错误 | `dsh.bundle.patch` 必须是相对包根目录的路径，且 patch 文件必须在 `files` 里随包发布 |
-| pnpm 安装失败（`@deepseek-ai/dsh-type-meta`） | 加 `pnpm-workspace.yaml` override（见上） |
-| 工具注册了但 agent 从不调用 | description 写得不够好 —— 那是 agent 决策的依据 |
+| 错误                                                  | 修复                                                                                         |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `ctx.tools.register('name', { run(...) })` 或对象映射 | API 是 `ctx.tools.register(defineTool({...}))` —— 每个工具一个对象，用 `execute` 不是 `run`  |
+| 忘记 `export const inject = ['tools']`                | 运行时 `ctx.tools` 是 undefined，插件崩溃 "no service available"                             |
+| 省略 `output`                                         | 类型不合法，defineTool 必填                                                                  |
+| `required: ['city']` 数组或 `required: false`         | 只用属性级 `required: true`；其他写法破坏类型推断                                            |
+| 对象 schema 缺 `additionalProperties`                 | 显式加 `additionalProperties: false`                                                         |
+| 从 `koishi` / `@koishijs/...` 导入                    | dsh 用 `@deepseek-ai/cordis`；类型来自 `@deepseek-ai/dsh-tools`（augment cordis 的 Context） |
+| patch 的 `id` 与 `export const name` 不一致           | 合并按 id 进行；不一致会静默导致工具未注册                                                   |
+| patch 相对路径错误                                    | `dsh.bundle.patch` 必须是相对包根目录的路径，且 patch 文件必须在 `files` 里随包发布          |
+| pnpm 安装失败（`@deepseek-ai/dsh-type-meta`）         | 加 `pnpm-workspace.yaml` override（见上）                                                    |
+| 工具注册了但 agent 从不调用                           | description 写得不够好 —— 那是 agent 决策的依据                                              |
 
 ## 快速参考
 
-| 什么 | 在哪 |
-|------|------|
-| 插件 id 常量 | `src/index.ts` 的 `export const name = 'my-tool'` |
-| 服务注入 | `export const inject = ['tools']` |
-| 工具注册 | `ctx.tools.register(defineTool({...}))` |
-| 工具定义来源 | `@deepseek-ai/dsh-tools` → `defineTool` |
-| 容器包 | `@deepseek-ai/cordis` |
-| render 块类型 | `@deepseek-ai/dsh-llm` → `ContentBlock` |
-| bundle manifest | `package.json` → `dsh.bundle.patch` |
-| 配置合并 | `cordis.patch.yml` → `- insert: [{ id, name }]` |
-| 脚手架 CLI | `npx @dsh-io/dsh-dev scaffold <name>` |
-| 活体开发 | `dsh web` + patch overlay，或 `dsh plugin add <dir>` |
-| 发现 | GitHub topic `dsh-plugin`；npm scoped 包 |
+| 什么            | 在哪                                                 |
+| --------------- | ---------------------------------------------------- |
+| 插件 id 常量    | `src/index.ts` 的 `export const name = 'my-tool'`    |
+| 服务注入        | `export const inject = ['tools']`                    |
+| 工具注册        | `ctx.tools.register(defineTool({...}))`              |
+| 工具定义来源    | `@deepseek-ai/dsh-tools` → `defineTool`              |
+| 容器包          | `@deepseek-ai/cordis`                                |
+| render 块类型   | `@deepseek-ai/dsh-llm` → `ContentBlock`              |
+| bundle manifest | `package.json` → `dsh.bundle.patch`                  |
+| 配置合并        | `cordis.patch.yml` → `- insert: [{ id, name }]`      |
+| 脚手架 CLI      | `npx @dsh-io/dsh-dev scaffold <name>`                |
+| 活体开发        | `dsh web` + patch overlay，或 `dsh plugin add <dir>` |
+| 发现            | GitHub topic `dsh-plugin`；npm scoped 包             |
 
 > 与本仓库 JS 约定差异：官方骨架用 TypeScript（`@deepseek-ai/dsh-tools` 提供类型增强）；本仓库现有插件为纯 JS（`lib/index.js` ESM）。两者 API 相同，`defineTool` 同样可用（无类型检查时注意遵守 schema 硬规则）。

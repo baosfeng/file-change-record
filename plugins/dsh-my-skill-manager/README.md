@@ -42,7 +42,7 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-my-skill-manager
 // <项目根>/.dsh/skills.enabled.json 或 $DSH_HOME/skills.enabled.json
 {
   "global": { "disabled": ["some-global-skill"] },
-  "project": { "disabled": ["web-search"] }
+  "project": { "disabled": ["web-search"] },
 }
 ```
 

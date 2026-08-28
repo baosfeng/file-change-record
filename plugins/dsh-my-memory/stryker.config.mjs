@@ -9,7 +9,15 @@
 export default {
   testRunner: 'vitest',
   vitest: { configFile: 'vitest.config.mjs' },
-  mutate: ['lib/index.js', 'lib/store.js', 'lib/api-route.js', 'lib/prompt.js', 'lib/tool.js', 'lib/fence.js', 'lib/http.js'],
+  mutate: [
+    'lib/index.js',
+    'lib/store.js',
+    'lib/api-route.js',
+    'lib/prompt.js',
+    'lib/tool.js',
+    'lib/fence.js',
+    'lib/http.js',
+  ],
   mutator: {
     excludedMutations: ['StringLiteral', 'TemplateLiteral'],
   },

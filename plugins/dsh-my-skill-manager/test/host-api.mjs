@@ -37,7 +37,11 @@ function makeRequest(method, url, body, overrides) {
   const req = {
     method,
     url,
-    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://127.0.0.1:3080' },
+    headers: {
+      host: '127.0.0.1:3080',
+      'sec-fetch-site': 'same-origin',
+      origin: 'http://127.0.0.1:3080',
+    },
     ...(overrides ?? {}),
     [Symbol.asyncIterator]() {
       const chunks = body === undefined ? [] : [JSON.stringify(body)]
@@ -66,7 +70,15 @@ function captureRoute(prefix) {
 function fakeSkills() {
   const catalog = new Map([
     ['web-search', { name: 'web-search', description: '搜索', source: 'user-dsh', provider: 'filesystem' }],
-    ['codebase-memory', { name: 'codebase-memory', description: '图查询', source: 'project-dsh', provider: 'filesystem' }],
+    [
+      'codebase-memory',
+      {
+        name: 'codebase-memory',
+        description: '图查询',
+        source: 'project-dsh',
+        provider: 'filesystem',
+      },
+    ],
     ['teach', { name: 'teach', description: '教学', source: 'user-agents', provider: 'filesystem' }],
   ])
   let providers = []
@@ -93,7 +105,12 @@ async function boot(overrides) {
     logger: { warn: () => {} },
     webRuntime: { trustedHosts: [] },
     skills: fakeSkills(),
-    webServer: { register: (route) => { apiHolder.set(route); return () => {} } },
+    webServer: {
+      register: (route) => {
+        apiHolder.set(route)
+        return () => {}
+      },
+    },
     events: [],
     effectCallbacks: [],
     on(name, listener) {
@@ -134,16 +151,22 @@ test('apply declares the required injects and returns effect disposers', async (
 test('API refuses requests outside the fence (403)', async () => {
   const { getRoute } = await boot()
   const res = makeResponse()
-  await getRoute().handler(makeRequest('GET', '/my-skill-manager/api/list', undefined, {
-    headers: { host: 'evil.example', 'sec-fetch-site': 'cross-site' },
-  }), res)
+  await getRoute().handler(
+    makeRequest('GET', '/my-skill-manager/api/list', undefined, {
+      headers: { host: 'evil.example', 'sec-fetch-site': 'cross-site' },
+    }),
+    res,
+  )
   assert.equal(res._status, 403, 'fenced')
 })
 
 test('GET /list groups the catalog by source and flags disabled', async () => {
   const { getRoute } = await boot()
   // global disable web-search first
-  await callRoute(getRoute, 'PUT', '/my-skill-manager/api/config', { scope: 'global', disabled: ['web-search'] })
+  await callRoute(getRoute, 'PUT', '/my-skill-manager/api/config', {
+    scope: 'global',
+    disabled: ['web-search'],
+  })
   const r = await callRoute(getRoute, 'GET', '/my-skill-manager/api/list?cwd=')
   assert.equal(r.status, 200)
   const value = r.json.value
@@ -157,14 +180,21 @@ test('GET /list groups the catalog by source and flags disabled', async () => {
 
 test('PUT /config saves global and project scopes and invalidates', async () => {
   const { getRoute } = await boot()
-  const p1 = await callRoute(getRoute, 'PUT', '/my-skill-manager/api/config', { scope: 'global', disabled: ['a', 'a', 'b'] })
+  const p1 = await callRoute(getRoute, 'PUT', '/my-skill-manager/api/config', {
+    scope: 'global',
+    disabled: ['a', 'a', 'b'],
+  })
   assert.equal(p1.status, 200)
   assert.equal(p1.json.ok, true)
   const r1 = await callRoute(getRoute, 'GET', '/my-skill-manager/api/list?cwd=')
   assert.deepEqual(r1.json.value.global.disabled, ['a', 'b'], 'deduped and persisted')
 
   mkdirSync(join(dir, 'proj', '.git'), { recursive: true })
-  const p2 = await callRoute(getRoute, 'PUT', '/my-skill-manager/api/config', { scope: 'project', disabled: ['c'], cwd: join(dir, 'proj') })
+  const p2 = await callRoute(getRoute, 'PUT', '/my-skill-manager/api/config', {
+    scope: 'project',
+    disabled: ['c'],
+    cwd: join(dir, 'proj'),
+  })
   assert.equal(p2.status, 200)
   const r2 = await callRoute(getRoute, 'GET', `/my-skill-manager/api/list?cwd=${encodeURIComponent(join(dir, 'proj'))}`)
   assert.deepEqual(r2.json.value.project, ['c'])
@@ -173,7 +203,10 @@ test('PUT /config saves global and project scopes and invalidates', async () => 
 
 test('PUT /config rejects unknown scope (400) and unknown methods 404', async () => {
   const { getRoute } = await boot()
-  const bad = await callRoute(getRoute, 'PUT', '/my-skill-manager/api/config', { scope: 'bogus', disabled: [] })
+  const bad = await callRoute(getRoute, 'PUT', '/my-skill-manager/api/config', {
+    scope: 'bogus',
+    disabled: [],
+  })
   assert.equal(bad.status, 400)
   const unknown = await callRoute(getRoute, 'GET', '/my-skill-manager/api/nope')
   assert.equal(unknown.status, 404)
@@ -192,9 +225,12 @@ test('wrong HTTP methods on known paths answer 404', async () => {
 test('fence 403 and success responses carry the ok flag', async () => {
   const { getRoute } = await boot()
   const res = makeResponse()
-  await getRoute().handler(makeRequest('GET', '/my-skill-manager/api/list', undefined, {
-    headers: { host: 'evil.example', 'sec-fetch-site': 'cross-site' },
-  }), res)
+  await getRoute().handler(
+    makeRequest('GET', '/my-skill-manager/api/list', undefined, {
+      headers: { host: 'evil.example', 'sec-fetch-site': 'cross-site' },
+    }),
+    res,
+  )
   assert.equal(res._status, 403)
   assert.equal(JSON.parse(res._body).ok, false, '403 body marks ok:false')
   const ok = await callRoute(getRoute, 'GET', '/my-skill-manager/api/list?cwd=')
@@ -219,7 +255,12 @@ test('invalidating after save refreshes the catalog', async () => {
   const ctx = {
     logger: { warn: () => {} },
     webRuntime: { trustedHosts: [] },
-    webServer: { register: (route) => { holder.set(route); return () => {} } },
+    webServer: {
+      register: (route) => {
+        holder.set(route)
+        return () => {}
+      },
+    },
     events: [],
     effectCallbacks: [],
     on(name, listener) {
@@ -233,7 +274,11 @@ test('invalidating after save refreshes the catalog', async () => {
     },
     skills: {
       registerProvider(create) {
-        create({ invalidate: () => { invalidated += 1 } })
+        create({
+          invalidate: () => {
+            invalidated += 1
+          },
+        })
         return () => {}
       },
       async list() {
@@ -243,7 +288,9 @@ test('invalidating after save refreshes the catalog', async () => {
   }
   apply(ctx)
   const res = makeResponse()
-  await holder.get().handler(makeRequest('PUT', '/my-skill-manager/api/config', { scope: 'global', disabled: ['x'] }), res)
+  await holder
+    .get()
+    .handler(makeRequest('PUT', '/my-skill-manager/api/config', { scope: 'global', disabled: ['x'] }), res)
   assert.equal(res._status, 200)
   assert.ok(invalidated >= 1, 'config save invalidates the skill catalog')
 })
@@ -252,15 +299,25 @@ test('fence: non-loopback hosts, origin mismatch and trusted hosts', async () =>
   // 非回环 host 拒绝
   const { getRoute } = await boot()
   const res1 = makeResponse()
-  await getRoute().handler(makeRequest('GET', '/my-skill-manager/api/list', undefined, {
-    headers: { host: '192.168.1.10:3080', 'sec-fetch-site': 'same-origin' },
-  }), res1)
+  await getRoute().handler(
+    makeRequest('GET', '/my-skill-manager/api/list', undefined, {
+      headers: { host: '192.168.1.10:3080', 'sec-fetch-site': 'same-origin' },
+    }),
+    res1,
+  )
   assert.equal(res1._status, 403, 'non-loopback host refused')
   // origin 与 host 不一致拒绝
   const res2 = makeResponse()
-  await getRoute().handler(makeRequest('GET', '/my-skill-manager/api/list', undefined, {
-    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://evil.example' },
-  }), res2)
+  await getRoute().handler(
+    makeRequest('GET', '/my-skill-manager/api/list', undefined, {
+      headers: {
+        host: '127.0.0.1:3080',
+        'sec-fetch-site': 'same-origin',
+        origin: 'http://evil.example',
+      },
+    }),
+    res2,
+  )
   assert.equal(res2._status, 403, 'origin mismatch refused')
   // 显式 trusted host 放行
   const holder = captureRoute('/my-skill-manager/api')
@@ -268,7 +325,12 @@ test('fence: non-loopback hosts, origin mismatch and trusted hosts', async () =>
     logger: { warn: () => {} },
     webRuntime: { trustedHosts: ['dsh.internal:3080'] },
     skills: { registerProvider: () => () => {}, list: async () => [] },
-    webServer: { register: (route) => { holder.set(route); return () => {} } },
+    webServer: {
+      register: (route) => {
+        holder.set(route)
+        return () => {}
+      },
+    },
     events: [],
     effectCallbacks: [],
     on() {},
@@ -279,9 +341,16 @@ test('fence: non-loopback hosts, origin mismatch and trusted hosts', async () =>
   }
   apply(ctx)
   const res3 = makeResponse()
-  await holder.get().handler(makeRequest('GET', '/my-skill-manager/api/list', undefined, {
-    headers: { host: 'dsh.internal:3080', 'sec-fetch-site': 'same-origin', origin: 'http://dsh.internal:3080' },
-  }), res3)
+  await holder.get().handler(
+    makeRequest('GET', '/my-skill-manager/api/list', undefined, {
+      headers: {
+        host: 'dsh.internal:3080',
+        'sec-fetch-site': 'same-origin',
+        origin: 'http://dsh.internal:3080',
+      },
+    }),
+    res3,
+  )
   assert.equal(res3._status, 200, 'trusted host allowed')
 })
 
@@ -291,7 +360,10 @@ test('handler errors are answered with a 400 JSON body', async () => {
   const huge = 'x'.repeat(1_100_000)
   const res = makeResponse()
   const route = getRoute()
-  const req = makeRequest('PUT', '/my-skill-manager/api/config', { scope: 'global', disabled: [huge] })
+  const req = makeRequest('PUT', '/my-skill-manager/api/config', {
+    scope: 'global',
+    disabled: [huge],
+  })
   await route.handler(req, res)
   assert.equal(res._status, 400)
   const body = JSON.parse(res._body)
@@ -307,7 +379,10 @@ test('GET /list with a cwd returns only project-sourced skills', async () => {
   assert.ok(names.includes('codebase-memory'), 'project skill present in project view')
   assert.ok(!names.includes('web-search'), 'user-dsh skill filtered out in project view')
   assert.ok(!names.includes('teach'), 'user-agents skill filtered out in project view')
-  assert.ok(r.json.value.skills.every((s) => s.source.startsWith('project-')), 'only project sources remain')
+  assert.ok(
+    r.json.value.skills.every((s) => s.source.startsWith('project-')),
+    'only project sources remain',
+  )
 })
 
 test('GET /rescan invalidates the catalog and returns fresh data', async () => {
@@ -316,7 +391,12 @@ test('GET /rescan invalidates the catalog and returns fresh data', async () => {
   const ctx = {
     logger: { warn: () => {} },
     webRuntime: { trustedHosts: [] },
-    webServer: { register: (route) => { holder.set(route); return () => {} } },
+    webServer: {
+      register: (route) => {
+        holder.set(route)
+        return () => {}
+      },
+    },
     events: [],
     effectCallbacks: [],
     on() {},
@@ -326,7 +406,11 @@ test('GET /rescan invalidates the catalog and returns fresh data', async () => {
     },
     skills: {
       registerProvider(create) {
-        create({ invalidate: () => { invalidated += 1 } })
+        create({
+          invalidate: () => {
+            invalidated += 1
+          },
+        })
         return () => {}
       },
       async list() {
@@ -341,7 +425,10 @@ test('GET /rescan invalidates the catalog and returns fresh data', async () => {
   assert.ok(invalidated >= 1, 'rescan invalidates the skill catalog')
   const body = JSON.parse(res._body)
   assert.equal(body.ok, true)
-  assert.ok(body.value.skills.some((s) => s.name === 'fresh'), 'rescan returns the fresh catalog')
+  assert.ok(
+    body.value.skills.some((s) => s.name === 'fresh'),
+    'rescan returns the fresh catalog',
+  )
 })
 
 test('GET /list reports missing skill entries with reasons', async () => {

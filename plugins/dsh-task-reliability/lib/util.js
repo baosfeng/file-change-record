@@ -17,8 +17,14 @@ export function withTimeout(promise, ms) {
   return new Promise((resolve) => {
     const timer = setTimeout(() => resolve(undefined), ms)
     Promise.resolve(promise).then(
-      (value) => { clearTimeout(timer); resolve(value) },
-      () => { clearTimeout(timer); resolve(undefined) },
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      () => {
+        clearTimeout(timer)
+        resolve(undefined)
+      },
     )
   })
 }
@@ -32,7 +38,9 @@ export function header(headers, name) {
 export function blocksText(blocks) {
   if (!Array.isArray(blocks)) return ''
   return blocks
-    .filter((block) => block !== null && typeof block === 'object' && block.type === 'text' && typeof block.text === 'string')
+    .filter(
+      (block) => block !== null && typeof block === 'object' && block.type === 'text' && typeof block.text === 'string',
+    )
     .map((block) => block.text)
     .join('\n')
     .trim()

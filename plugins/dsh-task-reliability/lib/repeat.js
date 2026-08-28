@@ -5,9 +5,7 @@
  * 检测：连续高相似判定为思考循环 → 抛错中断回合（REASONING_LOOP）。
  */
 
-import {
-  REPEAT_BUFFER, REPEAT_CONSECUTIVE, REPEAT_MAX_PER_SESSION, REPEAT_SIM_THRESHOLD,
-} from './constants.js'
+import { REPEAT_BUFFER, REPEAT_CONSECUTIVE, REPEAT_MAX_PER_SESSION, REPEAT_SIM_THRESHOLD } from './constants.js'
 
 /** 两段文本的 4-gram Jaccard 相似度。 */
 function similarityOf(a, b) {

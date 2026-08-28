@@ -42,16 +42,17 @@ function normalizeMode(mode) {
     tracking: mode.tracking === true,
     verify: mode.verify === true,
     autopilot: mode.autopilot === true,
-    sessionAutopilot: mode.sessionAutopilot !== null && typeof mode.sessionAutopilot === 'object'
-      ? mode.sessionAutopilot
-      : {},
+    sessionAutopilot:
+      mode.sessionAutopilot !== null && typeof mode.sessionAutopilot === 'object' ? mode.sessionAutopilot : {},
   }
 }
 
 function normalizeStore(parsed) {
   const store = defaultStore()
   store.tasks = parsed.tasks.filter((task) => isValidTask(task))
-  store.questions = Array.isArray(parsed.questions) ? parsed.questions.filter((q) => q !== null && typeof q === 'object') : []
+  store.questions = Array.isArray(parsed.questions)
+    ? parsed.questions.filter((q) => q !== null && typeof q === 'object')
+    : []
   if (parsed.mode !== null && typeof parsed.mode === 'object') store.mode = normalizeMode(parsed.mode)
   return store
 }

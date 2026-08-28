@@ -50,7 +50,10 @@ async function handleList(url, response, globalStore, getProjectStore) {
   const scope = url.searchParams.get('scope') ?? 'global'
   const cwd = cwdOf(url)
   if (scope !== 'global' && scope !== 'project') {
-    writeJson(response, 400, { ok: false, error: { message: 'scope must be "global" or "project"' } })
+    writeJson(response, 400, {
+      ok: false,
+      error: { message: 'scope must be "global" or "project"' },
+    })
     return
   }
   if (scope === 'project' && cwd === undefined) {
@@ -119,7 +122,7 @@ async function applyUpdate(store, payload) {
   const id = typeof payload.id === 'string' ? payload.id : ''
   const desc = typeof payload.desc === 'string' ? payload.desc.trim() : ''
   if (id === '' || desc === '') return { status: 400, message: 'update requires id and a non-empty desc' }
-  if (await store.update(id, desc) === undefined) return { status: 404, message: 'memory item not found' }
+  if ((await store.update(id, desc)) === undefined) return { status: 404, message: 'memory item not found' }
   return null
 }
 

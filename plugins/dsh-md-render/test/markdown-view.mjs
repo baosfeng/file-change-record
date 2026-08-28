@@ -38,12 +38,20 @@ const stubbed = {
 // ── load bundle ────────────────────────────────────────────────────────────
 let registered = null
 global.window = {
-  __ModuleLoader__: { load: (registration) => { registered = registration } },
+  __ModuleLoader__: {
+    load: (registration) => {
+      registered = registration
+    },
+  },
   location: { href: 'http://127.0.0.1:3080/app', search: '' },
 }
 global.document = undefined
 global.Element = function Element() {}
-global.MutationObserver = class { constructor() {} observe() {} disconnect() {} }
+global.MutationObserver = class {
+  constructor() {}
+  observe() {}
+  disconnect() {}
+}
 
 eval(fs.readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8'))
 assert.ok(registered, 'bundle registered')
@@ -68,8 +76,14 @@ function render(text) {
   const mathErrorTitles = []
   function walk(node) {
     if (node === null || node === undefined || typeof node === 'boolean') return
-    if (typeof node === 'string' || typeof node === 'number') { texts.push(String(node)); return }
-    if (Array.isArray(node)) { for (const c of node) walk(c); return }
+    if (typeof node === 'string' || typeof node === 'number') {
+      texts.push(String(node))
+      return
+    }
+    if (Array.isArray(node)) {
+      for (const c of node) walk(c)
+      return
+    }
     const props = node.props ?? {}
     if (typeof node.type === 'string') {
       tags.push(node.type)
@@ -95,12 +109,25 @@ function render(text) {
     walk(props.children)
   }
   walk(tree)
-  return { tags, texts, thStyles, codeLangs, mdCodeBlockWrappers, mathSpans, mathBlocks, mathErrorSpans, mathErrorBlocks, mathErrorTitles }
+  return {
+    tags,
+    texts,
+    thStyles,
+    codeLangs,
+    mdCodeBlockWrappers,
+    mathSpans,
+    mathBlocks,
+    mathErrorSpans,
+    mathErrorBlocks,
+    mathErrorTitles,
+  }
 }
 
 // ── assertions ──────────────────────────────────────────────────────────────
 test('标准 GFM 表格渲染为 table.tzx-table（表头/数据/对齐）', () => {
-  const r = render('| 插件 | 版本 |\n|:-----|:----:|\n| dsh-file-activity | **0.4.2** |\n| dsh-think-zh-expand | `0.2.0` |')
+  const r = render(
+    '| 插件 | 版本 |\n|:-----|:----:|\n| dsh-file-activity | **0.4.2** |\n| dsh-think-zh-expand | `0.2.0` |',
+  )
   assert.ok(r.tags.includes('table'), 'table rendered')
   assert.ok(r.tags.includes('thead'), 'thead rendered')
   assert.ok(r.tags.includes('tbody'), 'tbody rendered')
@@ -112,7 +139,9 @@ test('标准 GFM 表格渲染为 table.tzx-table（表头/数据/对齐）', () 
 })
 
 test('思考模式回归：reasoning 块同款标准表格输入渲染不受影响', () => {
-  const r = render('| 插件 | 版本 |\n|:-----|:----:|\n| dsh-file-activity | **0.4.2** |\n| dsh-think-zh-expand | `0.2.0` |')
+  const r = render(
+    '| 插件 | 版本 |\n|:-----|:----:|\n| dsh-file-activity | **0.4.2** |\n| dsh-think-zh-expand | `0.2.0` |',
+  )
   assert.ok(r.tags.includes('table'), 'standard table parsed')
   assert.deepEqual(r.thStyles, ['left', 'center'], 'alignment preserved')
   assert.equal(r.tags.filter((t) => t === 'td').length, 4, 'two data rows')
@@ -140,7 +169,10 @@ test('行内公式 $...$ 渲染为 span.dmr-math', () => {
 test('货币 $5 与变量 a$b 不解析为公式', () => {
   const r = render('价格 $5 和 $10 元，变量 a$b$c')
   assert.equal(r.mathSpans, 0, 'currency/variable not treated as math')
-  assert.ok(r.texts.some((t) => t.includes('$5')), 'currency text kept literal')
+  assert.ok(
+    r.texts.some((t) => t.includes('$5')),
+    'currency text kept literal',
+  )
 })
 
 test('块级公式 $$...$$ 渲染为 div.dmr-math-block（单行）', () => {
@@ -152,7 +184,10 @@ test('块级公式 $$...$$ 渲染为 div.dmr-math-block（单行）', () => {
 test('块级公式 $$ 开闭块（多行）渲染为 div.dmr-math-block', () => {
   const r = render('$$\nE = mc^2\n\\int_0^1 x dx\n$$')
   assert.equal(r.mathBlocks, 1, 'multi-line block math rendered')
-  assert.ok(r.texts.some((t) => t.includes('E = mc^2')), 'multi-line content kept')
+  assert.ok(
+    r.texts.some((t) => t.includes('E = mc^2')),
+    'multi-line content kept',
+  )
 })
 
 // ── 公式错误提示（issue #32）：异常公式 → 错误标记 + 原文保留 ──────────
@@ -160,27 +195,39 @@ test('未闭合的行内公式 $ 渲染为错误标记（原文保留）', () =>
   const r = render('公式 $x^2 测试')
   assert.equal(r.mathErrorSpans, 1, 'unclosed inline math marked as error')
   assert.ok(r.mathErrorTitles.includes('未闭合的公式'), 'error title set')
-  assert.ok(r.texts.some((t) => t.includes('$x^2 测试')), 'original text kept')
+  assert.ok(
+    r.texts.some((t) => t.includes('$x^2 测试')),
+    'original text kept',
+  )
 })
 
 test('空公式（内容为空白）渲染为错误标记（原文保留）', () => {
   const r = render('公式 $ $ 测试')
   assert.equal(r.mathErrorSpans, 1, 'empty inline math marked as error')
   assert.ok(r.mathErrorTitles.includes('公式内容异常'), 'error title set')
-  assert.ok(r.texts.some((t) => t.includes('$ $')), 'original text kept')
+  assert.ok(
+    r.texts.some((t) => t.includes('$ $')),
+    'original text kept',
+  )
 })
 
 test('异常内容（以空白开头）渲染为错误标记（原文保留）', () => {
   const r = render('公式 $ x^2$ 测试')
   assert.equal(r.mathErrorSpans, 1, 'malformed inline math marked as error')
-  assert.ok(r.texts.some((t) => t.includes('$ x^2$')), 'original text kept')
+  assert.ok(
+    r.texts.some((t) => t.includes('$ x^2$')),
+    'original text kept',
+  )
 })
 
 test('未闭合的块级公式 $$ 渲染为错误标记（原文保留）', () => {
   const r = render('$$\nE = mc^2')
   assert.equal(r.mathErrorBlocks, 1, 'unclosed block math marked as error')
   assert.ok(r.mathErrorTitles.includes('未闭合的公式'), 'error title set')
-  assert.ok(r.texts.some((t) => t.includes('E = mc^2')), 'original content kept')
+  assert.ok(
+    r.texts.some((t) => t.includes('E = mc^2')),
+    'original content kept',
+  )
 })
 
 test('空块级公式（$$ 开闭块 / $$$$ 单行）渲染为错误标记', () => {
@@ -194,7 +241,10 @@ test('货币/变量/块级保护不误报公式错误', () => {
   const r = render('价格 $5 和 $10 元，变量 a$b$c，行内 $$x$$')
   assert.equal(r.mathErrorSpans, 0, 'currency/variable/block-guard not error')
   assert.equal(r.mathErrorBlocks, 0, 'no block error')
-  assert.ok(r.texts.some((t) => t.includes('$5')), 'currency text kept literal')
+  assert.ok(
+    r.texts.some((t) => t.includes('$5')),
+    'currency text kept literal',
+  )
 })
 
 test('标题/列表/引用/段落仍正常渲染', () => {
@@ -210,9 +260,15 @@ test('CommonMark 多反引号行内代码仍正常（迁移回归）', () => {
   function collect(node) {
     if (node === null || node === undefined || typeof node === 'boolean') return
     if (typeof node === 'string' || typeof node === 'number') return
-    if (Array.isArray(node)) { for (const c of node) collect(c); return }
+    if (Array.isArray(node)) {
+      for (const c of node) collect(c)
+      return
+    }
     const props = node.props ?? {}
-    if (typeof node.type === 'function') { collect(node.type(props)); return }
+    if (typeof node.type === 'function') {
+      collect(node.type(props))
+      return
+    }
     if (node.type === 'code') codeTexts.push(String(props.children))
     collect(props.children)
   }

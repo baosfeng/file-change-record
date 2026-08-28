@@ -49,23 +49,29 @@ export async function readMemoryFile(file) {
 export function normalizeMemory(memory) {
   const items = Array.isArray(memory?.items) ? memory.items : []
   return {
-    items: items.filter((item) => isMemoryItem(item)).map((item) => ({
-      id: item.id,
-      desc: item.desc,
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt,
-    })),
+    items: items
+      .filter((item) => isMemoryItem(item))
+      .map((item) => ({
+        id: item.id,
+        desc: item.desc,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      })),
   }
 }
 
 /** One well-formed memory item (id + desc required, timestamps numeric). */
 function isMemoryItem(item) {
-  return item !== null
-    && typeof item === 'object'
-    && typeof item.id === 'string' && item.id !== ''
-    && typeof item.desc === 'string' && item.desc !== ''
-    && typeof item.createdAt === 'number'
-    && typeof item.updatedAt === 'number'
+  return (
+    item !== null &&
+    typeof item === 'object' &&
+    typeof item.id === 'string' &&
+    item.id !== '' &&
+    typeof item.desc === 'string' &&
+    item.desc !== '' &&
+    typeof item.createdAt === 'number' &&
+    typeof item.updatedAt === 'number'
+  )
 }
 
 /** Write one memory file atomically (tmp + rename); creates the directory. */

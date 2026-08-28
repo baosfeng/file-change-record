@@ -66,19 +66,25 @@ test('lastAssistantText: 空块/非 text 块/message 为空 → 跳过', () => {
 })
 
 test('lastAssistantText: 取最后一条非空 assistant 文本（从后向前）', () => {
-  const events = [
-    textEvent('assistant/message', 'first'),
-    textEvent('assistant/message', 'last'),
-  ]
+  const events = [textEvent('assistant/message', 'first'), textEvent('assistant/message', 'last')]
   assert.equal(lastAssistantText({ events }), 'last')
   assert.equal(lastAssistantText({ events: [textEvent('assistant/message', '')] }), '')
 })
 
 test('lastAssistantText: 多文本块按换行拼接', () => {
-  const events = [{
-    type: 'assistant/message',
-    data: { message: { content: [{ type: 'text', text: 'a' }, { type: 'text', text: 'b' }] } },
-  }]
+  const events = [
+    {
+      type: 'assistant/message',
+      data: {
+        message: {
+          content: [
+            { type: 'text', text: 'a' },
+            { type: 'text', text: 'b' },
+          ],
+        },
+      },
+    },
+  ]
   assert.equal(lastAssistantText({ events }), 'a\nb')
 })
 

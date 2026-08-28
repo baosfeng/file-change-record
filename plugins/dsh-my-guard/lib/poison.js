@@ -17,8 +17,13 @@ import { tmpdir } from 'node:os'
 import { join, basename, extname } from 'node:path'
 import { execFile } from 'node:child_process'
 import {
-  SUSPICIOUS_SCRIPT_PATTERNS, SECRET_PATTERNS, SUSPICIOUS_FILES,
-  MALICIOUS_DEPENDENCIES, SCAN_IGNORE, MAX_SCAN_FILE_BYTES, MAX_SCAN_FILES,
+  SUSPICIOUS_SCRIPT_PATTERNS,
+  SECRET_PATTERNS,
+  SUSPICIOUS_FILES,
+  MALICIOUS_DEPENDENCIES,
+  SCAN_IGNORE,
+  MAX_SCAN_FILE_BYTES,
+  MAX_SCAN_FILES,
 } from './constants.js'
 
 /** 扫描本地包目录；返回 { ok, findings, scannedFiles, scannedBytes }。 */
@@ -26,7 +31,12 @@ export async function scanPackage(dir) {
   const handle = { findings: [], files: 0, bytes: 0 }
   try {
     await scanDir(dir, dir, handle)
-    return { ok: true, findings: handle.findings, scannedFiles: handle.files, scannedBytes: handle.bytes }
+    return {
+      ok: true,
+      findings: handle.findings,
+      scannedFiles: handle.files,
+      scannedBytes: handle.bytes,
+    }
   } catch (error) {
     return { ok: false, error: errorMessage(error) }
   }
@@ -136,7 +146,13 @@ async function scanFile(root, full, handle) {
 function checkSuspiciousFileNames(name, rel, handle) {
   for (const pattern of SUSPICIOUS_FILES) {
     if (pattern.re.test(name)) {
-      handle.findings.push({ id: 'suspicious-file', severity: 'low', message: pattern.message, file: rel, pattern: pattern.id })
+      handle.findings.push({
+        id: 'suspicious-file',
+        severity: 'low',
+        message: pattern.message,
+        file: rel,
+        pattern: pattern.id,
+      })
     }
   }
 }
@@ -145,7 +161,13 @@ function checkSuspiciousFileNames(name, rel, handle) {
 function checkSecrets(text, rel, handle) {
   for (const pattern of SECRET_PATTERNS) {
     if (pattern.re.test(text)) {
-      handle.findings.push({ id: 'secret', severity: 'high', message: pattern.message, file: rel, pattern: pattern.id })
+      handle.findings.push({
+        id: 'secret',
+        severity: 'high',
+        message: pattern.message,
+        file: rel,
+        pattern: pattern.id,
+      })
     }
   }
 }
@@ -155,7 +177,13 @@ function checkShellScripts(name, text, rel, handle) {
   if (!isShellFile(name)) return
   for (const pattern of SUSPICIOUS_SCRIPT_PATTERNS) {
     if (pattern.re.test(text)) {
-      handle.findings.push({ id: 'suspicious-script', severity: 'medium', message: pattern.message, file: rel, pattern: pattern.id })
+      handle.findings.push({
+        id: 'suspicious-script',
+        severity: 'medium',
+        message: pattern.message,
+        file: rel,
+        pattern: pattern.id,
+      })
     }
   }
 }
@@ -204,7 +232,14 @@ function inspectScripts(scripts, file, findings) {
     if (typeof script !== 'string') continue
     for (const pattern of SUSPICIOUS_SCRIPT_PATTERNS) {
       if (pattern.re.test(script)) {
-        findings.push({ id: 'suspicious-script', severity: 'medium', message: pattern.message, file, pattern: pattern.id, script: name })
+        findings.push({
+          id: 'suspicious-script',
+          severity: 'medium',
+          message: pattern.message,
+          file,
+          pattern: pattern.id,
+          script: name,
+        })
       }
     }
   }
@@ -215,7 +250,13 @@ function inspectDependencies(deps, file, findings) {
   if (deps === null || typeof deps !== 'object') return
   for (const name of Object.keys(deps)) {
     if (MALICIOUS_DEPENDENCIES.includes(name)) {
-      findings.push({ id: 'malicious-dependency', severity: 'high', message: `已知被投毒/恶意依赖：${name}`, file, pattern: 'malicious-dependency' })
+      findings.push({
+        id: 'malicious-dependency',
+        severity: 'high',
+        message: `已知被投毒/恶意依赖：${name}`,
+        file,
+        pattern: 'malicious-dependency',
+      })
     }
   }
 }

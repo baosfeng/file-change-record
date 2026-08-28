@@ -11,9 +11,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parseDiff, isTestFile, isSourceFile } from '../lib/diff.js'
 import { reviewRules, LARGE_DIFF_LINES } from '../lib/review.js'
-import {
-  bootPlugin, mockRequest, mockResponse, invoke, jsonOf,
-} from './lib/helpers.mjs'
+import { bootPlugin, mockRequest, mockResponse, invoke, jsonOf } from './lib/helpers.mjs'
 
 const tmpDirs = []
 const disposeAlls = []
@@ -66,27 +64,32 @@ async function postReview(api, body) {
 // ── parseDiff ──────────────────────────────────────────────────────────────
 
 test('parseDiff extracts per-file hunks with line numbers', () => {
-  const parsed = parseDiff([
-    'diff --git a/src/a.js b/src/a.js',
-    '--- a/src/a.js',
-    '+++ b/src/a.js',
-    '@@ -1,2 +10,3 @@',
-    ' context',
-    '+added line',
-    '-removed line',
-    '+another',
-    '',
-    'diff --git a/b.txt b/b.txt',
-    '--- a/b.txt',
-    '+++ b/b.txt',
-    '@@ -1 +1 @@',
-    '+only',
-  ].join('\n'))
+  const parsed = parseDiff(
+    [
+      'diff --git a/src/a.js b/src/a.js',
+      '--- a/src/a.js',
+      '+++ b/src/a.js',
+      '@@ -1,2 +10,3 @@',
+      ' context',
+      '+added line',
+      '-removed line',
+      '+another',
+      '',
+      'diff --git a/b.txt b/b.txt',
+      '--- a/b.txt',
+      '+++ b/b.txt',
+      '@@ -1 +1 @@',
+      '+only',
+    ].join('\n'),
+  )
   assert.equal(parsed.files.length, 2)
   assert.equal(parsed.files[0].path, 'src/a.js')
   assert.equal(parsed.files[0].insertions, 2)
   assert.equal(parsed.files[0].deletions, 1)
-  assert.deepEqual(parsed.files[0].addedLines, [{ line: 11, text: 'added line' }, { line: 12, text: 'another' }])
+  assert.deepEqual(parsed.files[0].addedLines, [
+    { line: 11, text: 'added line' },
+    { line: 12, text: 'another' },
+  ])
   assert.equal(parsed.files[1].path, 'b.txt')
   assert.equal(parsed.files[1].addedLines[0].line, 1)
   assert.equal(parsed.binary, false)
@@ -125,7 +128,10 @@ test('rules flag debug statements, secrets, conflicts, todos, trailing space', (
   ]
   for (const [line, rule] of cases) {
     const report = reviewRules(parseDiff(diffText(line)))
-    assert.ok(report.issues.some((issue) => issue.rule === rule), `${line} triggers ${rule}`)
+    assert.ok(
+      report.issues.some((issue) => issue.rule === rule),
+      `${line} triggers ${rule}`,
+    )
     const issue = report.issues.find((i) => i.rule === rule)
     assert.equal(issue.file, 'src/a.js')
     assert.equal(issue.line, 3, `${rule} carries the line number`)
@@ -138,19 +144,18 @@ test('clean diff produces zero error/warning issues', () => {
   assert.equal(report.summary.warnings, 0)
   assert.equal(report.summary.insertions, 1)
   assert.equal(report.summary.files, 1)
-  assert.ok(report.issues.every((i) => i.severity === 'info'), 'only informational rules may fire (no-test-change)')
+  assert.ok(
+    report.issues.every((i) => i.severity === 'info'),
+    'only informational rules may fire (no-test-change)',
+  )
 })
 
 test('large-diff rule triggers above the threshold', () => {
   const lines = []
   for (let i = 0; i < LARGE_DIFF_LINES + 1; i += 1) lines.push(`+line ${i}`)
-  const parsed = parseDiff([
-    'diff --git a/big.js b/big.js',
-    '--- a/big.js',
-    '+++ b/big.js',
-    '@@ -1 +1,100 @@',
-    ...lines,
-  ].join('\n'))
+  const parsed = parseDiff(
+    ['diff --git a/big.js b/big.js', '--- a/big.js', '+++ b/big.js', '@@ -1 +1,100 @@', ...lines].join('\n'),
+  )
   const report = reviewRules(parsed)
   const issue = report.issues.find((i) => i.rule === 'large-diff')
   assert.ok(issue, 'large-diff flagged')
@@ -165,40 +170,42 @@ test('binary-file rule flags binary diffs', () => {
 })
 
 test('no-test-change rule fires only when source changes lack tests', () => {
-  const parsed = parseDiff([
-    'diff --git a/src/a.js b/src/a.js',
-    '--- a/src/a.js',
-    '+++ b/src/a.js',
-    '@@ -1 +1 @@',
-    '+console.log(1)',
-  ].join('\n'))
+  const parsed = parseDiff(
+    ['diff --git a/src/a.js b/src/a.js', '--- a/src/a.js', '+++ b/src/a.js', '@@ -1 +1 @@', '+console.log(1)'].join(
+      '\n',
+    ),
+  )
   assert.ok(reviewRules(parsed).issues.some((i) => i.rule === 'no-test-change'))
-  const withTest = parseDiff([
-    'diff --git a/src/a.js b/src/a.js',
-    '--- a/src/a.js',
-    '+++ b/src/a.js',
-    '@@ -1 +1 @@',
-    '+const x = 1',
-    '',
-    'diff --git a/test/a.test.js b/test/a.test.js',
-    '--- a/test/a.test.js',
-    '+++ b/test/a.test.js',
-    '@@ -1 +1 @@',
-    '+test("x", () => {})',
-  ].join('\n'))
+  const withTest = parseDiff(
+    [
+      'diff --git a/src/a.js b/src/a.js',
+      '--- a/src/a.js',
+      '+++ b/src/a.js',
+      '@@ -1 +1 @@',
+      '+const x = 1',
+      '',
+      'diff --git a/test/a.test.js b/test/a.test.js',
+      '--- a/test/a.test.js',
+      '+++ b/test/a.test.js',
+      '@@ -1 +1 @@',
+      '+test("x", () => {})',
+    ].join('\n'),
+  )
   assert.ok(!reviewRules(withTest).issues.some((i) => i.rule === 'no-test-change'), 'test change suppresses')
 })
 
 test('issue severities are graded', () => {
-  const parsed = parseDiff([
-    'diff --git a/src/a.js b/src/a.js',
-    '--- a/src/a.js',
-    '+++ b/src/a.js',
-    '@@ -1 +1 @@',
-    '+const password = "supersecret123"',
-    '+console.log("x")',
-    '+// TODO: clean',
-  ].join('\n'))
+  const parsed = parseDiff(
+    [
+      'diff --git a/src/a.js b/src/a.js',
+      '--- a/src/a.js',
+      '+++ b/src/a.js',
+      '@@ -1 +1 @@',
+      '+const password = "supersecret123"',
+      '+console.log("x")',
+      '+// TODO: clean',
+    ].join('\n'),
+  )
   const report = reviewRules(parsed)
   assert.equal(report.summary.errors, 1)
   assert.equal(report.summary.warnings, 1)
@@ -215,10 +222,17 @@ test('POST /review returns a rule report for a real repo', async () => {
   writeFileSync(join(repo, 'src/a.js'), 'const x = 1\nconsole.log("debug")\n')
   const { api } = boot({})
   await settle()
-  const { status, value } = await postReview(api, { repoPath: repo, staged: false, aiReview: false })
+  const { status, value } = await postReview(api, {
+    repoPath: repo,
+    staged: false,
+    aiReview: false,
+  })
   assert.equal(status, 200)
   assert.equal(value.ok, true)
-  assert.ok(value.value.issues.some((i) => i.rule === 'debug-statement'), 'debug rule hit')
+  assert.ok(
+    value.value.issues.some((i) => i.rule === 'debug-statement'),
+    'debug rule hit',
+  )
   assert.equal(value.value.ai.enabled, false, 'ai disabled when requested off')
 })
 
@@ -233,7 +247,12 @@ test('POST /review validates repoPath', async () => {
 
 // ── AI augmentation ────────────────────────────────────────────────────────
 
-function agentsMock({ followup = () => {}, sessionText = '{"verdict":"changes","summary":"有密钥","topIssues":["a"]}', createThrows = false, idleThrows = false } = {}) {
+function agentsMock({
+  followup = () => {},
+  sessionText = '{"verdict":"changes","summary":"有密钥","topIssues":["a"]}',
+  createThrows = false,
+  idleThrows = false,
+} = {}) {
   return {
     create: async () => {
       if (createThrows) throw new Error('create failed')
@@ -244,9 +263,15 @@ function agentsMock({ followup = () => {}, sessionText = '{"verdict":"changes","
             if (idleThrows) throw new Error('idle failed')
           },
           session: {
-            events: sessionText === ''
-              ? []
-              : [{ type: 'assistant/message', data: { message: { content: [{ type: 'text', text: sessionText }] } } }],
+            events:
+              sessionText === ''
+                ? []
+                : [
+                    {
+                      type: 'assistant/message',
+                      data: { message: { content: [{ type: 'text', text: sessionText }] } },
+                    },
+                  ],
           },
         },
         dispose: async () => {},
@@ -269,7 +294,10 @@ test('POST /review with aiReview merges the AI conclusion', async () => {
   assert.equal(value.value.ai.verdict, 'changes')
   assert.equal(value.value.ai.summary, '有密钥')
   assert.deepEqual(value.value.ai.topIssues, ['a'])
-  assert.ok(value.value.issues.some((i) => i.rule === 'debug-statement'), 'rules still applied')
+  assert.ok(
+    value.value.issues.some((i) => i.rule === 'debug-statement'),
+    'rules still applied',
+  )
 })
 
 test('AI failure degrades without breaking the rule report', async () => {
@@ -321,7 +349,14 @@ test('AI conclusion inside a markdown fence is parsed', async () => {
   git(repo, 'add', 'src/a.js')
   git(repo, 'commit', '-m', 'chore: seed')
   writeFileSync(join(repo, 'src/a.js'), 'const x = 1\nconst y = 2\n')
-  const { api } = boot({}, { agents: agentsMock({ sessionText: '```json\n{"verdict":"approve","summary":"ok","topIssues":[]}\n```' }) })
+  const { api } = boot(
+    {},
+    {
+      agents: agentsMock({
+        sessionText: '```json\n{"verdict":"approve","summary":"ok","topIssues":[]}\n```',
+      }),
+    },
+  )
   await settle()
   const { value } = await postReview(api, { repoPath: repo })
   assert.equal(value.value.ai.verdict, 'approve', 'fenced JSON parsed')

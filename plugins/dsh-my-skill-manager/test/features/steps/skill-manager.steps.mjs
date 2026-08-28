@@ -20,7 +20,15 @@ class World {
     this.lastResponse = null
     this.catalog = new Map([
       ['web-search', { name: 'web-search', description: '搜索', source: 'user-dsh', provider: 'filesystem' }],
-      ['codebase-memory', { name: 'codebase-memory', description: '图查询', source: 'project-dsh', provider: 'filesystem' }],
+      [
+        'codebase-memory',
+        {
+          name: 'codebase-memory',
+          description: '图查询',
+          source: 'project-dsh',
+          provider: 'filesystem',
+        },
+      ],
     ])
     this.boot()
   }
@@ -29,7 +37,12 @@ class World {
     const ctx = {
       logger: { warn: () => {} },
       webRuntime: { trustedHosts: [] },
-      webServer: { register: (route) => { this.apiHolder.set(route); return () => {} } },
+      webServer: {
+        register: (route) => {
+          this.apiHolder.set(route)
+          return () => {}
+        },
+      },
       events: [],
       effectCallbacks: [],
       on() {},
@@ -41,7 +54,11 @@ class World {
       },
       skills: {
         registerProvider: (create) => {
-          create({ invalidate: () => { this.invalidated += 1 } })
+          create({
+            invalidate: () => {
+              this.invalidated += 1
+            },
+          })
           return () => {}
         },
         list: async () => {
@@ -59,7 +76,10 @@ class World {
     assert.ok(route, 'route registered')
     const res = makeResponse()
     await route.handler(makeRequest(method, url, body), res)
-    this.lastResponse = { status: res._status, json: res._body === '' ? null : JSON.parse(res._body) }
+    this.lastResponse = {
+      status: res._status,
+      json: res._body === '' ? null : JSON.parse(res._body),
+    }
     return this.lastResponse
   }
 }
@@ -91,7 +111,11 @@ function makeRequest(method, url, body) {
   const req = {
     method,
     url,
-    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://127.0.0.1:3080' },
+    headers: {
+      host: '127.0.0.1:3080',
+      'sec-fetch-site': 'same-origin',
+      origin: 'http://127.0.0.1:3080',
+    },
     [Symbol.asyncIterator]() {
       const chunks = body === undefined ? [] : [JSON.stringify(body)]
       let i = 0
@@ -110,8 +134,18 @@ After(function () {
 })
 
 Given('全局 skill {string} 与项目 skill {string} 已存在', function (globalName, projectName) {
-  this.catalog.set(globalName, { name: globalName, description: '全局', source: 'user-dsh', provider: 'filesystem' })
-  this.catalog.set(projectName, { name: projectName, description: '项目', source: 'project-dsh', provider: 'filesystem' })
+  this.catalog.set(globalName, {
+    name: globalName,
+    description: '全局',
+    source: 'user-dsh',
+    provider: 'filesystem',
+  })
+  this.catalog.set(projectName, {
+    name: projectName,
+    description: '项目',
+    source: 'project-dsh',
+    provider: 'filesystem',
+  })
 })
 
 When('以项目路径 {string} 查询 skill 列表', async function (cwd) {
@@ -120,7 +154,10 @@ When('以项目路径 {string} 查询 skill 列表', async function (cwd) {
 
 Then('列表只包含项目来源的 skill', function () {
   const skills = this.lastResponse.json.value.skills
-  assert.ok(skills.every((s) => s.source.startsWith('project-')), 'only project sources remain')
+  assert.ok(
+    skills.every((s) => s.source.startsWith('project-')),
+    'only project sources remain',
+  )
 })
 
 Then('列表包含 {string}', function (name) {

@@ -56,21 +56,25 @@ test('config-store suite', async () => {
       const text = [
         '- id: notify',
         '  config:',
-        "    end: false",
+        '    end: false',
         '    ask: true',
         '    approval: true',
         '    subagentEnd: false',
         "    apiToken: 'secret-token'",
         '    dedupeMs: 3000',
       ].join('\n')
-      assert.deepEqual(extractConfig(text, 'notify'), {
-        end: false,
-        ask: true,
-        approval: true,
-        subagentEnd: false,
-        apiToken: 'secret-token',
-        dedupeMs: 3000,
-      }, 'config block parsed with correct types')
+      assert.deepEqual(
+        extractConfig(text, 'notify'),
+        {
+          end: false,
+          ask: true,
+          approval: true,
+          subagentEnd: false,
+          apiToken: 'secret-token',
+          dedupeMs: 3000,
+        },
+        'config block parsed with correct types',
+      )
     }
 
     // ── 5. extractConfig：数组值（retryableCodes 风格） ─────────────────
@@ -81,22 +85,37 @@ test('config-store suite', async () => {
         '    retryableCodes: [TIMEOUT, ETIMEDOUT]',
         '    retryMax: 5',
       ].join('\n')
-      assert.deepEqual(extractConfig(text, 'task-reliability'), {
-        retryableCodes: ['TIMEOUT', 'ETIMEDOUT'],
-        retryMax: 5,
-      }, 'array values parsed')
+      assert.deepEqual(
+        extractConfig(text, 'task-reliability'),
+        {
+          retryableCodes: ['TIMEOUT', 'ETIMEDOUT'],
+          retryMax: 5,
+        },
+        'array values parsed',
+      )
     }
 
     // ── 6. writePatchConfig：文件不存在 → 创建 ─────────────────────────
     {
       const dir = tempDir()
       const file = join(dir, 'cordis.patch.yml')
-      await writePatchConfig(file, 'notify', { end: false, ask: true, approval: true, subagentEnd: false, apiToken: '', dedupeMs: 3000 })
+      await writePatchConfig(file, 'notify', {
+        end: false,
+        ask: true,
+        approval: true,
+        subagentEnd: false,
+        apiToken: '',
+        dedupeMs: 3000,
+      })
       assert.ok(existsSync(file), 'patch file created')
       const text = readFileSync(file, 'utf8')
       assert.ok(text.includes('- id: notify'), 'row id present')
       assert.ok(text.includes('    end: false'), 'config value present')
-      assert.deepEqual(extractConfig(text, 'notify'), { end: false, ask: true, approval: true, subagentEnd: false, apiToken: '', dedupeMs: 3000 }, 'round-trip read')
+      assert.deepEqual(
+        extractConfig(text, 'notify'),
+        { end: false, ask: true, approval: true, subagentEnd: false, apiToken: '', dedupeMs: 3000 },
+        'round-trip read',
+      )
     }
 
     // ── 7. writePatchConfig：已有其他条目 → 追加且不破坏 ───────────────
@@ -117,18 +136,43 @@ test('config-store suite', async () => {
       const dir = tempDir()
       const file = join(dir, 'cordis.patch.yml')
       writeFileSync(file, '- id: notify\n  config:\n    end: true\n    ask: true\n', 'utf8')
-      await writePatchConfig(file, 'notify', { end: false, ask: false, approval: true, subagentEnd: false, apiToken: '', dedupeMs: 3000 })
+      await writePatchConfig(file, 'notify', {
+        end: false,
+        ask: false,
+        approval: true,
+        subagentEnd: false,
+        apiToken: '',
+        dedupeMs: 3000,
+      })
       const text = readFileSync(file, 'utf8')
       const count = text.split('\n').filter((line) => line === '- id: notify').length
       assert.equal(count, 1, 'old row replaced, no duplicate')
-      assert.deepEqual(extractConfig(text, 'notify'), { end: false, ask: false, approval: true, subagentEnd: false, apiToken: '', dedupeMs: 3000 }, 'replaced config readable')
+      assert.deepEqual(
+        extractConfig(text, 'notify'),
+        {
+          end: false,
+          ask: false,
+          approval: true,
+          subagentEnd: false,
+          apiToken: '',
+          dedupeMs: 3000,
+        },
+        'replaced config readable',
+      )
     }
 
     // ── 9. 持久化闭环：写入 → 重新读取 → 值正确（模拟重启） ────────────
     {
       const dir = tempDir()
       const file = join(dir, 'cordis.patch.yml')
-      const saved = { end: false, ask: true, approval: false, subagentEnd: true, apiToken: 'tok-123', dedupeMs: 5000 }
+      const saved = {
+        end: false,
+        ask: true,
+        approval: false,
+        subagentEnd: true,
+        apiToken: 'tok-123',
+        dedupeMs: 5000,
+      }
       await writePatchConfig(file, 'notify', saved)
       // 模拟重启：重新从文件读取
       const text = readFileSync(file, 'utf8')
@@ -142,7 +186,7 @@ test('config-store suite', async () => {
       const file = join(dir, 'cordis.patch.yml')
       await writePatchConfig(file, 'notify', { apiToken: "it's a token" })
       const text = readFileSync(file, 'utf8')
-      assert.deepEqual(extractConfig(text, 'notify'), { apiToken: "it's a token" }, "single-quoted string round-trips")
+      assert.deepEqual(extractConfig(text, 'notify'), { apiToken: "it's a token" }, 'single-quoted string round-trips')
     }
 
     // ── 11. currentProfile：--profile 空参数 → 默认 web ────────────────
@@ -173,7 +217,11 @@ test('config-store suite', async () => {
         '    apiToken:', // 无值键 → 忽略
         '    dedupeMs: 3000',
       ].join('\n')
-      assert.deepEqual(extractConfig(text, 'notify'), { end: false, dedupeMs: 3000 }, 'comments/blank/valueless keys skipped')
+      assert.deepEqual(
+        extractConfig(text, 'notify'),
+        { end: false, dedupeMs: 3000 },
+        'comments/blank/valueless keys skipped',
+      )
     }
 
     // ── 13. parseYamlScalar：双引号/裸字符串/浮点数/空值 ───────────────
@@ -186,20 +234,20 @@ test('config-store suite', async () => {
         '    dedupeMs: 1.5',
         '    empty:',
       ].join('\n')
-      assert.deepEqual(extractConfig(text, 'notify'), {
-        apiToken: 'double-quoted',
-        note: 'bare-string',
-        dedupeMs: 1.5,
-      }, 'double-quoted/bare/float parsed; empty value skipped')
+      assert.deepEqual(
+        extractConfig(text, 'notify'),
+        {
+          apiToken: 'double-quoted',
+          note: 'bare-string',
+          dedupeMs: 1.5,
+        },
+        'double-quoted/bare/float parsed; empty value skipped',
+      )
     }
 
     // ── 14. parseFlowArray：数组含空项被过滤 ───────────────────────────
     {
-      const text = [
-        '- id: notify',
-        '  config:',
-        '    codes: [TIMEOUT, , SERVER]',
-      ].join('\n')
+      const text = ['- id: notify', '  config:', '    codes: [TIMEOUT, , SERVER]'].join('\n')
       assert.deepEqual(extractConfig(text, 'notify'), { codes: ['TIMEOUT', 'SERVER'] }, 'empty array items filtered')
     }
 
@@ -217,15 +265,19 @@ test('config-store suite', async () => {
     {
       const dir = tempDir()
       const file = join(dir, 'cordis.patch.yml')
-      writeFileSync(file, [
-        '- id: think-zh-expand',
-        '  name: dsh-think-zh-expand',
-        '- id: notify',
-        '  config:',
-        '    end: true',
-        '- id: guardian',
-        '  name: dsh-my-guardian',
-      ].join('\n'), 'utf8')
+      writeFileSync(
+        file,
+        [
+          '- id: think-zh-expand',
+          '  name: dsh-think-zh-expand',
+          '- id: notify',
+          '  config:',
+          '    end: true',
+          '- id: guardian',
+          '  name: dsh-my-guardian',
+        ].join('\n'),
+        'utf8',
+      )
       await writePatchConfig(file, 'notify', { end: false })
       const text = readFileSync(file, 'utf8')
       const lines = text.split('\n')

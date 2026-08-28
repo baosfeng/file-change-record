@@ -9,9 +9,7 @@ import { rmSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { isTrustedApiRequest } from '../lib/fence.js'
-import {
-  bootPlugin, mockRequest, mockResponse, invoke, jsonOf, settle,
-} from './lib/helpers.mjs'
+import { bootPlugin, mockRequest, mockResponse, invoke, jsonOf, settle } from './lib/helpers.mjs'
 
 const disposeAlls = []
 const tmpDirs = []
@@ -57,11 +55,15 @@ test('routes: POST /budget updates config and persists', async () => {
   const handle = boot({})
   await settle()
   const res = mockResponse()
-  await invoke(handle.api, mockRequest({
-    url: '/context/api/budget',
-    method: 'POST',
-    body: JSON.stringify({ perTurn: 500, perSession: 10000, mode: 'deny' }),
-  }), res)
+  await invoke(
+    handle.api,
+    mockRequest({
+      url: '/context/api/budget',
+      method: 'POST',
+      body: JSON.stringify({ perTurn: 500, perSession: 10000, mode: 'deny' }),
+    }),
+    res,
+  )
   assert.equal(res.writeHeadStatus, 200)
   assert.deepEqual(jsonOf(res).value.budget, { perTurn: 500, perSession: 10000, mode: 'deny' })
   const status = mockResponse()
@@ -74,11 +76,15 @@ test('routes: POST /budget with invalid values falls back to defaults', async ()
   const handle = boot({})
   await settle()
   const res = mockResponse()
-  await invoke(handle.api, mockRequest({
-    url: '/context/api/budget',
-    method: 'POST',
-    body: JSON.stringify({ perTurn: -1, perSession: 'x', mode: 'bogus' }),
-  }), res)
+  await invoke(
+    handle.api,
+    mockRequest({
+      url: '/context/api/budget',
+      method: 'POST',
+      body: JSON.stringify({ perTurn: -1, perSession: 'x', mode: 'bogus' }),
+    }),
+    res,
+  )
   assert.equal(res.writeHeadStatus, 200)
   assert.deepEqual(jsonOf(res).value.budget, { perTurn: 0, perSession: 0, mode: 'warn' })
   handle.disposeAll()
@@ -89,13 +95,17 @@ test('routes: GET /alerts returns alerts newest first', async () => {
   await settle()
   const { sessionEvent, dispatchEvent, preStepPayload } = await import('./lib/helpers.mjs')
   const { session, event } = sessionEvent('s-1', 'assistant/message', {
-    turn: 1, step: 1,
+    turn: 1,
+    step: 1,
     message: { content: [{ type: 'text', text: 'x' }] },
     usage: { inputTokens: 50, outputTokens: 5 },
   })
   await dispatchEvent(handle.listeners, 'session/event', session, event)
   await settle()
-  await dispatchEvent(handle.listeners, 'agent/pre-step', preStepPayload('s-1'), async () => ({ kind: 'enter', messages: [] }))
+  await dispatchEvent(handle.listeners, 'agent/pre-step', preStepPayload('s-1'), async () => ({
+    kind: 'enter',
+    messages: [],
+  }))
   await settle()
   const res = mockResponse()
   await invoke(handle.api, mockRequest({ url: '/context/api/alerts?sessionId=s-1' }), res)
@@ -112,7 +122,8 @@ test('routes: GET /sessions lists sessions with stats', async () => {
   await settle()
   const { sessionEvent, dispatchEvent } = await import('./lib/helpers.mjs')
   const { session, event } = sessionEvent('s-1', 'assistant/message', {
-    turn: 1, step: 1,
+    turn: 1,
+    step: 1,
     message: { content: [{ type: 'text', text: 'x' }] },
     usage: { inputTokens: 10, outputTokens: 1 },
   })
@@ -141,11 +152,15 @@ test('routes: malformed JSON body returns 400', async () => {
   const handle = boot({})
   await settle()
   const res = mockResponse()
-  await invoke(handle.api, mockRequest({
-    url: '/context/api/budget',
-    method: 'POST',
-    body: '{not json',
-  }), res)
+  await invoke(
+    handle.api,
+    mockRequest({
+      url: '/context/api/budget',
+      method: 'POST',
+      body: '{not json',
+    }),
+    res,
+  )
   assert.equal(res.writeHeadStatus, 400)
   handle.disposeAll()
 })
@@ -221,10 +236,22 @@ test('persist: mergeCurrent skips untouched sessions', async () => {
   const { writeFileSync, mkdirSync } = await import('node:fs')
   const { join: joinPath } = await import('node:path')
   mkdirSync(joinPath(home, 'context'), { recursive: true })
-  writeFileSync(joinPath(home, 'context', 'context.json'), JSON.stringify({
-    version: 1,
-    bySession: { 'old-s': { sessionId: 'old-s', usage: { inputTokens: 7 }, requests: [], alerts: [], updatedAt: 1 } },
-  }), 'utf8')
+  writeFileSync(
+    joinPath(home, 'context', 'context.json'),
+    JSON.stringify({
+      version: 1,
+      bySession: {
+        'old-s': {
+          sessionId: 'old-s',
+          usage: { inputTokens: 7 },
+          requests: [],
+          alerts: [],
+          updatedAt: 1,
+        },
+      },
+    }),
+    'utf8',
+  )
   const handle = boot({}, { home })
   const { createStore } = await import('../lib/store.js')
   const store = createStore(handle.ctx)
@@ -259,7 +286,14 @@ test('store: applyHeader ignores malformed fields', async () => {
   const store = createStore(handle.ctx)
   await settle()
   store.updateHeader('s-1', { system: 5, tools: 'x', systemTokens: 'a', model: 5, provider: null })
-  store.updateHeader('s-1', { system: 'ok', tools: [], systemTokens: 3, toolsTokens: 4, model: 'm', provider: 'p' })
+  store.updateHeader('s-1', {
+    system: 'ok',
+    tools: [],
+    systemTokens: 3,
+    toolsTokens: 4,
+    model: 'm',
+    provider: 'p',
+  })
   await settle()
   const session = store.session('s-1')
   assert.equal(session.header.system, 'ok')
@@ -315,7 +349,9 @@ test('events: malformed session/event payloads are ignored safely', async () => 
   await dispatchEvent(handle.listeners, 'session/event', session, event)
   // assistant message 无 usage
   const { session: s2, event: e2 } = sessionEvent('s-1', 'assistant/message', {
-    turn: 1, step: 1, message: { content: [{ type: 'text', text: 'x' }] },
+    turn: 1,
+    step: 1,
+    message: { content: [{ type: 'text', text: 'x' }] },
   })
   await dispatchEvent(handle.listeners, 'session/event', s2, e2)
   // 未知事件类型
@@ -382,7 +418,6 @@ test('fence: loopback hostname variants', async () => {
   assert.equal(isTrustedApiRequest(mockRequest({ host: 'dsh.example:3080' }), ['dsh.example']), true)
   assert.equal(isTrustedApiRequest(mockRequest({ host: 'dsh.example:3080' }), ['other.example']), false)
 })
-
 
 /** 通过 API 路由读取会话统计（与 UI 同路径）。 */
 async function sessionStats(handle, sessionId) {

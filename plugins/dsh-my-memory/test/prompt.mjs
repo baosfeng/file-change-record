@@ -21,10 +21,13 @@ test('section registration: stable name, early order, provider text', () => {
 })
 
 test('injected text carries the global memories the agent must carry', () => {
-  const section = createMemorySection(fakeStore([
-    { id: 'a', desc: '回复使用中文', createdAt: 1, updatedAt: 2 },
-    { id: 'b', desc: '代码注释用中文', createdAt: 1, updatedAt: 2 },
-  ]), {})
+  const section = createMemorySection(
+    fakeStore([
+      { id: 'a', desc: '回复使用中文', createdAt: 1, updatedAt: 2 },
+      { id: 'b', desc: '代码注释用中文', createdAt: 1, updatedAt: 2 },
+    ]),
+    {},
+  )
   const text = section.text({})
   assert.ok(text.includes('用户记忆（全局）'), 'section header present')
   assert.ok(text.includes('回复使用中文'), 'first memory injected')
@@ -34,7 +37,12 @@ test('injected text carries the global memories the agent must carry', () => {
 
 test('maxItems caps how many memories are injected (newest first)', () => {
   // store.list() 契约：newest-first（updatedAt 降序），fakeStore 模拟该顺序
-  const items = [6, 5, 4, 3, 2, 1].map((n) => ({ id: `m${n}`, desc: `记忆${n}`, createdAt: n, updatedAt: n }))
+  const items = [6, 5, 4, 3, 2, 1].map((n) => ({
+    id: `m${n}`,
+    desc: `记忆${n}`,
+    createdAt: n,
+    updatedAt: n,
+  }))
   const section = createMemorySection(fakeStore(items), { maxItems: 3 })
   const text = section.text({})
   assert.ok(text.includes('记忆6'), 'newest memory included')
@@ -44,9 +52,9 @@ test('maxItems caps how many memories are injected (newest first)', () => {
 })
 
 test('maxDescLength truncates one memory desc', () => {
-  const section = createMemorySection(fakeStore([
-    { id: 'a', desc: 'x'.repeat(300), createdAt: 1, updatedAt: 2 },
-  ]), { maxDescLength: 50 })
+  const section = createMemorySection(fakeStore([{ id: 'a', desc: 'x'.repeat(300), createdAt: 1, updatedAt: 2 }]), {
+    maxDescLength: 50,
+  })
   const text = section.text({})
   assert.ok(text.includes('x'.repeat(50)), 'keeps the head up to the cap')
   assert.ok(text.includes('…'), 'truncation marker present')
@@ -54,9 +62,10 @@ test('maxDescLength truncates one memory desc', () => {
 })
 
 test('invalid config values fall back to the defaults', () => {
-  const section = createMemorySection(fakeStore([
-    { id: 'a', desc: 'y'.repeat(500), createdAt: 1, updatedAt: 2 },
-  ]), { maxItems: 0, maxDescLength: -1 })
+  const section = createMemorySection(fakeStore([{ id: 'a', desc: 'y'.repeat(500), createdAt: 1, updatedAt: 2 }]), {
+    maxItems: 0,
+    maxDescLength: -1,
+  })
   const text = section.text({})
   assert.ok(text.includes('y'.repeat(200)), 'default 200-char cap applied')
   assert.ok(!text.includes('y'.repeat(201)), 'beyond the default cap is cut')
@@ -69,9 +78,10 @@ test('truncateDesc keeps short descs untouched', () => {
 })
 
 test('renderMemorySection renders the picked items directly', () => {
-  const text = renderMemorySection([
-    { id: 'a', desc: '第一条', createdAt: 1, updatedAt: 2 },
-  ], { maxItems: 5, maxDescLength: 200 })
+  const text = renderMemorySection([{ id: 'a', desc: '第一条', createdAt: 1, updatedAt: 2 }], {
+    maxItems: 5,
+    maxDescLength: 200,
+  })
   assert.ok(text.includes('第一条'))
   assert.equal(renderMemorySection([], { maxItems: 5, maxDescLength: 200 }), '', 'empty list → empty text')
 })

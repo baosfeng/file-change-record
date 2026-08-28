@@ -70,16 +70,20 @@ When('代理 {string} 的模型流输出 {int} 个数据块', async function (id
     for (let i = 0; i < count; i += 1) yield { type: 'text-delta', index: i, text: 'x' }
   }
   const wrapped = await this.dispatch('llm/stream', { sessionId: id }, () => stream())
-  for await (const chunk of wrapped) { void chunk }
+  for await (const chunk of wrapped) {
+    void chunk
+  }
 })
 
 When('代理 {string} 调用 bash 工具并成功返回', async function (id) {
-  await this.dispatch('tools/pre-execute',
+  await this.dispatch(
+    'tools/pre-execute',
     { name: 'bash', agent: topAgent(id), arguments: { command: 'ls' } },
-    async () => {})
-  await this.dispatch('tools/execute',
-    { name: 'bash', agent: topAgent(id) },
-    async () => ({ stdout: 'ok' }))
+    async () => {},
+  )
+  await this.dispatch('tools/execute', { name: 'bash', agent: topAgent(id) }, async () => ({
+    stdout: 'ok',
+  }))
 })
 
 When('插件重启', async function () {
@@ -182,7 +186,10 @@ Then('状态包含 {int} 个未暂存变更', async function (count) {
 })
 
 Then('审查报告包含 {string} 问题', async function (rule) {
-  assert.ok(this.lastValue.issues.some((issue) => issue.rule === rule), `rule ${rule} present`)
+  assert.ok(
+    this.lastValue.issues.some((issue) => issue.rule === rule),
+    `rule ${rule} present`,
+  )
 })
 
 Then('该问题严重级别为 {string}', async function (severity) {
@@ -219,10 +226,16 @@ function aiAgentsMock() {
         followup: () => {},
         whenIdle: async () => {},
         session: {
-          events: [{
-            type: 'assistant/message',
-            data: { message: { content: [{ type: 'text', text: '{"verdict":"approve","summary":"ok","topIssues":[]}' }] } },
-          }],
+          events: [
+            {
+              type: 'assistant/message',
+              data: {
+                message: {
+                  content: [{ type: 'text', text: '{"verdict":"approve","summary":"ok","topIssues":[]}' }],
+                },
+              },
+            },
+          ],
         },
       },
       dispose: async () => {},

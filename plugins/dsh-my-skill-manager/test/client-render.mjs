@@ -26,10 +26,13 @@ const stubbed = {
     hookIndex += 1
     if (!hookValues.has(idx)) {
       const value = typeof initial === 'function' ? initial() : initial
-      hookValues.set(idx, [value, (next) => {
-        const current = hookValues.get(idx)[0]
-        hookValues.set(idx, [typeof next === 'function' ? next(current) : next, hookValues.get(idx)[1]])
-      }])
+      hookValues.set(idx, [
+        value,
+        (next) => {
+          const current = hookValues.get(idx)[0]
+          hookValues.set(idx, [typeof next === 'function' ? next(current) : next, hookValues.get(idx)[1]])
+        },
+      ])
     }
     return hookValues.get(idx)
   },
@@ -53,7 +56,11 @@ function renderView() {
 // ── browser globals ────────────────────────────────────────────────────────
 let registered = null
 global.window = {
-  __ModuleLoader__: { load: (registration) => { registered = registration } },
+  __ModuleLoader__: {
+    load: (registration) => {
+      registered = registration
+    },
+  },
   location: { href: 'http://127.0.0.1:3080/app', search: '' },
 }
 Object.defineProperty(global, 'navigator', { value: { language: 'zh-CN' }, configurable: true })
@@ -62,7 +69,10 @@ const fetchCalls = []
 let cannedResponses = []
 global.fetch = (url, options) => {
   fetchCalls.push({ url: String(url), options })
-  const canned = cannedResponses.shift() ?? { ok: true, value: { skills: [], global: { disabled: [] }, project: [], cwd: '', projectRoot: '' } }
+  const canned = cannedResponses.shift() ?? {
+    ok: true,
+    value: { skills: [], global: { disabled: [] }, project: [], cwd: '', projectRoot: '' },
+  }
   return Promise.resolve({ json: () => Promise.resolve(canned) })
 }
 
@@ -102,7 +112,12 @@ const catalog = {
     projectRoot: '',
     skills: [
       { name: 'web-search', description: '网络搜索', source: 'user-dsh', provider: 'filesystem' },
-      { name: 'codebase-memory', description: '图查询', source: 'project-dsh', provider: 'filesystem' },
+      {
+        name: 'codebase-memory',
+        description: '图查询',
+        source: 'project-dsh',
+        provider: 'filesystem',
+      },
     ],
     global: { disabled: ['web-search'] },
     project: [],
@@ -115,9 +130,18 @@ const tree = renderView()
 const texts0 = []
 function walkText(node, out) {
   if (node === null || node === undefined || typeof node === 'boolean') return
-  if (typeof node === 'string' || typeof node === 'number') { out.push(String(node)); return }
-  if (Array.isArray(node)) { for (const child of node) walkText(child, out); return }
-  if (typeof node.type === 'function') { walkText(node.type(node.props), out); return }
+  if (typeof node === 'string' || typeof node === 'number') {
+    out.push(String(node))
+    return
+  }
+  if (Array.isArray(node)) {
+    for (const child of node) walkText(child, out)
+    return
+  }
+  if (typeof node.type === 'function') {
+    walkText(node.type(node.props), out)
+    return
+  }
   walkText(node.props.children, out)
 }
 walkText(tree, texts0)
@@ -153,8 +177,14 @@ function collectButtons(node) {
   if (typeof props.onClick === 'function' && typeof props['aria-label'] === 'string') {
     toggles.push({ label: props['aria-label'], onClick: props.onClick })
   }
-  if (Array.isArray(node)) { for (const c of node) collectButtons(c); return }
-  if (typeof node.type === 'function') { collectButtons(node.type(node.props)); return }
+  if (Array.isArray(node)) {
+    for (const c of node) collectButtons(c)
+    return
+  }
+  if (typeof node.type === 'function') {
+    collectButtons(node.type(node.props))
+    return
+  }
   collectButtons(props.children)
 }
 
@@ -163,7 +193,10 @@ function countSections(node) {
   if (node === null || typeof node !== 'object') return 0
   const props = node.props ?? {}
   let count = props.className === 'dsm-section' ? 1 : 0
-  if (Array.isArray(node)) { for (const c of node) count += countSections(c); return count }
+  if (Array.isArray(node)) {
+    for (const c of node) count += countSections(c)
+    return count
+  }
   if (typeof node.type === 'function') return count + countSections(node.type(node.props))
   return count + countSections(props.children)
 }
@@ -173,8 +206,14 @@ function collectInputs(node, out) {
   if (node === null || typeof node !== 'object') return
   const props = node.props ?? {}
   if (props.className === 'dsm-path-input') out.push(props)
-  if (Array.isArray(node)) { for (const c of node) collectInputs(c, out); return }
-  if (typeof node.type === 'function') { collectInputs(node.type(node.props), out); return }
+  if (Array.isArray(node)) {
+    for (const c of node) collectInputs(c, out)
+    return
+  }
+  if (typeof node.type === 'function') {
+    collectInputs(node.type(node.props), out)
+    return
+  }
   collectInputs(props.children, out)
 }
 collectButtons(tree2)
@@ -182,7 +221,7 @@ const toggle = toggles.find((t) => t.label.includes('codebase-memory') && t.labe
 assert.ok(toggle, 'toggle for the enabled skill found')
 
 cannedResponses.push({ ok: true }) // PUT response
-cannedResponses.push(catalog)      // refresh list after save
+cannedResponses.push(catalog) // refresh list after save
 toggle.onClick()
 await new Promise((resolve) => setTimeout(resolve, 0))
 
@@ -203,10 +242,29 @@ cannedResponses.push({
     ...catalog.value,
     skills: [
       ...catalog.value.skills,
-      { name: 'dsh-issue-request', description: '新需求', source: 'user-dsh', provider: 'filesystem' },
-      { name: 'teach', description: '教学', source: 'user-dsh', provider: 'filesystem', cataloged: false },
+      {
+        name: 'dsh-issue-request',
+        description: '新需求',
+        source: 'user-dsh',
+        provider: 'filesystem',
+      },
+      {
+        name: 'teach',
+        description: '教学',
+        source: 'user-dsh',
+        provider: 'filesystem',
+        cataloged: false,
+      },
     ],
-    diagnostics: { missing: [{ name: 'ego-browser', path: '/home/u/.agents/skills/ego-browser', reason: 'broken-symlink' }] },
+    diagnostics: {
+      missing: [
+        {
+          name: 'ego-browser',
+          path: '/home/u/.agents/skills/ego-browser',
+          reason: 'broken-symlink',
+        },
+      ],
+    },
   },
 })
 refreshBtn.onClick()
@@ -238,7 +296,14 @@ cannedResponses.push({
   value: {
     cwd: '/proj',
     projectRoot: '/proj',
-    skills: [{ name: 'codebase-memory', description: '图查询', source: 'project-dsh', provider: 'filesystem' }],
+    skills: [
+      {
+        name: 'codebase-memory',
+        description: '图查询',
+        source: 'project-dsh',
+        provider: 'filesystem',
+      },
+    ],
     global: { disabled: [] },
     project: [],
     diagnostics: { missing: [] },

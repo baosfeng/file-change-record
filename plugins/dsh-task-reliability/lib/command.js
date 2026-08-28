@@ -101,7 +101,10 @@ function renderStatus(shared) {
 async function runContinue(invocation, shared) {
   const task = activeTaskOf(shared.store, invocation.agent.id)
   if (task === undefined) {
-    return { kind: 'error', text: '当前会话没有活动任务。使用 /task register <描述> 注册任务，或 /task 查看状态。' }
+    return {
+      kind: 'error',
+      text: '当前会话没有活动任务。使用 /task register <描述> 注册任务，或 /task 查看状态。',
+    }
   }
   const ok = await wakeStalledTask(shared.ctx, task, shared.save)
   return ok
@@ -143,11 +146,16 @@ function runRegister(invocation, shared, description) {
 export async function handleTaskCommand(invocation, shared) {
   const command = parseTaskCommand(invocation.rawInput)
   switch (command.kind) {
-    case 'status': return renderStatus(shared)
-    case 'continue': return runContinue(invocation, shared)
-    case 'answer': return runAnswer(shared, command.id, command.text)
-    case 'autopilot': return runAutopilot(shared, command.enabled)
-    case 'register': return runRegister(invocation, shared, command.description)
+    case 'status':
+      return renderStatus(shared)
+    case 'continue':
+      return runContinue(invocation, shared)
+    case 'answer':
+      return runAnswer(shared, command.id, command.text)
+    case 'autopilot':
+      return runAutopilot(shared, command.enabled)
+    case 'register':
+      return runRegister(invocation, shared, command.description)
     default: {
       const message = INVALID_MESSAGES[command.kind] ?? `未知命令。用法: ${USAGE}`
       return { kind: 'error', text: message }
@@ -159,10 +167,14 @@ export async function handleTaskCommand(invocation, shared) {
 export function registerTaskCommand(ctx, shared) {
   const commands = ctx.get('commands')
   if (commands === undefined || commands === null || typeof commands.register !== 'function') return
-  ctx.effect(() => commands.register({
-    name: 'task',
-    description: '查看或继续任务：/task [status|continue|answer <id> <text>|autopilot on|off|register <描述>]',
-    input: { hint: '[status|continue|answer <id> <text>|autopilot on|off|register <描述>]' },
-    handler: (invocation) => handleTaskCommand(invocation, shared),
-  }), 'dsh-task-reliability: /task command')
+  ctx.effect(
+    () =>
+      commands.register({
+        name: 'task',
+        description: '查看或继续任务：/task [status|continue|answer <id> <text>|autopilot on|off|register <描述>]',
+        input: { hint: '[status|continue|answer <id> <text>|autopilot on|off|register <描述>]' },
+        handler: (invocation) => handleTaskCommand(invocation, shared),
+      }),
+    'dsh-task-reliability: /task command',
+  )
 }

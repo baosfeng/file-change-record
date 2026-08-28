@@ -43,19 +43,22 @@ export function createStore(ctx) {
   }
   store.updateHeader = (sessionId, header) => mutate(handle, sessionId, (s) => applyHeader(s, header))
   store.updateContext = (sessionId, info) => mutate(handle, sessionId, (s) => applyContext(s, info))
-  store.addMessage = (sessionId, category, tokens) => mutate(handle, sessionId, (s) => {
-    s.composition[category] += numberOr(tokens, 0)
-  })
+  store.addMessage = (sessionId, category, tokens) =>
+    mutate(handle, sessionId, (s) => {
+      s.composition[category] += numberOr(tokens, 0)
+    })
   store.recordRequest = (sessionId, request) => mutate(handle, sessionId, (s) => applyRequest(s, request))
-  store.startTurn = (sessionId, turn) => mutate(handle, sessionId, (s) => {
-    s.turnUsage = { turn: numberOr(turn, 0), ...zeroUsage() }
-  })
-  store.recordAlert = (sessionId, alert) => mutate(handle, sessionId, (s) => {
-    s.alerts.push({ id: nextId(handle), time: Date.now(), ...alert })
-    if (s.alerts.length > MAX_ALERTS_PER_SESSION) {
-      s.alerts.splice(0, s.alerts.length - MAX_ALERTS_PER_SESSION)
-    }
-  })
+  store.startTurn = (sessionId, turn) =>
+    mutate(handle, sessionId, (s) => {
+      s.turnUsage = { turn: numberOr(turn, 0), ...zeroUsage() }
+    })
+  store.recordAlert = (sessionId, alert) =>
+    mutate(handle, sessionId, (s) => {
+      s.alerts.push({ id: nextId(handle), time: Date.now(), ...alert })
+      if (s.alerts.length > MAX_ALERTS_PER_SESSION) {
+        s.alerts.splice(0, s.alerts.length - MAX_ALERTS_PER_SESSION)
+      }
+    })
   store.session = (sessionId) => sessionOf(handle, sessionId)
   store.sessions = () => sessionsOf(handle)
   store.dispose = () => dispose(handle)

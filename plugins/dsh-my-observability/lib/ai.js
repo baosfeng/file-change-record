@@ -33,7 +33,11 @@ export async function runAiReview(ctx, diffText, report, timeoutMs = REVIEW_TIME
     if (parsed === undefined) return { enabled: true, failed: true, note: 'AI 结论解析失败' }
     return { enabled: true, ...parsed }
   } catch (error) {
-    return { enabled: true, failed: true, note: error instanceof Error ? error.message : String(error) }
+    return {
+      enabled: true,
+      failed: true,
+      note: error instanceof Error ? error.message : String(error),
+    }
   } finally {
     await disposeHandle(handle)
   }
@@ -125,8 +129,14 @@ function withTimeout(promise, ms) {
   return new Promise((resolve) => {
     const timer = setTimeout(() => resolve(undefined), ms)
     Promise.resolve(promise).then(
-      (value) => { clearTimeout(timer); resolve(value) },
-      () => { clearTimeout(timer); resolve(undefined) },
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      () => {
+        clearTimeout(timer)
+        resolve(undefined)
+      },
     )
   })
 }
@@ -159,7 +169,9 @@ function assistantTextOf(event) {
   const blocks = event.data?.message?.content
   if (!Array.isArray(blocks)) return ''
   return blocks
-    .filter((block) => block !== null && typeof block === 'object' && block.type === 'text' && typeof block.text === 'string')
+    .filter(
+      (block) => block !== null && typeof block === 'object' && block.type === 'text' && typeof block.text === 'string',
+    )
     .map((block) => block.text)
     .join('\n')
 }

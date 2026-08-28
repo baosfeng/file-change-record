@@ -8,7 +8,15 @@ export default defineConfig({
     include: ['test/*.mjs'],
     coverage: {
       ...root.test.coverage,
-      include: ['lib/index.js', 'lib/store.js', 'lib/api-route.js', 'lib/fence.js', 'lib/http.js', 'lib/prompt.js', 'lib/tool.js'],
+      include: [
+        'lib/index.js',
+        'lib/store.js',
+        'lib/api-route.js',
+        'lib/fence.js',
+        'lib/http.js',
+        'lib/prompt.js',
+        'lib/tool.js',
+      ],
     },
   },
 })

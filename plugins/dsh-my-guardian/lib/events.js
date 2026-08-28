@@ -6,7 +6,11 @@ import { ERROR_SNIP, EVENT_LIMIT } from './state.js'
 
 /** Append a diagnostic event to the shared state's ring buffer. */
 export function logEvent(shared, type, message) {
-  shared.state.events.push({ time: Date.now(), type, message: String(message).slice(0, ERROR_SNIP) })
+  shared.state.events.push({
+    time: Date.now(),
+    type,
+    message: String(message).slice(0, ERROR_SNIP),
+  })
   if (shared.state.events.length > EVENT_LIMIT) shared.state.events.splice(0, shared.state.events.length - EVENT_LIMIT)
 }
 

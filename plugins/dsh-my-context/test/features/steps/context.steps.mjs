@@ -45,7 +45,10 @@ When('会话 {string} 的模型返回带用量统计的回复', async function (
   const { session, event } = sessionEvent(sessionId, 'assistant/message', {
     turn: 1,
     step: 1,
-    message: { content: [{ type: 'text', text: '回复内容' }], source: { provider: 'deepseek', model: 'deepseek-v4' } },
+    message: {
+      content: [{ type: 'text', text: '回复内容' }],
+      source: { provider: 'deepseek', model: 'deepseek-v4' },
+    },
     usage: { inputTokens: input, outputTokens: 20, cacheReadTokens: 30 },
   })
   await this.dispatch('session/event', session, event)
@@ -70,7 +73,10 @@ When('插件重启', async function () {
 })
 
 When('代理 {string} 准备执行下一步', async function (agentId) {
-  await this.dispatch('agent/pre-step', preStepPayload(agentId), async () => ({ kind: 'enter', messages: [] }))
+  await this.dispatch('agent/pre-step', preStepPayload(agentId), async () => ({
+    kind: 'enter',
+    messages: [],
+  }))
 })
 
 When('通过接口更新预算为每轮 {int} 且模式为拦截', async function (perTurn) {

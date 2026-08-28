@@ -1,5 +1,5 @@
-    // ── styles (DSH semantic tokens, injected on activate, removed on teardown) ──
-    const STYLES = `
+// ── styles (DSH semantic tokens, injected on activate, removed on teardown) ──
+const STYLES = `
 .dpm-root { display:flex; flex-direction:column; gap:10px; padding:12px; }
 .dpm-hint { font:var(--dsw-font-xxxs-11, 11px sans-serif); color:var(--dsw-alias-label-tertiary, #888); }
 .dpm-status { font:var(--dsw-font-xxxs-11, 11px sans-serif); color:var(--dsw-alias-label-tertiary, #888); }
@@ -39,4 +39,4 @@
 .dpm-empty { font:var(--dsw-font-xxxs-11, 11px sans-serif); color:var(--dsw-alias-label-tertiary, #888); padding:6px 0; }
 `.trim()
 
-    const STYLE_TAG = 'data-dsh-my-plugin-manager'
+const STYLE_TAG = 'data-dsh-my-plugin-manager'

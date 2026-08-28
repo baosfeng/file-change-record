@@ -58,12 +58,16 @@ export function createMediaHandler({ ctx, store, fence }) {
       const sessionId = url.searchParams.get('sessionId')
       const raw = url.searchParams.get('path')
       assertMediaParams(sessionId, raw)
-      if (!isRecordedPath(store.state, sessionId, raw)) throw mediaError(403, 'path is not in this session\'s file activity')
+      if (!isRecordedPath(store.state, sessionId, raw))
+        throw mediaError(403, "path is not in this session's file activity")
       const abs = isAbsolute(raw) ? raw : join(sessionCwdOf(ctx, sessionId), raw)
       await serveMedia(response, abs, url)
     } catch (error) {
       const status = typeof error?.status === 'number' ? error.status : 400
-      writeJson(response, status, { ok: false, error: { message: error instanceof Error ? error.message : String(error) } })
+      writeJson(response, status, {
+        ok: false,
+        error: { message: error instanceof Error ? error.message : String(error) },
+      })
     }
   }
 }

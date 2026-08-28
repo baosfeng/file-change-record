@@ -1,9 +1,9 @@
-    // ── 样式（DSH 语义 token，随 activation 注入）──────────────────
-    // 表头/边框/对齐走 DSH token；滚动容器提供宽表格横向滚动
-    // （overflow-x:auto，hover 时滚动条常显，避免遮挡内容）。
-    // .tzx-md 系列为统一 MarkdownView 的输出样式（issue #31 从
-    // dsh-think-zh-expand 迁移）；.dmr-math 为公式渲染样式。
-    const STYLES = `
+// ── 样式（DSH 语义 token，随 activation 注入）──────────────────
+// 表头/边框/对齐走 DSH token；滚动容器提供宽表格横向滚动
+// （overflow-x:auto，hover 时滚动条常显，避免遮挡内容）。
+// .tzx-md 系列为统一 MarkdownView 的输出样式（issue #31 从
+// dsh-think-zh-expand 迁移）；.dmr-math 为公式渲染样式。
+const STYLES = `
 .tzx-md{display:flex;flex-direction:column;gap:8px;min-width:0}
 .tzx-md .tzx-p{margin:0}
 .tzx-md h1,.tzx-md h2,.tzx-md h3,.tzx-md h4{margin:0;font-weight:600;line-height:1.35}

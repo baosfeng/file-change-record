@@ -21,27 +21,27 @@ Do not wait in the same turn for user approval or asynchronous browser results. 
 
 ## Tool usage guidance
 
-| Tool | Use it when | Do not |
-| --- | --- | --- |
-| `cordis_inspect_list` | Discover current Host/Client Providers and method schemas in one call; refresh after the runtime capability directory changes | Hard-code Provider names and skip list; treat a manifest as business data |
-| `cordis_inspect_query` | Confirm exact Service methods, Event modes, Builtins, Slots, tokens, or Tool schemas before writing code | Use it instead of calling a real Service from the Plugin; assume a Client query will finish without a responding page |
-| `cordis_inspect_self` | List current Plugins, inspect version pointers, or read exact Package source and runtime diagnostics | Fetch all source just to build a list; use it to modify or start a Plugin |
-| `cordis_define` | Create a Plugin's first version or append an immutable Package to an existing Plugin; let the user preview the code first | Expect define to execute `apply`, request approval, or update current |
-| `cordis_run` | Activate an exact Package; use `run` for first activation, restart, or rollback, and `update` to switch versions | Use `run` to switch versions implicitly; treat pending or starting as success |
-| `cordis_stop` | Pause current effects while preserving Packages, grants, and version pointers for later use | Use stop to mean permanent deletion |
-| `cordis_undefine` | Permanently remove a Plugin and all of its Packages and clear historical business views | Call it while rollback, inspection, or restart is still needed |
+| Tool                   | Use it when                                                                                                                   | Do not                                                                                                                |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `cordis_inspect_list`  | Discover current Host/Client Providers and method schemas in one call; refresh after the runtime capability directory changes | Hard-code Provider names and skip list; treat a manifest as business data                                             |
+| `cordis_inspect_query` | Confirm exact Service methods, Event modes, Builtins, Slots, tokens, or Tool schemas before writing code                      | Use it instead of calling a real Service from the Plugin; assume a Client query will finish without a responding page |
+| `cordis_inspect_self`  | List current Plugins, inspect version pointers, or read exact Package source and runtime diagnostics                          | Fetch all source just to build a list; use it to modify or start a Plugin                                             |
+| `cordis_define`        | Create a Plugin's first version or append an immutable Package to an existing Plugin; let the user preview the code first     | Expect define to execute `apply`, request approval, or update current                                                 |
+| `cordis_run`           | Activate an exact Package; use `run` for first activation, restart, or rollback, and `update` to switch versions              | Use `run` to switch versions implicitly; treat pending or starting as success                                         |
+| `cordis_stop`          | Pause current effects while preserving Packages, grants, and version pointers for later use                                   | Use stop to mean permanent deletion                                                                                   |
+| `cordis_undefine`      | Permanently remove a Plugin and all of its Packages and clear historical business views                                       | Call it while rollback, inspection, or restart is still needed                                                        |
 
 ## Choose a platform
 
-| Requirement | Preferred platform | Inspect first |
-| --- | --- | --- |
-| Files, commands, processes, or networking | Host | `fs`, `bash`, `subprocess`, `pty`, and `web` in `Service.listService` |
-| Agents, durable Session data, or Host lifecycle | Host | The relevant Service and `Event.listEvents` |
-| Register a dynamic Tool callable in the next model step | Host | `harness` in `Builtin.listBuiltins`, plus `Tool.listTools` |
-| Page theme, layout, or current page state | Client | `Theme.listTokens` and Client `Service.listService` |
-| Conversation Snapshot or session/workspace lists | Client | The target Slot's standard props and owner props |
-| Settings pages, sidebars, input areas, overlays, or Tool cards | Client | `Slots.listSubTree` |
-| Fetch on Host and display on Client | Both | Host Service + `harness.handle`; Client Slot + `host.call` |
+| Requirement                                                    | Preferred platform | Inspect first                                                         |
+| -------------------------------------------------------------- | ------------------ | --------------------------------------------------------------------- |
+| Files, commands, processes, or networking                      | Host               | `fs`, `bash`, `subprocess`, `pty`, and `web` in `Service.listService` |
+| Agents, durable Session data, or Host lifecycle                | Host               | The relevant Service and `Event.listEvents`                           |
+| Register a dynamic Tool callable in the next model step        | Host               | `harness` in `Builtin.listBuiltins`, plus `Tool.listTools`            |
+| Page theme, layout, or current page state                      | Client             | `Theme.listTokens` and Client `Service.listService`                   |
+| Conversation Snapshot or session/workspace lists               | Client             | The target Slot's standard props and owner props                      |
+| Settings pages, sidebars, input areas, overlays, or Tool cards | Client             | `Slots.listSubTree`                                                   |
+| Fetch on Host and display on Client                            | Both               | Host Service + `harness.handle`; Client Slot + `host.call`            |
 
 Prefer the capability closest to the data owner. If Slot props already provide the Conversation Snapshot, do not fetch it again through Host. If only the Package's own styles need to change, do not override the global theme. If only a small entry point is needed, do not replace an entire product UI region.
 
@@ -77,10 +77,9 @@ return {
   apply(ctx) {
     const slots = ctx.get('slots')
     if (slots === undefined) return
-    slots.inject('tool.view.cordis', () => slots.register(
-      { name: 'tool.view.cordis', key: 'self' },
-      () => React.createElement('div', null, 'Hello'),
-    ))
+    slots.inject('tool.view.cordis', () =>
+      slots.register({ name: 'tool.view.cordis', key: 'self' }, () => React.createElement('div', null, 'Hello')),
+    )
   },
 }
 ```
@@ -140,9 +139,11 @@ return {
   apply(ctx) {
     const service = ctx.get('serviceName')
     if (service === undefined) return
-    ctx.effect(() => service.subscribe((value) => {
-      console.log(value)
-    }))
+    ctx.effect(() =>
+      service.subscribe((value) => {
+        console.log(value)
+      }),
+    )
   },
 }
 ```
@@ -244,10 +245,11 @@ return {
   apply(ctx) {
     const slots = ctx.get('slots')
     if (slots === undefined) return
-    slots.inject('target.slot', () => slots.register(
-      { name: 'target.slot', id: 'my-view' },
-      (props) => React.createElement('div', null, String(props.someValue)),
-    ))
+    slots.inject('target.slot', () =>
+      slots.register({ name: 'target.slot', id: 'my-view' }, (props) =>
+        React.createElement('div', null, String(props.someValue)),
+      ),
+    )
   },
 }
 ```
@@ -287,10 +289,11 @@ return {
   apply(ctx) {
     const slots = ctx.get('slots')
     if (slots === undefined) return
-    slots.inject('tool.view.cordis', () => slots.register(
-      { name: 'tool.view.cordis', key: 'self' },
-      (props) => React.createElement('div', null, `Package ${props.packageId}`),
-    ))
+    slots.inject('tool.view.cordis', () =>
+      slots.register({ name: 'tool.view.cordis', key: 'self' }, (props) =>
+        React.createElement('div', null, `Package ${props.packageId}`),
+      ),
+    )
   },
 }
 ```
@@ -375,13 +378,13 @@ Read only the leaf fields required by the current feature. Extract the minimum s
 
 Choose the `cordis_run` mode as follows:
 
-| Current state | Target | mode |
-| --- | --- | --- |
-| No current | Any Package under the Plugin | `run` |
-| Has current | The same Package | `run` |
-| Has current | A different Package | `update` |
-| Update failed | `nextPackageId` | `update` to retry |
-| Update failed | `currentPackageId` | `run` to roll back |
+| Current state | Target                       | mode               |
+| ------------- | ---------------------------- | ------------------ |
+| No current    | Any Package under the Plugin | `run`              |
+| Has current   | The same Package             | `run`              |
+| Has current   | A different Package          | `update`           |
+| Update failed | `nextPackageId`              | `update` to retry  |
+| Update failed | `currentPackageId`           | `run` to roll back |
 
 An unauthorized Client Package returns `awaiting-approval`. A single check mark authorizes only the current Package; double check marks authorize future versions of the same Plugin. A grant remains after a technical runtime failure. An authorized Package returns `starting` and completes asynchronously in the browser.
 
@@ -409,12 +412,12 @@ If the reference is unavailable, explain that the Plugin was removed, belongs to
 
 ## Common failure checks
 
-| Failure | Check first |
-| --- | --- |
-| `service "x" is not declared` | Whether code uses `ctx.x` without declaring `inject: ['x']` on the Plugin object; switch to `ctx.get('x')` with an absence check or declare a true hard dependency |
-| `cannot get property "timer" without inject` | Query the timer Service and declare `inject: ['timer']` |
-| Client parse failure | Whether the code uses JSX, TypeScript, import, or an unavailable global |
-| Slot registration failure | Whether the live subtree was queried, the Slot exists, and options, key, or selector satisfy the returned protocol |
-| UI loads but the page reports an error | Inspect the `client-render` diagnostic and stack; the error belongs to an exact Run, so define a new Package to repair it |
-| `host.call` failure | The Host handler name, current `pluginRunId`, JSON arguments, and real Service dependencies inside the handler |
-| Update failure | Preserve current/next semantics; repair next and update, or run current to roll back |
+| Failure                                      | Check first                                                                                                                                                        |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `service "x" is not declared`                | Whether code uses `ctx.x` without declaring `inject: ['x']` on the Plugin object; switch to `ctx.get('x')` with an absence check or declare a true hard dependency |
+| `cannot get property "timer" without inject` | Query the timer Service and declare `inject: ['timer']`                                                                                                            |
+| Client parse failure                         | Whether the code uses JSX, TypeScript, import, or an unavailable global                                                                                            |
+| Slot registration failure                    | Whether the live subtree was queried, the Slot exists, and options, key, or selector satisfy the returned protocol                                                 |
+| UI loads but the page reports an error       | Inspect the `client-render` diagnostic and stack; the error belongs to an exact Run, so define a new Package to repair it                                          |
+| `host.call` failure                          | The Host handler name, current `pluginRunId`, JSON arguments, and real Service dependencies inside the handler                                                     |
+| Update failure                               | Preserve current/next semantics; repair next and update, or run current to roll back                                                                               |

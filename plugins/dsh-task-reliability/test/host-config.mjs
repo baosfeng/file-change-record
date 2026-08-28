@@ -107,7 +107,12 @@ function boot(config, dir) {
       },
     },
     get(name) {
-      if (name === 'agents') return { get: () => undefined, create: async () => ({ agent: { id: 'v' }, dispose: async () => {} }), resume: async () => ({ agent: { id: 'm' }, dispose: async () => {} }) }
+      if (name === 'agents')
+        return {
+          get: () => undefined,
+          create: async () => ({ agent: { id: 'v' }, dispose: async () => {} }),
+          resume: async () => ({ agent: { id: 'm' }, dispose: async () => {} }),
+        }
       if (name === 'sessionQuery') return { readSession: async () => ({ header: {}, events: [] }) }
       if (name === 'goals') return { get: () => undefined }
       if (name === 'approval') return { setPolicy: () => {} }
@@ -115,7 +120,13 @@ function boot(config, dir) {
       return undefined
     },
   }
-  apply(ctx, { saveDebounceMs: 0, resumeGraceMs: 60000, steerCooldownMs: 0, retryBaseMs: 0, ...config })
+  apply(ctx, {
+    saveDebounceMs: 0,
+    resumeGraceMs: 60000,
+    steerCooldownMs: 0,
+    retryBaseMs: 0,
+    ...config,
+  })
   const api = routes.find((r) => r.path === '/task-reliability/api' && r.kind === 'prefix')
   assert.ok(api, 'prefix route /task-reliability/api registered')
   const disposeAll = () => {
@@ -137,7 +148,18 @@ const DEFAULTS = {
   retryMax: 3,
   maxLoop: 8,
   maxVerify: 3,
-  retryableCodes: ['TIMEOUT', 'ETIMEDOUT', 'ECONNRESET', 'ECONNABORTED', 'STREAM_IDLE_TIMEOUT', 'TRANSPORT', 'NETWORK', 'SERVER', 'RATE_LIMIT', 'EMPTY_RESPONSE'],
+  retryableCodes: [
+    'TIMEOUT',
+    'ETIMEDOUT',
+    'ECONNRESET',
+    'ECONNABORTED',
+    'STREAM_IDLE_TIMEOUT',
+    'TRANSPORT',
+    'NETWORK',
+    'SERVER',
+    'RATE_LIMIT',
+    'EMPTY_RESPONSE',
+  ],
   retryBaseMs: 0,
   autopilot: false,
   steerCooldownMs: 0,
@@ -174,9 +196,32 @@ test('config API suite', async () => {
     // ── 3. PUT /config 保存 → GET 读取 → 值正确 ────────────────────────
     {
       const { api } = boot({})
-      const saved = { apiToken: 'tok-1', retryMax: 5, maxLoop: 10, maxVerify: 2, retryableCodes: ['TIMEOUT', 'SERVER'], retryBaseMs: 2000, autopilot: true, steerCooldownMs: 5000, saveDebounceMs: 300, resumeGraceMs: 1000, rateMaxActions: 20, askTimeoutMs: 900000, watchdogIntervalMs: 120000, stallTimeoutMs: 300000 }
+      const saved = {
+        apiToken: 'tok-1',
+        retryMax: 5,
+        maxLoop: 10,
+        maxVerify: 2,
+        retryableCodes: ['TIMEOUT', 'SERVER'],
+        retryBaseMs: 2000,
+        autopilot: true,
+        steerCooldownMs: 5000,
+        saveDebounceMs: 300,
+        resumeGraceMs: 1000,
+        rateMaxActions: 20,
+        askTimeoutMs: 900000,
+        watchdogIntervalMs: 120000,
+        stallTimeoutMs: 300000,
+      }
       const put = mockResponse()
-      await invoke(api, mockRequest({ url: '/task-reliability/api/config', method: 'PUT', body: JSON.stringify(saved) }), put)
+      await invoke(
+        api,
+        mockRequest({
+          url: '/task-reliability/api/config',
+          method: 'PUT',
+          body: JSON.stringify(saved),
+        }),
+        put,
+      )
       assert.equal(put.writeHeadStatus, 200, 'PUT config is 200')
       const get = mockResponse()
       await invoke(api, mockRequest({ url: '/task-reliability/api/config' }), get)
@@ -187,15 +232,44 @@ test('config API suite', async () => {
     // ── 4. 保存后 options 立即生效（retryMax 影响重试上限） ────────────
     {
       const { api, listeners } = boot({})
-      const saved = { apiToken: '', retryMax: 1, maxLoop: 8, maxVerify: 3, retryableCodes: ['TIMEOUT'], retryBaseMs: 0, autopilot: false, steerCooldownMs: 0, saveDebounceMs: 0, resumeGraceMs: 60000, rateMaxActions: 12, askTimeoutMs: 1800000, watchdogIntervalMs: 300000, stallTimeoutMs: 600000 }
+      const saved = {
+        apiToken: '',
+        retryMax: 1,
+        maxLoop: 8,
+        maxVerify: 3,
+        retryableCodes: ['TIMEOUT'],
+        retryBaseMs: 0,
+        autopilot: false,
+        steerCooldownMs: 0,
+        saveDebounceMs: 0,
+        resumeGraceMs: 60000,
+        rateMaxActions: 12,
+        askTimeoutMs: 1800000,
+        watchdogIntervalMs: 300000,
+        stallTimeoutMs: 600000,
+      }
       const put = mockResponse()
-      await invoke(api, mockRequest({ url: '/task-reliability/api/config', method: 'PUT', body: JSON.stringify(saved) }), put)
+      await invoke(
+        api,
+        mockRequest({
+          url: '/task-reliability/api/config',
+          method: 'PUT',
+          body: JSON.stringify(saved),
+        }),
+        put,
+      )
       assert.equal(put.writeHeadStatus, 200, 'save ok')
 
       // retryMax:1 → 第一次超时重试，第二次超时委托 next()
-      const agent = { id: 's1', options: { provider: 'p', model: 'm' }, session: { header: { cwd: '/work' } } }
+      const agent = {
+        id: 's1',
+        options: { provider: 'p', model: 'm' },
+        session: { header: { cwd: '/work' } },
+      }
       let nextCalls = 0
-      const next = async () => { nextCalls += 1 }
+      const next = async () => {
+        nextCalls += 1
+      }
       const first = await listeners['agent/request-error'][0]({ agent, failure: { code: 'TIMEOUT' } }, next)
       assert.deepEqual(first, { kind: 'retry' }, 'first timeout retried')
       const second = await listeners['agent/request-error'][0]({ agent, failure: { code: 'TIMEOUT' } }, next)
@@ -206,9 +280,32 @@ test('config API suite', async () => {
     // ── 5. 持久化：保存 → 模拟重启（重新 apply）→ 配置生效 ────────────
     {
       const { api, home, disposeAll } = boot({})
-      const saved = { apiToken: 'persist-tok', retryMax: 9, maxLoop: 15, maxVerify: 5, retryableCodes: ['TIMEOUT', 'NETWORK'], retryBaseMs: 300, autopilot: true, steerCooldownMs: 4000, saveDebounceMs: 250, resumeGraceMs: 800, rateMaxActions: 25, askTimeoutMs: 600000, watchdogIntervalMs: 60000, stallTimeoutMs: 120000 }
+      const saved = {
+        apiToken: 'persist-tok',
+        retryMax: 9,
+        maxLoop: 15,
+        maxVerify: 5,
+        retryableCodes: ['TIMEOUT', 'NETWORK'],
+        retryBaseMs: 300,
+        autopilot: true,
+        steerCooldownMs: 4000,
+        saveDebounceMs: 250,
+        resumeGraceMs: 800,
+        rateMaxActions: 25,
+        askTimeoutMs: 600000,
+        watchdogIntervalMs: 60000,
+        stallTimeoutMs: 120000,
+      }
       const put = mockResponse()
-      await invoke(api, mockRequest({ url: '/task-reliability/api/config', method: 'PUT', body: JSON.stringify(saved) }), put)
+      await invoke(
+        api,
+        mockRequest({
+          url: '/task-reliability/api/config',
+          method: 'PUT',
+          body: JSON.stringify(saved),
+        }),
+        put,
+      )
       assert.equal(put.writeHeadStatus, 200, 'save ok')
       const file = patchFileOf('web')
       const text = readFileSync(file, 'utf8')
@@ -243,7 +340,16 @@ test('config API suite', async () => {
     {
       const { api } = boot({})
       const evil = mockResponse()
-      await invoke(api, mockRequest({ url: '/task-reliability/api/config', method: 'PUT', host: 'evil.example.com', body: '{}' }), evil)
+      await invoke(
+        api,
+        mockRequest({
+          url: '/task-reliability/api/config',
+          method: 'PUT',
+          host: 'evil.example.com',
+          body: '{}',
+        }),
+        evil,
+      )
       assert.equal(evil.writeHeadStatus, 403, 'cross-authority host rejected')
     }
 

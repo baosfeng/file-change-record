@@ -29,7 +29,12 @@ function attachEndListener(ctx, options, emitNotice) {
       return
     }
     if (options.subagentEnd) {
-      emitNotice({ kind: 'end', sessionId: agent.id, title: subagentTitleOf(ctx, agent), agentType: 'subagent' })
+      emitNotice({
+        kind: 'end',
+        sessionId: agent.id,
+        title: subagentTitleOf(ctx, agent),
+        agentType: 'subagent',
+      })
     }
   })
 }

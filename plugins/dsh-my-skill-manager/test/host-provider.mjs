@@ -9,9 +9,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import {
-  normalizeConfig, readConfigFile, writeConfigFile, findProjectRoot, globalConfigFile,
-} from '../lib/config.js'
+import { normalizeConfig, readConfigFile, writeConfigFile, findProjectRoot, globalConfigFile } from '../lib/config.js'
 import { createDisablerProvider, disabledNamesOf } from '../lib/provider.js'
 
 const dir = mkdtempSync(join(tmpdir(), 'dsm-provider-test-'))
@@ -38,9 +36,15 @@ test('normalizeConfig keeps only known shape and dedupes', () => {
 
 test('readConfigFile tolerates missing and corrupt files', async () => {
   const missing = join(dir, 'nope.json')
-  assert.deepEqual(await readConfigFile(missing), { global: { disabled: [] }, project: { disabled: [] } })
+  assert.deepEqual(await readConfigFile(missing), {
+    global: { disabled: [] },
+    project: { disabled: [] },
+  })
   writeFileSync(join(dir, 'bad.json'), 'not json{{{')
-  assert.deepEqual(await readConfigFile(join(dir, 'bad.json')), { global: { disabled: [] }, project: { disabled: [] } })
+  assert.deepEqual(await readConfigFile(join(dir, 'bad.json')), {
+    global: { disabled: [] },
+    project: { disabled: [] },
+  })
 })
 
 test('writeConfigFile persists and round-trips', async () => {
@@ -63,7 +67,10 @@ test('disabledNamesOf merges global + project lists for a cwd', async () => {
   mkdirSync(join(dir, 'repo2', '.git'), { recursive: true })
   mkdirSync(join(dir, 'repo2', '.dsh'), { recursive: true })
   writeFileSync(join(dir, 'skills.enabled.json'), JSON.stringify({ global: { disabled: ['g1'] } }))
-  writeFileSync(join(dir, 'repo2', '.dsh', 'skills.enabled.json'), JSON.stringify({ project: { disabled: ['p1', 'g1'] } }))
+  writeFileSync(
+    join(dir, 'repo2', '.dsh', 'skills.enabled.json'),
+    JSON.stringify({ project: { disabled: ['p1', 'g1'] } }),
+  )
   const names = await disabledNamesOf(join(dir, 'repo2', 'sub'))
   assert.deepEqual(names, ['g1', 'p1'], 'project overrides/extends global')
   const noCwd = await disabledNamesOf(undefined)
@@ -74,7 +81,10 @@ test('disabler provider lists rank-0 placeholders and never loads', async () => 
   const provider = createDisablerProvider()
   assert.equal(provider.name, 'my-skill-manager')
   const candidates = await provider.list({ cwd: undefined })
-  assert.deepEqual(candidates.map((c) => c.name), ['g1'])
+  assert.deepEqual(
+    candidates.map((c) => c.name),
+    ['g1'],
+  )
   assert.equal(candidates[0].rank, 0)
   assert.equal(candidates[0].provider, 'my-skill-manager')
   assert.equal(candidates[0].invocation.modelInvocable, false)

@@ -29,7 +29,14 @@ test('createState / createSession / zeroUsage shapes', () => {
   const session = createSession('s-1')
   assert.equal(session.sessionId, 's-1')
   assert.deepEqual(session.usage, zeroUsage())
-  assert.deepEqual(session.composition, { system: 0, tools: 0, user: 0, inject: 0, assistant: 0, tool: 0 })
+  assert.deepEqual(session.composition, {
+    system: 0,
+    tools: 0,
+    user: 0,
+    inject: 0,
+    assistant: 0,
+    tool: 0,
+  })
   assert.deepEqual(session.requests, [])
   assert.deepEqual(session.alerts, [])
 })
@@ -40,7 +47,11 @@ test('store: recordRequest accumulates usage and snapshots composition', async (
   await settle()
   store.addMessage('s-1', 'user', 10)
   store.addMessage('s-1', 'assistant', 20)
-  store.recordRequest('s-1', { turn: 1, step: 1, usage: { inputTokens: 100, outputTokens: 30, cacheReadTokens: 50 } })
+  store.recordRequest('s-1', {
+    turn: 1,
+    step: 1,
+    usage: { inputTokens: 100, outputTokens: 30, cacheReadTokens: 50 },
+  })
   await settle()
   const session = store.session('s-1')
   assert.equal(session.usage.inputTokens, 100)
@@ -106,7 +117,14 @@ test('store: alerts FIFO cap and id assignment', async () => {
   const store = createStore(ctx)
   await settle()
   for (let i = 0; i < 60; i++) {
-    store.recordAlert('s-1', { kind: 'budget', scope: 'turn', limit: 10, used: 20, mode: 'warn', blocked: false })
+    store.recordAlert('s-1', {
+      kind: 'budget',
+      scope: 'turn',
+      limit: 10,
+      used: 20,
+      mode: 'warn',
+      blocked: false,
+    })
   }
   await settle()
   const session = store.session('s-1')
@@ -119,7 +137,14 @@ test('store: updateHeader / updateContext', async () => {
   const { ctx, disposeAll } = boot({})
   const store = createStore(ctx)
   await settle()
-  store.updateHeader('s-1', { system: 'sys', tools: [{ name: 'bash' }], systemTokens: 10, toolsTokens: 5, model: 'deepseek-v4', provider: 'deepseek' })
+  store.updateHeader('s-1', {
+    system: 'sys',
+    tools: [{ name: 'bash' }],
+    systemTokens: 10,
+    toolsTokens: 5,
+    model: 'deepseek-v4',
+    provider: 'deepseek',
+  })
   store.updateContext('s-1', { model: 'deepseek-v4', provider: 'deepseek', contextWindow: 128000 })
   await settle()
   const session = store.session('s-1')
@@ -138,8 +163,19 @@ test('store: persistence survives restart (recovery)', async () => {
   const first = boot({}, { home })
   const store = createStore(first.ctx)
   await settle()
-  store.recordRequest('s-1', { turn: 1, step: 1, usage: { inputTokens: 100, outputTokens: 20, cacheReadTokens: 30 } })
-  store.recordAlert('s-1', { kind: 'budget', scope: 'turn', limit: 10, used: 150, mode: 'deny', blocked: true })
+  store.recordRequest('s-1', {
+    turn: 1,
+    step: 1,
+    usage: { inputTokens: 100, outputTokens: 20, cacheReadTokens: 30 },
+  })
+  store.recordAlert('s-1', {
+    kind: 'budget',
+    scope: 'turn',
+    limit: 10,
+    used: 150,
+    mode: 'deny',
+    blocked: true,
+  })
   store.dispose()
   await settle(80)
   first.disposeAll()

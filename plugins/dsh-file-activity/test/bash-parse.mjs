@@ -33,10 +33,20 @@ test('segment splitting respects quotes and separators', () => {
 })
 
 test('tokenize strips quotes and flags unsafe words', () => {
-  assert.deepEqual(tokenize("echo 'a b' c"), [{ text: 'echo', safe: true }, { text: 'a b', safe: true }, { text: 'c', safe: true }])
+  assert.deepEqual(tokenize("echo 'a b' c"), [
+    { text: 'echo', safe: true },
+    { text: 'a b', safe: true },
+    { text: 'c', safe: true },
+  ])
   const unsafe = tokenize('rm $FILE *.js "$HOME/x" `cmd` {a,b}.txt')
-  assert.deepEqual(unsafe.map((t) => t.safe), [true, false, false, false, false, false])
-  assert.deepEqual(tokenize('touch a\\ b.txt'), [{ text: 'touch', safe: true }, { text: 'a b.txt', safe: true }])
+  assert.deepEqual(
+    unsafe.map((t) => t.safe),
+    [true, false, false, false, false, false],
+  )
+  assert.deepEqual(tokenize('touch a\\ b.txt'), [
+    { text: 'touch', safe: true },
+    { text: 'a b.txt', safe: true },
+  ])
 })
 
 test('rm deletes; touch creates (write op); options are skipped', () => {

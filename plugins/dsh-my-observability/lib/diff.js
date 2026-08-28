@@ -75,8 +75,7 @@ function hunkLineOf(line) {
 
 /** 是否为测试文件（路径含 test/spec 标记）。 */
 export function isTestFile(path) {
-  return /(^|\/)(test|tests|__tests__|spec)(\/|$)/.test(path)
-    || /\.(test|spec)\./.test(path)
+  return /(^|\/)(test|tests|__tests__|spec)(\/|$)/.test(path) || /\.(test|spec)\./.test(path)
 }
 
 /** 是否为源码文件（排除纯文档/配置类；无扩展名视为源码）。 */

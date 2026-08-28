@@ -56,9 +56,18 @@ import { createApi } from './api.js'
 import { registerTaskCommand } from './command.js'
 import { currentProfile, patchFileOf, writePatchConfig } from './config-store.js'
 import {
-  RETRYABLE_CODES, RETRY_MAX, MAX_LOOP, MAX_VERIFY, RETRY_BASE_MS,
-  STEER_COOLDOWN_MS, SAVE_DEBOUNCE_MS, RESUME_GRACE_MS, RATE_MAX_ACTIONS,
-  ASK_TIMEOUT_MS, WATCHDOG_INTERVAL_MS, STALL_TIMEOUT_MS,
+  RETRYABLE_CODES,
+  RETRY_MAX,
+  MAX_LOOP,
+  MAX_VERIFY,
+  RETRY_BASE_MS,
+  STEER_COOLDOWN_MS,
+  SAVE_DEBOUNCE_MS,
+  RESUME_GRACE_MS,
+  RATE_MAX_ACTIONS,
+  ASK_TIMEOUT_MS,
+  WATCHDOG_INTERVAL_MS,
+  STALL_TIMEOUT_MS,
 } from './constants.js'
 
 export const name = 'dsh-task-reliability'
@@ -181,9 +190,10 @@ function createShared(ctx, options) {
   const dir = resolveDir()
   const store = loadStore(dir, ctx.logger)
   const webRuntime = ctx.get('webRuntime')
-  const trustedHosts = webRuntime !== undefined && webRuntime !== null && Array.isArray(webRuntime.trustedHosts)
-    ? webRuntime.trustedHosts
-    : []
+  const trustedHosts =
+    webRuntime !== undefined && webRuntime !== null && Array.isArray(webRuntime.trustedHosts)
+      ? webRuntime.trustedHosts
+      : []
   const saver = createSaver(dir, store, options, ctx.logger)
   return {
     ctx,
@@ -204,11 +214,15 @@ function createShared(ctx, options) {
 // ── 装配 ───────────────────────────────────────────────────────────────────
 
 function registerApi(ctx, shared) {
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'prefix',
-    path: '/task-reliability/api',
-    handler: createApi(shared),
-  }), 'dsh-task-reliability: /task-reliability/api routes')
+  ctx.effect(
+    () =>
+      ctx.webServer.register({
+        kind: 'prefix',
+        path: '/task-reliability/api',
+        handler: createApi(shared),
+      }),
+    'dsh-task-reliability: /task-reliability/api routes',
+  )
 }
 
 /** 启动恢复（休眠/重启后任务续跑），延迟 resumeGraceMs 执行。 */
@@ -229,20 +243,23 @@ function scheduleWatchdog(ctx, shared) {
 
 /** 卸载清理：定时器 + 立即落盘。 */
 function registerTeardown(ctx, shared) {
-  ctx.effect(() => () => {
-    if (shared.resumeTimer !== null) {
-      clearTimeout(shared.resumeTimer)
-      shared.resumeTimer = null
-    }
-    if (shared.watchdogTimer !== null) {
-      clearInterval(shared.watchdogTimer)
-      shared.watchdogTimer = null
-    }
-    shared.saver.cancel()
-    try {
-      saveStore(shared.dir, shared.store)
-    } catch {
-      // final flush is best-effort
-    }
-  }, 'dsh-task-reliability: teardown')
+  ctx.effect(
+    () => () => {
+      if (shared.resumeTimer !== null) {
+        clearTimeout(shared.resumeTimer)
+        shared.resumeTimer = null
+      }
+      if (shared.watchdogTimer !== null) {
+        clearInterval(shared.watchdogTimer)
+        shared.watchdogTimer = null
+      }
+      shared.saver.cancel()
+      try {
+        saveStore(shared.dir, shared.store)
+      } catch {
+        // final flush is best-effort
+      }
+    },
+    'dsh-task-reliability: teardown',
+  )
 }

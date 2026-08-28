@@ -38,16 +38,14 @@ function handleSessionEvent(session, event, store) {
 /** 事件类型 → 处理器映射（switch 替代，控制复杂度）。 */
 const EVENT_HANDLERS = {
   'request/header': (store, sessionId, data) => handleHeader(store, sessionId, data),
-  'request/context': (store, sessionId, data) => store.updateContext(sessionId, {
-    model: data?.model,
-    provider: data?.provider,
-    contextWindow: data?.contextWindow,
-  }),
-  'user/message': (store, sessionId, data) => store.addMessage(
-    sessionId,
-    isInjection(data?.source) ? 'inject' : 'user',
-    estimateMessage(data),
-  ),
+  'request/context': (store, sessionId, data) =>
+    store.updateContext(sessionId, {
+      model: data?.model,
+      provider: data?.provider,
+      contextWindow: data?.contextWindow,
+    }),
+  'user/message': (store, sessionId, data) =>
+    store.addMessage(sessionId, isInjection(data?.source) ? 'inject' : 'user', estimateMessage(data)),
   'assistant/message': (store, sessionId, data) => handleAssistant(store, sessionId, data),
   'tool/result': (store, sessionId, data) => store.addMessage(sessionId, 'tool', estimateMessage(data?.message)),
   'turn/start': (store, sessionId, data) => store.startTurn(sessionId, data?.turn),
@@ -110,7 +108,10 @@ function withinCooldown(cooldown, sessionId, scope) {
 
 /** 注入判定：source.kind 非 'user' 或带 form 的注入来源。 */
 export function isInjection(source) {
-  return source !== null && typeof source === 'object'
-    && (typeof source.kind === 'string' && source.kind !== '' && source.kind !== 'user'
-      || typeof source.form === 'string')
+  return (
+    source !== null &&
+    typeof source === 'object' &&
+    ((typeof source.kind === 'string' && source.kind !== '' && source.kind !== 'user') ||
+      typeof source.form === 'string')
+  )
 }

@@ -38,9 +38,13 @@ export function apply(ctx) {
   const profile = currentProfile()
   const profileDir = profileDirOf(profile)
   const fence = (request) => isTrustedApiRequest(request, ctx.webRuntime.trustedHosts)
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'prefix',
-    path: '/my-plugin-manager/api',
-    handler: createApiHandler({ ctx, profile, profileDir, fence }),
-  }), 'dsh-my-plugin-manager: /my-plugin-manager/api routes')
+  ctx.effect(
+    () =>
+      ctx.webServer.register({
+        kind: 'prefix',
+        path: '/my-plugin-manager/api',
+        handler: createApiHandler({ ctx, profile, profileDir, fence }),
+      }),
+    'dsh-my-plugin-manager: /my-plugin-manager/api routes',
+  )
 }

@@ -44,12 +44,21 @@ exports.apply = function apply(ctx) {
   // Replace the built-in assistant-step renderer: register with a lower
   // priority than the shipped occupant (0) so this entry wins the keyed
   // dispatch, exactly like dsh-better-sidebar shadows built-in seats.
-  ctx.effect(() => ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
-    name: 'conversation.chat.node',
-    key: 'assistant-step',
-    priority: -1,
-    registrant: 'dsh-think-zh-expand',
-  }, (props) => createElement(AssistantStepView, props))), 'dsh-think-zh-expand: assistant-step renderer')
+  ctx.effect(
+    () =>
+      ctx.slots.inject('conversation.chat.node', () =>
+        ctx.slots.register(
+          {
+            name: 'conversation.chat.node',
+            key: 'assistant-step',
+            priority: -1,
+            registrant: 'dsh-think-zh-expand',
+          },
+          (props) => createElement(AssistantStepView, props),
+        ),
+      ),
+    'dsh-think-zh-expand: assistant-step renderer',
+  )
 
   // UI 标签中文化（词表替换，随 fiber 卸载断开观察器）。
   ctx.effect(() => installUiLocalize(), 'dsh-think-zh-expand: ui localization')

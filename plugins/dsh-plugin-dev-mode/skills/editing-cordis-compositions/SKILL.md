@@ -21,7 +21,7 @@ Two planes, and the choice is not about how "agent-related" something feels — 
 
 **Agent preset.** What one session contributes to those registries: its tool plugins, its persona and prompt sections, its compaction policy. One instance per session, mounted under that session's scope and unwound with it.
 
-**A service with a consumer outside the agent plane cannot move into a preset.** `subagents` is the worked example: the registry answers cross-session queries for the host api-proxy, so a per-session copy both starves that host row — it waits forever for a service nothing provides — and collides on the second session, since a provider name registers once. The preset contributes the delegation *tools*; the registry and its backends stay host-side.
+**A service with a consumer outside the agent plane cannot move into a preset.** `subagents` is the worked example: the registry answers cross-session queries for the host api-proxy, so a per-session copy both starves that host row — it waits forever for a service nothing provides — and collides on the second session, since a provider name registers once. The preset contributes the delegation _tools_; the registry and its backends stay host-side.
 
 A preset is a directory holding one `agent.cordis.yml`, optionally beside a `preset.yml` carrying display metadata — `name` and `description` (and, for shipped presets, a roster `order`). Write the metadata too: a preset without it shows up in every picker as its bare directory name.
 
@@ -43,20 +43,28 @@ return {
   name: 'preset-tools',
   inject: ['agentPresets', 'tools'],
   apply(ctx) {
-    harness.registerTool(ctx, harness.defineTool({
-      name: 'preset_check',
-      description: 'Mount-validate one preset by id.',
-      parameters: { id: { type: 'string', required: true } },
-      output: { schema: { type: 'string' }, render(_a, v) { return [{ type: 'text', text: v }] } },
-      async execute(args) {
-        try {
-          await ctx.agentPresets.standingKeyFor(args.id)
-          return 'mounted OK'
-        } catch (error) {
-          return error.message
-        }
-      },
-    }))
+    harness.registerTool(
+      ctx,
+      harness.defineTool({
+        name: 'preset_check',
+        description: 'Mount-validate one preset by id.',
+        parameters: { id: { type: 'string', required: true } },
+        output: {
+          schema: { type: 'string' },
+          render(_a, v) {
+            return [{ type: 'text', text: v }]
+          },
+        },
+        async execute(args) {
+          try {
+            await ctx.agentPresets.standingKeyFor(args.id)
+            return 'mounted OK'
+          } catch (error) {
+            return error.message
+          }
+        },
+      }),
+    )
   },
 }
 ```
@@ -69,7 +77,7 @@ Unmount the plugin with `cordis_unmount` when you are done; it is a probe, not a
 2. **Expect the file sandbox on every edit after the copy.** The user preset root lies outside the session workspace, so under the default `workspace-write` policy the first write there is denied. Only writes are: reading any composition by absolute path needs no escalation. Retry that exact command once with `sandbox_permissions` escalation and a short justification — the user sees and approves it. Batch your writes (one heredoc per file) rather than escalating many small commands. `copy()` itself runs host-side and needs none of this; the edits do.
 3. **Write the copy's `description`** in `preset.yml`, and its `name` if you passed none to `copy()`.
 4. **Edit `agent.cordis.yml`** row by row, keeping the plane rule and the realm rule.
-5. **Mount-validate the result**, then hand off to the user for a real session — both under *Verifying a change*.
+5. **Mount-validate the result**, then hand off to the user for a real session — both under _Verifying a change_.
 
 A composition written from scratch usually forgets a group realm or a consumer row; a copy starts loadable.
 

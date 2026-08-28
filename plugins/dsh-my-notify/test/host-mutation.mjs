@@ -79,15 +79,19 @@ function boot(config, opts = {}) {
     },
     get(name) {
       if (name === 'sessionTitle') return opts.sessionTitle === false ? undefined : ctx.sessionTitle
-      if (name === 'webRuntime') return opts.trustedHosts === undefined ? undefined : { trustedHosts: opts.trustedHosts }
+      if (name === 'webRuntime')
+        return opts.trustedHosts === undefined ? undefined : { trustedHosts: opts.trustedHosts }
       return undefined
     },
-    sessionTitle: opts.sessionTitle === false ? undefined : {
-      get(session) {
-        if (opts.titleThrows) throw new Error('title lookup exploded')
-        return session?.__title === undefined ? { title: '' } : { title: session.__title }
-      },
-    },
+    sessionTitle:
+      opts.sessionTitle === false
+        ? undefined
+        : {
+            get(session) {
+              if (opts.titleThrows) throw new Error('title lookup exploded')
+              return session?.__title === undefined ? { title: '' } : { title: session.__title }
+            },
+          },
   }
   apply(ctx, config)
   const api = routes.find((r) => r.path === '/notify/api' && r.kind === 'prefix')
@@ -148,11 +152,15 @@ test('dotted host variants are classified by the fence', async () => {
 test('trustedHosts entry with an explicit port is honored', async () => {
   const { api } = boot({}, { trustedHosts: ['notify.example.com:9443'] })
   const res = mockResponse()
-  await invoke(api, mockRequest({
-    url: '/notify/api/info',
-    host: 'notify.example.com:9443',
-    origin: 'http://notify.example.com:9443',
-  }), res)
+  await invoke(
+    api,
+    mockRequest({
+      url: '/notify/api/info',
+      host: 'notify.example.com:9443',
+      origin: 'http://notify.example.com:9443',
+    }),
+    res,
+  )
   assert.equal(res.writeHeadStatus, 200, 'trusted host with port accepted')
 })
 
@@ -190,9 +198,12 @@ test('ask with an empty questions array produces an empty note', async () => {
   const { listeners, api } = boot({})
   const res = mockResponse()
   await invoke(api, mockRequest({ url: '/notify/api/stream' }), res)
-  await dispatchEvent(listeners, 'tools/pre-execute',
+  await dispatchEvent(
+    listeners,
+    'tools/pre-execute',
     { name: 'ask_user_question', agent: topAgent('ask-empty'), arguments: { questions: [] } },
-    async () => {})
+    async () => {},
+  )
   const frame = res.written.join('')
   const notice = JSON.parse(frame.slice(frame.indexOf('data: ') + 6))
   assert.equal(notice.kind, 'ask')
@@ -203,9 +214,12 @@ test('ask with a null first question produces an empty note', async () => {
   const { listeners, api } = boot({})
   const res = mockResponse()
   await invoke(api, mockRequest({ url: '/notify/api/stream' }), res)
-  await dispatchEvent(listeners, 'tools/pre-execute',
+  await dispatchEvent(
+    listeners,
+    'tools/pre-execute',
     { name: 'ask_user_question', agent: topAgent('ask-null'), arguments: { questions: [null] } },
-    async () => {})
+    async () => {},
+  )
   const frame = res.written.join('')
   const notice = JSON.parse(frame.slice(frame.indexOf('data: ') + 6))
   assert.equal(notice.note, '', 'null first question → empty note')
@@ -215,9 +229,16 @@ test('ask with a non-string question produces an empty note', async () => {
   const { listeners, api } = boot({})
   const res = mockResponse()
   await invoke(api, mockRequest({ url: '/notify/api/stream' }), res)
-  await dispatchEvent(listeners, 'tools/pre-execute',
-    { name: 'ask_user_question', agent: topAgent('ask-nonstring'), arguments: { questions: [{ question: 42 }] } },
-    async () => {})
+  await dispatchEvent(
+    listeners,
+    'tools/pre-execute',
+    {
+      name: 'ask_user_question',
+      agent: topAgent('ask-nonstring'),
+      arguments: { questions: [{ question: 42 }] },
+    },
+    async () => {},
+  )
   const frame = res.written.join('')
   const notice = JSON.parse(frame.slice(frame.indexOf('data: ') + 6))
   assert.equal(notice.note, '', 'non-string question → empty note')
@@ -227,9 +248,16 @@ test('ask with only a question (no header) falls back to the first line', async 
   const { listeners, api } = boot({})
   const res = mockResponse()
   await invoke(api, mockRequest({ url: '/notify/api/stream' }), res)
-  await dispatchEvent(listeners, 'tools/pre-execute',
-    { name: 'ask_user_question', agent: topAgent('ask-q'), arguments: { questions: [{ question: '部署到生产？\n确认？' }] } },
-    async () => {})
+  await dispatchEvent(
+    listeners,
+    'tools/pre-execute',
+    {
+      name: 'ask_user_question',
+      agent: topAgent('ask-q'),
+      arguments: { questions: [{ question: '部署到生产？\n确认？' }] },
+    },
+    async () => {},
+  )
   const frame = res.written.join('')
   const notice = JSON.parse(frame.slice(frame.indexOf('data: ') + 6))
   assert.equal(notice.note, '部署到生产？', 'first line of question used')
@@ -242,7 +270,9 @@ test('null exec passes through without notifying', async () => {
   const res = mockResponse()
   await invoke(api, mockRequest({ url: '/notify/api/stream' }), res)
   let nextCalled = false
-  await dispatchEvent(listeners, 'tools/pre-execute', null, async () => { nextCalled = true })
+  await dispatchEvent(listeners, 'tools/pre-execute', null, async () => {
+    nextCalled = true
+  })
   assert.equal(nextCalled, true, 'next still called for null exec')
   assert.equal(noticesOf(res).length, 0, 'null exec not notified')
 })
@@ -252,7 +282,9 @@ test('null req passes through without notifying', async () => {
   const res = mockResponse()
   await invoke(api, mockRequest({ url: '/notify/api/stream' }), res)
   let nextCalled = false
-  await dispatchEvent(listeners, 'approval/request', null, async () => { nextCalled = true })
+  await dispatchEvent(listeners, 'approval/request', null, async () => {
+    nextCalled = true
+  })
   assert.equal(nextCalled, true, 'next still called for null req')
   assert.equal(noticesOf(res).length, 0, 'null req not notified')
 })
@@ -280,9 +312,19 @@ test('apply with an undefined config keeps every default', async () => {
   const infoRes = mockResponse()
   await invoke(api, mockRequest({ url: '/notify/api/info' }), infoRes)
   const info = JSON.parse(infoRes.written.join(''))
-  assert.deepEqual(info.value, {
-    end: true, ask: true, approval: true, subagentEnd: false, remoteEnabled: true, apiToken: false, dedupeMs: 3000,
-  }, 'defaults mirrored in info')
+  assert.deepEqual(
+    info.value,
+    {
+      end: true,
+      ask: true,
+      approval: true,
+      subagentEnd: false,
+      remoteEnabled: true,
+      apiToken: false,
+      dedupeMs: 3000,
+    },
+    'defaults mirrored in info',
+  )
 })
 
 // ── titleOf：非空 snapshot title 优先于 cwd（杀 L128）────────────────────
@@ -355,7 +397,11 @@ test('subagentEnd true notifies subagent end with a marked title', async () => {
   const res = mockResponse()
   await invoke(api, mockRequest({ url: '/notify/api/stream' }), res)
   await dispatchEvent(listeners, 'agent/status', {
-    agent: { id: 'sub-x', options: { subagentDepth: 1 }, session: { header: { cwd: '/work/sub' }, __title: '子任务' } },
+    agent: {
+      id: 'sub-x',
+      options: { subagentDepth: 1 },
+      session: { header: { cwd: '/work/sub' }, __title: '子任务' },
+    },
     status: 'idle',
   })
   const frame = res.written.join('')
@@ -371,12 +417,21 @@ test('subagentEnd only affects end notices; ask/approval stay top-level only', a
   const res = mockResponse()
   await invoke(api, mockRequest({ url: '/notify/api/stream' }), res)
   const before = res.written.length
-  await dispatchEvent(listeners, 'tools/pre-execute',
-    { name: 'ask_user_question', agent: { id: 'sub-ask', options: { subagentDepth: 1 }, session: { header: { cwd: '/x' } } } },
-    async () => {})
-  await dispatchEvent(listeners, 'approval/request',
+  await dispatchEvent(
+    listeners,
+    'tools/pre-execute',
+    {
+      name: 'ask_user_question',
+      agent: { id: 'sub-ask', options: { subagentDepth: 1 }, session: { header: { cwd: '/x' } } },
+    },
+    async () => {},
+  )
+  await dispatchEvent(
+    listeners,
+    'approval/request',
     { agent: { id: 'sub-ap', options: { subagentDepth: 1 }, session: { header: { cwd: '/x' } } } },
-    async () => {})
+    async () => {},
+  )
   assert.equal(res.written.length, before, 'subagent ask/approval never notify')
 })
 
@@ -384,12 +439,17 @@ test('ask and approval notices carry agentType top', async () => {
   const { listeners, api } = boot({})
   const res = mockResponse()
   await invoke(api, mockRequest({ url: '/notify/api/stream' }), res)
-  await dispatchEvent(listeners, 'tools/pre-execute',
-    { name: 'ask_user_question', agent: topAgent('ask-top'), arguments: { questions: [{ header: '确认' }] } },
-    async () => {})
-  await dispatchEvent(listeners, 'approval/request',
-    { agent: topAgent('ap-top'), toolName: 'bash' },
-    async () => {})
+  await dispatchEvent(
+    listeners,
+    'tools/pre-execute',
+    {
+      name: 'ask_user_question',
+      agent: topAgent('ask-top'),
+      arguments: { questions: [{ header: '确认' }] },
+    },
+    async () => {},
+  )
+  await dispatchEvent(listeners, 'approval/request', { agent: topAgent('ap-top'), toolName: 'bash' }, async () => {})
   const frames = res.written.filter((c) => c.includes('data: '))
   const notices = frames.map((f) => JSON.parse(f.slice(f.indexOf('data: ') + 6)))
   assert.equal(notices.length, 2, 'both notices emitted')

@@ -56,7 +56,19 @@ test('checkBudget: boundary equal to limit is ok', () => {
 test('normalizeBudgetConfig: defaults and invalid fallback', () => {
   assert.deepEqual(normalizeBudgetConfig(undefined), { perTurn: 0, perSession: 0, mode: 'warn' })
   assert.deepEqual(normalizeBudgetConfig({}), { perTurn: 0, perSession: 0, mode: 'warn' })
-  assert.deepEqual(normalizeBudgetConfig({ perTurn: 100, perSession: 200, mode: 'deny' }), { perTurn: 100, perSession: 200, mode: 'deny' })
-  assert.deepEqual(normalizeBudgetConfig({ perTurn: -5, perSession: 1.9, mode: 'bogus' }), { perTurn: 0, perSession: 1, mode: 'warn' })
-  assert.deepEqual(normalizeBudgetConfig({ perTurn: 'x', perSession: NaN }), { perTurn: 0, perSession: 0, mode: 'warn' })
+  assert.deepEqual(normalizeBudgetConfig({ perTurn: 100, perSession: 200, mode: 'deny' }), {
+    perTurn: 100,
+    perSession: 200,
+    mode: 'deny',
+  })
+  assert.deepEqual(normalizeBudgetConfig({ perTurn: -5, perSession: 1.9, mode: 'bogus' }), {
+    perTurn: 0,
+    perSession: 1,
+    mode: 'warn',
+  })
+  assert.deepEqual(normalizeBudgetConfig({ perTurn: 'x', perSession: NaN }), {
+    perTurn: 0,
+    perSession: 0,
+    mode: 'warn',
+  })
 })

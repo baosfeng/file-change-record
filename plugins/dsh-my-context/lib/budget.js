@@ -12,8 +12,7 @@
 /** 计算一次 usage 桶的完整 token 总量（disjoint 还原）。 */
 export function usageTotal(usage) {
   if (usage === null || typeof usage !== 'object') return 0
-  return num(usage.inputTokens) + num(usage.outputTokens)
-    + num(usage.cacheReadTokens) + num(usage.cacheWriteTokens)
+  return num(usage.inputTokens) + num(usage.outputTokens) + num(usage.cacheReadTokens) + num(usage.cacheWriteTokens)
 }
 
 /**

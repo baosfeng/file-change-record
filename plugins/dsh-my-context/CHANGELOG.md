@@ -14,6 +14,7 @@
 - **测试**：`test/host-meter.mjs`（token 估算纯函数）、`test/host-budget.mjs`（预算检查/配置校验）、`test/host-store.mjs`（会话隔离/重启恢复/上限/持久化）、`test/host-events.mjs`（事件统计/预算拦截/告警冷却）、`test/host-mutation.mjs`（fence 变体/路由/边界）、Gherkin 验收（context.feature 8 场景）；覆盖率 行 98% / 分支 85%；变异测试 ≥70%。
 
 **真实环境验证**（独立端口 3081 隔离实例）：
+
 - 侧边栏「上下文透镜」页签出现，概览/构成/请求/预算展示正常；
 - 与 dsh-task-reliability 等现有插件共存无冲突；
 - 重启验证实例后统计恢复。

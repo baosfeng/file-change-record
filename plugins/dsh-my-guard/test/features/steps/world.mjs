@@ -11,9 +11,7 @@ import { setWorldConstructor, After } from '@cucumber/cucumber'
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import {
-  bootPlugin, mockRequest, mockResponse, dispatchEvent, settle,
-} from '../../lib/helpers.mjs'
+import { bootPlugin, mockRequest, mockResponse, dispatchEvent, settle } from '../../lib/helpers.mjs'
 
 class World {
   constructor() {

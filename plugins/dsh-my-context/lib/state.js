@@ -12,7 +12,13 @@ export function createState() {
 
 /** 空 usage 桶（disjoint 计数：inputTokens 不含 cacheRead）。 */
 export function zeroUsage() {
-  return { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0 }
+  return {
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    reasoningTokens: 0,
+  }
 }
 
 /** 空构成（估算 token 分类）。 */

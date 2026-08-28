@@ -19,16 +19,21 @@ import { runAiReview } from './ai.js'
 /** 注册 /observability/api 路由（effect 持有 disposer）。 */
 export function registerObservabilityRoutes(ctx, store, options) {
   const webRuntime = ctx.get ? ctx.get('webRuntime') : undefined
-  const trustedHosts = webRuntime !== undefined && webRuntime !== null && Array.isArray(webRuntime.trustedHosts)
-    ? webRuntime.trustedHosts
-    : []
+  const trustedHosts =
+    webRuntime !== undefined && webRuntime !== null && Array.isArray(webRuntime.trustedHosts)
+      ? webRuntime.trustedHosts
+      : []
   const fence = (request) => isTrustedApiRequest(request, trustedHosts)
 
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'prefix',
-    path: '/observability/api',
-    handler: apiHandler(ctx, fence, store, options),
-  }), 'dsh-my-observability: /observability/api routes')
+  ctx.effect(
+    () =>
+      ctx.webServer.register({
+        kind: 'prefix',
+        path: '/observability/api',
+        handler: apiHandler(ctx, fence, store, options),
+      }),
+    'dsh-my-observability: /observability/api routes',
+  )
 }
 
 /** 统一 handler：fence → 方法分派 → 404/错误兜底。 */
@@ -44,7 +49,10 @@ function apiHandler(ctx, fence, store, options) {
     try {
       const handled = await dispatchMethod(method, request, response, url, ctx, store, options)
       if (!handled) {
-        writeJson(response, 404, { ok: false, error: { message: 'unknown dsh-my-observability API method' } })
+        writeJson(response, 404, {
+          ok: false,
+          error: { message: 'unknown dsh-my-observability API method' },
+        })
       }
     } catch (error) {
       writeError(response, error)
@@ -64,7 +72,10 @@ async function dispatchMethod(method, request, response, url, ctx, store, option
     return true
   }
   if (isMethod(method, request, 'events', 'GET')) {
-    writeJson(response, 200, { ok: true, value: store.events(queryOf(url, 'sessionId'), queryOf(url, 'type'), limitOf(url)) })
+    writeJson(response, 200, {
+      ok: true,
+      value: store.events(queryOf(url, 'sessionId'), queryOf(url, 'type'), limitOf(url)),
+    })
     return true
   }
   if (isMethod(method, request, 'status', 'GET')) {

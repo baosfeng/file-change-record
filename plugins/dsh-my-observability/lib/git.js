@@ -58,18 +58,23 @@ export async function isGitRepo(repoPath) {
 /** 执行 git 命令（不经 shell；超时 + 输出上限；失败返回 { ok:false, error }）。 */
 function runGit(repoPath, args) {
   return new Promise((resolve) => {
-    execFile('git', args, {
-      cwd: repoPath,
-      timeout: GIT_TIMEOUT_MS,
-      maxBuffer: 16 * 1024 * 1024,
-    }, (error, stdout, stderr) => {
-      if (error !== null) {
-        const message = typeof stderr === 'string' && stderr.trim() !== '' ? stderr.trim() : error.message
-        resolve({ ok: false, error: { message } })
-        return
-      }
-      resolve({ ok: true, stdout, stderr })
-    })
+    execFile(
+      'git',
+      args,
+      {
+        cwd: repoPath,
+        timeout: GIT_TIMEOUT_MS,
+        maxBuffer: 16 * 1024 * 1024,
+      },
+      (error, stdout, stderr) => {
+        if (error !== null) {
+          const message = typeof stderr === 'string' && stderr.trim() !== '' ? stderr.trim() : error.message
+          resolve({ ok: false, error: { message } })
+          return
+        }
+        resolve({ ok: true, stdout, stderr })
+      },
+    )
   })
 }
 

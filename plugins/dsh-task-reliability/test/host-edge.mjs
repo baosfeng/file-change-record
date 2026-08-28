@@ -122,13 +122,31 @@ function boot(config = {}, services = {}, dirOverride) {
     get(name) {
       if (name === 'agents') return agents
       if (name === 'sessionQuery') return sessionQuery
-      if (name === 'goals') return services.goals ?? { get() { return undefined } }
-      if (name === 'approval') return { setPolicy(agent, policy) { policies.push({ agentId: agent.id, policy }) } }
+      if (name === 'goals')
+        return (
+          services.goals ?? {
+            get() {
+              return undefined
+            },
+          }
+        )
+      if (name === 'approval')
+        return {
+          setPolicy(agent, policy) {
+            policies.push({ agentId: agent.id, policy })
+          },
+        }
       if (name === 'webRuntime') return { trustedHosts: [] }
       return undefined
     },
   }
-  const shared = apply(ctx, { saveDebounceMs: 0, resumeGraceMs: 60000, steerCooldownMs: 0, retryBaseMs: 0, ...config })
+  const shared = apply(ctx, {
+    saveDebounceMs: 0,
+    resumeGraceMs: 60000,
+    steerCooldownMs: 0,
+    retryBaseMs: 0,
+    ...config,
+  })
   const api = routes.find((r) => r.path === '/task-reliability/api' && r.kind === 'prefix')
   assert.ok(api, 'prefix route /task-reliability/api registered')
   const disposeAll = () => {
@@ -136,7 +154,19 @@ function boot(config = {}, services = {}, dirOverride) {
     process.env.DSH_HOME = oldHome
   }
   disposeAlls.push(disposeAll)
-  return { ctx, listeners, api, mainAgent, verifyAgent, agents, policies, calls, dir, disposeAll, store: shared.store }
+  return {
+    ctx,
+    listeners,
+    api,
+    mainAgent,
+    verifyAgent,
+    agents,
+    policies,
+    calls,
+    dir,
+    disposeAll,
+    store: shared.store,
+  }
 }
 
 const tick = (ms = 10) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -154,28 +184,39 @@ function dispatchOne(listeners, name, ...args) {
 }
 
 async function registerTask(env, overrides = {}) {
-  return callApi(env.api, mockRequest({
-    url: '/task-reliability/api/tasks',
-    method: 'POST',
-    body: JSON.stringify({ sessionId: 'session-edge', description: '边界任务', ...overrides }),
-  }))
+  return callApi(
+    env.api,
+    mockRequest({
+      url: '/task-reliability/api/tasks',
+      method: 'POST',
+      body: JSON.stringify({ sessionId: 'session-edge', description: '边界任务', ...overrides }),
+    }),
+  )
 }
 
 // ── trigger answer 动作 ────────────────────────────────────────────────────
 test('trigger answer 成功回答待确认问题', async () => {
   const env = boot({ autopilot: true })
-  await dispatchOne(env.listeners, 'tools/pre-execute', {
-    name: 'ask_user_question',
-    agent: env.mainAgent,
-    arguments: { questions: [{ header: '确认项' }] },
-  }, () => Promise.resolve({ kind: 'allow' }))
+  await dispatchOne(
+    env.listeners,
+    'tools/pre-execute',
+    {
+      name: 'ask_user_question',
+      agent: env.mainAgent,
+      arguments: { questions: [{ header: '确认项' }] },
+    },
+    () => Promise.resolve({ kind: 'allow' }),
+  )
   const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
   const id = body.value[0].id
-  const answered = await callApi(env.api, mockRequest({
-    url: '/task-reliability/api/trigger',
-    method: 'POST',
-    body: JSON.stringify({ action: 'answer', id, answer: '远程回答' }),
-  }))
+  const answered = await callApi(
+    env.api,
+    mockRequest({
+      url: '/task-reliability/api/trigger',
+      method: 'POST',
+      body: JSON.stringify({ action: 'answer', id, answer: '远程回答' }),
+    }),
+  )
   assert.equal(answered.body.ok, true)
   const after = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
   assert.equal(after.body.value[0].answer, '远程回答')
@@ -183,11 +224,14 @@ test('trigger answer 成功回答待确认问题', async () => {
 
 test('trigger answer 未知问题 id 返回 400', async () => {
   const env = boot()
-  const { response } = await callApi(env.api, mockRequest({
-    url: '/task-reliability/api/trigger',
-    method: 'POST',
-    body: JSON.stringify({ action: 'answer', id: 'nope', answer: 'x' }),
-  }))
+  const { response } = await callApi(
+    env.api,
+    mockRequest({
+      url: '/task-reliability/api/trigger',
+      method: 'POST',
+      body: JSON.stringify({ action: 'answer', id: 'nope', answer: 'x' }),
+    }),
+  )
   assert.equal(response.writeHeadStatus, 400)
 })
 
@@ -200,11 +244,14 @@ test('未知 API 方法返回 404', async () => {
 
 test('非法 JSON body 返回 400', async () => {
   const env = boot()
-  const { response } = await callApi(env.api, mockRequest({
-    url: '/task-reliability/api/tasks',
-    method: 'POST',
-    body: '{broken',
-  }))
+  const { response } = await callApi(
+    env.api,
+    mockRequest({
+      url: '/task-reliability/api/tasks',
+      method: 'POST',
+      body: '{broken',
+    }),
+  )
   assert.equal(response.writeHeadStatus, 400)
 })
 
@@ -212,11 +259,16 @@ test('非法 JSON body 返回 400', async () => {
 test('ask 只有 question 且首行超长时截断记录', async () => {
   const env = boot({ autopilot: true })
   const longQuestion = '请确认这个非常长的决策问题究竟应该选择哪一个具体的方案来处理才更合适。'.repeat(6)
-  await dispatchOne(env.listeners, 'tools/pre-execute', {
-    name: 'ask_user_question',
-    agent: env.mainAgent,
-    arguments: { questions: [{ question: longQuestion }] },
-  }, () => Promise.resolve({ kind: 'allow' }))
+  await dispatchOne(
+    env.listeners,
+    'tools/pre-execute',
+    {
+      name: 'ask_user_question',
+      agent: env.mainAgent,
+      arguments: { questions: [{ question: longQuestion }] },
+    },
+    () => Promise.resolve({ kind: 'allow' }),
+  )
   const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
   assert.equal(body.value.length, 1)
   assert.ok(body.value[0].question.length <= 81, '问题摘要被截断到 80 字符')
@@ -224,11 +276,16 @@ test('ask 只有 question 且首行超长时截断记录', async () => {
 
 test('ask 参数为空时不记录问题', async () => {
   const env = boot({ autopilot: true })
-  await dispatchEvent(env.listeners, 'tools/pre-execute', {
-    name: 'ask_user_question',
-    agent: env.mainAgent,
-    arguments: { questions: [] },
-  }, () => Promise.resolve({ kind: 'allow' }))
+  await dispatchEvent(
+    env.listeners,
+    'tools/pre-execute',
+    {
+      name: 'ask_user_question',
+      agent: env.mainAgent,
+      arguments: { questions: [] },
+    },
+    () => Promise.resolve({ kind: 'allow' }),
+  )
   const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
   assert.equal(body.value.length, 0)
 })
@@ -242,27 +299,44 @@ async function dispatchEvent(listeners, name, ...args) {
 // ── 会话级 autopilot 显式关闭 ─────────────────────────────────────────────
 test('会话级 autopilot 显式 false 时 ask 透传', async () => {
   const env = boot({ autopilot: true }, { liveAgentId: 'session-edge' })
-  await callApi(env.api, mockRequest({
-    url: '/task-reliability/api/trigger',
-    method: 'POST',
-    body: JSON.stringify({ action: 'mode', autopilot: false, sessionId: 'session-edge' }),
-  }))
+  await callApi(
+    env.api,
+    mockRequest({
+      url: '/task-reliability/api/trigger',
+      method: 'POST',
+      body: JSON.stringify({ action: 'mode', autopilot: false, sessionId: 'session-edge' }),
+    }),
+  )
   let nextCalled = false
-  const decision = await dispatchEvent(env.listeners, 'tools/pre-execute', {
-    name: 'ask_user_question',
-    agent: env.mainAgent,
-    arguments: { questions: [{ header: 'h' }] },
-  }, () => { nextCalled = true; return Promise.resolve({ kind: 'allow' }) })
+  const decision = await dispatchEvent(
+    env.listeners,
+    'tools/pre-execute',
+    {
+      name: 'ask_user_question',
+      agent: env.mainAgent,
+      arguments: { questions: [{ header: 'h' }] },
+    },
+    () => {
+      nextCalled = true
+      return Promise.resolve({ kind: 'allow' })
+    },
+  )
   assert.equal(nextCalled, true)
   assert.equal(decision.kind, 'allow')
-  assert.ok(env.policies.some((p) => p.agentId === 'session-edge' && p.policy === 'ask'), '审批策略恢复 ask')
+  assert.ok(
+    env.policies.some((p) => p.agentId === 'session-edge' && p.policy === 'ask'),
+    '审批策略恢复 ask',
+  )
 })
 
 // ── 校验流程边界 ──────────────────────────────────────────────────────────
 test('sessionQuery 读取失败时校验仍可降级继续', async () => {
   const env = boot({}, { readThrows: true })
   env.verifyAgent.session.events = [
-    { type: 'assistant/message', data: { message: { content: [{ type: 'text', text: '{"done": false, "reason": "未完"}' }] } } },
+    {
+      type: 'assistant/message',
+      data: { message: { content: [{ type: 'text', text: '{"done": false, "reason": "未完"}' }] } },
+    },
   ]
   await registerTask(env, { mode: 'verify' })
   await dispatchEvent(env.listeners, 'agent/status', { agent: env.mainAgent, status: 'idle' })
@@ -273,7 +347,10 @@ test('sessionQuery 读取失败时校验仍可降级继续', async () => {
 test('校验结论无法解析时按未完成处理并降级文本', async () => {
   const env = boot()
   env.verifyAgent.session.events = [
-    { type: 'assistant/message', data: { message: { content: [{ type: 'text', text: '抱歉我无法判断' }] } } },
+    {
+      type: 'assistant/message',
+      data: { message: { content: [{ type: 'text', text: '抱歉我无法判断' }] } },
+    },
   ]
   await registerTask(env, { mode: 'verify' })
   await dispatchEvent(env.listeners, 'agent/status', { agent: env.mainAgent, status: 'idle' })
@@ -300,11 +377,19 @@ test('ask 超时对子代理透传不处理', async () => {
   const env = boot({ askTimeoutMs: 20 })
   const sub = makeAgent('sub-edge', { origin: 'subagent' })
   let nextCalled = false
-  const result = await dispatchEvent(env.listeners, 'tools/execute', {
-    name: 'ask_user_question',
-    agent: sub,
-    arguments: { questions: [{ id: 'q1', question: 'x' }] },
-  }, () => { nextCalled = true; return Promise.resolve({ value: { answers: [] } }) })
+  const result = await dispatchEvent(
+    env.listeners,
+    'tools/execute',
+    {
+      name: 'ask_user_question',
+      agent: sub,
+      arguments: { questions: [{ id: 'q1', question: 'x' }] },
+    },
+    () => {
+      nextCalled = true
+      return Promise.resolve({ value: { answers: [] } })
+    },
+  )
   assert.equal(nextCalled, true, '子代理直接透传')
   assert.deepEqual(result.value.answers, [])
   assert.equal(sub.followed.length, 0)
@@ -323,11 +408,16 @@ test('ask 超时对空 exec 透传', async () => {
 
 test('ask 超时 arguments 无 questions 时返回空回答', async () => {
   const env = boot({ askTimeoutMs: 20 })
-  const result = await dispatchEvent(env.listeners, 'tools/execute', {
-    name: 'ask_user_question',
-    agent: env.mainAgent,
-    arguments: { questions: 'not-an-array' },
-  }, () => new Promise(() => {}))
+  const result = await dispatchEvent(
+    env.listeners,
+    'tools/execute',
+    {
+      name: 'ask_user_question',
+      agent: env.mainAgent,
+      arguments: { questions: 'not-an-array' },
+    },
+    () => new Promise(() => {}),
+  )
   assert.deepEqual(result.value.answers, [], '无有效 questions 返回空回答')
   assert.equal(env.mainAgent.followed.length, 1, '仍注入继续指令')
 })

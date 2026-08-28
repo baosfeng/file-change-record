@@ -20,8 +20,16 @@ function makeElement(tag, attrs = {}) {
     style: {},
     dataset: {},
     parentNode: null,
-    appendChild(child) { this.children.push(child); child.parentNode = this; return child },
-    removeChild(child) { const i = this.children.indexOf(child); if (i >= 0) this.children.splice(i, 1); child.parentNode = null },
+    appendChild(child) {
+      this.children.push(child)
+      child.parentNode = this
+      return child
+    },
+    removeChild(child) {
+      const i = this.children.indexOf(child)
+      if (i >= 0) this.children.splice(i, 1)
+      child.parentNode = null
+    },
     replaceWith(...nodes) {
       const parent = this.parentNode
       if (!parent) return
@@ -34,10 +42,16 @@ function makeElement(tag, attrs = {}) {
       }
       parent.children.splice(i, 1, ...flat)
       this.parentNode = null
-      flat.forEach((n) => { n.parentNode = parent })
+      flat.forEach((n) => {
+        n.parentNode = parent
+      })
     },
-    setAttribute(k, v) { this[k] = v },
-    getAttribute(k) { return this[k] },
+    setAttribute(k, v) {
+      this[k] = v
+    },
+    getAttribute(k) {
+      return this[k]
+    },
     querySelector(sel) {
       const walk = (els) => {
         for (const e of els) {
@@ -65,7 +79,10 @@ function makeElement(tag, attrs = {}) {
       if (sel === 'div.tzx-md') return this.tagName === 'DIV' && this.className === 'tzx-md'
       if (sel === 'div.md-table-wide') return this.tagName === 'DIV' && this.className === 'md-table-wide'
       if (sel === 'div.tzx-md, div.md-table-wide') {
-        return (this.tagName === 'DIV' && this.className === 'tzx-md') || (this.tagName === 'DIV' && this.className === 'md-table-wide')
+        return (
+          (this.tagName === 'DIV' && this.className === 'tzx-md') ||
+          (this.tagName === 'DIV' && this.className === 'md-table-wide')
+        )
       }
       if (sel === '[data-conversation-scroll]') return this.dataset.conversationScroll === '1'
       if (sel === '[data-streaming]') return this.dataset.streaming === '1'
@@ -90,7 +107,10 @@ function makeElement(tag, attrs = {}) {
       if (this.children.length === 0) return this._text
       return this.children.map((c) => c.textContent).join('')
     },
-    set(v) { this._text = v; this.children = [] },
+    set(v) {
+      this._text = v
+      this.children = []
+    },
   })
   return el
 }
@@ -110,7 +130,10 @@ class World {
   /** 加载 bundle 并导出 MarkdownView（统一渲染器，不 apply）。 */
   loadMarkdownView() {
     const stubbed = {
-      createElement: (type, props, ...children) => ({ type, props: { ...(props || {}), children: children.flat() } }),
+      createElement: (type, props, ...children) => ({
+        type,
+        props: { ...(props || {}), children: children.flat() },
+      }),
       useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
       useEffect: () => {},
       useMemo: (fn) => fn(),
@@ -119,11 +142,19 @@ class World {
     let registered = null
     global.window = {
       location: { href: 'http://127.0.0.1:3080/app', search: '' },
-      __ModuleLoader__: { load: (reg) => { registered = reg } },
+      __ModuleLoader__: {
+        load: (reg) => {
+          registered = reg
+        },
+      },
     }
     global.document = undefined
     global.Element = function Element() {}
-    global.MutationObserver = class { constructor() {} observe() {} disconnect() {} }
+    global.MutationObserver = class {
+      constructor() {}
+      observe() {}
+      disconnect() {}
+    }
 
     eval(fs.readFileSync(new URL('../../../lib/client.js', import.meta.url), 'utf8'))
     assert.ok(registered, 'bundle registered')
@@ -146,8 +177,14 @@ class World {
     let mathErrorBlocks = 0
     function walk(node) {
       if (node === null || node === undefined || typeof node === 'boolean') return
-      if (typeof node === 'string' || typeof node === 'number') { texts.push(String(node)); return }
-      if (Array.isArray(node)) { for (const c of node) walk(c); return }
+      if (typeof node === 'string' || typeof node === 'number') {
+        texts.push(String(node))
+        return
+      }
+      if (Array.isArray(node)) {
+        for (const c of node) walk(c)
+        return
+      }
       const props = node.props ?? {}
       if (typeof node.type === 'string') {
         tags.push(node.type)
@@ -163,7 +200,15 @@ class World {
       walk(props.children)
     }
     walk(this.markdownView({ text }))
-    this.lastMarkdown = { tags, texts, codeLangs, mdCodeBlockWrappers, mathSpans, mathErrorSpans, mathErrorBlocks }
+    this.lastMarkdown = {
+      tags,
+      texts,
+      codeLangs,
+      mdCodeBlockWrappers,
+      mathSpans,
+      mathErrorSpans,
+      mathErrorBlocks,
+    }
   }
 
   buildDom() {
@@ -208,7 +253,10 @@ class World {
 
   loadAndApply(bodyEl) {
     const stubbed = {
-      createElement: (type, props, ...children) => ({ type, props: { ...(props || {}), children: children.flat() } }),
+      createElement: (type, props, ...children) => ({
+        type,
+        props: { ...(props || {}), children: children.flat() },
+      }),
       useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
       useEffect: () => {},
       useMemo: (fn) => fn(),
@@ -218,20 +266,37 @@ class World {
     let registered = null
     global.window = {
       location: { href: 'http://127.0.0.1:3080/app', search: '' },
-      __ModuleLoader__: { load: (reg) => { registered = reg } },
+      __ModuleLoader__: {
+        load: (reg) => {
+          registered = reg
+        },
+      },
     }
     global.document = {
       body: bodyEl,
       head: {
-        appendChild(el) { world.styleTags.push(el); return el },
+        appendChild(el) {
+          world.styleTags.push(el)
+          return el
+        },
         removeChild() {},
       },
-      createElement(tag) { return makeElement(tag) },
-      createTextNode(text) { return { nodeType: 3, textContent: text } },
-      createDocumentFragment() { return makeElement('fragment') },
+      createElement(tag) {
+        return makeElement(tag)
+      },
+      createTextNode(text) {
+        return { nodeType: 3, textContent: text }
+      },
+      createDocumentFragment() {
+        return makeElement('fragment')
+      },
     }
     global.Element = function Element() {}
-    global.MutationObserver = class { constructor() {} observe() {} disconnect() {} }
+    global.MutationObserver = class {
+      constructor() {}
+      observe() {}
+      disconnect() {}
+    }
 
     eval(fs.readFileSync(new URL('../../../lib/client.js', import.meta.url), 'utf8'))
     assert.ok(registered, 'bundle registered')
@@ -324,7 +389,11 @@ Then('表格外层有横向滚动容器', async function () {
 })
 
 Then('已渲染的表格保持原样', async function () {
-  assert.equal(this.renderedTable.parentNode, this.scrollEl.querySelectorAll('div.tzx-md')[1], 'rendered table untouched')
+  assert.equal(
+    this.renderedTable.parentNode,
+    this.scrollEl.querySelectorAll('div.tzx-md')[1],
+    'rendered table untouched',
+  )
 })
 
 Then('普通文本段落保持原样', async function () {
@@ -338,7 +407,11 @@ Then('页面注入包含表格规则的样式', async function () {
 })
 
 Then('思考块内的表格保持原样', async function () {
-  assert.equal(this.thinkTable.parentNode, this.scrollEl.querySelectorAll('div.tzx-md')[3], 'reasoning-block table untouched')
+  assert.equal(
+    this.thinkTable.parentNode,
+    this.scrollEl.querySelectorAll('div.tzx-md')[3],
+    'reasoning-block table untouched',
+  )
 })
 
 Then('输出包含 table 标签', async function () {
@@ -373,5 +446,8 @@ Then('输出包含公式错误标记', async function () {
 })
 
 Then('原始公式文本保留', async function () {
-  assert.ok(this.lastMarkdown.texts.some((t) => t.includes('$x^2 测试')), 'original formula text kept')
+  assert.ok(
+    this.lastMarkdown.texts.some((t) => t.includes('$x^2 测试')),
+    'original formula text kept',
+  )
 })

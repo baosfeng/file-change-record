@@ -23,7 +23,17 @@ const manageMock = vi.hoisted(() => ({
 vi.mock('../lib/manage.js', () => manageMock)
 
 const registryMock = vi.hoisted(() => ({
-  searchNpmPlugins: vi.fn(async () => [{ name: 'dsh-x', version: '1.0.0', description: 'desc', author: 'a', date: '', homepage: '', repository: '' }]),
+  searchNpmPlugins: vi.fn(async () => [
+    {
+      name: 'dsh-x',
+      version: '1.0.0',
+      description: 'desc',
+      author: 'a',
+      date: '',
+      homepage: '',
+      repository: '',
+    },
+  ]),
 }))
 vi.mock('../lib/registry.js', () => registryMock)
 
@@ -52,7 +62,11 @@ function makeRequest(method, url, body, overrides) {
   const req = {
     method,
     url,
-    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://127.0.0.1:3080' },
+    headers: {
+      host: '127.0.0.1:3080',
+      'sec-fetch-site': 'same-origin',
+      origin: 'http://127.0.0.1:3080',
+    },
     ...(overrides ?? {}),
     [Symbol.asyncIterator]() {
       const chunks = body === undefined ? [] : [JSON.stringify(body)]
@@ -82,15 +96,22 @@ async function boot(overrides) {
     logger: { warn: () => {} },
     webRuntime: { trustedHosts: [] },
     pluginInventory: {
-      list: () => ({ entries: [
-        { moduleName: 'dsh-a', enabled: true, fiberPhase: 'ready' },
-        { moduleName: '@scope/dsh-b', enabled: false, fiberPhase: null },
-        { moduleName: '@deepseek-ai/dsh-base', enabled: true, fiberPhase: 'active' },
-        { moduleName: 'cordis:include', enabled: true, fiberPhase: 'active' },
-        { moduleName: '@koishijs/plugin-xxx', enabled: true, fiberPhase: 'active' },
-      ] }),
+      list: () => ({
+        entries: [
+          { moduleName: 'dsh-a', enabled: true, fiberPhase: 'ready' },
+          { moduleName: '@scope/dsh-b', enabled: false, fiberPhase: null },
+          { moduleName: '@deepseek-ai/dsh-base', enabled: true, fiberPhase: 'active' },
+          { moduleName: 'cordis:include', enabled: true, fiberPhase: 'active' },
+          { moduleName: '@koishijs/plugin-xxx', enabled: true, fiberPhase: 'active' },
+        ],
+      }),
     },
-    webServer: { register: (route) => { apiHolder.set(route); return () => {} } },
+    webServer: {
+      register: (route) => {
+        apiHolder.set(route)
+        return () => {}
+      },
+    },
     events: [],
     effectCallbacks: [],
     on(name, listener) {
@@ -125,9 +146,12 @@ test('apply registers the API route', async () => {
 test('API refuses requests outside the fence (403)', async () => {
   const { getRoute } = await boot()
   const res = makeResponse()
-  await getRoute().handler(makeRequest('GET', '/my-plugin-manager/api/installed', undefined, {
-    headers: { host: 'evil.example', 'sec-fetch-site': 'cross-site' },
-  }), res)
+  await getRoute().handler(
+    makeRequest('GET', '/my-plugin-manager/api/installed', undefined, {
+      headers: { host: 'evil.example', 'sec-fetch-site': 'cross-site' },
+    }),
+    res,
+  )
   assert.equal(res._status, 403, 'fenced')
 })
 
@@ -147,9 +171,19 @@ test('GET /installed filters official modules and marks user entries', async () 
   const r = await callRoute(getRoute, 'GET', '/my-plugin-manager/api/installed')
   assert.equal(r.status, 200)
   const entries = r.json.value.entries
-  assert.deepEqual(entries.map((e) => e.moduleName), ['dsh-a', '@scope/dsh-b'], 'official modules filtered out')
-  assert.ok(entries.every((e) => e.official === false), 'user entries carry official: false')
-  assert.ok(entries.every((e) => e.version === '0.1.0'), 'versions still resolved for user entries')
+  assert.deepEqual(
+    entries.map((e) => e.moduleName),
+    ['dsh-a', '@scope/dsh-b'],
+    'official modules filtered out',
+  )
+  assert.ok(
+    entries.every((e) => e.official === false),
+    'user entries carry official: false',
+  )
+  assert.ok(
+    entries.every((e) => e.version === '0.1.0'),
+    'versions still resolved for user entries',
+  )
 })
 
 test('GET /search calls the npm registry and clamps size', async () => {
@@ -177,20 +211,31 @@ test('POST /install and /uninstall route through the CLI wrapper', async () => {
   const bad = await callRoute(getRoute, 'POST', '/my-plugin-manager/api/install', { source: '  ' })
   assert.equal(bad.status, 400, 'blank source rejected')
 
-  const ok = await callRoute(getRoute, 'POST', '/my-plugin-manager/api/install', { source: 'dsh-x' })
+  const ok = await callRoute(getRoute, 'POST', '/my-plugin-manager/api/install', {
+    source: 'dsh-x',
+  })
   assert.equal(ok.status, 200)
   assert.equal(ok.json.ok, true)
   assert.ok(manageMock.installPlugin.mock.calls.some((call) => call[0] === 'web' && call[1] === 'dsh-x'))
 
-  const un = await callRoute(getRoute, 'POST', '/my-plugin-manager/api/uninstall', { name: 'dsh-x' })
+  const un = await callRoute(getRoute, 'POST', '/my-plugin-manager/api/uninstall', {
+    name: 'dsh-x',
+  })
   assert.equal(un.status, 200)
   assert.ok(manageMock.uninstallPlugin.mock.calls.some((call) => call[0] === 'web' && call[1] === 'dsh-x'))
 })
 
 test('install/uninstall failures carry an error message', async () => {
-  manageMock.installPlugin.mockResolvedValueOnce({ ok: false, code: 1, stdout: '', stderr: 'ERESOLVE' })
+  manageMock.installPlugin.mockResolvedValueOnce({
+    ok: false,
+    code: 1,
+    stdout: '',
+    stderr: 'ERESOLVE',
+  })
   const { getRoute } = await boot()
-  const r = await callRoute(getRoute, 'POST', '/my-plugin-manager/api/install', { source: 'dsh-bad' })
+  const r = await callRoute(getRoute, 'POST', '/my-plugin-manager/api/install', {
+    source: 'dsh-bad',
+  })
   assert.equal(r.status, 200)
   assert.equal(r.json.ok, false)
   assert.ok(r.json.error.message.includes('ERESOLVE'))
@@ -210,15 +255,25 @@ test('profileDirOf uses DSH_HOME', () => {
 test('fence: non-loopback hosts, origin mismatch and trusted hosts', async () => {
   const { getRoute } = await boot()
   const res1 = makeResponse()
-  await getRoute().handler(makeRequest('GET', '/my-plugin-manager/api/installed', undefined, {
-    headers: { host: '192.168.1.10:3080', 'sec-fetch-site': 'same-origin' },
-  }), res1)
+  await getRoute().handler(
+    makeRequest('GET', '/my-plugin-manager/api/installed', undefined, {
+      headers: { host: '192.168.1.10:3080', 'sec-fetch-site': 'same-origin' },
+    }),
+    res1,
+  )
   assert.equal(res1._status, 403, 'non-loopback host refused')
 
   const res2 = makeResponse()
-  await getRoute().handler(makeRequest('GET', '/my-plugin-manager/api/installed', undefined, {
-    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://evil.example' },
-  }), res2)
+  await getRoute().handler(
+    makeRequest('GET', '/my-plugin-manager/api/installed', undefined, {
+      headers: {
+        host: '127.0.0.1:3080',
+        'sec-fetch-site': 'same-origin',
+        origin: 'http://evil.example',
+      },
+    }),
+    res2,
+  )
   assert.equal(res2._status, 403, 'origin mismatch refused')
 
   const holder = captureRoute('/my-plugin-manager/api')
@@ -226,7 +281,12 @@ test('fence: non-loopback hosts, origin mismatch and trusted hosts', async () =>
     logger: { warn: () => {} },
     webRuntime: { trustedHosts: ['dsh.internal:3080'] },
     pluginInventory: { list: () => ({ entries: [] }) },
-    webServer: { register: (route) => { holder.set(route); return () => {} } },
+    webServer: {
+      register: (route) => {
+        holder.set(route)
+        return () => {}
+      },
+    },
     events: [],
     effectCallbacks: [],
     on() {},
@@ -237,9 +297,16 @@ test('fence: non-loopback hosts, origin mismatch and trusted hosts', async () =>
   }
   apply(ctx)
   const res3 = makeResponse()
-  await holder.get().handler(makeRequest('GET', '/my-plugin-manager/api/installed', undefined, {
-    headers: { host: 'dsh.internal:3080', 'sec-fetch-site': 'same-origin', origin: 'http://dsh.internal:3080' },
-  }), res3)
+  await holder.get().handler(
+    makeRequest('GET', '/my-plugin-manager/api/installed', undefined, {
+      headers: {
+        host: 'dsh.internal:3080',
+        'sec-fetch-site': 'same-origin',
+        origin: 'http://dsh.internal:3080',
+      },
+    }),
+    res3,
+  )
   assert.equal(res3._status, 200, 'trusted host allowed')
 })
 
@@ -272,8 +339,15 @@ test('updates failure and uninstall failure carry error details', async () => {
   assert.equal(r.status, 200)
   assert.equal(r.json.value.error, 'registry unreachable')
 
-  manageMock.uninstallPlugin.mockResolvedValueOnce({ ok: false, code: 1, stdout: '', stderr: 'EBADPKG' })
-  const un = await callRoute(getRoute, 'POST', '/my-plugin-manager/api/uninstall', { name: 'dsh-x' })
+  manageMock.uninstallPlugin.mockResolvedValueOnce({
+    ok: false,
+    code: 1,
+    stdout: '',
+    stderr: 'EBADPKG',
+  })
+  const un = await callRoute(getRoute, 'POST', '/my-plugin-manager/api/uninstall', {
+    name: 'dsh-x',
+  })
   assert.equal(un.json.ok, false)
   assert.ok(un.json.error.message.includes('EBADPKG'))
 })

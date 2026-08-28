@@ -12,11 +12,11 @@
 
 ### 1. 三类自动触发（默认全开，可单独关闭）
 
-| 触发类型 | 时机 | 通知内容 |
-|---------|------|---------|
-| **结束**（`end`） | `agent/status` 变为 idle（本轮对话完成 / 被中断） | 会话标题 + 「会话已结束」 |
-| **询问**（`ask`） | agent 调用 `ask_user_question` 工具 | 会话标题 + 「需要你回答」+ 问题摘要 |
-| **审批**（`approval`） | 出现需要用户批准的请求（如沙箱、文件操作） | 会话标题 + 「等待你的批准」+ 工具名 / 原因 |
+| 触发类型               | 时机                                              | 通知内容                                   |
+| ---------------------- | ------------------------------------------------- | ------------------------------------------ |
+| **结束**（`end`）      | `agent/status` 变为 idle（本轮对话完成 / 被中断） | 会话标题 + 「会话已结束」                  |
+| **询问**（`ask`）      | agent 调用 `ask_user_question` 工具               | 会话标题 + 「需要你回答」+ 问题摘要        |
+| **审批**（`approval`） | 出现需要用户批准的请求（如沙箱、文件操作）        | 会话标题 + 「等待你的批准」+ 工具名 / 原因 |
 
 - **自动过滤子代理（subagent）会话**：只提醒用户直接查看的顶层会话，不打扰子代理批量完成；判定白名单化（`origin` / `delegationDepth` / 运行时 `subagentDepth` 任一命中即子代理，无法确认的会话保守视为子代理）。配置 `subagentEnd: true` 后子代理完成也提醒，通知标题带「子代理」前缀，与主会话一眼区分。
 - **同类去重**：同一会话同一类型 3 秒内只提醒一次，避免重复弹窗。
@@ -29,11 +29,11 @@
 - **页面内 toast 兜底**：通知权限被拒 / 关闭系统通知时，右上角弹出提示卡（点击同样跳转）；
 - **本地开关**（localStorage，默认全开）：
 
-| 键 | 值 | 含义 |
-|----|----|------|
-| `dsh-notify:notify` | `0` | 关闭系统通知 |
-| `dsh-notify:sound` | `0` | 关闭提示音 |
-| `dsh-notify:toast` | `0` | 关闭页面内 toast |
+| 键                  | 值  | 含义             |
+| ------------------- | --- | ---------------- |
+| `dsh-notify:notify` | `0` | 关闭系统通知     |
+| `dsh-notify:sound`  | `0` | 关闭提示音       |
+| `dsh-notify:toast`  | `0` | 关闭页面内 toast |
 
 （可随时在浏览器控制台 `localStorage.setItem('dsh-notify:sound','0')` 关闭。）
 
@@ -71,7 +71,6 @@ curl -X POST http://127.0.0.1:3080/notify/api/trigger \
 
 > 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-my-notify`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。
 
-
 ```bash
 # 1) 克隆本仓库（任意目录）
 git clone https://github.com/baosfeng/my-dsh-plugins.git
@@ -89,13 +88,13 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-my-notify
 - insert:
     - id: notify
       name: 'dsh-my-notify'
-    - config:            # 传给 apply(ctx, config)
-        end: true        # 会话结束提醒（默认 true）
-        ask: true        # 询问提醒（默认 true）
-        approval: true   # 审批提醒（默认 true）
-        subagentEnd: false  # 子代理完成也提醒（默认 false；开启后标题带「子代理」前缀）
-        apiToken: ''     # 远程触发 token；非空时 trigger 需 x-notify-token 头
-        dedupeMs: 3000   # 同类去重窗口（毫秒，默认 3000）
+    - config: # 传给 apply(ctx, config)
+        end: true # 会话结束提醒（默认 true）
+        ask: true # 询问提醒（默认 true）
+        approval: true # 审批提醒（默认 true）
+        subagentEnd: false # 子代理完成也提醒（默认 false；开启后标题带「子代理」前缀）
+        apiToken: '' # 远程触发 token；非空时 trigger 需 x-notify-token 头
+        dedupeMs: 3000 # 同类去重窗口（毫秒，默认 3000）
 ```
 
 ### 设置页可视化（推荐）
@@ -108,10 +107,10 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-my-notify
 
 ## 依赖
 
-| 依赖 | 用途 | 可选 |
-|------|------|------|
-| `cordis` | 插件运行时 | 是（宿主提供） |
-| `@deepseek-ai/dsh-session-title` | 会话标题读取（缺失时回退） | 是 |
+| 依赖                             | 用途                       | 可选           |
+| -------------------------------- | -------------------------- | -------------- |
+| `cordis`                         | 插件运行时                 | 是（宿主提供） |
+| `@deepseek-ai/dsh-session-title` | 会话标题读取（缺失时回退） | 是             |
 
 ## 限制与说明
 

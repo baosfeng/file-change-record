@@ -57,26 +57,46 @@ test('selected-tab override targets the hashed class via double substring select
 test('selected tab gets the theme-aware brand fill (issue #25)', () => {
   const block = ruleFor(STYLES, ACTIVE)
   assert.ok(block, 'selected-tab rule must exist')
-  assert.match(block, /background:\s*var\(--dsw-alias-state-business-primary\)/, 'selected fill must be the brand business primary (light #4176e6 / dark #679efe)')
+  assert.match(
+    block,
+    /background:\s*var\(--dsw-alias-state-business-primary\)/,
+    'selected fill must be the brand business primary (light #4176e6 / dark #679efe)',
+  )
 })
 
 test('selected tab text uses the brand-contrast ink (issue #25)', () => {
   const block = ruleFor(STYLES, ACTIVE)
   assert.ok(block, 'selected-tab rule must exist')
-  assert.match(block, /color:\s*var\(--dsw-alias-label-primary-foreground\)/, 'selected text must be the foreground-on-brand ink (light #fff / dark #0f1115)')
+  assert.match(
+    block,
+    /color:\s*var\(--dsw-alias-label-primary-foreground\)/,
+    'selected text must be the foreground-on-brand ink (light #fff / dark #0f1115)',
+  )
 })
 
 test('selected tab keeps its brand fill on hover, beating the host .tab:hover (issue #25)', () => {
   const block = ruleFor(STYLES, ACTIVE_HOVER)
   assert.ok(block, 'selected-tab :hover rule must exist')
-  assert.match(block, /background:\s*var\(--dsw-alias-state-business-primary\)/, 'hover must not fall back to the host grey fill')
-  assert.match(block, /color:\s*var\(--dsw-alias-label-primary-foreground\)/, 'hover must keep the contrast ink readable')
+  assert.match(
+    block,
+    /background:\s*var\(--dsw-alias-state-business-primary\)/,
+    'hover must not fall back to the host grey fill',
+  )
+  assert.match(
+    block,
+    /color:\s*var\(--dsw-alias-label-primary-foreground\)/,
+    'hover must keep the contrast ink readable',
+  )
 })
 
 test('selected-tab close button stays readable on the brand fill (issue #25)', () => {
   const block = ruleFor(STYLES, `${ACTIVE} [class*="tabClose"]`)
   assert.ok(block, 'selected-tab close button must be overridden')
-  assert.match(block, /color:\s*var\(--dsw-alias-label-primary-foreground\)/, 'close icon must use the contrast ink on the brand fill')
+  assert.match(
+    block,
+    /color:\s*var\(--dsw-alias-label-primary-foreground\)/,
+    'close icon must use the contrast ink on the brand fill',
+  )
 })
 
 test('tab overrides never reference the undefined --dsw-alias-accent variable (issue #25)', () => {

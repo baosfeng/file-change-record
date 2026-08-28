@@ -167,7 +167,10 @@ describe('collectClientSources', () => {
     writeFileSync(join(dir, 'lib', 'client.src.js'), '')
     writeFileSync(join(dir, 'lib', 'parts', 'a.part.js'), '')
     writeFileSync(join(dir, 'lib', 'parts', 'notes.txt'), '')
-    expect(collectClientSources(dir)).toEqual([join(dir, 'lib', 'client.src.js'), join(dir, 'lib', 'parts', 'a.part.js')])
+    expect(collectClientSources(dir)).toEqual([
+      join(dir, 'lib', 'client.src.js'),
+      join(dir, 'lib', 'parts', 'a.part.js'),
+    ])
   })
 
   it('无 client.src.js 时回退 client.js', () => {

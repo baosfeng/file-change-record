@@ -80,19 +80,33 @@ When('再次为会话 {string} 注册任务 {string}', async function (sessionId
 })
 
 When('代理 {string} 的模型请求以 TIMEOUT 失败', async function (sessionId) {
-  this.lastDecision = await this.dispatch('agent/request-error', {
-    agent: { id: sessionId },
-    failure: { code: 'TIMEOUT', message: 'timeout' },
-    signal: { aborted: false },
-  }, () => { this.nextCalled = true; return Promise.resolve(undefined) })
+  this.lastDecision = await this.dispatch(
+    'agent/request-error',
+    {
+      agent: { id: sessionId },
+      failure: { code: 'TIMEOUT', message: 'timeout' },
+      signal: { aborted: false },
+    },
+    () => {
+      this.nextCalled = true
+      return Promise.resolve(undefined)
+    },
+  )
 })
 
 When('代理 {string} 的模型请求以 INVALID_ARGUMENT 失败', async function (sessionId) {
-  this.lastDecision = await this.dispatch('agent/request-error', {
-    agent: { id: sessionId },
-    failure: { code: 'INVALID_ARGUMENT', message: 'bad' },
-    signal: { aborted: false },
-  }, () => { this.nextCalled = true; return Promise.resolve(undefined) })
+  this.lastDecision = await this.dispatch(
+    'agent/request-error',
+    {
+      agent: { id: sessionId },
+      failure: { code: 'INVALID_ARGUMENT', message: 'bad' },
+      signal: { aborted: false },
+    },
+    () => {
+      this.nextCalled = true
+      return Promise.resolve(undefined)
+    },
+  )
 })
 
 When('代理 {string} 的回合即将结束', async function (_sessionId) {
@@ -100,12 +114,18 @@ When('代理 {string} 的回合即将结束', async function (_sessionId) {
 })
 
 When('子代理 {string} 的回合即将结束', async function (sessionId) {
-  await this.dispatch('agent/turn-stopping', { agent: this.makeAgent(sessionId, { origin: 'subagent' }), signal: { aborted: false } })
+  await this.dispatch('agent/turn-stopping', {
+    agent: this.makeAgent(sessionId, { origin: 'subagent' }),
+    signal: { aborted: false },
+  })
 })
 
 When('代理 {string} 回合结束触发 {int} 次', async function (sessionId, count) {
   for (let i = 0; i < count; i++) {
-    await this.dispatch('agent/turn-stopping', { agent: this.mainAgent, signal: { aborted: false } })
+    await this.dispatch('agent/turn-stopping', {
+      agent: this.mainAgent,
+      signal: { aborted: false },
+    })
   }
 })
 
@@ -117,14 +137,24 @@ When('代理 {string} 变为空闲', async function (_sessionId) {
 
 When('校验代理结论为已完成', function () {
   this.verifyAgent.session.events = [
-    { type: 'assistant/message', data: { message: { content: [{ type: 'text', text: '{"done": true, "reason": "全部完成"}' }] } } },
+    {
+      type: 'assistant/message',
+      data: {
+        message: { content: [{ type: 'text', text: '{"done": true, "reason": "全部完成"}' }] },
+      },
+    },
   ]
   this.verifyIdle.resolve()
 })
 
 When('校验代理结论为未完成并附原因', function () {
   this.verifyAgent.session.events = [
-    { type: 'assistant/message', data: { message: { content: [{ type: 'text', text: '{"done": false, "reason": "测试还没写"}' }] } } },
+    {
+      type: 'assistant/message',
+      data: {
+        message: { content: [{ type: 'text', text: '{"done": false, "reason": "测试还没写"}' }] },
+      },
+    },
   ]
   this.verifyIdle.resolve()
 })
@@ -137,17 +167,26 @@ When('代理 {string} 的模型流产生连续重复的思考段落', async func
     for (const ch of long) chunks.push({ type: 'reasoning-delta', index: b, text: ch })
     chunks.push({ type: 'block-end', index: b, block: { type: 'reasoning', text: long } })
   }
-  this.wrapped = this.dispatch('llm/stream', { sessionId }, () => (async function* () {
-    for (const c of chunks) yield c
-  })())
+  this.wrapped = this.dispatch('llm/stream', { sessionId }, () =>
+    (async function* () {
+      for (const c of chunks) yield c
+    })(),
+  )
 })
 
 When('代理 {string} 调用 ask_user_question 工具', async function (_sessionId) {
-  this.lastDecision = await this.dispatch('tools/pre-execute', {
-    name: 'ask_user_question',
-    agent: this.mainAgent,
-    arguments: { questions: [{ header: '需要确认' }] },
-  }, () => { this.nextCalled = true; return Promise.resolve({ kind: 'allow' }) })
+  this.lastDecision = await this.dispatch(
+    'tools/pre-execute',
+    {
+      name: 'ask_user_question',
+      agent: this.mainAgent,
+      arguments: { questions: [{ header: '需要确认' }] },
+    },
+    () => {
+      this.nextCalled = true
+      return Promise.resolve({ kind: 'allow' })
+    },
+  )
 })
 
 When('插件重新启动', async function () {
@@ -239,7 +278,9 @@ Then('主代理收到带原因的继续指令', async function () {
 Then('流抛出思考循环错误', async function () {
   let error = null
   try {
-    for await (const chunk of this.wrapped) { void chunk }
+    for await (const chunk of this.wrapped) {
+      void chunk
+    }
   } catch (e) {
     error = e
   }
@@ -304,19 +345,29 @@ Given('任务可靠性插件已启动且看门狗间隔为 {int} 毫秒', functi
 })
 
 When('代理 {string} 调用 ask_user_question 且用户长时间未回答', async function (_sessionId) {
-  this.lastDecision = await this.dispatch('tools/execute', {
-    name: 'ask_user_question',
-    agent: this.mainAgent,
-    arguments: { questions: [{ id: 'q1', question: 'A 还是 B？', options: [{ label: '方案A' }, { label: '方案B' }] }] },
-  }, () => new Promise(() => {}))
+  this.lastDecision = await this.dispatch(
+    'tools/execute',
+    {
+      name: 'ask_user_question',
+      agent: this.mainAgent,
+      arguments: {
+        questions: [{ id: 'q1', question: 'A 还是 B？', options: [{ label: '方案A' }, { label: '方案B' }] }],
+      },
+    },
+    () => new Promise(() => {}),
+  )
 })
 
 When('代理 {string} 调用 ask_user_question 且用户回答 {string}', async function (_sessionId, answer) {
-  this.lastDecision = await this.dispatch('tools/execute', {
-    name: 'ask_user_question',
-    agent: this.mainAgent,
-    arguments: { questions: [{ id: 'q1', question: 'A 还是 B？' }] },
-  }, () => Promise.resolve({ value: { answers: [{ id: 'q1', selected: [answer] }] } }))
+  this.lastDecision = await this.dispatch(
+    'tools/execute',
+    {
+      name: 'ask_user_question',
+      agent: this.mainAgent,
+      arguments: { questions: [{ id: 'q1', question: 'A 还是 B？' }] },
+    },
+    () => Promise.resolve({ value: { answers: [{ id: 'q1', selected: [answer] }] } }),
+  )
 })
 
 When('任务停滞超过阈值', async function () {

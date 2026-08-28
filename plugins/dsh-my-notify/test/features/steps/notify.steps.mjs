@@ -60,45 +60,63 @@ When('顶层代理 {string} 连续空闲 2 次', async function (id) {
 
 When('代理调用 ask_user_question 工具', async function () {
   this.nextCalled = false
-  await this.dispatch('tools/pre-execute',
-    { name: 'ask_user_question', agent: topAgent('ask1'), arguments: { questions: [{ header: '确认部署' }] } },
-    async () => { this.nextCalled = true })
+  await this.dispatch(
+    'tools/pre-execute',
+    {
+      name: 'ask_user_question',
+      agent: topAgent('ask1'),
+      arguments: { questions: [{ header: '确认部署' }] },
+    },
+    async () => {
+      this.nextCalled = true
+    },
+  )
 })
 
 When('代理调用 bash 工具', async function () {
   this.nextCalled = false
-  await this.dispatch('tools/pre-execute',
-    { name: 'bash', agent: topAgent('b1') },
-    async () => { this.nextCalled = true })
+  await this.dispatch('tools/pre-execute', { name: 'bash', agent: topAgent('b1') }, async () => {
+    this.nextCalled = true
+  })
 })
 
 When('代理发起审批请求', async function () {
   this.nextCalled = false
-  await this.dispatch('approval/request',
+  await this.dispatch(
+    'approval/request',
     { agent: topAgent('ap1'), toolName: 'bash', reason: 'sandbox escalation' },
-    async () => { this.nextCalled = true })
+    async () => {
+      this.nextCalled = true
+    },
+  )
 })
 
 When('本机 POST 触发接口携带标题 {string}', async function (title) {
   const res = mockResponse()
-  await this.invoke(mockRequest({
-    url: '/notify/api/trigger',
-    method: 'POST',
-    secFetchSite: 'same-origin',
-    origin: 'http://127.0.0.1:3080',
-    body: JSON.stringify({ title, body: '构建成功', sessionId: 'sess-9' }),
-  }), res)
+  await this.invoke(
+    mockRequest({
+      url: '/notify/api/trigger',
+      method: 'POST',
+      secFetchSite: 'same-origin',
+      origin: 'http://127.0.0.1:3080',
+      body: JSON.stringify({ title, body: '构建成功', sessionId: 'sess-9' }),
+    }),
+    res,
+  )
   this.lastResponse = { status: res.writeHeadStatus }
 })
 
 When('用错误 token 调用触发接口', async function () {
   const res = mockResponse()
-  await this.invoke(mockRequest({
-    url: '/notify/api/trigger',
-    method: 'POST',
-    token: 'wrong-token',
-    body: '{}',
-  }), res)
+  await this.invoke(
+    mockRequest({
+      url: '/notify/api/trigger',
+      method: 'POST',
+      token: 'wrong-token',
+      body: '{}',
+    }),
+    res,
+  )
   this.lastResponse = { status: res.writeHeadStatus }
 })
 

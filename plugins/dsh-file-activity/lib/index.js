@@ -69,19 +69,27 @@ export function apply(ctx) {
   // ── routes ──────────────────────────────────────────────────────────────
   const fence = (request) => isTrustedApiRequest(request, ctx.webRuntime.trustedHosts)
 
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'prefix',
-    path: '/file-activity/api',
-    handler: createApiHandler({ ctx, store, fence }),
-  }), 'dsh-file-activity: /file-activity/api routes')
+  ctx.effect(
+    () =>
+      ctx.webServer.register({
+        kind: 'prefix',
+        path: '/file-activity/api',
+        handler: createApiHandler({ ctx, store, fence }),
+      }),
+    'dsh-file-activity: /file-activity/api routes',
+  )
 
   // Media route for the floating preview (see media-route.js for the
   // authorization model: recorded paths only, same trust fence).
-  ctx.effect(() => ctx.webServer.register({
-    kind: 'prefix',
-    path: '/file-activity/file',
-    handler: createMediaHandler({ ctx, store, fence }),
-  }), 'dsh-file-activity: /file-activity/file media route')
+  ctx.effect(
+    () =>
+      ctx.webServer.register({
+        kind: 'prefix',
+        path: '/file-activity/file',
+        handler: createMediaHandler({ ctx, store, fence }),
+      }),
+    'dsh-file-activity: /file-activity/file media route',
+  )
 
   // Tear down on unload: flush pending persistence.
   ctx.effect(() => store.dispose, 'dsh-file-activity: persistence teardown')

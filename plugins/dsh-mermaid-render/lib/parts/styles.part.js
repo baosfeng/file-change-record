@@ -1,5 +1,5 @@
-    // ── styles (DSH tokens; injected first, torn down with the fiber) ──
-    const STYLES = `
+// ── styles (DSH tokens; injected first, torn down with the fiber) ──
+const STYLES = `
 .dmr-card{display:flex;flex-direction:column;gap:8px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;padding:8px 12px;background:var(--dsw-alias-bg-layer-1);font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary)}
 .dmr-card-head{display:flex;justify-content:flex-end}
 .dmr-view-toggle{display:inline-flex;gap:2px;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;padding:2px}

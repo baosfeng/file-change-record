@@ -73,11 +73,11 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-md-render
 
 ## 依赖
 
-| 依赖 | 用途 | 可选 |
-|---|---|---|
-| `@deepseek-ai/dsh-system-prompt` | host 端 systemPrompt 服务 | 是（缺省时 server 端不注入） |
-| `react` | client 端组件 | — |
-| `dsh-md-render` | client 端统一 MarkdownView（跨插件 require，`dsh.client.external`） | 否（须同时启用） |
+| 依赖                             | 用途                                                                | 可选                         |
+| -------------------------------- | ------------------------------------------------------------------- | ---------------------------- |
+| `@deepseek-ai/dsh-system-prompt` | host 端 systemPrompt 服务                                           | 是（缺省时 server 端不注入） |
+| `react`                          | client 端组件                                                       | —                            |
+| `dsh-md-render`                  | client 端统一 MarkdownView（跨插件 require，`dsh.client.external`） | 否（须同时启用）             |
 
 ## 相关文档
 

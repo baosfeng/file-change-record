@@ -33,7 +33,16 @@ if (options.help) {
 }
 
 function parseArgs(args) {
-  const result = { profile: 'web', port: 3087, addons: [], apiPaths: [], timeoutSec: 90, skipWeb: false, keep: false, help: false }
+  const result = {
+    profile: 'web',
+    port: 3087,
+    addons: [],
+    apiPaths: [],
+    timeoutSec: 90,
+    skipWeb: false,
+    keep: false,
+    help: false,
+  }
   for (let i = 0; i < args.length; i += 1) {
     const flag = args[i]
     const value = () => args[++i]
@@ -54,15 +63,17 @@ function parseArgs(args) {
 }
 
 function printHelp() {
-  console.log('真实环境全流程验证（配置副本模拟）\n' +
-    '用法: node scripts/verify-real-profile.mjs [options]\n' +
-    '  --profile <name>   profile 名（默认 web）\n' +
-    '  --port <port>      验证实例端口（默认 3087）\n' +
-    '  --addons <dir>     模拟安装的插件目录（可重复；写入临时 profile 的 bundles + dependencies）\n' +
-    '  --api-path <path>  启动后对每个 path 做 GET 冒烟（可重复）\n' +
-    '  --timeout <sec>    启动就绪超时（默认 90）\n' +
-    '  --skip             只做配置组合检查（dump-config），不启动实例\n' +
-    '  --keep             失败/完成后保留临时目录（默认清理）\n')
+  console.log(
+    '真实环境全流程验证（配置副本模拟）\n' +
+      '用法: node scripts/verify-real-profile.mjs [options]\n' +
+      '  --profile <name>   profile 名（默认 web）\n' +
+      '  --port <port>      验证实例端口（默认 3087）\n' +
+      '  --addons <dir>     模拟安装的插件目录（可重复；写入临时 profile 的 bundles + dependencies）\n' +
+      '  --api-path <path>  启动后对每个 path 做 GET 冒烟（可重复）\n' +
+      '  --timeout <sec>    启动就绪超时（默认 90）\n' +
+      '  --skip             只做配置组合检查（dump-config），不启动实例\n' +
+      '  --keep             失败/完成后保留临时目录（默认清理）\n',
+  )
 }
 
 // ── 常量 ───────────────────────────────────────────────────────────────────
@@ -75,17 +86,29 @@ let web = null
 let failed = false
 const log = (msg) => console.log(`[verify] ${msg}`)
 const pass = (msg) => console.log(`[verify] ✓ ${msg}`)
-const fail = (msg) => { failed = true; console.error(`[verify] ✗ ${msg}`) }
+const fail = (msg) => {
+  failed = true
+  console.error(`[verify] ✗ ${msg}`)
+}
 
 /** 运行命令并收集输出。 */
 function run(command, argsList, env = {}) {
   return new Promise((resolveRun) => {
-    const child = spawn(command, argsList, { env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn(command, argsList, {
+      env: { ...process.env, ...env },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
     let stdout = ''
     let stderr = ''
-    child.stdout.on('data', (chunk) => { stdout += chunk })
-    child.stderr.on('data', (chunk) => { stderr += chunk })
-    child.on('error', (error) => resolveRun({ ok: false, code: -1, stdout, stderr, error: String(error?.message ?? error) }))
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk
+    })
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk
+    })
+    child.on('error', (error) =>
+      resolveRun({ ok: false, code: -1, stdout, stderr, error: String(error?.message ?? error) }),
+    )
     child.on('close', (code) => resolveRun({ ok: code === 0, code, stdout, stderr }))
   })
 }
@@ -112,7 +135,9 @@ function entryNames(dumpOutput) {
 
 async function httpStatus(port, path = '/') {
   try {
-    const res = await fetch(`http://127.0.0.1:${port}${path}`, { signal: AbortSignal.timeout(5000) })
+    const res = await fetch(`http://127.0.0.1:${port}${path}`, {
+      signal: AbortSignal.timeout(5000),
+    })
     return res.status
   } catch {
     return 0
@@ -169,8 +194,10 @@ if (options.addons.length > 0) {
     const name = JSON.parse(readFileSync(join(abs, 'package.json'), 'utf8')).name
     // 插件已手动安装（patch 行存在）时不再写入 bundles：bundle 自动插行 +
     // patch 手动行叠加会产生重复 id（发版校验对已安装插件跑 --addons 的场景）。
-    const alreadyInConfig = pkg.dsh.profile.bundles.includes(name)
-      || patchText.includes(`name: '${name}'`) || patchText.includes(`name: "${name}"`)
+    const alreadyInConfig =
+      pkg.dsh.profile.bundles.includes(name) ||
+      patchText.includes(`name: '${name}'`) ||
+      patchText.includes(`name: "${name}"`)
     if (!alreadyInConfig) pkg.dsh.profile.bundles.push(name)
     pkg.dependencies[name] = `link:${abs}`
   }
@@ -180,7 +207,9 @@ if (options.addons.length > 0) {
 
 // ── 3. 配置组合检查（dump-config，与真实启动同一组合逻辑） ────────────────
 log('配置组合检查（dump-config id 唯一性）…')
-const dump = await run(dshBin, ['--profile', options.profile, '--dump-config'], { DSH_HOME: simHome })
+const dump = await run(dshBin, ['--profile', options.profile, '--dump-config'], {
+  DSH_HOME: simHome,
+})
 if (!dump.ok) {
   fail(`dump-config 失败: ${dump.stderr || dump.stdout || dump.error}`)
   await cleanup()
@@ -223,8 +252,12 @@ web = spawn(dshBin, ['--profile', options.profile, '--port', String(options.port
   stdio: ['ignore', 'pipe', 'pipe'],
 })
 let webLog = ''
-web.stdout.on('data', (chunk) => { webLog += chunk })
-web.stderr.on('data', (chunk) => { webLog += chunk })
+web.stdout.on('data', (chunk) => {
+  webLog += chunk
+})
+web.stderr.on('data', (chunk) => {
+  webLog += chunk
+})
 
 // 等待就绪（轮询 HTTP）
 const deadline = Date.now() + options.timeoutSec * 1000
@@ -232,7 +265,10 @@ let ready = false
 while (Date.now() < deadline) {
   if (web.exitCode !== null) break
   const status = await httpStatus(options.port)
-  if (status === 200) { ready = true; break }
+  if (status === 200) {
+    ready = true
+    break
+  }
   await new Promise((resolveWait) => setTimeout(resolveWait, 1000))
 }
 if (!ready) {
@@ -269,7 +305,9 @@ for (const path of options.apiPaths) {
 if (!options.keep) {
   await cleanup()
 } else {
-  log(`--keep：实例保持运行（端口 ${options.port}，日志见 /tmp/dsh-verify-real-${options.port}.log），临时目录 ${simHome}`)
+  log(
+    `--keep：实例保持运行（端口 ${options.port}，日志见 /tmp/dsh-verify-real-${options.port}.log），临时目录 ${simHome}`,
+  )
   log(`手动停止：lsof -ti :${options.port} | xargs kill；清理：rm -rf ${simHome}`)
 }
 process.exit(failed ? 1 : 0)
@@ -282,7 +320,10 @@ async function cleanup() {
         if (web.exitCode === null) web.kill('SIGKILL')
         resolveWait()
       }, 3000)
-      web.once('exit', () => { clearTimeout(hard); resolveWait() })
+      web.once('exit', () => {
+        clearTimeout(hard)
+        resolveWait()
+      })
     })
   }
   rmSync(simHome, { recursive: true, force: true })

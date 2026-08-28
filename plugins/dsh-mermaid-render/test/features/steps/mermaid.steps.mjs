@@ -18,10 +18,22 @@ function makeElement(tag, attrs = {}) {
     style: {},
     dataset: {},
     parentNode: null,
-    appendChild(child) { this.children.push(child); child.parentNode = this; this.textContent += child.textContent; return child },
-    removeChild(child) { const i = this.children.indexOf(child); if (i >= 0) this.children.splice(i, 1) },
-    setAttribute(k, v) { this[k] = v },
-    getAttribute(k) { return this[k] },
+    appendChild(child) {
+      this.children.push(child)
+      child.parentNode = this
+      this.textContent += child.textContent
+      return child
+    },
+    removeChild(child) {
+      const i = this.children.indexOf(child)
+      if (i >= 0) this.children.splice(i, 1)
+    },
+    setAttribute(k, v) {
+      this[k] = v
+    },
+    getAttribute(k) {
+      return this[k]
+    },
     querySelector(sel) {
       const walk = (els) => {
         for (const e of els) {
@@ -102,7 +114,9 @@ class World {
     const world = this
     const stubbedReactDomClient = {
       createRoot: () => ({
-        render: (el) => { world.capturedRender = el },
+        render: (el) => {
+          world.capturedRender = el
+        },
         unmount: () => {},
       }),
     }
@@ -113,18 +127,31 @@ class World {
         initialize: () => {},
         render: async (id) => ({ svg: `<svg id="${id}" width="100%"></svg>` }),
       },
-      __ModuleLoader__: { load: (reg) => { registered = reg } },
+      __ModuleLoader__: {
+        load: (reg) => {
+          registered = reg
+        },
+      },
     }
     global.document = {
       body: bodyEl,
       head: {
-        appendChild(el) { world.styleTags.push(el); return el },
+        appendChild(el) {
+          world.styleTags.push(el)
+          return el
+        },
         removeChild() {},
       },
-      createElement(tag) { return makeElement(tag) },
+      createElement(tag) {
+        return makeElement(tag)
+      },
     }
     global.Element = function Element() {}
-    global.MutationObserver = class { constructor() {} observe() {} disconnect() {} }
+    global.MutationObserver = class {
+      constructor() {}
+      observe() {}
+      disconnect() {}
+    }
     global.NodeFilter = { SHOW_TEXT: 4 }
 
     // P2 parts 化后 client.src.js 是含占位符的模板，改为加载构建产物。
@@ -145,10 +172,19 @@ class World {
     const texts = []
     function walk(node) {
       if (node === null || node === undefined || typeof node === 'boolean') return
-      if (typeof node === 'string' || typeof node === 'number') { texts.push(String(node)); return }
-      if (Array.isArray(node)) { for (const c of node) walk(c); return }
+      if (typeof node === 'string' || typeof node === 'number') {
+        texts.push(String(node))
+        return
+      }
+      if (Array.isArray(node)) {
+        for (const c of node) walk(c)
+        return
+      }
       const props = node.props ?? {}
-      if (typeof node.type === 'function') { walk(node.type(props)); return }
+      if (typeof node.type === 'function') {
+        walk(node.type(props))
+        return
+      }
       walk(props.children)
     }
     walk(cardEl.type(cardEl.props))

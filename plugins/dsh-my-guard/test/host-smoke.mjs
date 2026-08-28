@@ -4,9 +4,7 @@
  */
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
-import {
-  bootPlugin, mockRequest, mockResponse, invoke, jsonOf,
-} from './lib/helpers.mjs'
+import { bootPlugin, mockRequest, mockResponse, invoke, jsonOf } from './lib/helpers.mjs'
 
 test('plugin contract: name + inject + route registration', async () => {
   const { name, inject } = await import('../lib/index.js')

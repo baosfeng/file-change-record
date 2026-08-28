@@ -44,9 +44,7 @@ function recordHits(hits, sessionId, text, recordAlert) {
 
 /** 从 session 提取 id（无 id 返回空串）。 */
 function sessionIdOf(session) {
-  return session !== null && typeof session === 'object' && typeof session.id === 'string'
-    ? session.id
-    : ''
+  return session !== null && typeof session === 'object' && typeof session.id === 'string' ? session.id : ''
 }
 
 /** 是否为插件注入的消息（source.kind === 'plugin'，非真实用户输入）。 */

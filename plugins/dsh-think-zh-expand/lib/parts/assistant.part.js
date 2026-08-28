@@ -16,20 +16,24 @@ function ThinkBlock({ text, running }) {
     const nl = t.indexOf('\n')
     return nl === -1 ? t : t.slice(0, nl)
   }
-  return createElement('div', { className: 'tzx-think', 'data-variant': 'think', 'data-state': running ? 'running' : 'ok' },
-    createElement('div', {
-      className: 'tzx-think-row',
-      role: 'button',
-      tabIndex: 0,
-      'aria-expanded': open,
-      onClick: () => setExpanded((v) => !v),
-      onKeyDown: (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          setExpanded((v) => !v)
-        }
+  return createElement(
+    'div',
+    { className: 'tzx-think', 'data-variant': 'think', 'data-state': running ? 'running' : 'ok' },
+    createElement(
+      'div',
+      {
+        className: 'tzx-think-row',
+        role: 'button',
+        tabIndex: 0,
+        'aria-expanded': open,
+        onClick: () => setExpanded((v) => !v),
+        onKeyDown: (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            setExpanded((v) => !v)
+          }
+        },
       },
-    },
       createElement('span', { className: 'tzx-think-chevron' }, open ? '▾' : '▸'),
       createElement('span', { className: 'tzx-think-title' }, '思考'),
       !open && createElement('span', { className: 'tzx-think-summary' }, firstLine(text)),
@@ -37,8 +41,7 @@ function ThinkBlock({ text, running }) {
     // 思考内容也走统一 Markdown 渲染（dsh-md-render 的 MarkdownView：
     // 代码块 / mermaid / 表格 / 列表 / 标题 / 公式等），否则思考里出现
     // 的 markdown 会以原始语法文本显示。
-    open && createElement('div', { className: 'tzx-think-body' },
-      createElement(MarkdownView, { text })),
+    open && createElement('div', { className: 'tzx-think-body' }, createElement(MarkdownView, { text })),
   )
 }
 
@@ -69,8 +72,7 @@ function renderBlock(blocks, i, streaming, last, renderMessageImages) {
   if (block.kind === 'image' && typeof renderMessageImages === 'function') {
     const end = imageGroupEnd(blocks, i)
     const images = blocks.slice(i, end + 1).map((b) => ({ attachment: b.attachment }))
-    return createElement('div', { key: 'img' + i },
-      renderMessageImages({ images, align: 'start' }))
+    return createElement('div', { key: 'img' + i }, renderMessageImages({ images, align: 'start' }))
   }
   return null
 }
@@ -100,6 +102,9 @@ function AssistantStepView({ node, renderMessageImages }) {
   if (interrupted) {
     rendered.push(createElement('span', { key: 'stopped', className: 'tzx-stopped' }, '已停止'))
   }
-  return createElement('div', { className: 'tzx-assistant', 'data-streaming': streaming || undefined },
-    createElement('div', { className: 'tzx-assistant-body' }, rendered))
+  return createElement(
+    'div',
+    { className: 'tzx-assistant', 'data-streaming': streaming || undefined },
+    createElement('div', { className: 'tzx-assistant-body' }, rendered),
+  )
 }

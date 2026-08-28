@@ -169,7 +169,13 @@ function boot(config = {}, services = {}, dirOverride) {
       return undefined
     },
   }
-  const shared = apply(ctx, { saveDebounceMs: 0, resumeGraceMs: 60000, steerCooldownMs: 0, retryBaseMs: 0, ...config })
+  const shared = apply(ctx, {
+    saveDebounceMs: 0,
+    resumeGraceMs: 60000,
+    steerCooldownMs: 0,
+    retryBaseMs: 0,
+    ...config,
+  })
   const api = routes.find((r) => r.path === '/task-reliability/api' && r.kind === 'prefix')
   assert.ok(api, 'prefix route /task-reliability/api registered')
   const disposeAll = () => {
@@ -177,7 +183,19 @@ function boot(config = {}, services = {}, dirOverride) {
     process.env.DSH_HOME = oldHome
   }
   disposeAlls.push(disposeAll)
-  return { ctx, listeners, api, mainAgent, verifyAgent, agents, policies, calls, dir, disposeAll, store: shared.store }
+  return {
+    ctx,
+    listeners,
+    api,
+    mainAgent,
+    verifyAgent,
+    agents,
+    policies,
+    calls,
+    dir,
+    disposeAll,
+    store: shared.store,
+  }
 }
 
 const tick = (ms = 10) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -206,11 +224,18 @@ async function storeOf(env) {
 }
 
 function registerTask(env, overrides = {}) {
-  return callApi(env.api, mockRequest({
-    url: '/task-reliability/api/tasks',
-    method: 'POST',
-    body: JSON.stringify({ sessionId: 'session-main', description: '开发一个功能', ...overrides }),
-  }))
+  return callApi(
+    env.api,
+    mockRequest({
+      url: '/task-reliability/api/tasks',
+      method: 'POST',
+      body: JSON.stringify({
+        sessionId: 'session-main',
+        description: '开发一个功能',
+        ...overrides,
+      }),
+    }),
+  )
 }
 
 // ── 任务注册表 ─────────────────────────────────────────────────────────────
@@ -284,11 +309,19 @@ test('损坏状态文件回退空表不崩溃', async () => {
 test('超时类错误返回 retry 且不调用 next', async () => {
   const env = boot()
   let nextCalled = false
-  const action = await dispatchOne(env.listeners, 'agent/request-error', {
-    agent: env.mainAgent,
-    failure: { code: 'TIMEOUT', message: 'stream idle' },
-    signal: { aborted: false },
-  }, () => { nextCalled = true; return Promise.resolve(undefined) })
+  const action = await dispatchOne(
+    env.listeners,
+    'agent/request-error',
+    {
+      agent: env.mainAgent,
+      failure: { code: 'TIMEOUT', message: 'stream idle' },
+      signal: { aborted: false },
+    },
+    () => {
+      nextCalled = true
+      return Promise.resolve(undefined)
+    },
+  )
   assert.equal(action.kind, 'retry')
   assert.equal(nextCalled, false)
 })
@@ -296,24 +329,39 @@ test('超时类错误返回 retry 且不调用 next', async () => {
 test('非超时类错误委托 next', async () => {
   const env = boot()
   let nextCalled = false
-  const action = await dispatchOne(env.listeners, 'agent/request-error', {
-    agent: env.mainAgent,
-    failure: { code: 'INVALID_ARGUMENT', message: 'bad request' },
-    signal: { aborted: false },
-  }, () => { nextCalled = true; return Promise.resolve(undefined) })
+  const action = await dispatchOne(
+    env.listeners,
+    'agent/request-error',
+    {
+      agent: env.mainAgent,
+      failure: { code: 'INVALID_ARGUMENT', message: 'bad request' },
+      signal: { aborted: false },
+    },
+    () => {
+      nextCalled = true
+      return Promise.resolve(undefined)
+    },
+  )
   assert.equal(action, undefined)
   assert.equal(nextCalled, true)
 })
 
 test('重试超过上限后委托 next', async () => {
   const env = boot({ retryMax: 2 })
-  const payload = { agent: env.mainAgent, failure: { code: 'TIMEOUT', message: 'x' }, signal: { aborted: false } }
+  const payload = {
+    agent: env.mainAgent,
+    failure: { code: 'TIMEOUT', message: 'x' },
+    signal: { aborted: false },
+  }
   const first = await dispatchOne(env.listeners, 'agent/request-error', payload, () => Promise.resolve(undefined))
   assert.equal(first.kind, 'retry')
   const second = await dispatchOne(env.listeners, 'agent/request-error', payload, () => Promise.resolve(undefined))
   assert.equal(second.kind, 'retry')
   let nextCalled = false
-  const third = await dispatchOne(env.listeners, 'agent/request-error', payload, () => { nextCalled = true; return Promise.resolve(undefined) })
+  const third = await dispatchOne(env.listeners, 'agent/request-error', payload, () => {
+    nextCalled = true
+    return Promise.resolve(undefined)
+  })
   assert.equal(third, undefined)
   assert.equal(nextCalled, true)
 })
@@ -321,11 +369,19 @@ test('重试超过上限后委托 next', async () => {
 test('请求已中止时不重试', async () => {
   const env = boot()
   let nextCalled = false
-  const action = await dispatchOne(env.listeners, 'agent/request-error', {
-    agent: env.mainAgent,
-    failure: { code: 'TIMEOUT', message: 'x' },
-    signal: { aborted: true },
-  }, () => { nextCalled = true; return Promise.resolve(undefined) })
+  const action = await dispatchOne(
+    env.listeners,
+    'agent/request-error',
+    {
+      agent: env.mainAgent,
+      failure: { code: 'TIMEOUT', message: 'x' },
+      signal: { aborted: true },
+    },
+    () => {
+      nextCalled = true
+      return Promise.resolve(undefined)
+    },
+  )
   assert.equal(action, undefined)
   assert.equal(nextCalled, true)
 })
@@ -334,7 +390,10 @@ test('请求已中止时不重试', async () => {
 test('turn-stopping 时活动任务注入 steer 继续', async () => {
   const env = boot()
   await registerTask(env)
-  await dispatchOne(env.listeners, 'agent/turn-stopping', { agent: env.mainAgent, signal: { aborted: false } })
+  await dispatchOne(env.listeners, 'agent/turn-stopping', {
+    agent: env.mainAgent,
+    signal: { aborted: false },
+  })
   assert.equal(env.mainAgent.steered.length, 1)
   const text = env.mainAgent.steered[0].content[0].text
   assert.ok(text.includes('开发一个功能'), 'steer 文本包含任务描述')
@@ -343,21 +402,30 @@ test('turn-stopping 时活动任务注入 steer 继续', async () => {
 
 test('无任务时不注入 steer', async () => {
   const env = boot()
-  await dispatchOne(env.listeners, 'agent/turn-stopping', { agent: env.mainAgent, signal: { aborted: false } })
+  await dispatchOne(env.listeners, 'agent/turn-stopping', {
+    agent: env.mainAgent,
+    signal: { aborted: false },
+  })
   assert.equal(env.mainAgent.steered.length, 0)
 })
 
 test('子代理 turn-stopping 不处理', async () => {
   const env = boot()
   const sub = makeAgent('sub-1', { origin: 'subagent' })
-  await dispatchOne(env.listeners, 'agent/turn-stopping', { agent: sub, signal: { aborted: false } })
+  await dispatchOne(env.listeners, 'agent/turn-stopping', {
+    agent: sub,
+    signal: { aborted: false },
+  })
   assert.equal(sub.steered.length, 0)
 })
 
 test('verify 模式任务 turn-stopping 不直接注入', async () => {
   const env = boot()
   await registerTask(env, { mode: 'verify' })
-  await dispatchOne(env.listeners, 'agent/turn-stopping', { agent: env.mainAgent, signal: { aborted: false } })
+  await dispatchOne(env.listeners, 'agent/turn-stopping', {
+    agent: env.mainAgent,
+    signal: { aborted: false },
+  })
   assert.equal(env.mainAgent.steered.length, 0)
 })
 
@@ -365,7 +433,10 @@ test('循环次数达上限任务标记失败', async () => {
   const env = boot({ maxLoop: 2, steerCooldownMs: 0 })
   const { body } = await registerTask(env)
   for (let i = 0; i < 3; i++) {
-    await dispatchOne(env.listeners, 'agent/turn-stopping', { agent: env.mainAgent, signal: { aborted: false } })
+    await dispatchOne(env.listeners, 'agent/turn-stopping', {
+      agent: env.mainAgent,
+      signal: { aborted: false },
+    })
   }
   assert.equal((await taskOf(env, body.value.id)).status, 'failed')
   assert.equal(env.mainAgent.steered.length, 2)
@@ -374,15 +445,24 @@ test('循环次数达上限任务标记失败', async () => {
 test('冷却期内不重复注入', async () => {
   const env = boot({ steerCooldownMs: 60000 })
   await registerTask(env)
-  await dispatchOne(env.listeners, 'agent/turn-stopping', { agent: env.mainAgent, signal: { aborted: false } })
-  await dispatchOne(env.listeners, 'agent/turn-stopping', { agent: env.mainAgent, signal: { aborted: false } })
+  await dispatchOne(env.listeners, 'agent/turn-stopping', {
+    agent: env.mainAgent,
+    signal: { aborted: false },
+  })
+  await dispatchOne(env.listeners, 'agent/turn-stopping', {
+    agent: env.mainAgent,
+    signal: { aborted: false },
+  })
   assert.equal(env.mainAgent.steered.length, 1)
 })
 
 test('abort 信号时不注入', async () => {
   const env = boot()
   await registerTask(env)
-  await dispatchOne(env.listeners, 'agent/turn-stopping', { agent: env.mainAgent, signal: { aborted: true } })
+  await dispatchOne(env.listeners, 'agent/turn-stopping', {
+    agent: env.mainAgent,
+    signal: { aborted: true },
+  })
   assert.equal(env.mainAgent.steered.length, 0)
 })
 
@@ -404,7 +484,12 @@ test('会话结束后 verify 任务创建独立校验 agent', async () => {
 test('校验结论 done 任务标记完成', async () => {
   const env = boot()
   env.verifyAgent.session.events = [
-    { type: 'assistant/message', data: { message: { content: [{ type: 'text', text: '{"done": true, "reason": "全部完成"}' }] } } },
+    {
+      type: 'assistant/message',
+      data: {
+        message: { content: [{ type: 'text', text: '{"done": true, "reason": "全部完成"}' }] },
+      },
+    },
   ]
   await registerTask(env, { mode: 'verify' })
   await dispatchOne(env.listeners, 'agent/status', { agent: env.mainAgent, status: 'idle' })
@@ -418,7 +503,12 @@ test('校验结论 done 任务标记完成', async () => {
 test('校验结论未完成唤醒主 agent 继续（带结论）', async () => {
   const env = boot()
   env.verifyAgent.session.events = [
-    { type: 'assistant/message', data: { message: { content: [{ type: 'text', text: '{"done": false, "reason": "测试还没写"}' }] } } },
+    {
+      type: 'assistant/message',
+      data: {
+        message: { content: [{ type: 'text', text: '{"done": false, "reason": "测试还没写"}' }] },
+      },
+    },
   ]
   await registerTask(env, { mode: 'verify' })
   await dispatchOne(env.listeners, 'agent/status', { agent: env.mainAgent, status: 'idle' })
@@ -430,7 +520,9 @@ test('校验结论未完成唤醒主 agent 继续（带结论）', async () => {
 
 test('校验 agent 创建失败降级直接继续', async () => {
   const env = boot()
-  env.agents.create = async () => { throw new Error('boom') }
+  env.agents.create = async () => {
+    throw new Error('boom')
+  }
   await registerTask(env, { mode: 'verify' })
   await dispatchOne(env.listeners, 'agent/status', { agent: env.mainAgent, status: 'idle' })
   await tick(50)
@@ -440,7 +532,10 @@ test('校验 agent 创建失败降级直接继续', async () => {
 test('校验次数达上限任务标记失败', async () => {
   const env = boot({ maxVerify: 1 })
   env.verifyAgent.session.events = [
-    { type: 'assistant/message', data: { message: { content: [{ type: 'text', text: '{"done": false, "reason": "未完"}' }] } } },
+    {
+      type: 'assistant/message',
+      data: { message: { content: [{ type: 'text', text: '{"done": false, "reason": "未完"}' }] } },
+    },
   ]
   await registerTask(env, { mode: 'verify' })
   // 第一次 idle：校验未完成 → 唤醒
@@ -570,9 +665,10 @@ test('短 reasoning 段落不参与重复检测', async () => {
 test('重复干预达上限后放弃（不再抛错）', async () => {
   const env = boot({})
   const long = '反复思考同样的问题细节与可能的影响因素以及下一步应该采取的具体行动方案。'.repeat(8)
-  const makeStream = () => (async function* () {
-    for (const chunk of reasoningChunks(long)) yield chunk
-  })()
+  const makeStream = () =>
+    (async function* () {
+      for (const chunk of reasoningChunks(long)) yield chunk
+    })()
   for (let i = 0; i < 3; i++) {
     const wrapped = await dispatchOne(env.listeners, 'llm/stream', { sessionId: 'session-main' }, makeStream)
     const { error } = await collect(wrapped)
@@ -592,7 +688,10 @@ test('turn-stopping 检测到重复后注入打断指令', async () => {
     })()
   })
   await collect(wrapped)
-  await dispatchOne(env.listeners, 'agent/turn-stopping', { agent: env.mainAgent, signal: { aborted: false } })
+  await dispatchOne(env.listeners, 'agent/turn-stopping', {
+    agent: env.mainAgent,
+    signal: { aborted: false },
+  })
   assert.equal(env.mainAgent.steered.length, 1)
   assert.ok(env.mainAgent.steered[0].content[0].text.includes('思考重复'))
 })
@@ -601,11 +700,19 @@ test('turn-stopping 检测到重复后注入打断指令', async () => {
 test('autopilot 开启时 ask 工具被拒绝并记录问题', async () => {
   const env = boot({ autopilot: true })
   let nextCalled = false
-  const decision = await dispatchOne(env.listeners, 'tools/pre-execute', {
-    name: 'ask_user_question',
-    agent: env.mainAgent,
-    arguments: { questions: [{ header: '选哪个方案？', question: 'A 还是 B？' }] },
-  }, () => { nextCalled = true; return Promise.resolve({ kind: 'allow' }) })
+  const decision = await dispatchOne(
+    env.listeners,
+    'tools/pre-execute',
+    {
+      name: 'ask_user_question',
+      agent: env.mainAgent,
+      arguments: { questions: [{ header: '选哪个方案？', question: 'A 还是 B？' }] },
+    },
+    () => {
+      nextCalled = true
+      return Promise.resolve({ kind: 'allow' })
+    },
+  )
   assert.equal(decision.kind, 'deny')
   assert.ok(decision.reason.includes('自主决策模式'))
   assert.equal(nextCalled, false, 'deny 时不调用 next')
@@ -617,11 +724,19 @@ test('autopilot 开启时 ask 工具被拒绝并记录问题', async () => {
 test('autopilot 关闭时 ask 透传', async () => {
   const env = boot()
   let nextCalled = false
-  const decision = await dispatchOne(env.listeners, 'tools/pre-execute', {
-    name: 'ask_user_question',
-    agent: env.mainAgent,
-    arguments: { questions: [{ header: 'h' }] },
-  }, () => { nextCalled = true; return Promise.resolve({ kind: 'allow' }) })
+  const decision = await dispatchOne(
+    env.listeners,
+    'tools/pre-execute',
+    {
+      name: 'ask_user_question',
+      agent: env.mainAgent,
+      arguments: { questions: [{ header: 'h' }] },
+    },
+    () => {
+      nextCalled = true
+      return Promise.resolve({ kind: 'allow' })
+    },
+  )
   assert.equal(nextCalled, true)
   assert.equal(decision.kind, 'allow')
 })
@@ -629,47 +744,76 @@ test('autopilot 关闭时 ask 透传', async () => {
 test('非 ask 工具透传', async () => {
   const env = boot({ autopilot: true })
   let nextCalled = false
-  await dispatchOne(env.listeners, 'tools/pre-execute', {
-    name: 'bash',
-    agent: env.mainAgent,
-    arguments: {},
-  }, () => { nextCalled = true; return Promise.resolve({ kind: 'allow' }) })
+  await dispatchOne(
+    env.listeners,
+    'tools/pre-execute',
+    {
+      name: 'bash',
+      agent: env.mainAgent,
+      arguments: {},
+    },
+    () => {
+      nextCalled = true
+      return Promise.resolve({ kind: 'allow' })
+    },
+  )
   assert.equal(nextCalled, true)
 })
 
 test('会话级 autopilot 开启后问题可远程回答', async () => {
   const env = boot({}, { liveAgentId: 'session-main' })
-  await callApi(env.api, mockRequest({
-    url: '/task-reliability/api/trigger',
-    method: 'POST',
-    body: JSON.stringify({ action: 'mode', autopilot: true, sessionId: 'session-main' }),
-  }))
-  await dispatchOne(env.listeners, 'tools/pre-execute', {
-    name: 'ask_user_question',
-    agent: env.mainAgent,
-    arguments: { questions: [{ header: '需要确认' }] },
-  }, () => Promise.resolve({ kind: 'allow' }))
+  await callApi(
+    env.api,
+    mockRequest({
+      url: '/task-reliability/api/trigger',
+      method: 'POST',
+      body: JSON.stringify({ action: 'mode', autopilot: true, sessionId: 'session-main' }),
+    }),
+  )
+  await dispatchOne(
+    env.listeners,
+    'tools/pre-execute',
+    {
+      name: 'ask_user_question',
+      agent: env.mainAgent,
+      arguments: { questions: [{ header: '需要确认' }] },
+    },
+    () => Promise.resolve({ kind: 'allow' }),
+  )
   const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
   const id = body.value[0].id
-  const answered = await callApi(env.api, mockRequest({
-    url: `/task-reliability/api/questions/${id}/answer`,
-    method: 'POST',
-    body: JSON.stringify({ answer: '选 B' }),
-  }))
+  const answered = await callApi(
+    env.api,
+    mockRequest({
+      url: `/task-reliability/api/questions/${id}/answer`,
+      method: 'POST',
+      body: JSON.stringify({ answer: '选 B' }),
+    }),
+  )
   assert.equal(answered.body.ok, true)
   const after = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
   assert.equal(after.body.value[0].answer, '选 B')
-  assert.ok(env.policies.some((p) => p.agentId === 'session-main' && p.policy === 'never'), '审批策略切换 never')
+  assert.ok(
+    env.policies.some((p) => p.agentId === 'session-main' && p.policy === 'never'),
+    '审批策略切换 never',
+  )
 })
 
 // ── ask 超时自动继续（issue #34）─────────────────────────────────────────
 test('ask 超时后注入继续指令并返回模拟回答', async () => {
   const env = boot({ askTimeoutMs: 20 })
-  const result = await dispatchOne(env.listeners, 'tools/execute', {
-    name: 'ask_user_question',
-    agent: env.mainAgent,
-    arguments: { questions: [{ id: 'q1', question: 'A 还是 B？', options: [{ label: '方案A' }, { label: '方案B' }] }] },
-  }, () => new Promise(() => {})) // 永不 resolve，模拟用户长时间不回答
+  const result = await dispatchOne(
+    env.listeners,
+    'tools/execute',
+    {
+      name: 'ask_user_question',
+      agent: env.mainAgent,
+      arguments: {
+        questions: [{ id: 'q1', question: 'A 还是 B？', options: [{ label: '方案A' }, { label: '方案B' }] }],
+      },
+    },
+    () => new Promise(() => {}),
+  ) // 永不 resolve，模拟用户长时间不回答
   assert.ok(result.value.answers.length === 1, '返回模拟回答')
   assert.equal(result.value.answers[0].id, 'q1')
   assert.deepEqual(result.value.answers[0].selected, ['方案A'], '推荐选项被选中')
@@ -679,11 +823,14 @@ test('ask 超时后注入继续指令并返回模拟回答', async () => {
   assert.equal(body.value.length, 1, '被跳过的 ask 记录到待确认列表')
   assert.equal(body.value[0].question, 'A 还是 B？')
   // 被跳过的 ask 可事后回答（复用需求 9 的 answer 机制）
-  const answered = await callApi(env.api, mockRequest({
-    url: `/task-reliability/api/questions/${body.value[0].id}/answer`,
-    method: 'POST',
-    body: JSON.stringify({ answer: '事后选 B' }),
-  }))
+  const answered = await callApi(
+    env.api,
+    mockRequest({
+      url: `/task-reliability/api/questions/${body.value[0].id}/answer`,
+      method: 'POST',
+      body: JSON.stringify({ answer: '事后选 B' }),
+    }),
+  )
   assert.equal(answered.body.ok, true)
   const after = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
   assert.equal(after.body.value[0].answer, '事后选 B')
@@ -691,22 +838,32 @@ test('ask 超时后注入继续指令并返回模拟回答', async () => {
 
 test('ask 超时后无推荐选项时返回空回答由模型自行决策', async () => {
   const env = boot({ askTimeoutMs: 20 })
-  const result = await dispatchOne(env.listeners, 'tools/execute', {
-    name: 'ask_user_question',
-    agent: env.mainAgent,
-    arguments: { questions: [{ id: 'q2', question: '请自行决定' }] },
-  }, () => new Promise(() => {}))
+  const result = await dispatchOne(
+    env.listeners,
+    'tools/execute',
+    {
+      name: 'ask_user_question',
+      agent: env.mainAgent,
+      arguments: { questions: [{ id: 'q2', question: '请自行决定' }] },
+    },
+    () => new Promise(() => {}),
+  )
   assert.deepEqual(result.value.answers[0].selected, [], '无推荐选项时 selected 为空')
   assert.equal(env.mainAgent.followed.length, 1)
 })
 
 test('ask 用户回答后返回真实结果不超时', async () => {
   const env = boot({ askTimeoutMs: 60000 })
-  const result = await dispatchOne(env.listeners, 'tools/execute', {
-    name: 'ask_user_question',
-    agent: env.mainAgent,
-    arguments: { questions: [{ id: 'q1', question: 'A 还是 B？' }] },
-  }, () => Promise.resolve({ value: { answers: [{ id: 'q1', selected: ['B'] }] } }))
+  const result = await dispatchOne(
+    env.listeners,
+    'tools/execute',
+    {
+      name: 'ask_user_question',
+      agent: env.mainAgent,
+      arguments: { questions: [{ id: 'q1', question: 'A 还是 B？' }] },
+    },
+    () => Promise.resolve({ value: { answers: [{ id: 'q1', selected: ['B'] }] } }),
+  )
   assert.deepEqual(result.value.answers[0].selected, ['B'], '真实回答透传')
   assert.equal(env.mainAgent.followed.length, 0, '不注入继续指令')
   const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
@@ -715,11 +872,16 @@ test('ask 用户回答后返回真实结果不超时', async () => {
 
 test('askTimeoutMs=0 时 ask 超时禁用', async () => {
   const env = boot({ askTimeoutMs: 0 })
-  const result = await dispatchOne(env.listeners, 'tools/execute', {
-    name: 'ask_user_question',
-    agent: env.mainAgent,
-    arguments: { questions: [{ id: 'q1', question: 'A 还是 B？' }] },
-  }, () => Promise.resolve({ value: { answers: [{ id: 'q1', selected: ['B'] }] } }))
+  const result = await dispatchOne(
+    env.listeners,
+    'tools/execute',
+    {
+      name: 'ask_user_question',
+      agent: env.mainAgent,
+      arguments: { questions: [{ id: 'q1', question: 'A 还是 B？' }] },
+    },
+    () => Promise.resolve({ value: { answers: [{ id: 'q1', selected: ['B'] }] } }),
+  )
   assert.deepEqual(result.value.answers[0].selected, ['B'])
   assert.equal(env.mainAgent.followed.length, 0)
 })
@@ -727,11 +889,19 @@ test('askTimeoutMs=0 时 ask 超时禁用', async () => {
 test('非 ask 工具不受 ask 超时影响', async () => {
   const env = boot({ askTimeoutMs: 20 })
   let nextCalled = false
-  const result = await dispatchOne(env.listeners, 'tools/execute', {
-    name: 'bash',
-    agent: env.mainAgent,
-    arguments: { command: 'ls' },
-  }, () => { nextCalled = true; return Promise.resolve({ value: { output: 'ok' } }) })
+  const result = await dispatchOne(
+    env.listeners,
+    'tools/execute',
+    {
+      name: 'bash',
+      agent: env.mainAgent,
+      arguments: { command: 'ls' },
+    },
+    () => {
+      nextCalled = true
+      return Promise.resolve({ value: { output: 'ok' } })
+    },
+  )
   assert.equal(nextCalled, true, '直接透传 next')
   assert.deepEqual(result.value, { output: 'ok' })
 })
@@ -776,7 +946,9 @@ test('看门狗唤醒失败不标记任务失败', async () => {
   const env = boot({ watchdogIntervalMs: 20, stallTimeoutMs: 1000 })
   await registerTask(env)
   env.store.tasks[0].updatedAt = Date.now() - 60000
-  env.agents.resume = async () => { throw new Error('session missing') }
+  env.agents.resume = async () => {
+    throw new Error('session missing')
+  }
   await tick(60)
   const store = await storeOf(env)
   assert.equal(store.tasks[0].status, 'active', '保持 active 等待下次唤醒')
@@ -818,7 +990,9 @@ test('resume 失败任务标记 failed 不阻塞启动', async () => {
   await tick()
   env.disposeAll()
   const env2 = boot({ resumeGraceMs: 0 }, {}, env.dir)
-  env2.agents.resume = async () => { throw new Error('session missing') }
+  env2.agents.resume = async () => {
+    throw new Error('session missing')
+  }
   await tick(30)
   const store = await storeOf(env2)
   assert.equal(store.tasks[0].status, 'failed')
@@ -836,11 +1010,14 @@ test('info 返回模式开关与统计', async () => {
 
 test('mode 接口切换全局开关', async () => {
   const env = boot()
-  const { body } = await callApi(env.api, mockRequest({
-    url: '/task-reliability/api/mode',
-    method: 'POST',
-    body: JSON.stringify({ tracking: true, verify: true, autopilot: true }),
-  }))
+  const { body } = await callApi(
+    env.api,
+    mockRequest({
+      url: '/task-reliability/api/mode',
+      method: 'POST',
+      body: JSON.stringify({ tracking: true, verify: true, autopilot: true }),
+    }),
+  )
   assert.equal(body.ok, true)
   const info = await callApi(env.api, mockRequest({ url: '/task-reliability/api/info', method: 'GET' }))
   assert.equal(info.body.value.tracking, true)
@@ -850,71 +1027,102 @@ test('mode 接口切换全局开关', async () => {
 
 test('trigger 支持 register/status/未知动作', async () => {
   const env = boot()
-  const reg = await callApi(env.api, mockRequest({
-    url: '/task-reliability/api/trigger',
-    method: 'POST',
-    body: JSON.stringify({ action: 'register', sessionId: 'session-main', description: '远程注册的任务' }),
-  }))
+  const reg = await callApi(
+    env.api,
+    mockRequest({
+      url: '/task-reliability/api/trigger',
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'register',
+        sessionId: 'session-main',
+        description: '远程注册的任务',
+      }),
+    }),
+  )
   assert.equal(reg.body.ok, true)
-  const status = await callApi(env.api, mockRequest({
-    url: '/task-reliability/api/trigger',
-    method: 'POST',
-    body: JSON.stringify({ action: 'status' }),
-  }))
+  const status = await callApi(
+    env.api,
+    mockRequest({
+      url: '/task-reliability/api/trigger',
+      method: 'POST',
+      body: JSON.stringify({ action: 'status' }),
+    }),
+  )
   assert.equal(status.body.ok, true)
   assert.equal(status.body.value.tasks.length, 1)
-  const bad = await callApi(env.api, mockRequest({
-    url: '/task-reliability/api/trigger',
-    method: 'POST',
-    body: JSON.stringify({ action: 'nope' }),
-  }))
+  const bad = await callApi(
+    env.api,
+    mockRequest({
+      url: '/task-reliability/api/trigger',
+      method: 'POST',
+      body: JSON.stringify({ action: 'nope' }),
+    }),
+  )
   assert.equal(bad.response.writeHeadStatus, 400)
 })
 
 test('fence 拒绝非本机来源', async () => {
   const env = boot()
-  const { response } = await callApi(env.api, mockRequest({
-    url: '/task-reliability/api/info',
-    method: 'GET',
-    host: 'evil.example.com',
-  }))
+  const { response } = await callApi(
+    env.api,
+    mockRequest({
+      url: '/task-reliability/api/info',
+      method: 'GET',
+      host: 'evil.example.com',
+    }),
+  )
   assert.equal(response.writeHeadStatus, 403)
 })
 
 test('配置 apiToken 后错误/缺失 token 被拒', async () => {
   const env = boot({ apiToken: 'secret' })
-  const noToken = await callApi(env.api, mockRequest({
-    url: '/task-reliability/api/trigger',
-    method: 'POST',
-    body: JSON.stringify({ action: 'status' }),
-  }))
+  const noToken = await callApi(
+    env.api,
+    mockRequest({
+      url: '/task-reliability/api/trigger',
+      method: 'POST',
+      body: JSON.stringify({ action: 'status' }),
+    }),
+  )
   assert.equal(noToken.response.writeHeadStatus, 403)
-  const badToken = await callApi(env.api, mockRequest({
-    url: '/task-reliability/api/trigger',
-    method: 'POST',
-    token: 'wrong',
-    body: JSON.stringify({ action: 'status' }),
-  }))
+  const badToken = await callApi(
+    env.api,
+    mockRequest({
+      url: '/task-reliability/api/trigger',
+      method: 'POST',
+      token: 'wrong',
+      body: JSON.stringify({ action: 'status' }),
+    }),
+  )
   assert.equal(badToken.response.writeHeadStatus, 403)
-  const ok = await callApi(env.api, mockRequest({
-    url: '/task-reliability/api/trigger',
-    method: 'POST',
-    token: 'secret',
-    body: JSON.stringify({ action: 'status' }),
-  }))
+  const ok = await callApi(
+    env.api,
+    mockRequest({
+      url: '/task-reliability/api/trigger',
+      method: 'POST',
+      token: 'secret',
+      body: JSON.stringify({ action: 'status' }),
+    }),
+  )
   assert.equal(ok.body.ok, true)
 })
 
 // ── 自动跟踪（goal 信号）──────────────────────────────────────────────────
 test('tracking 开启且存在活动 goal 时自动登记任务', async () => {
-  const env = boot({}, {
-    goalOf: () => ({ objective: '完成插件开发', status: 'active' }),
-  })
-  await callApi(env.api, mockRequest({
-    url: '/task-reliability/api/mode',
-    method: 'POST',
-    body: JSON.stringify({ tracking: true }),
-  }))
+  const env = boot(
+    {},
+    {
+      goalOf: () => ({ objective: '完成插件开发', status: 'active' }),
+    },
+  )
+  await callApi(
+    env.api,
+    mockRequest({
+      url: '/task-reliability/api/mode',
+      method: 'POST',
+      body: JSON.stringify({ tracking: true }),
+    }),
+  )
   await dispatchOne(env.listeners, 'agent/status', { agent: env.mainAgent, status: 'idle' })
   const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/tasks', method: 'GET' }))
   assert.equal(body.value.length, 1)
@@ -923,9 +1131,12 @@ test('tracking 开启且存在活动 goal 时自动登记任务', async () => {
 })
 
 test('tracking 关闭不自动登记', async () => {
-  const env = boot({}, {
-    goalOf: () => ({ objective: '完成插件开发', status: 'active' }),
-  })
+  const env = boot(
+    {},
+    {
+      goalOf: () => ({ objective: '完成插件开发', status: 'active' }),
+    },
+  )
   await dispatchOne(env.listeners, 'agent/status', { agent: env.mainAgent, status: 'idle' })
   const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/tasks', method: 'GET' }))
   assert.equal(body.value.length, 0)

@@ -40,8 +40,16 @@ function makeElement(tag, attrs = {}) {
     style: {},
     dataset: {},
     parentNode: null,
-    appendChild(child) { this.children.push(child); child.parentNode = this; return child },
-    removeChild(child) { const i = this.children.indexOf(child); if (i >= 0) this.children.splice(i, 1); child.parentNode = null },
+    appendChild(child) {
+      this.children.push(child)
+      child.parentNode = this
+      return child
+    },
+    removeChild(child) {
+      const i = this.children.indexOf(child)
+      if (i >= 0) this.children.splice(i, 1)
+      child.parentNode = null
+    },
     replaceWith(...nodes) {
       const parent = this.parentNode
       if (!parent) return
@@ -54,10 +62,16 @@ function makeElement(tag, attrs = {}) {
       }
       parent.children.splice(i, 1, ...flat)
       this.parentNode = null
-      flat.forEach((n) => { n.parentNode = parent })
+      flat.forEach((n) => {
+        n.parentNode = parent
+      })
     },
-    setAttribute(k, v) { this[k] = v },
-    getAttribute(k) { return this[k] },
+    setAttribute(k, v) {
+      this[k] = v
+    },
+    getAttribute(k) {
+      return this[k]
+    },
     querySelector(sel) {
       const walk = (els) => {
         for (const e of els) {
@@ -85,7 +99,10 @@ function makeElement(tag, attrs = {}) {
       if (sel === 'div.tzx-md') return this.tagName === 'DIV' && this.className === 'tzx-md'
       if (sel === 'div.md-table-wide') return this.tagName === 'DIV' && this.className === 'md-table-wide'
       if (sel === 'div.tzx-md, div.md-table-wide') {
-        return (this.tagName === 'DIV' && this.className === 'tzx-md') || (this.tagName === 'DIV' && this.className === 'md-table-wide')
+        return (
+          (this.tagName === 'DIV' && this.className === 'tzx-md') ||
+          (this.tagName === 'DIV' && this.className === 'md-table-wide')
+        )
       }
       if (sel === '[data-conversation-scroll]') return this.dataset.conversationScroll === '1'
       if (sel === '[data-streaming]') return this.dataset.streaming === '1'
@@ -111,7 +128,10 @@ function makeElement(tag, attrs = {}) {
       if (this.children.length === 0) return this._text
       return this.children.map((c) => c.textContent).join('')
     },
-    set(v) { this._text = v; this.children = [] },
+    set(v) {
+      this._text = v
+      this.children = []
+    },
   })
   return el
 }
@@ -178,19 +198,36 @@ global.window = {
 global.document = {
   body: bodyEl,
   head: {
-    appendChild(el) { styleTags.push(el); return el },
+    appendChild(el) {
+      styleTags.push(el)
+      return el
+    },
     removeChild() {},
   },
-  createElement(tag) { return makeElement(tag) },
-  createTextNode(text) { return { nodeType: 3, textContent: text } },
-  createDocumentFragment() { return makeElement('fragment') },
+  createElement(tag) {
+    return makeElement(tag)
+  },
+  createTextNode(text) {
+    return { nodeType: 3, textContent: text }
+  },
+  createDocumentFragment() {
+    return makeElement('fragment')
+  },
 }
 global.Element = function Element() {}
-global.MutationObserver = class { constructor() {} observe() {} disconnect() {} }
+global.MutationObserver = class {
+  constructor() {}
+  observe() {}
+  disconnect() {}
+}
 
 // ── load bundle ───────────────────────────────────────────────────────────
 let registered = null
-global.window.__ModuleLoader__ = { load: (reg) => { registered = reg } }
+global.window.__ModuleLoader__ = {
+  load: (reg) => {
+    registered = reg
+  },
+}
 
 eval(fs.readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8'))
 assert.ok(registered, 'bundle registered')
@@ -203,7 +240,12 @@ assert.equal(typeof exportsObj.apply, 'function')
 
 // ── apply with a mock ctx (effects run immediately) ───────────────────────
 const effects = []
-const ctx = { effect: (fn, label) => { effects.push(label); return fn() } }
+const ctx = {
+  effect: (fn, label) => {
+    effects.push(label)
+    return fn()
+  },
+}
 exportsObj.apply(ctx)
 
 try {

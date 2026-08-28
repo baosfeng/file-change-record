@@ -89,15 +89,36 @@ class World {
       },
       get(name) {
         if (name === 'agents') return agents
-        if (name === 'sessionQuery') return { async readSession() { return { events: [] } } }
-        if (name === 'goals') return { get() { return undefined } }
-        if (name === 'approval') return { setPolicy(agent, policy) { this.policies.push({ agentId: agent.id, policy }) } }
+        if (name === 'sessionQuery')
+          return {
+            async readSession() {
+              return { events: [] }
+            },
+          }
+        if (name === 'goals')
+          return {
+            get() {
+              return undefined
+            },
+          }
+        if (name === 'approval')
+          return {
+            setPolicy(agent, policy) {
+              this.policies.push({ agentId: agent.id, policy })
+            },
+          }
         if (name === 'commands') return commands
         if (name === 'webRuntime') return { trustedHosts: [] }
         return undefined
       },
     }
-    const shared = apply(ctx, { saveDebounceMs: 0, resumeGraceMs: 60000, steerCooldownMs: 0, retryBaseMs: 0, ...config })
+    const shared = apply(ctx, {
+      saveDebounceMs: 0,
+      resumeGraceMs: 60000,
+      steerCooldownMs: 0,
+      retryBaseMs: 0,
+      ...config,
+    })
     this.store = shared.store
   }
 
@@ -140,15 +161,21 @@ class World {
         if (value !== undefined) this.written.push(String(value))
       },
     }
-    await this.api.handler({
-      url,
-      method,
-      headers,
-      async *[Symbol.asyncIterator]() {
-        if (body !== undefined) yield JSON.stringify(body)
+    await this.api.handler(
+      {
+        url,
+        method,
+        headers,
+        async *[Symbol.asyncIterator]() {
+          if (body !== undefined) yield JSON.stringify(body)
+        },
       },
-    }, response)
-    this.lastResponse = { status: response.writeHeadStatus, body: JSON.parse(response.written.join('') || 'null') }
+      response,
+    )
+    this.lastResponse = {
+      status: response.writeHeadStatus,
+      body: JSON.parse(response.written.join('') || 'null'),
+    }
   }
 
   async getConfig() {

@@ -78,10 +78,12 @@ function makeCtx(fake, opts = {}) {
   const ctx = {
     logger: { warn: () => {} },
     loader: fake.loader,
-    timer: { interval: (callback) => {
-      intervals.push(callback)
-      return () => {}
-    } },
+    timer: {
+      interval: (callback) => {
+        intervals.push(callback)
+        return () => {}
+      },
+    },
     get(name) {
       return services[name]
     },
@@ -116,7 +118,11 @@ function makeRequest(method, url, body, overrides) {
   const req = {
     method,
     url,
-    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://127.0.0.1:3080' },
+    headers: {
+      host: '127.0.0.1:3080',
+      'sec-fetch-site': 'same-origin',
+      origin: 'http://127.0.0.1:3080',
+    },
     ...(overrides ?? {}),
     [Symbol.asyncIterator]() {
       const chunks = body === undefined ? [] : [JSON.stringify(body)]
@@ -152,7 +158,11 @@ async function shutdown(ctx) {
 
 async function freshState() {
   mkdirSync(join(dir, 'guardian'), { recursive: true })
-  writeFileSync(stateFile(), JSON.stringify({ version: 1, safeMode: false, staged: {}, promoted: {}, events: [] }), 'utf8')
+  writeFileSync(
+    stateFile(),
+    JSON.stringify({ version: 1, safeMode: false, staged: {}, promoted: {}, events: [] }),
+    'utf8',
+  )
 }
 
 // ── API 响应体精确断言（杀 ObjectLiteral / BooleanLiteral 变异）──────────
@@ -218,8 +228,14 @@ test('diagnostic event log messages carry the entry id', async () => {
   }
   await sleep(250)
   const state = readState()
-  assert.ok(state.events.some((e) => e.type === 'entry-init' && e.message.includes('evt-1')), 'entry-init message has id')
-  assert.ok(state.events.some((e) => e.type === 'entry-dispose' && e.message.includes('evt-2')), 'entry-dispose message has id')
+  assert.ok(
+    state.events.some((e) => e.type === 'entry-init' && e.message.includes('evt-1')),
+    'entry-init message has id',
+  )
+  assert.ok(
+    state.events.some((e) => e.type === 'entry-dispose' && e.message.includes('evt-2')),
+    'entry-dispose message has id',
+  )
   await shutdown(ctx)
 })
 
@@ -256,7 +272,11 @@ test('corrupt and wrong-shape state files degrade to fresh state', async () => {
   const ctx2 = await boot(fake)
   await shutdown(ctx2)
   // wrong version
-  writeFileSync(stateFile(), JSON.stringify({ version: 99, safeMode: true, staged: {}, promoted: {}, events: [] }), 'utf8')
+  writeFileSync(
+    stateFile(),
+    JSON.stringify({ version: 99, safeMode: true, staged: {}, promoted: {}, events: [] }),
+    'utf8',
+  )
   const ctx3 = await boot(fake)
   await shutdown(ctx3)
   // 全部降级：safeMode 应为 false、无崩溃
@@ -300,7 +320,11 @@ test('findRootTree tolerates non-string subtree filenames', async () => {
 test('null staged/promoted in the state file are normalized', async () => {
   const fake = makeLoaderAndTree()
   mkdirSync(join(dir, 'guardian'), { recursive: true })
-  writeFileSync(stateFile(), JSON.stringify({ version: 1, safeMode: false, staged: null, promoted: null, events: 'x' }), 'utf8')
+  writeFileSync(
+    stateFile(),
+    JSON.stringify({ version: 1, safeMode: false, staged: null, promoted: null, events: 'x' }),
+    'utf8',
+  )
   writeFileSync(stagedFile(), JSON.stringify([{ id: 'norm', name: 'dsh-norm' }], null, 2))
   const ctx = await boot(fake)
   assert.ok(fake.created.includes('norm'), 'entry mounted after normalization')
@@ -316,10 +340,17 @@ test('null staged/promoted in the state file are normalized', async () => {
 test('staged entries without a valid name are skipped silently', async () => {
   const fake = makeLoaderAndTree()
   await freshState()
-  writeFileSync(stagedFile(), JSON.stringify([
-    { id: 'noname', name: 42 },
-    { id: 'good', name: 'dsh-good' },
-  ], null, 2))
+  writeFileSync(
+    stagedFile(),
+    JSON.stringify(
+      [
+        { id: 'noname', name: 42 },
+        { id: 'good', name: 'dsh-good' },
+      ],
+      null,
+      2,
+    ),
+  )
   const ctx = await boot(fake)
   assert.deepEqual(fake.created, ['good'], 'only valid-name entry mounted')
   await shutdown(ctx)
@@ -354,18 +385,25 @@ test('staged API rejects a body over the size limit with ok=false', async () => 
   const route = fake.apiRoute
   const res = makeResponse()
   const big = 'x'.repeat(1_000_001)
-  await route.handler({
-    method: 'POST',
-    url: '/guardian/api/staged',
-    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://127.0.0.1:3080' },
-    [Symbol.asyncIterator]() {
-      const chunks = [big]
-      let i = 0
-      return {
-        next: () => Promise.resolve(i < chunks.length ? { value: chunks[i++], done: false } : { done: true }),
-      }
+  await route.handler(
+    {
+      method: 'POST',
+      url: '/guardian/api/staged',
+      headers: {
+        host: '127.0.0.1:3080',
+        'sec-fetch-site': 'same-origin',
+        origin: 'http://127.0.0.1:3080',
+      },
+      [Symbol.asyncIterator]() {
+        const chunks = [big]
+        let i = 0
+        return {
+          next: () => Promise.resolve(i < chunks.length ? { value: chunks[i++], done: false } : { done: true }),
+        }
+      },
     },
-  }, res)
+    res,
+  )
   assert.equal(res._status, 400, 'oversized body rejected')
   assert.equal(JSON.parse(res._body).ok, false)
   await shutdown(ctx)

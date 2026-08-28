@@ -38,7 +38,11 @@ function makeRequest(method, url, body, overrides) {
   const req = {
     method,
     url,
-    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://127.0.0.1:3080' },
+    headers: {
+      host: '127.0.0.1:3080',
+      'sec-fetch-site': 'same-origin',
+      origin: 'http://127.0.0.1:3080',
+    },
     ...(overrides ?? {}),
     [Symbol.asyncIterator]() {
       const chunks = body === undefined ? [] : [JSON.stringify(body)]
@@ -69,7 +73,13 @@ async function boot() {
     logger: { warn: () => {} },
     webRuntime: { trustedHosts: [] },
     sessions: { get: () => undefined },
-    webServer: { register: (route) => { apiHolder.set(route); mediaHolder.set(route); return () => {} } },
+    webServer: {
+      register: (route) => {
+        apiHolder.set(route)
+        mediaHolder.set(route)
+        return () => {}
+      },
+    },
     events: [],
     effectCallbacks: [],
     on(name, listener) {
@@ -90,11 +100,11 @@ async function boot() {
 function emitObserved(ctx, toolName, sessionId, path, opts) {
   const { listener } = ctx.events.find((e) => e.name === 'fs/observed')
   const { observation, args } = opts ?? {}
-  listener(
-    { displayPath: path },
-    observation ?? { kind: 'present' },
-    { name: toolName, agent: { id: sessionId }, arguments: args ?? { file_path: path } },
-  )
+  listener({ displayPath: path }, observation ?? { kind: 'present' }, {
+    name: toolName,
+    agent: { id: sessionId },
+    arguments: args ?? { file_path: path },
+  })
 }
 
 async function callRoute(getRoute, method, url, body, overrides) {
@@ -115,9 +125,17 @@ test('paths containing NUL are rejected by applyRecord', async () => {
 
 test('non-string or empty paths are rejected by record', async () => {
   const { getRoute } = await boot()
-  const r1 = await callRoute(getRoute, 'POST', '/file-activity/api/record', { sessionId: 's1', path: '', op: 'read' })
+  const r1 = await callRoute(getRoute, 'POST', '/file-activity/api/record', {
+    sessionId: 's1',
+    path: '',
+    op: 'read',
+  })
   assert.equal(r1.status, 200)
-  const r2 = await callRoute(getRoute, 'POST', '/file-activity/api/record', { sessionId: 's1', path: 123, op: 'read' })
+  const r2 = await callRoute(getRoute, 'POST', '/file-activity/api/record', {
+    sessionId: 's1',
+    path: 123,
+    op: 'read',
+  })
   assert.equal(r2.status, 200)
   const stats = await callRoute(getRoute, 'GET', '/file-activity/api/stats?sessionId=s1')
   assert.deepEqual(stats.json.value.counts, {}, 'invalid paths not recorded')
@@ -183,18 +201,25 @@ test('oversized JSON body is rejected (400)', async () => {
   const { getRoute } = await boot()
   const res = makeResponse()
   const big = 'x'.repeat(1_000_001)
-  await getRoute().handler({
-    method: 'POST',
-    url: '/file-activity/api/record',
-    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://127.0.0.1:3080' },
-    [Symbol.asyncIterator]() {
-      const chunks = [big]
-      let i = 0
-      return {
-        next: () => Promise.resolve(i < chunks.length ? { value: chunks[i++], done: false } : { done: true }),
-      }
+  await getRoute().handler(
+    {
+      method: 'POST',
+      url: '/file-activity/api/record',
+      headers: {
+        host: '127.0.0.1:3080',
+        'sec-fetch-site': 'same-origin',
+        origin: 'http://127.0.0.1:3080',
+      },
+      [Symbol.asyncIterator]() {
+        const chunks = [big]
+        let i = 0
+        return {
+          next: () => Promise.resolve(i < chunks.length ? { value: chunks[i++], done: false } : { done: true }),
+        }
+      },
     },
-  }, res)
+    res,
+  )
   assert.equal(res._status, 400, 'oversized body rejected')
   assert.equal(JSON.parse(res._body).ok, false)
 })
@@ -202,9 +227,12 @@ test('oversized JSON body is rejected (400)', async () => {
 test('media route refuses requests outside the fence (403)', async () => {
   const { getMediaRoute } = await boot()
   const res = makeResponse()
-  await getMediaRoute().handler(makeRequest('GET', '/file-activity/file?sessionId=s&path=/x', undefined, {
-    headers: { host: 'evil.example.com', 'sec-fetch-site': 'same-origin' },
-  }), res)
+  await getMediaRoute().handler(
+    makeRequest('GET', '/file-activity/file?sessionId=s&path=/x', undefined, {
+      headers: { host: 'evil.example.com', 'sec-fetch-site': 'same-origin' },
+    }),
+    res,
+  )
   assert.equal(res._status, 403, 'media route fenced')
 })
 
@@ -216,7 +244,10 @@ test('media route rejects directories (400)', async () => {
   emitObserved(ctx, 'read', 's7', dirPath)
   await new Promise((resolve) => setTimeout(resolve, 600))
   const res = makeResponse()
-  await getMediaRoute().handler(makeRequest('GET', `/file-activity/file?sessionId=s7&path=${encodeURIComponent(dirPath)}`), res)
+  await getMediaRoute().handler(
+    makeRequest('GET', `/file-activity/file?sessionId=s7&path=${encodeURIComponent(dirPath)}`),
+    res,
+  )
   assert.equal(res._status, 400, 'directory is not a file')
   assert.equal(JSON.parse(res._body).ok, false)
 })
@@ -229,7 +260,10 @@ test('media route rejects files over the size limit (413)', async () => {
   emitObserved(ctx, 'read', 's8', bigFile)
   await new Promise((resolve) => setTimeout(resolve, 600))
   const res = makeResponse()
-  await getMediaRoute().handler(makeRequest('GET', `/file-activity/file?sessionId=s8&path=${encodeURIComponent(bigFile)}`), res)
+  await getMediaRoute().handler(
+    makeRequest('GET', `/file-activity/file?sessionId=s8&path=${encodeURIComponent(bigFile)}`),
+    res,
+  )
   assert.equal(res._status, 413, 'oversized media rejected')
   assert.equal(JSON.parse(res._body).ok, false)
 })
@@ -261,11 +295,21 @@ test('stats carries the session cwd when the session provides one', async () => 
     logger: { warn: () => {} },
     webRuntime: { trustedHosts: [] },
     sessions: { get: () => ({ header: { cwd: '/work/alpha' } }) },
-    webServer: { register: (route) => { apiHolder2.set(route); mediaHolder2.set(route); return () => {} } },
+    webServer: {
+      register: (route) => {
+        apiHolder2.set(route)
+        mediaHolder2.set(route)
+        return () => {}
+      },
+    },
     events: [],
     effectCallbacks: [],
     on() {},
-    effect(cb) { const d = cb(); if (typeof d === 'function') this.effectCallbacks.push({ disposer: d }); return d },
+    effect(cb) {
+      const d = cb()
+      if (typeof d === 'function') this.effectCallbacks.push({ disposer: d })
+      return d
+    },
   }
   apply(ctxWithCwd)
   await new Promise((resolve) => setTimeout(resolve, 50))
@@ -297,7 +341,10 @@ test('unknown media extensions fall back to octet-stream', async () => {
   emitObserved(ctx, 'read', 's12', oddFile)
   await new Promise((resolve) => setTimeout(resolve, 600))
   const res = makeResponse()
-  await getMediaRoute().handler(makeRequest('GET', `/file-activity/file?sessionId=s12&path=${encodeURIComponent(oddFile)}`), res)
+  await getMediaRoute().handler(
+    makeRequest('GET', `/file-activity/file?sessionId=s12&path=${encodeURIComponent(oddFile)}`),
+    res,
+  )
   assert.equal(res._status, 200)
   assert.equal(res._headers['content-type'], 'application/octet-stream', 'unknown ext fallback')
 })
@@ -305,7 +352,11 @@ test('unknown media extensions fall back to octet-stream', async () => {
 test('null observation is ignored by fs/observed', async () => {
   const { ctx, getRoute } = await boot()
   const { listener } = ctx.events.find((e) => e.name === 'fs/observed')
-  listener({ displayPath: '/work/x.txt' }, null, { name: 'read', agent: { id: 's-null' }, arguments: { file_path: '/work/x.txt' } })
+  listener({ displayPath: '/work/x.txt' }, null, {
+    name: 'read',
+    agent: { id: 's-null' },
+    arguments: { file_path: '/work/x.txt' },
+  })
   await new Promise((resolve) => setTimeout(resolve, 600))
   const r = await callRoute(getRoute, 'GET', '/file-activity/api/stats?sessionId=s-null')
   assert.deepEqual(r.json.value.counts, {}, 'null observation ignored')
@@ -314,7 +365,11 @@ test('null observation is ignored by fs/observed', async () => {
 test('undefined observation is ignored by fs/observed', async () => {
   const { ctx, getRoute } = await boot()
   const { listener } = ctx.events.find((e) => e.name === 'fs/observed')
-  listener({ displayPath: '/work/x.txt' }, undefined, { name: 'read', agent: { id: 's-undef' }, arguments: { file_path: '/work/x.txt' } })
+  listener({ displayPath: '/work/x.txt' }, undefined, {
+    name: 'read',
+    agent: { id: 's-undef' },
+    arguments: { file_path: '/work/x.txt' },
+  })
   await new Promise((resolve) => setTimeout(resolve, 600))
   const r = await callRoute(getRoute, 'GET', '/file-activity/api/stats?sessionId=s-undef')
   assert.deepEqual(r.json.value.counts, {}, 'undefined observation ignored')
@@ -331,13 +386,26 @@ test('media route with missing sessionId parameter returns 400', async () => {
 test('isRecordedPath with non-array recent refuses the media route', async () => {
   // seed a state where the session has counts but recent is not an array
   // and the requested path is NOT in counts → must fall to the recent check
-  writeFileSync(statePath, JSON.stringify({
-    version: 1,
-    sessions: { 'odd-recent': { known: {}, counts: { '/work/other.txt': { read: 1 } }, recent: 'not-an-array' } },
-  }), 'utf8')
+  writeFileSync(
+    statePath,
+    JSON.stringify({
+      version: 1,
+      sessions: {
+        'odd-recent': {
+          known: {},
+          counts: { '/work/other.txt': { read: 1 } },
+          recent: 'not-an-array',
+        },
+      },
+    }),
+    'utf8',
+  )
   const { getMediaRoute } = await boot()
   const res = makeResponse()
-  await getMediaRoute().handler(makeRequest('GET', '/file-activity/file?sessionId=odd-recent&path=%2Fwork%2Fa.txt'), res)
+  await getMediaRoute().handler(
+    makeRequest('GET', '/file-activity/file?sessionId=odd-recent&path=%2Fwork%2Fa.txt'),
+    res,
+  )
   assert.equal(res._status, 403, 'non-array recent cannot authorize')
 })
 
@@ -381,7 +449,10 @@ test('files without an extension get octet-stream content type', async () => {
   emitObserved(ctx, 'read', 's15', noExt)
   await new Promise((resolve) => setTimeout(resolve, 600))
   const res = makeResponse()
-  await getMediaRoute().handler(makeRequest('GET', `/file-activity/file?sessionId=s15&path=${encodeURIComponent(noExt)}`), res)
+  await getMediaRoute().handler(
+    makeRequest('GET', `/file-activity/file?sessionId=s15&path=${encodeURIComponent(noExt)}`),
+    res,
+  )
   assert.equal(res._status, 200)
   assert.equal(res._headers['content-type'], 'application/octet-stream', 'no-ext fallback')
 })
@@ -399,7 +470,9 @@ test('clear of an unknown session still returns ok and keeps other sessions', as
   const { ctx, getRoute } = await boot()
   emitObserved(ctx, 'read', 'keep-session', '/work/keep.txt')
   await new Promise((resolve) => setTimeout(resolve, 600))
-  const clr = await callRoute(getRoute, 'POST', '/file-activity/api/clear', { sessionId: 'ghost-session' })
+  const clr = await callRoute(getRoute, 'POST', '/file-activity/api/clear', {
+    sessionId: 'ghost-session',
+  })
   assert.equal(clr.status, 200)
   assert.equal(clr.json.ok, true)
   const stats = await callRoute(getRoute, 'GET', '/file-activity/api/stats?sessionId=keep-session')
@@ -426,19 +499,29 @@ test('download=0 does not attach content-disposition', async () => {
   emitObserved(ctx, 'read', 's16', dlFile)
   await new Promise((resolve) => setTimeout(resolve, 600))
   const res = makeResponse()
-  await getMediaRoute().handler(makeRequest('GET', `/file-activity/file?sessionId=s16&path=${encodeURIComponent(dlFile)}&download=0`), res)
+  await getMediaRoute().handler(
+    makeRequest('GET', `/file-activity/file?sessionId=s16&path=${encodeURIComponent(dlFile)}&download=0`),
+    res,
+  )
   assert.equal(res._status, 200)
   assert.equal(res._headers['content-disposition'], undefined, 'no disposition when download=0')
 })
 
 test('counts value of null does not authorize the media route', async () => {
-  writeFileSync(statePath, JSON.stringify({
-    version: 1,
-    sessions: { 'null-count': { known: {}, counts: { '/work/a.txt': null }, recent: [] } },
-  }), 'utf8')
+  writeFileSync(
+    statePath,
+    JSON.stringify({
+      version: 1,
+      sessions: { 'null-count': { known: {}, counts: { '/work/a.txt': null }, recent: [] } },
+    }),
+    'utf8',
+  )
   const { getMediaRoute } = await boot()
   const res = makeResponse()
-  await getMediaRoute().handler(makeRequest('GET', '/file-activity/file?sessionId=null-count&path=%2Fwork%2Fa.txt'), res)
+  await getMediaRoute().handler(
+    makeRequest('GET', '/file-activity/file?sessionId=null-count&path=%2Fwork%2Fa.txt'),
+    res,
+  )
   assert.equal(res._status, 403, 'null count does not authorize')
 })
 
@@ -451,21 +534,25 @@ test('null loaded.sessions is normalized to an empty object', async () => {
 })
 
 test('dedupe drops entries with non-string paths on load', async () => {
-  writeFileSync(statePath, JSON.stringify({
-    version: 1,
-    sessions: {
-      'dedupe-s': {
-        known: {},
-        counts: {},
-        recent: [
-          { path: 42, op: 'read', time: 1 },
-          { path: '', op: 'read', time: 2 },
-          { path: '/work/ok.txt', op: 'read', time: 3 },
-          { path: '/work/ok.txt', op: 'read', time: 4 },
-        ],
+  writeFileSync(
+    statePath,
+    JSON.stringify({
+      version: 1,
+      sessions: {
+        'dedupe-s': {
+          known: {},
+          counts: {},
+          recent: [
+            { path: 42, op: 'read', time: 1 },
+            { path: '', op: 'read', time: 2 },
+            { path: '/work/ok.txt', op: 'read', time: 3 },
+            { path: '/work/ok.txt', op: 'read', time: 4 },
+          ],
+        },
       },
-    },
-  }), 'utf8')
+    }),
+    'utf8',
+  )
   const { getRoute } = await boot()
   const r = await callRoute(getRoute, 'GET', '/file-activity/api/stats?sessionId=dedupe-s')
   assert.equal(r.json.value.recent.length, 1, 'bad entries dropped, duplicates deduped')
@@ -484,7 +571,11 @@ test('fs/observed with null actor is ignored', async () => {
 test('fs/observed with empty session id is ignored', async () => {
   const { ctx, getRoute } = await boot()
   const { listener } = ctx.events.find((e) => e.name === 'fs/observed')
-  listener({ displayPath: '/work/x.txt' }, { kind: 'present' }, { name: 'read', agent: { id: '' }, arguments: { file_path: '/work/x.txt' } })
+  listener(
+    { displayPath: '/work/x.txt' },
+    { kind: 'present' },
+    { name: 'read', agent: { id: '' }, arguments: { file_path: '/work/x.txt' } },
+  )
   await new Promise((resolve) => setTimeout(resolve, 600))
   const r = await callRoute(getRoute, 'GET', '/file-activity/api/stats?sessionId=')
   assert.deepEqual(r.json.value.counts, {}, 'empty session id ignored')
@@ -493,7 +584,11 @@ test('fs/observed with empty session id is ignored', async () => {
 test('fs/observed with non-string tool name is ignored', async () => {
   const { ctx, getRoute } = await boot()
   const { listener } = ctx.events.find((e) => e.name === 'fs/observed')
-  listener({ displayPath: '/work/x.txt' }, { kind: 'present' }, { name: 42, agent: { id: 's-noname' }, arguments: { file_path: '/work/x.txt' } })
+  listener(
+    { displayPath: '/work/x.txt' },
+    { kind: 'present' },
+    { name: 42, agent: { id: 's-noname' }, arguments: { file_path: '/work/x.txt' } },
+  )
   await new Promise((resolve) => setTimeout(resolve, 600))
   const r = await callRoute(getRoute, 'GET', '/file-activity/api/stats?sessionId=s-noname')
   assert.deepEqual(r.json.value.counts, {}, 'non-string tool name ignored')
@@ -506,11 +601,21 @@ test('trustedHosts entry with an explicit port is honored', async () => {
     logger: { warn: () => {} },
     webRuntime: { trustedHosts: ['trusted.example.com:9443'] },
     sessions: { get: () => undefined },
-    webServer: { register: (route) => { apiHolder3.set(route); mediaHolder3.set(route); return () => {} } },
+    webServer: {
+      register: (route) => {
+        apiHolder3.set(route)
+        mediaHolder3.set(route)
+        return () => {}
+      },
+    },
     events: [],
     effectCallbacks: [],
     on() {},
-    effect(cb) { const d = cb(); if (typeof d === 'function') this.effectCallbacks.push({ disposer: d }); return d },
+    effect(cb) {
+      const d = cb()
+      if (typeof d === 'function') this.effectCallbacks.push({ disposer: d })
+      return d
+    },
   }
   apply(ctxT)
   await new Promise((resolve) => setTimeout(resolve, 50))
@@ -528,7 +633,10 @@ test('uppercase extensions are normalized to lowercase for the media type', asyn
   emitObserved(ctx, 'read', 's18', upFile)
   await new Promise((resolve) => setTimeout(resolve, 600))
   const res = makeResponse()
-  await getMediaRoute().handler(makeRequest('GET', `/file-activity/file?sessionId=s18&path=${encodeURIComponent(upFile)}`), res)
+  await getMediaRoute().handler(
+    makeRequest('GET', `/file-activity/file?sessionId=s18&path=${encodeURIComponent(upFile)}`),
+    res,
+  )
   assert.equal(res._status, 200)
   assert.equal(res._headers['content-type'], 'image/png', 'uppercase ext normalized')
 })
@@ -552,41 +660,58 @@ test('valid JSON body over the size limit is rejected (400)', async () => {
   const { getRoute } = await boot()
   const res = makeResponse()
   const big = '{"pad":"' + 'x'.repeat(1_000_000) + '"}'
-  await getRoute().handler({
-    method: 'POST',
-    url: '/file-activity/api/record',
-    headers: { host: '127.0.0.1:3080', 'sec-fetch-site': 'same-origin', origin: 'http://127.0.0.1:3080' },
-    [Symbol.asyncIterator]() {
-      const chunks = [big]
-      let i = 0
-      return {
-        next: () => Promise.resolve(i < chunks.length ? { value: chunks[i++], done: false } : { done: true }),
-      }
+  await getRoute().handler(
+    {
+      method: 'POST',
+      url: '/file-activity/api/record',
+      headers: {
+        host: '127.0.0.1:3080',
+        'sec-fetch-site': 'same-origin',
+        origin: 'http://127.0.0.1:3080',
+      },
+      [Symbol.asyncIterator]() {
+        const chunks = [big]
+        let i = 0
+        return {
+          next: () => Promise.resolve(i < chunks.length ? { value: chunks[i++], done: false } : { done: true }),
+        }
+      },
     },
-  }, res)
+    res,
+  )
   assert.equal(res._status, 400, 'oversized valid JSON rejected')
 })
 
 test('media route authorizes paths present only in recent (counts absent)', async () => {
   // seed state: the path is in recent history but NOT in counts — the recent
   // branch of isRecordedPath must authorize it (→ stat fails → 404, not 403)
-  writeFileSync(statePath, JSON.stringify({
-    version: 1,
-    sessions: {
-      'recent-only': {
-        known: {},
-        counts: {},
-        recent: [{ path: '/work/only-recent.txt', op: 'read', time: 1 }],
+  writeFileSync(
+    statePath,
+    JSON.stringify({
+      version: 1,
+      sessions: {
+        'recent-only': {
+          known: {},
+          counts: {},
+          recent: [{ path: '/work/only-recent.txt', op: 'read', time: 1 }],
+        },
       },
-    },
-  }), 'utf8')
+    }),
+    'utf8',
+  )
   const { getMediaRoute } = await boot()
   const res = makeResponse()
-  await getMediaRoute().handler(makeRequest('GET', '/file-activity/file?sessionId=recent-only&path=%2Fwork%2Fonly-recent.txt'), res)
+  await getMediaRoute().handler(
+    makeRequest('GET', '/file-activity/file?sessionId=recent-only&path=%2Fwork%2Fonly-recent.txt'),
+    res,
+  )
   assert.equal(res._status, 404, 'recent-only path authorized but file missing')
   // and an unrecorded path stays 403
   const res2 = makeResponse()
-  await getMediaRoute().handler(makeRequest('GET', '/file-activity/file?sessionId=recent-only&path=%2Fwork%2Fother.txt'), res2)
+  await getMediaRoute().handler(
+    makeRequest('GET', '/file-activity/file?sessionId=recent-only&path=%2Fwork%2Fother.txt'),
+    res2,
+  )
   assert.equal(res2._status, 403, 'unrecorded path refused')
 })
 
@@ -627,7 +752,13 @@ test('records drained before state load are persisted to disk', async () => {
     logger: { warn: () => {} },
     webRuntime: { trustedHosts: [] },
     sessions: { get: () => undefined },
-    webServer: { register: (route) => { apiHolder4.set(route); mediaHolder4.set(route); return () => {} } },
+    webServer: {
+      register: (route) => {
+        apiHolder4.set(route)
+        mediaHolder4.set(route)
+        return () => {}
+      },
+    },
     events: [],
     effectCallbacks: [],
     on(name, listener) {
@@ -641,7 +772,11 @@ test('records drained before state load are persisted to disk', async () => {
   apply(ctx4)
   // record before the async state load completes
   const { listener } = ctx4.events.find((e) => e.name === 'fs/observed')
-  listener({ displayPath: '/work/drained.txt' }, { kind: 'present' }, { name: 'read', agent: { id: 'drain-s' }, arguments: {} })
+  listener(
+    { displayPath: '/work/drained.txt' },
+    { kind: 'present' },
+    { name: 'read', agent: { id: 'drain-s' }, arguments: {} },
+  )
   await new Promise((resolve) => setTimeout(resolve, 1200)) // load + debounce persist
   const persisted = JSON.parse((await import('node:fs')).readFileSync(statePath, 'utf8'))
   assert.equal(persisted.sessions['drain-s'].counts['/work/drained.txt'].read, 1, 'drained record persisted')
@@ -663,7 +798,10 @@ test('tools/pre-execute: bash rm records a delete and drops the file from stats'
   await new Promise((resolve) => setTimeout(resolve, 600))
   const stats = await callRoute(getRoute, 'GET', '/file-activity/api/stats?sessionId=bash-s')
   assert.equal(stats.json.value.counts['/work/gone.js'], undefined, 'deleted file removed from stats')
-  assert.ok(stats.json.value.recent.some((e) => e.path === '/work/gone.js' && e.op === 'delete'), 'delete history entry present')
+  assert.ok(
+    stats.json.value.recent.some((e) => e.path === '/work/gone.js' && e.op === 'delete'),
+    'delete history entry present',
+  )
 })
 
 test('tools/pre-execute: touch/redirect create; mv maps source delete + dest create', async () => {
@@ -698,7 +836,13 @@ test('tools/pre-execute: relative paths resolve against the session cwd', async 
     logger: { warn: () => {} },
     webRuntime: { trustedHosts: [] },
     sessions: { get: () => ({ header: { cwd: '/proj' } }) },
-    webServer: { register: (route) => { apiHolder5.set(route); mediaHolder5.set(route); return () => {} } },
+    webServer: {
+      register: (route) => {
+        apiHolder5.set(route)
+        mediaHolder5.set(route)
+        return () => {}
+      },
+    },
     events: [],
     effectCallbacks: [],
     on(name, listener) {
@@ -714,7 +858,10 @@ test('tools/pre-execute: relative paths resolve against the session cwd', async 
   await emitPreExecute(ctx5, 'bash', 'rel-s', 'rm -f tmp/old.txt')
   await new Promise((resolve) => setTimeout(resolve, 600))
   const stats = await callRoute(() => apiHolder5.get(), 'GET', '/file-activity/api/stats?sessionId=rel-s')
-  assert.ok(stats.json.value.recent.some((e) => e.path === '/proj/tmp/old.txt' && e.op === 'delete'), 'relative path resolved against session cwd')
+  assert.ok(
+    stats.json.value.recent.some((e) => e.path === '/proj/tmp/old.txt' && e.op === 'delete'),
+    'relative path resolved against session cwd',
+  )
 })
 
 test('media route denies a path whose only record is a delete', async () => {
@@ -724,7 +871,10 @@ test('media route denies a path whose only record is a delete', async () => {
   await emitPreExecute(ctx, 'bash', 'gone-s', 'rm /work/byebye.txt')
   await new Promise((resolve) => setTimeout(resolve, 600))
   const res = makeResponse()
-  await getMediaRoute().handler(makeRequest('GET', '/file-activity/file?sessionId=gone-s&path=%2Fwork%2Fbyebye.txt'), res)
+  await getMediaRoute().handler(
+    makeRequest('GET', '/file-activity/file?sessionId=gone-s&path=%2Fwork%2Fbyebye.txt'),
+    res,
+  )
   assert.equal(res._status, 403, 'deleted file no longer authorizes media preview')
 })
 
@@ -737,6 +887,9 @@ test('tools/pre-execute: non-string command and workdir branch coverage', async 
   await emitPreExecute(ctx, 'bash', 'bash-s4', 'rm -f tmp/x.txt', { workdir: '/wd' })
   await new Promise((resolve) => setTimeout(resolve, 600))
   const stats = await callRoute(getRoute, 'GET', '/file-activity/api/stats?sessionId=bash-s4')
-  assert.ok(stats.json.value.recent.some((e) => e.path === '/wd/tmp/x.txt' && e.op === 'delete'), 'workdir overrides session cwd')
+  assert.ok(
+    stats.json.value.recent.some((e) => e.path === '/wd/tmp/x.txt' && e.op === 'delete'),
+    'workdir overrides session cwd',
+  )
   assert.equal(stats.json.value.recent.length, 1, 'only the workdir-resolved op recorded')
 })
