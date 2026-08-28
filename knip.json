@@ -1,6 +1,10 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "workspaces": {
+    ".": {
+      "entry": ["scripts/*.mjs", "scripts/lib/*.mjs", "scripts/test/*.mjs"],
+      "project": ["scripts/**", "*.js", "*.mjs"]
+    },
     "plugins/*": {
       "entry": ["lib/parts/*.js", "test/*.mjs", "test/features/steps/*.mjs"],
       "project": ["lib/**", "scripts/**", "test/**", "*.mjs"],
@@ -23,9 +27,6 @@
       "project": ["src/**", "scripts/**", "test/**", "*.mjs"]
     }
   },
-  "entry": ["scripts/*.mjs", "scripts/lib/*.mjs", "scripts/test/*.mjs", "eslint.config.js", "vitest.config.mjs"],
-  "project": ["scripts/**", "*.js", "*.mjs"],
-  "ignoreDependencies": ["dsh-shared", "@stryker-mutator/html-reporter"],
-  "ignoreBinaries": ["dsh"],
-  "ignore": ["scripts/check-release.mjs", "scripts/verify-real-profile.mjs"]
+  "ignoreDependencies": ["dsh-shared", "@stryker-mutator/html-reporter", "react"],
+  "ignoreBinaries": ["dsh"]
 }
