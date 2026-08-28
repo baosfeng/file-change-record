@@ -14,8 +14,9 @@
  * 注入、fiber teardown 卸载（HMR/禁用无残留）。
  *
  * BUILD NOTE: 本文件是模板源码，不是 DSH 实际服务的文件。scripts/build.mjs
- * 将四个片段文件（lib/parts/i18n.js / replay.js / git.js / styles.js，均为
- * 无 import/export 的纯函数声明文本）经下方 __PART_*__ 占位符（函数式
+ * 将片段文件（lib/parts/i18n.js / replay.js / git.js / styles.js，均为
+ * 无 import/export 的纯函数声明文本；图标片段来自 dsh-shared 共享
+ * client-parts，见 docs/UI规范.md）经下方 __PART_*__ 占位符（函数式
  * replaceAll，避免 $&/$1 特殊解释）拼接进 factory 作用域，写出
  * lib/client.js —— 即 DSH 实际服务的产物。产物必须提交；CI 只对产物执行
  * node --check（见 scripts/test-all.sh / .github/workflows/ci.yml）。
@@ -30,6 +31,7 @@ window.__ModuleLoader__.load({
 
     // ── parts（scripts/build.mjs 拼接；顺序固定）───────────────────────
     /*__PART_I18N__*/
+    /*__PART_ICONS__*/
     /*__PART_REPLAY__*/
     /*__PART_GIT__*/
     /*__PART_STYLES__*/

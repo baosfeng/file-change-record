@@ -26,11 +26,23 @@ function typeLabel(event) {
   }
 }
 
-/** 事件类型 → 徽标样式类别。 */
-function badgeKind(event) {
+/** 事件类型 → 视觉类别（徽标/图标/节点共用，颜色语义一致）：
+ *  status=info / llm=warn / call=accent / result=success / fail=danger。 */
+function typeKind(event) {
   if (event.type === 'agent_status') return 'status'
   if (event.type === 'llm_stream') return 'llm'
-  return 'tool'
+  if (event.type === 'tool_call') return 'call'
+  return event.data?.ok === false ? 'fail' : 'result'
+}
+
+/** 事件类型 → 类型图标（共享线性图标集，stroke=currentColor）。 */
+function typeIcon(event) {
+  const kind = typeKind(event)
+  if (kind === 'status') return icon.clock(15)
+  if (kind === 'llm') return icon.file(15)
+  if (kind === 'call') return icon.external(15)
+  if (kind === 'fail') return icon.close(15)
+  return icon.check(15)
 }
 
 /** 时间戳 → HH:MM:SS。 */
@@ -93,23 +105,38 @@ function eventMeta(event) {
   return ''
 }
 
-/** 单条事件行（徽标 + 时间 + 摘要）。 */
+/** 单条事件行：节点圆点 + 类型图标 + 徽标/时间 + 摘要（hover/active 反馈）。 */
 function EventRow({ event }) {
   const meta = eventMeta(event)
+  const kind = typeKind(event)
   return createElement(
-    'div',
-    { className: 'dso-event' },
+    'button',
+    { className: 'dsh-my-observability-event', type: 'button' },
+    createElement('span', { className: `dsh-my-observability-node dsh-my-observability-node-${kind}` }),
     createElement(
-      'div',
-      { className: 'dso-event-head' },
-      createElement('span', { className: `dso-badge dso-badge-${badgeKind(event)}` }, typeLabel(event)),
-      createElement('span', { className: 'dso-time' }, timeText(event.time)),
+      'span',
+      { className: `dsh-my-observability-event-icon dsh-my-observability-icon-${kind}` },
+      typeIcon(event),
     ),
-    meta !== '' ? createElement('div', { className: 'dso-event-meta' }, meta) : null,
+    createElement(
+      'span',
+      { className: 'dsh-my-observability-event-body' },
+      createElement(
+        'span',
+        { className: 'dsh-my-observability-event-head' },
+        createElement(
+          'span',
+          { className: `dsh-my-observability-badge dsh-my-observability-badge-${kind}` },
+          typeLabel(event),
+        ),
+        createElement('span', { className: 'dsh-my-observability-time' }, timeText(event.time)),
+      ),
+      meta !== '' ? createElement('span', { className: 'dsh-my-observability-event-meta' }, meta) : null,
+    ),
   )
 }
 
-/** 类型过滤按钮组。 */
+/** 类型过滤按钮组（aria-pressed 选中态）。 */
 function TypeFilter({ filter, onFilter }) {
   const options = [
     ['', strings.filterAll()],
@@ -119,13 +146,15 @@ function TypeFilter({ filter, onFilter }) {
   ]
   return createElement(
     'div',
-    { className: 'dso-filters' },
+    { className: 'dsh-my-observability-filters' },
     options.map(([value, label]) =>
       createElement(
         'button',
         {
           key: value,
-          className: `dso-chip${filter === value ? ' dso-chip-active' : ''}`,
+          type: 'button',
+          className: `dsh-my-observability-chip${filter === value ? ' dsh-my-observability-chip-active' : ''}`,
+          'aria-pressed': filter === value,
           onClick: () => onFilter(value),
         },
         label,
@@ -165,23 +194,80 @@ async function loadReplayData(selected, currentSession, setters) {
   }
 }
 
-/** 工具栏：会话选择 + 类型过滤。 */
-function ReplayToolbar({ sessions, selected, onSelect, filter, onFilter }) {
+/** 工具栏：会话选择 + 手动刷新 + 类型过滤。 */
+function ReplayToolbar({ sessions, selected, onSelect, filter, onFilter, onRefresh }) {
   return createElement(
     'div',
-    { className: 'dso-toolbar' },
+    { className: 'dsh-my-observability-toolbar' },
     createElement(
-      'select',
-      {
-        className: 'dso-select',
-        value: selected,
-        onChange: (e) => onSelect(e.target.value),
-      },
-      sessions.length === 0
-        ? createElement('option', { value: '' }, strings.allSessions())
-        : sessions.map((s) => createElement('option', { key: s.sessionId, value: s.sessionId }, s.sessionId)),
+      'div',
+      { className: 'dsh-my-observability-toolbar-row' },
+      createElement(
+        'select',
+        {
+          className: 'dsh-my-observability-select',
+          value: selected,
+          disabled: sessions.length === 0,
+          onChange: (e) => onSelect(e.target.value),
+        },
+        sessions.length === 0
+          ? createElement('option', { value: '' }, strings.allSessions())
+          : sessions.map((s) => createElement('option', { key: s.sessionId, value: s.sessionId }, s.sessionId)),
+      ),
+      createElement(
+        'button',
+        {
+          type: 'button',
+          className: 'dsh-my-observability-iconbtn',
+          'aria-label': strings.refresh(),
+          title: strings.refresh(),
+          onClick: onRefresh,
+        },
+        icon.refresh(15),
+      ),
     ),
     createElement(TypeFilter, { filter, onFilter }),
+  )
+}
+
+/** 加载中状态（旋转刷新图标 + 次级色文案，不阻塞布局）。 */
+function LoadingState() {
+  return createElement(
+    'div',
+    { className: 'dsh-my-observability-state' },
+    icon.refresh(14),
+    createElement('span', null, strings.loading()),
+  )
+}
+
+/** 空状态（图标 + 主文案 + hint 两行结构）。 */
+function EmptyState() {
+  return createElement(
+    'div',
+    { className: 'dsh-my-observability-empty' },
+    createElement('span', { className: 'dsh-my-observability-empty-icon' }, icon.clock(20)),
+    createElement('span', null, strings.emptyEvents()),
+    createElement('span', { className: 'dsh-my-observability-empty-hint' }, strings.emptyEventsHint()),
+  )
+}
+
+/** 错误状态（错误色文案 + 重试按钮）。 */
+function ErrorState({ message, onRetry }) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-observability-error' },
+    createElement('span', { className: 'dsh-my-observability-error-text' }, `${strings.loadError()}：${message}`),
+    createElement(
+      'button',
+      {
+        type: 'button',
+        className: 'dsh-my-observability-iconbtn',
+        'aria-label': strings.retry(),
+        title: strings.retry(),
+        onClick: onRetry,
+      },
+      icon.refresh(15),
+    ),
   )
 }
 
@@ -195,6 +281,7 @@ function ReplayPanel(props) {
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [reloadTick, setReloadTick] = useState(0)
 
   useEffect(() => {
     if (!visible) return undefined
@@ -209,26 +296,31 @@ function ReplayPanel(props) {
       alive = false
       clearInterval(timer)
     }
-  }, [visible, selected, currentSession])
+  }, [visible, selected, currentSession, reloadTick])
+
+  const retry = () => {
+    setError('')
+    setLoading(true)
+    setReloadTick((tick) => tick + 1)
+  }
 
   const filtered = filterEvents(events, filter)
   const rows = filtered.map((event, index) => createElement(EventRow, { key: event.id ?? index, event }))
 
   return createElement(
     'div',
-    { className: 'dso-panel' },
+    { className: 'dsh-my-observability-panel' },
     createElement(ReplayToolbar, {
       sessions,
       selected,
       onSelect: setSelected,
       filter,
       onFilter: setFilter,
+      onRefresh: retry,
     }),
-    error !== '' ? createElement('div', { className: 'dso-empty' }, `${strings.loadError()}：${error}`) : null,
-    loading && error === '' ? createElement('div', { className: 'dso-empty' }, strings.loading()) : null,
-    !loading && error === '' && filtered.length === 0
-      ? createElement('div', { className: 'dso-empty' }, strings.emptyEvents())
-      : null,
-    createElement('div', { className: 'dso-timeline' }, rows),
+    error !== '' ? createElement(ErrorState, { message: error, onRetry: retry }) : null,
+    loading && error === '' ? createElement(LoadingState, null) : null,
+    !loading && error === '' && filtered.length === 0 ? createElement(EmptyState, null) : null,
+    createElement('div', { className: 'dsh-my-observability-timeline' }, rows),
   )
 }

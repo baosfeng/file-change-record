@@ -1,58 +1,110 @@
 // ── 样式（DSH 语义 token，随 activation 注入 / teardown 卸载）──────
+// 前缀 dsh-my-observability-（issue #54：与 dsh-my-guard 前缀分离，消除跨插件类名冲突）。
 const STYLES = `
-.dso-panel{display:flex;flex-direction:column;gap:10px;padding:12px;color:var(--dsw-alias-label-primary)}
-.dso-toolbar{display:flex;flex-direction:column;gap:8px}
-.dso-select{flex:1;min-width:0;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-primary);
+.dsh-my-observability-panel{display:flex;flex-direction:column;gap:10px;padding:2px 6px 8px;color:var(--dsw-alias-label-primary);font:var(--dsw-font-s-14)}
+.dsh-my-observability-toolbar{display:flex;flex-direction:column;gap:8px}
+.dsh-my-observability-toolbar-row{display:flex;align-items:center;gap:6px}
+.dsh-my-observability-select{flex:1;min-width:0;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-primary);
   background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:4px 8px}
-.dso-input{flex:1;min-width:0;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-primary);
+.dsh-my-observability-select:disabled{opacity:.4;cursor:default}
+.dsh-my-observability-input{flex:1;min-width:0;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-primary);
   background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:4px 8px}
-.dso-input::placeholder{color:var(--dsw-alias-label-tertiary)}
-.dso-repo-row{display:flex;gap:8px;align-items:center}
-.dso-repo-input{flex:1}
-.dso-filters{display:flex;gap:6px;flex-wrap:wrap}
-.dso-chip{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary);background:transparent;
-  border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:2px 10px;cursor:pointer}
-.dso-chip-active{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-interactive-primary);
+.dsh-my-observability-input::placeholder{color:var(--dsw-alias-label-tertiary)}
+.dsh-my-observability-repo-row{display:flex;gap:8px;align-items:center}
+.dsh-my-observability-repo-input{flex:1}
+.dsh-my-observability-iconbtn{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;
+  border:none;border-radius:50%;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;flex:none;
+  transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out), color var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+.dsh-my-observability-iconbtn svg{display:block}
+.dsh-my-observability-iconbtn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+.dsh-my-observability-iconbtn:disabled{opacity:.4;cursor:default}
+.dsh-my-observability-filters{display:flex;gap:6px;flex-wrap:wrap}
+.dsh-my-observability-chip{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary);background:transparent;
+  border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:2px 10px;cursor:pointer;
+  transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out), color var(--ds-transition-duration-slow) var(--ds-ease-in-out), border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+.dsh-my-observability-chip:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+.dsh-my-observability-chip-active{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-interactive-primary);
   background:color-mix(in srgb, var(--dsw-alias-interactive-primary) 12%, transparent)}
-.dso-timeline{display:flex;flex-direction:column;gap:6px;max-height:calc(100vh - 240px);overflow-y:auto}
-.dso-event{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:6px 10px}
-.dso-event-head{display:flex;align-items:center;gap:8px;justify-content:space-between}
-.dso-badge{flex:none;font:var(--dsw-font-xxxs-strong-11);border-radius:4px;padding:1px 6px}
-.dso-badge-status{color:var(--dsw-alias-state-info-primary);background:color-mix(in srgb, var(--dsw-alias-state-info-primary) 14%, transparent)}
-.dso-badge-llm{color:var(--dsw-alias-state-warn-primary);background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 14%, transparent)}
-.dso-badge-tool{color:var(--dsw-alias-state-success-primary);background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 14%, transparent)}
-.dso-time{font:var(--dsw-font-xxxs-11);color:var(--dsw-alias-label-tertiary)}
-.dso-event-meta{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary);line-height:1.6;word-break:break-word;margin-top:2px}
-.dso-empty{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary);text-align:center;padding:16px 8px;line-height:1.7}
-.dso-status{font:var(--dsw-font-xxs-strong-12);color:var(--dsw-alias-label-secondary)}
-.dso-actions{display:flex;gap:8px;flex-wrap:wrap}
-.dso-btn{font:var(--dsw-font-xxs-strong-12);color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2);
-  border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:4px 12px;cursor:pointer}
-.dso-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}
-.dso-btn:disabled{opacity:.5;cursor:default}
-.dso-btn-primary{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-interactive-primary);
+/* ── 时间轴：左侧竖线 + 类型色节点圆点 + 类型图标行 ── */
+.dsh-my-observability-timeline{display:flex;flex-direction:column;gap:2px;max-height:calc(100vh - 240px);overflow-y:auto;
+  padding-left:14px;position:relative}
+.dsh-my-observability-timeline::before{content:'';position:absolute;left:5px;top:8px;bottom:8px;width:2px;border-radius:1px;
+  background:var(--dsw-alias-border-l2)}
+.dsh-my-observability-event{position:relative;display:flex;align-items:flex-start;gap:8px;box-sizing:border-box;width:100%;
+  margin:0;padding:5px 8px 5px 0;border:none;background:transparent;border-radius:8px;cursor:pointer;text-align:left;
+  font:var(--dsw-font-s-14);color:var(--dsw-alias-label-primary);
+  animation:dsh-my-observability-row-in 150ms var(--ds-ease-in-out);
+  transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+.dsh-my-observability-event:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.dsh-my-observability-event:active{background:color-mix(in srgb, var(--dsw-alias-interactive-bg-hover) 55%, transparent)}
+.dsh-my-observability-node{position:absolute;left:-14px;top:50%;transform:translateY(-50%);width:12px;height:12px;flex:none;
+  box-sizing:border-box;border-radius:50%;background:var(--dsw-alias-bg-layer-2);border:2px solid var(--dsw-alias-label-tertiary)}
+.dsh-my-observability-node-status{border-color:var(--dsw-alias-state-info-primary)}
+.dsh-my-observability-node-llm{border-color:var(--dsw-alias-state-warn-primary)}
+.dsh-my-observability-node-call{border-color:var(--dsw-alias-accent)}
+.dsh-my-observability-node-result{border-color:var(--dsw-alias-state-success-primary)}
+.dsh-my-observability-node-fail{border-color:var(--dsw-alias-state-danger-primary)}
+.dsh-my-observability-event-icon{flex:none;display:flex;align-items:center;margin-top:1px}
+.dsh-my-observability-icon-status{color:var(--dsw-alias-state-info-primary)}
+.dsh-my-observability-icon-llm{color:var(--dsw-alias-state-warn-primary)}
+.dsh-my-observability-icon-call{color:var(--dsw-alias-accent)}
+.dsh-my-observability-icon-result{color:var(--dsw-alias-state-success-primary)}
+.dsh-my-observability-icon-fail{color:var(--dsw-alias-state-danger-primary)}
+.dsh-my-observability-event-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.dsh-my-observability-event-head{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.dsh-my-observability-badge{flex:none;font:var(--dsw-font-xxxs-strong-11);border-radius:4px;padding:1px 6px}
+.dsh-my-observability-badge-status{color:var(--dsw-alias-state-info-primary);background:color-mix(in srgb, var(--dsw-alias-state-info-primary) 14%, transparent)}
+.dsh-my-observability-badge-llm{color:var(--dsw-alias-state-warn-primary);background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 14%, transparent)}
+.dsh-my-observability-badge-call{color:var(--dsw-alias-accent);background:color-mix(in srgb, var(--dsw-alias-accent) 12%, transparent)}
+.dsh-my-observability-badge-result{color:var(--dsw-alias-state-success-primary);background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 14%, transparent)}
+.dsh-my-observability-badge-fail{color:var(--dsw-alias-state-danger-primary);background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 14%, transparent)}
+.dsh-my-observability-time{flex:none;font:var(--dsw-font-xxxs-11);color:var(--dsw-alias-label-tertiary);white-space:nowrap}
+.dsh-my-observability-event-meta{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary);line-height:1.6;word-break:break-word}
+/* ── 状态区：loading / 空 / 错误 ── */
+.dsh-my-observability-state{display:flex;align-items:center;gap:6px;padding:8px 6px;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary)}
+.dsh-my-observability-state svg{flex:none;animation:dsh-my-observability-spin 1s linear infinite}
+.dsh-my-observability-empty{display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 8px;text-align:center;
+  font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary);line-height:1.7}
+.dsh-my-observability-empty-icon{display:flex;color:var(--dsw-alias-label-tertiary)}
+.dsh-my-observability-empty-hint{display:block;color:var(--dsw-alias-label-dimmed);font:var(--dsw-font-xxxs-11)}
+.dsh-my-observability-error{display:flex;align-items:center;gap:6px;padding:8px 6px;font:var(--dsw-font-xxs-12);
+  color:var(--dsw-alias-state-error-primary);white-space:pre-wrap;word-break:break-all;line-height:1.7}
+.dsh-my-observability-error-text{flex:1;min-width:0}
+@keyframes dsh-my-observability-row-in{from{opacity:0;transform:translateY(1px)}to{opacity:1;transform:none}}
+@keyframes dsh-my-observability-spin{to{transform:rotate(360deg)}}
+/* ── Git 面板 ── */
+.dsh-my-observability-status{font:var(--dsw-font-xxs-strong-12);color:var(--dsw-alias-label-secondary)}
+.dsh-my-observability-actions{display:flex;gap:8px;flex-wrap:wrap}
+.dsh-my-observability-btn{font:var(--dsw-font-xxs-strong-12);color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2);
+  border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:4px 12px;cursor:pointer;
+  transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out), color var(--ds-transition-duration-slow) var(--ds-ease-in-out), border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+.dsh-my-observability-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}
+.dsh-my-observability-btn:disabled{opacity:.5;cursor:default}
+.dsh-my-observability-btn-primary{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-interactive-primary);
   background:color-mix(in srgb, var(--dsw-alias-interactive-primary) 16%, transparent)}
-.dso-section{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:8px}
-.dso-section-title{font:var(--dsw-font-xs-strong-13);color:var(--dsw-alias-label-primary)}
-.dso-diff{max-height:240px;overflow:auto;font:var(--dsw-font-mono-xxs);font-size:11px;line-height:1.5;
+.dsh-my-observability-section{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:8px}
+.dsh-my-observability-section-title{font:var(--dsw-font-xs-strong-13);color:var(--dsw-alias-label-primary)}
+.dsh-my-observability-diff{max-height:240px;overflow:auto;font:var(--dsw-font-mono-xxs);font-size:11px;line-height:1.5;
   color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);
   border-radius:6px;padding:8px;white-space:pre-wrap;word-break:break-all}
-.dso-form{display:flex;flex-direction:column;gap:6px}
-.dso-type{flex:none;width:96px}
-.dso-textarea{min-height:52px;resize:vertical;font:var(--dsw-font-xxs-12)}
-.dso-feedback{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary);word-break:break-all;line-height:1.5}
-.dso-issue{display:flex;flex-direction:column;gap:2px;border-radius:6px;padding:6px 8px;font:var(--dsw-font-xxs-12)}
-.dso-issue-error{background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 12%, transparent)}
-.dso-issue-warning{background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 12%, transparent)}
-.dso-issue-info{background:color-mix(in srgb, var(--dsw-alias-state-info-primary) 10%, transparent)}
-.dso-issue-sev{font:var(--dsw-font-xxxs-strong-11);text-transform:uppercase}
-.dso-issue-error .dso-issue-sev{color:var(--dsw-alias-state-danger-primary)}
-.dso-issue-warning .dso-issue-sev{color:var(--dsw-alias-state-warn-primary)}
-.dso-issue-info .dso-issue-sev{color:var(--dsw-alias-state-info-primary)}
-.dso-issue-rule{font:var(--dsw-font-mono-xxs);font-size:11px;color:var(--dsw-alias-label-secondary)}
-.dso-issue-msg{color:var(--dsw-alias-label-primary);line-height:1.5}
-.dso-review-ok{font:var(--dsw-font-xxs-strong-12);color:var(--dsw-alias-state-success-primary)}
-.dso-ai{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary);line-height:1.5;
+.dsh-my-observability-form{display:flex;flex-direction:column;gap:6px}
+.dsh-my-observability-type{flex:none;width:96px}
+.dsh-my-observability-textarea{min-height:52px;resize:vertical;font:var(--dsw-font-xxs-12)}
+.dsh-my-observability-feedback{font:var(--dsw-font-xxs-12);word-break:break-all;line-height:1.5}
+.dsh-my-observability-feedback-ok{color:var(--dsw-alias-state-success-primary)}
+.dsh-my-observability-feedback-error{color:var(--dsw-alias-state-error-primary)}
+.dsh-my-observability-issue{display:flex;flex-direction:column;gap:2px;border-radius:6px;padding:6px 8px;font:var(--dsw-font-xxs-12)}
+.dsh-my-observability-issue-error{background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 12%, transparent)}
+.dsh-my-observability-issue-warning{background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 12%, transparent)}
+.dsh-my-observability-issue-info{background:color-mix(in srgb, var(--dsw-alias-state-info-primary) 10%, transparent)}
+.dsh-my-observability-issue-sev{font:var(--dsw-font-xxxs-strong-11);text-transform:uppercase}
+.dsh-my-observability-issue-error .dsh-my-observability-issue-sev{color:var(--dsw-alias-state-danger-primary)}
+.dsh-my-observability-issue-warning .dsh-my-observability-issue-sev{color:var(--dsw-alias-state-warn-primary)}
+.dsh-my-observability-issue-info .dsh-my-observability-issue-sev{color:var(--dsw-alias-state-info-primary)}
+.dsh-my-observability-issue-rule{font:var(--dsw-font-mono-xxs);font-size:11px;color:var(--dsw-alias-label-secondary)}
+.dsh-my-observability-issue-msg{color:var(--dsw-alias-label-primary);line-height:1.5}
+.dsh-my-observability-review-ok{font:var(--dsw-font-xxs-strong-12);color:var(--dsw-alias-state-success-primary)}
+.dsh-my-observability-ai{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary);line-height:1.5;
   border:1px dashed var(--dsw-alias-border-l2);border-radius:6px;padding:6px 8px}
 `
 

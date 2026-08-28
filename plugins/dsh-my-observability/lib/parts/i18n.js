@@ -16,10 +16,13 @@ const strings = {
   filterStatus: () => (isZh() ? '状态' : 'Status'),
   filterLlm: () => (isZh() ? '模型流' : 'LLM'),
   filterTools: () => (isZh() ? '工具' : 'Tools'),
-  emptyEvents: () =>
+  emptyEvents: () => (isZh() ? '暂无审计事件' : 'No audit events yet'),
+  emptyEventsHint: () =>
     isZh()
-      ? '暂无审计事件——开始一段对话后，agent 的行为会出现在这里'
-      : 'No audit events yet — agent activity will appear here after a conversation',
+      ? '开始一段对话后，agent 的状态、模型流与工具调用会按时间记录在这里'
+      : 'Start a conversation — agent status, LLM streams and tool calls are recorded here in time order',
+  refresh: () => (isZh() ? '刷新' : 'Refresh'),
+  retry: () => (isZh() ? '重试' : 'Retry'),
   loadError: () => (isZh() ? '加载失败' : 'Load failed'),
   typeAgentStatus: () => (isZh() ? 'agent 状态' : 'agent status'),
   typeLlmStream: () => (isZh() ? '模型流' : 'LLM stream'),

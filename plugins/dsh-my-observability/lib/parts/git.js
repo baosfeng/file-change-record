@@ -28,16 +28,16 @@ function StatusBar({ status }) {
     if (status.stagedCount > 0) parts.push(`${status.stagedCount} ${strings.staged()}`)
     if (status.unstagedCount > 0) parts.push(`${status.unstagedCount} ${strings.unstaged()}`)
   }
-  return createElement('div', { className: 'dso-status' }, parts.join(' · '))
+  return createElement('div', { className: 'dsh-my-observability-status' }, parts.join(' · '))
 }
 
 /** 差异文本预览。 */
 function DiffView({ diff }) {
   return createElement(
     'div',
-    { className: 'dso-section' },
-    createElement('div', { className: 'dso-section-title' }, strings.diffTitle()),
-    createElement('pre', { className: 'dso-diff' }, diff !== '' ? diff : strings.emptyDiff()),
+    { className: 'dsh-my-observability-section' },
+    createElement('div', { className: 'dsh-my-observability-section-title' }, strings.diffTitle()),
+    createElement('pre', { className: 'dsh-my-observability-diff' }, diff !== '' ? diff : strings.emptyDiff()),
   )
 }
 
@@ -64,25 +64,27 @@ function ReviewReport({ report }) {
       'div',
       {
         key: index,
-        className: `dso-issue dso-issue-${issue.severity}`,
+        className: `dsh-my-observability-issue dsh-my-observability-issue-${issue.severity}`,
       },
-      createElement('span', { className: 'dso-issue-sev' }, severityText(issue.severity)),
+      createElement('span', { className: 'dsh-my-observability-issue-sev' }, severityText(issue.severity)),
       createElement(
         'span',
-        { className: 'dso-issue-rule' },
+        { className: 'dsh-my-observability-issue-rule' },
         `${issue.rule}${issue.file !== '' ? ` ${issue.file}:${issue.line}` : ''}`,
       ),
-      createElement('span', { className: 'dso-issue-msg' }, issue.message),
+      createElement('span', { className: 'dsh-my-observability-issue-msg' }, issue.message),
     ),
   )
   const aiText = aiTextOf(report.ai)
   return createElement(
     'div',
-    { className: 'dso-section' },
-    createElement('div', { className: 'dso-section-title' }, strings.reviewResult()),
-    issues.length === 0 ? createElement('div', { className: 'dso-review-ok' }, strings.reviewPass()) : null,
+    { className: 'dsh-my-observability-section' },
+    createElement('div', { className: 'dsh-my-observability-section-title' }, strings.reviewResult()),
+    issues.length === 0
+      ? createElement('div', { className: 'dsh-my-observability-review-ok' }, strings.reviewPass())
+      : null,
     rows,
-    aiText !== '' ? createElement('div', { className: 'dso-ai' }, aiText) : null,
+    aiText !== '' ? createElement('div', { className: 'dsh-my-observability-ai' }, aiText) : null,
   )
 }
 
@@ -90,37 +92,41 @@ function ReviewReport({ report }) {
 function CommitFields({ form, update, busy, submit }) {
   return createElement(
     'div',
-    { className: 'dso-form' },
+    { className: 'dsh-my-observability-form' },
     createElement(
       'select',
-      { className: 'dso-select dso-type', value: form.type, onChange: update('type') },
+      {
+        className: 'dsh-my-observability-select dsh-my-observability-type',
+        value: form.type,
+        onChange: update('type'),
+      },
       COMMIT_TYPES.map((type) => createElement('option', { key: type, value: type }, type)),
     ),
     createElement('input', {
-      className: 'dso-input',
+      className: 'dsh-my-observability-input',
       placeholder: strings.commitScope(),
       value: form.scope,
       onChange: update('scope'),
     }),
     createElement('input', {
-      className: 'dso-input',
+      className: 'dsh-my-observability-input',
       placeholder: strings.commitDesc(),
       value: form.description,
       onChange: update('description'),
     }),
     createElement('textarea', {
-      className: 'dso-input dso-textarea',
+      className: 'dsh-my-observability-input dsh-my-observability-textarea',
       placeholder: strings.commitBody(),
       value: form.body,
       onChange: update('body'),
     }),
     createElement(
       'div',
-      { className: 'dso-actions' },
+      { className: 'dsh-my-observability-actions' },
       createElement(
         'button',
         {
-          className: 'dso-btn dso-btn-primary',
+          className: 'dsh-my-observability-btn dsh-my-observability-btn-primary',
           disabled: busy,
           onClick: submit,
         },
@@ -135,10 +141,12 @@ function CommitForm({ repo, onCommitted }) {
   const [form, setForm] = useState({ type: 'feat', scope: '', description: '', body: '' })
   const [busy, setBusy] = useState(false)
   const [feedback, setFeedback] = useState('')
+  const [feedbackKind, setFeedbackKind] = useState('ok')
   const update = (key) => (e) => setForm({ ...form, [key]: e.target.value })
   const submit = async () => {
     if (form.description.trim() === '') {
       setFeedback(strings.commitError())
+      setFeedbackKind('error')
       return
     }
     setBusy(true)
@@ -149,20 +157,28 @@ function CommitForm({ repo, onCommitted }) {
         body: JSON.stringify({ repoPath: repo, ...form }),
       })
       setFeedback(`${strings.committed()}：${value.hash} ${value.message}`)
+      setFeedbackKind('ok')
       setForm({ ...form, scope: '', description: '', body: '' })
       onCommitted()
     } catch (err) {
       setFeedback(`${strings.commitError()}：${err instanceof Error ? err.message : String(err)}`)
+      setFeedbackKind('error')
     } finally {
       setBusy(false)
     }
   }
   return createElement(
     'div',
-    { className: 'dso-section' },
-    createElement('div', { className: 'dso-section-title' }, strings.commitTitle()),
+    { className: 'dsh-my-observability-section' },
+    createElement('div', { className: 'dsh-my-observability-section-title' }, strings.commitTitle()),
     createElement(CommitFields, { form, update, busy, submit }),
-    feedback !== '' ? createElement('div', { className: 'dso-feedback' }, feedback) : null,
+    feedback !== ''
+      ? createElement(
+          'div',
+          { className: `dsh-my-observability-feedback dsh-my-observability-feedback-${feedbackKind}` },
+          feedback,
+        )
+      : null,
   )
 }
 
@@ -170,14 +186,14 @@ function CommitForm({ repo, onCommitted }) {
 function RepoRow({ repo, onRepoChange, onLoad }) {
   return createElement(
     'div',
-    { className: 'dso-repo-row' },
+    { className: 'dsh-my-observability-repo-row' },
     createElement('input', {
-      className: 'dso-input dso-repo-input',
+      className: 'dsh-my-observability-input dsh-my-observability-repo-input',
       placeholder: strings.repoPlaceholder(),
       value: repo,
       onChange: (e) => onRepoChange(e.target.value),
     }),
-    createElement('button', { className: 'dso-btn', onClick: onLoad }, strings.loadRepo()),
+    createElement('button', { className: 'dsh-my-observability-btn', onClick: onLoad }, strings.loadRepo()),
   )
 }
 
@@ -185,10 +201,22 @@ function RepoRow({ repo, onRepoChange, onLoad }) {
 function GitActions({ onDiff, onReview }) {
   return createElement(
     'div',
-    { className: 'dso-actions' },
-    createElement('button', { className: 'dso-btn', onClick: () => onDiff(false) }, strings.showDiff()),
-    createElement('button', { className: 'dso-btn', onClick: () => onDiff(true) }, strings.showStagedDiff()),
-    createElement('button', { className: 'dso-btn dso-btn-primary', onClick: onReview }, strings.review()),
+    { className: 'dsh-my-observability-actions' },
+    createElement(
+      'button',
+      { className: 'dsh-my-observability-btn', onClick: () => onDiff(false) },
+      strings.showDiff(),
+    ),
+    createElement(
+      'button',
+      { className: 'dsh-my-observability-btn', onClick: () => onDiff(true) },
+      strings.showStagedDiff(),
+    ),
+    createElement(
+      'button',
+      { className: 'dsh-my-observability-btn dsh-my-observability-btn-primary', onClick: onReview },
+      strings.review(),
+    ),
   )
 }
 
@@ -248,7 +276,7 @@ function GitPanel() {
 
   return createElement(
     'div',
-    { className: 'dso-panel' },
+    { className: 'dsh-my-observability-panel' },
     createElement(RepoRow, {
       repo,
       onRepoChange: (value) => {
@@ -257,7 +285,7 @@ function GitPanel() {
       },
       onLoad: () => fetchStatus(repo, setStatus, setError),
     }),
-    error !== '' ? createElement('div', { className: 'dso-empty' }, error) : null,
+    error !== '' ? createElement('div', { className: 'dsh-my-observability-empty' }, error) : null,
     createElement(StatusBar, { status }),
     createElement(GitActions, {
       onDiff: (staged) => fetchDiff(repo, staged, setDiff, setError),
