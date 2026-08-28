@@ -29,6 +29,7 @@ export default [
       'plugins/dsh-my-memory/lib/client.js',
       'plugins/dsh-my-observability/lib/client.js',
       'plugins/dsh-my-guard/lib/client.js',
+      'plugins/dsh-my-context/lib/client.js',
     ],
   },
   {

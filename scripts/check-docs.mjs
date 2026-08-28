@@ -34,6 +34,7 @@ const MODULES = {
   'dsh-my-plugin-manager': { module: '插件管理', display: '插件管理', npm: 'dsh-my-plugin-manager' },
   'dsh-my-observability': { module: '可观测性', display: '可观测性', npm: 'dsh-my-observability' },
   'dsh-my-guard': { module: '安全护栏', display: '安全护栏', npm: 'dsh-my-guard' },
+  'dsh-my-context': { module: '上下文透镜', display: '上下文透镜', npm: 'dsh-my-context' },
   'dsh-plugin-dev-mode': { module: '插件开发模式', display: '插件开发模式', npm: null }, // agent preset，非 npm 插件
 }
 
