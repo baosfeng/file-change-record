@@ -145,7 +145,7 @@ function collectButtons(node, out) {
 function collectInputs(node, out) {
   if (node === null || typeof node !== 'object') return
   const props = node.props ?? {}
-  if (props.className === 'dmm-add-input' || props.className === 'dmm-path-input') out.push(props)
+  if (props.className === 'dsh-my-memory-add-input' || props.className === 'dsh-my-memory-path-input') out.push(props)
   if (Array.isArray(node)) {
     for (const c of node) collectInputs(c, out)
     return
@@ -157,11 +157,21 @@ function collectInputs(node, out) {
   collectInputs(props.children, out)
 }
 
+/** True when the node tree contains an <svg> element (icon rendering). */
+function hasIcon(node) {
+  if (node === null || typeof node !== 'object') return false
+  if (node.type === 'svg') return true
+  if (Array.isArray(node)) return node.some(hasIcon)
+  if (typeof node.type === 'function') return hasIcon(node.type(node.props))
+  return hasIcon(node.props.children)
+}
+
 function countSections(node) {
   if (node === null || typeof node !== 'object') return 0
   const props = node.props ?? {}
   const cls = props.className
-  let count = typeof cls === 'string' && (cls === 'dmm-section' || cls.startsWith('dmm-section ')) ? 1 : 0
+  let count =
+    typeof cls === 'string' && (cls === 'dsh-my-memory-section' || cls.startsWith('dsh-my-memory-section ')) ? 1 : 0
   if (Array.isArray(node)) {
     for (const c of node) count += countSections(c)
     return count
@@ -174,7 +184,8 @@ function countConfirmPanels(node) {
   if (node === null || typeof node !== 'object') return 0
   const props = node.props ?? {}
   const cls = props.className
-  let count = typeof cls === 'string' && (cls === 'dmm-confirm' || cls.startsWith('dmm-confirm ')) ? 1 : 0
+  let count =
+    typeof cls === 'string' && (cls === 'dsh-my-memory-confirm' || cls.startsWith('dsh-my-memory-confirm ')) ? 1 : 0
   if (Array.isArray(node)) {
     for (const c of node) count += countConfirmPanels(c)
     return count
@@ -222,9 +233,19 @@ assert.ok(joined.includes('项目记忆'), 'project section present')
 assert.equal(countSections(tree2), 2, 'both scopes render as sections (side by side)')
 assert.ok(joined.includes('回复使用中文'), 'global memory desc rendered')
 assert.ok(joined.includes('暂无记忆'), 'project section empty before a project is loaded')
-assert.ok(joined.includes('编辑'), 'edit action rendered')
-assert.ok(joined.includes('删除'), 'delete action rendered')
+assert.ok(joined.includes('点击下方输入框添加第一条记忆'), 'empty state shows the add hint')
+const buttons2 = []
+collectButtons(tree2, buttons2)
+assert.ok(
+  buttons2.some((b) => b.label.includes('编辑')),
+  'edit action rendered',
+)
+assert.ok(
+  buttons2.some((b) => b.label.includes('删除')),
+  'delete action rendered',
+)
 assert.ok(joined.includes('新增'), 'add bar rendered')
+assert.ok(hasIcon(tree2), 'view renders inline svg icons')
 
 const listCalls = fetchCalls.filter((c) => c.url.startsWith('/my-memory/api/memory') && c.options === undefined)
 assert.equal(listCalls.length, 1, 'initial load fetches only the global scope')
@@ -233,7 +254,7 @@ assert.ok(listCalls[0].url.includes('scope=global'), 'global fetch')
 // ── load a project path: project memory + root badge appear ────────────────
 const pathInputs0 = []
 collectInputs(tree2, pathInputs0)
-const pathInput0 = pathInputs0.find((i) => i.className === 'dmm-path-input')
+const pathInput0 = pathInputs0.find((i) => i.className === 'dsh-my-memory-path-input')
 assert.ok(pathInput0, 'project path input rendered')
 pathInput0.onChange({ target: { value: '/work/proj' } })
 const tree2b = renderView()
@@ -300,7 +321,7 @@ assert.equal(deletePayload.confirmed, true, 'write carries the user-consent mark
 const tree5 = renderView()
 const inputs = []
 collectInputs(tree5, inputs)
-const globalAddInput = inputs.find((i) => i.className === 'dmm-add-input' && i.placeholder.includes('记住'))
+const globalAddInput = inputs.find((i) => i.className === 'dsh-my-memory-add-input' && i.placeholder.includes('记住'))
 assert.ok(globalAddInput, 'global add input found')
 globalAddInput.onChange({ target: { value: '新记忆内容' } })
 const tree6 = renderView()
@@ -355,13 +376,13 @@ walkText(tree9, texts9)
 assert.ok(texts9.join('|').includes('保存'), 'edit mode shows the save button')
 const editInputs = []
 collectInputs(tree9, editInputs)
-const editInput = editInputs.find((i) => i.className === 'dmm-add-input' && i.value === '回复使用中文')
+const editInput = editInputs.find((i) => i.className === 'dsh-my-memory-add-input' && i.value === '回复使用中文')
 assert.ok(editInput, 'edit input prefilled with the current desc')
 editInput.onChange({ target: { value: '回复必须使用中文' } })
 const tree10 = renderView()
 const buttons10 = []
 collectButtons(tree10, buttons10)
-// 编辑模式的保存按钮没有 aria-label，直接找 dmm-btn-save
+// 编辑模式的保存按钮没有 aria-label，直接找 dsh-my-memory-btn-save
 const saveEdit = findSaveButton(tree10)
 assert.ok(saveEdit, 'edit save button found')
 saveEdit.onClick()
@@ -397,7 +418,7 @@ assert.equal(updatePayload.confirmed, true, 'update carries the user-consent mar
 const tree12 = renderView()
 const pathInputs = []
 collectInputs(tree12, pathInputs)
-const pathInput = pathInputs.find((i) => i.className === 'dmm-path-input')
+const pathInput = pathInputs.find((i) => i.className === 'dsh-my-memory-path-input')
 assert.ok(pathInput, 'project path input rendered')
 pathInput.onChange({ target: { value: '/work/other' } })
 const tree13 = renderView()
@@ -420,13 +441,13 @@ console.log('ALL MY-MEMORY CLIENT RENDER-PATH TESTS PASSED')
 
 // ── helpers for button collection (no aria-label on some buttons) ─────────
 function collectCancel(node) {
-  return collectByClass(node, 'dmm-confirm-cancel')
+  return collectByClass(node, 'dsh-my-memory-confirm-cancel')
 }
 function collectConfirmOk(node) {
-  return collectByClass(node, 'dmm-confirm-ok')
+  return collectByClass(node, 'dsh-my-memory-confirm-ok')
 }
 function findSaveButton(node) {
-  return collectByClass(node, 'dmm-btn-save')
+  return collectByClass(node, 'dsh-my-memory-btn-save')
 }
 function collectByClass(node, className) {
   if (node === null || typeof node !== 'object') return undefined

@@ -30,236 +30,533 @@ window.__ModuleLoader__.load({
 
     // ── parts (injected by scripts/build.mjs; keep this exact order — the
     //    const initializers below run in splice order) ─────────────────────
-        // ── i18n ──────────────────────────────────────────────────────────────
-    function isZh() {
-      try {
-        const lang = (navigator.language || 'en').toLowerCase()
-        return lang.startsWith('zh')
-      } catch {
-        return false
-      }
-    }
+    // ── i18n ──────────────────────────────────────────────────────────────
+function isZh() {
+  try {
+    const lang = (navigator.language || 'en').toLowerCase()
+    return lang.startsWith('zh')
+  } catch {
+    return false
+  }
+}
 
-    const strings = {
-      title: () => (isZh() ? '记忆' : 'Memory'),
-      globalSection: () => (isZh() ? '全局记忆' : 'Global memory'),
-      projectSection: () => (isZh() ? '项目记忆' : 'Project memory'),
-      projectHint: () => (isZh()
-        ? '输入项目根路径以查看 / 编辑该项目记忆（写入 <项目根>/.dsh/memory.json）'
-        : 'Enter a project root to view/edit its project memory (stored in <projectRoot>/.dsh/memory.json)'),
-      loadProject: () => (isZh() ? '加载' : 'Load'),
-      refresh: () => (isZh() ? '刷新' : 'Refresh'),
-      loading: () => (isZh() ? '加载中…' : 'Loading…'),
-      loadError: () => (isZh() ? '加载失败' : 'Load failed'),
-      empty: () => (isZh() ? '暂无记忆' : 'No memories yet'),
-      addPlaceholder: () => (isZh() ? '输入要记住的内容（如：回复使用中文）' : 'Type what to remember (e.g. reply in Chinese)'),
-      add: () => (isZh() ? '新增' : 'Add'),
-      save: () => (isZh() ? '保存' : 'Save'),
-      cancel: () => (isZh() ? '取消' : 'Cancel'),
-      edit: () => (isZh() ? '编辑' : 'Edit'),
-      delete: () => (isZh() ? '删除' : 'Delete'),
-      confirmAdd: () => (isZh() ? '确认新增这条记忆？' : 'Add this memory?'),
-      confirmUpdate: () => (isZh() ? '确认保存这条记忆的修改？' : 'Save this memory change?'),
-      confirmDelete: () => (isZh() ? '确定删除这条记忆？此操作不可撤销。' : 'Delete this memory? This cannot be undone.'),
-      confirmSave: () => (isZh() ? '确认保存' : 'Confirm save'),
-      confirmDeleteBtn: () => (isZh() ? '确认删除' : 'Confirm delete'),
-      saved: () => (isZh() ? '已保存' : 'Saved'),
-      saveFailed: () => (isZh() ? '操作失败' : 'Operation failed'),
-      projectRoot: () => (isZh() ? '项目根：' : 'Project root: '),
-      globalNote: () => (isZh()
-        ? '全局记忆在会话开始时注入系统提示词（agent 始终携带）；存于 $DSH_HOME/memory.json'
-        : 'Global memories are injected into the system prompt at session start; stored in $DSH_HOME/memory.json'),
-      projectNote: () => (isZh()
-        ? '项目记忆按项目隔离，仅该项目会话可见；存于 <项目根>/.dsh/memory.json'
-        : 'Project memories are scoped to this project only; stored in <projectRoot>/.dsh/memory.json'),
-      confirmHint: () => (isZh() ? '所有新增 / 修改 / 删除都需要你确认' : 'Every add / edit / delete needs your confirmation'),
-      updatedAt: (ts) => (isZh() ? `更新于 ${new Date(ts).toLocaleString()}` : `Updated ${new Date(ts).toLocaleString()}`),
-    }
+const strings = {
+  title: () => (isZh() ? '记忆' : 'Memory'),
+  globalSection: () => (isZh() ? '全局记忆' : 'Global memory'),
+  projectSection: () => (isZh() ? '项目记忆' : 'Project memory'),
+  projectHint: () =>
+    isZh()
+      ? '输入项目根路径以查看 / 编辑该项目记忆（写入 <项目根>/.dsh/memory.json）'
+      : 'Enter a project root to view/edit its project memory (stored in <projectRoot>/.dsh/memory.json)',
+  loadProject: () => (isZh() ? '加载' : 'Load'),
+  refresh: () => (isZh() ? '刷新' : 'Refresh'),
+  retry: () => (isZh() ? '重试' : 'Retry'),
+  loading: () => (isZh() ? '加载中…' : 'Loading…'),
+  loadError: () => (isZh() ? '加载失败' : 'Load failed'),
+  empty: () => (isZh() ? '暂无记忆' : 'No memories yet'),
+  emptyHint: () => (isZh() ? '点击下方输入框添加第一条记忆' : 'Add your first memory below'),
+  addPlaceholder: () =>
+    isZh() ? '输入要记住的内容（如：回复使用中文）' : 'Type what to remember (e.g. reply in Chinese)',
+  add: () => (isZh() ? '新增' : 'Add'),
+  save: () => (isZh() ? '保存' : 'Save'),
+  cancel: () => (isZh() ? '取消' : 'Cancel'),
+  edit: () => (isZh() ? '编辑' : 'Edit'),
+  delete: () => (isZh() ? '删除' : 'Delete'),
+  confirmAdd: () => (isZh() ? '确认新增这条记忆？' : 'Add this memory?'),
+  confirmUpdate: () => (isZh() ? '确认保存这条记忆的修改？' : 'Save this memory change?'),
+  confirmDelete: () => (isZh() ? '确定删除这条记忆？此操作不可撤销。' : 'Delete this memory? This cannot be undone.'),
+  confirmSave: () => (isZh() ? '确认保存' : 'Confirm save'),
+  confirmDeleteBtn: () => (isZh() ? '确认删除' : 'Confirm delete'),
+  saved: () => (isZh() ? '已保存' : 'Saved'),
+  saveFailed: () => (isZh() ? '操作失败' : 'Operation failed'),
+  projectRoot: () => (isZh() ? '项目根：' : 'Project root: '),
+  globalNote: () =>
+    isZh()
+      ? '全局记忆在会话开始时注入系统提示词（agent 始终携带）；存于 $DSH_HOME/memory.json'
+      : 'Global memories are injected into the system prompt at session start; stored in $DSH_HOME/memory.json',
+  projectNote: () =>
+    isZh()
+      ? '项目记忆按项目隔离，仅该项目会话可见；存于 <项目根>/.dsh/memory.json'
+      : 'Project memories are scoped to this project only; stored in <projectRoot>/.dsh/memory.json',
+  confirmHint: () =>
+    isZh() ? '所有新增 / 修改 / 删除都需要你确认' : 'Every add / edit / delete needs your confirmation',
+  updatedAt: (ts) => (isZh() ? `更新于 ${new Date(ts).toLocaleString()}` : `Updated ${new Date(ts).toLocaleString()}`),
+}
 
-        // ── styles (DSH semantic tokens, injected on activate, removed on teardown) ──
-    const STYLES = `
-.dmm-root { display:flex; flex-direction:column; gap:12px; padding:12px; }
-.dmm-pathbar { display:flex; gap:6px; align-items:center; }
-.dmm-path-input { flex:1; min-width:0; height:28px; padding:0 8px; border-radius:6px;
-  border:1px solid var(--dsw-alias-hairline-strong, rgba(128,128,128,.35));
-  background:var(--dsw-alias-bg-input, transparent); color:var(--dsw-alias-label-primary, inherit);
-  font:var(--dsw-font-sm-13, 13px/1.4 sans-serif); }
-.dmm-btn { flex:none; height:28px; padding:0 10px; border-radius:6px; cursor:pointer;
-  border:1px solid var(--dsw-alias-line-border-strong, rgba(128,128,128,.4));
-  background:var(--dsw-alias-surface-hover, rgba(128,128,128,.12)); color:var(--dsw-alias-label-primary, inherit);
-  font:var(--dsw-font-sm-13, 13px sans-serif); }
-.dmm-btn:hover { background:var(--dsw-alias-surface-press, rgba(128,128,128,.2)); }
-.dmm-btn:disabled { opacity:.45; cursor:not-allowed; }
-.dmm-status { font:var(--dsw-font-xxxs-11, 11px sans-serif); color:var(--dsw-alias-label-tertiary, #888); }
-.dmm-saved { color:var(--dsw-alias-state-success-primary, #2e9e5b); }
-.dmm-error { font:var(--dsw-font-xxxs-11, 11px sans-serif); color:var(--dsw-alias-state-danger-primary, #d33); }
-.dmm-sections { display:flex; flex-direction:column; gap:12px; }
-.dmm-section { display:flex; flex-direction:column; gap:6px; padding:10px; border-radius:8px;
-  border:1px solid var(--dsw-alias-line-border-soft, rgba(128,128,128,.18));
-  background:var(--dsw-alias-surface, transparent); }
-.dmm-section-project { border-color:color-mix(in srgb, var(--dsw-alias-state-info-primary, #3a7bd5) 45%, transparent);
-  background:color-mix(in srgb, var(--dsw-alias-state-info-primary, #3a7bd5) 5%, transparent); }
-.dmm-section-head { display:flex; align-items:center; gap:8px; }
-.dmm-section-title { font:var(--dsw-font-sm-strong-13, 600 13px sans-serif);
-  color:var(--dsw-alias-label-primary, inherit); }
-.dmm-badge { flex:none; font:var(--dsw-font-xxxs-11, 11px sans-serif); padding:1px 6px; border-radius:4px;
-  color:var(--dsw-alias-state-info-primary, #3a7bd5);
-  border:1px solid color-mix(in srgb, var(--dsw-alias-state-info-primary, #3a7bd5) 45%, transparent);
-  background:var(--dsw-alias-surface-hover, rgba(128,128,128,.12)); }
-.dmm-note { font:var(--dsw-font-xxxs-11, 11px sans-serif); color:var(--dsw-alias-label-tertiary, #888); }
-.dmm-empty { font:var(--dsw-font-xxxs-11, 11px sans-serif); color:var(--dsw-alias-label-tertiary, #888); padding:4px 0; }
-.dmm-row { display:flex; flex-direction:column; gap:4px; padding:6px 8px; border-radius:6px;
-  border:1px solid var(--dsw-alias-line-border-soft, rgba(128,128,128,.18));
-  background:var(--dsw-alias-surface, transparent); }
-.dmm-row-head { display:flex; align-items:center; gap:8px; }
-.dmm-desc { flex:1; min-width:0; font:var(--dsw-font-sm-13, 13px sans-serif);
-  color:var(--dsw-alias-label-primary, inherit); word-break:break-word; }
-.dmm-meta { font:var(--dsw-font-xxxs-11, 11px sans-serif); color:var(--dsw-alias-label-tertiary, #888); }
-.dmm-actions { display:flex; align-items:center; gap:6px; flex:none; }
-.dmm-btn-edit { height:24px; padding:0 8px; border-radius:5px; cursor:pointer;
-  border:1px solid var(--dsw-alias-line-border-strong, rgba(128,128,128,.4));
-  background:transparent; color:var(--dsw-alias-label-secondary, #666);
-  font:var(--dsw-font-xxxs-11, 11px sans-serif); }
-.dmm-btn-edit:hover { background:var(--dsw-alias-surface-hover, rgba(128,128,128,.12)); }
-.dmm-btn-danger { height:24px; padding:0 8px; border-radius:5px; cursor:pointer;
-  border:1px solid color-mix(in srgb, var(--dsw-alias-state-danger-primary, #d33) 55%, transparent);
-  background:transparent; color:var(--dsw-alias-state-danger-primary, #d33);
-  font:var(--dsw-font-xxxs-11, 11px sans-serif); }
-.dmm-btn-danger:hover { background:color-mix(in srgb, var(--dsw-alias-state-danger-primary, #d33) 12%, transparent); }
-.dmm-addbar { display:flex; gap:6px; align-items:center; }
-.dmm-add-input { flex:1; min-width:0; height:28px; padding:0 8px; border-radius:6px;
-  border:1px solid var(--dsw-alias-hairline-strong, rgba(128,128,128,.35));
-  background:var(--dsw-alias-bg-input, transparent); color:var(--dsw-alias-label-primary, inherit);
-  font:var(--dsw-font-sm-13, 13px/1.4 sans-serif); }
-.dmm-btn-save { height:28px; padding:0 14px; border-radius:6px; cursor:pointer;
-  border:1px solid color-mix(in srgb, var(--dsw-alias-state-success-primary, #2e9e5b) 55%, transparent);
-  background:color-mix(in srgb, var(--dsw-alias-state-success-primary, #2e9e5b) 10%, transparent);
-  color:var(--dsw-alias-state-success-primary, #2e9e5b); font:var(--dsw-font-xxxs-11, 11px sans-serif); }
-.dmm-btn-save:hover { background:color-mix(in srgb, var(--dsw-alias-state-success-primary, #2e9e5b) 18%, transparent); }
-.dmm-confirm { display:flex; flex-direction:column; gap:6px; padding:8px 10px; border-radius:6px;
-  border:1px solid var(--dsw-alias-line-border-strong, rgba(128,128,128,.4)); }
-.dmm-confirm-save { border-color:color-mix(in srgb, var(--dsw-alias-state-success-primary, #2e9e5b) 55%, transparent);
-  background:color-mix(in srgb, var(--dsw-alias-state-success-primary, #2e9e5b) 8%, transparent); }
-.dmm-confirm-delete { border-color:color-mix(in srgb, var(--dsw-alias-state-danger-primary, #d33) 60%, transparent);
-  background:color-mix(in srgb, var(--dsw-alias-state-danger-primary, #d33) 10%, transparent); }
-.dmm-confirm-text { font:var(--dsw-font-xxxs-11, 11px sans-serif); color:var(--dsw-alias-label-primary, inherit); }
-.dmm-confirm-desc { font:var(--dsw-font-sm-13, 13px sans-serif); color:var(--dsw-alias-label-primary, inherit);
-  word-break:break-word; }
-.dmm-confirm-actions { display:flex; gap:6px; align-items:center; }
-.dmm-confirm-ok { height:26px; padding:0 12px; border-radius:5px; cursor:pointer;
-  font:var(--dsw-font-xxxs-11, 11px sans-serif); }
-.dmm-confirm-ok-save { border:1px solid color-mix(in srgb, var(--dsw-alias-state-success-primary, #2e9e5b) 60%, transparent);
-  background:var(--dsw-alias-state-success-primary, #2e9e5b); color:#fff; }
-.dmm-confirm-ok-delete { border:1px solid color-mix(in srgb, var(--dsw-alias-state-danger-primary, #d33) 60%, transparent);
-  background:var(--dsw-alias-state-danger-primary, #d33); color:#fff; }
-.dmm-confirm-ok:hover { filter:brightness(1.1); }
-.dmm-confirm-cancel { height:26px; padding:0 12px; border-radius:5px; cursor:pointer;
-  border:1px solid var(--dsw-alias-line-border-strong, rgba(128,128,128,.4));
-  background:transparent; color:var(--dsw-alias-label-secondary, #666);
-  font:var(--dsw-font-xxxs-11, 11px sans-serif); }
+    // ── styles (DSH semantic tokens, injected on activate, removed on teardown) ──
+// Mirrors the dsh-file-activity design language (issue #54): tight 2px 6px 8px
+// body, 26px rows with hover fills, 24px circular icon buttons, two-line empty
+// states, and motion on every state change. All colors ride the DSH semantic
+// tokens (--dsw-alias-*), typography rides the font roles (--dsw-font-*).
+const STYLES = `
+.dsh-my-memory-root { display:flex; flex-direction:column; gap:8px; padding:2px 6px 8px;
+  font:var(--dsw-font-s-14); color:var(--dsw-alias-label-primary); }
+.dsh-my-memory-toolbar { display:flex; flex-direction:column; gap:4px; }
+.dsh-my-memory-pathbar { display:flex; gap:6px; align-items:center; }
+.dsh-my-memory-path-input { flex:1; min-width:0; height:28px; padding:0 8px; border-radius:6px;
+  border:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-layer-2);
+  color:var(--dsw-alias-label-primary); font:var(--dsw-font-s-14); }
+.dsh-my-memory-path-input:focus { outline:none; border-color:var(--dsw-alias-accent); }
+.dsh-my-memory-btn { display:inline-flex; align-items:center; gap:5px; flex:none; height:28px; padding:0 10px; border-radius:6px; cursor:pointer;
+  border:1px solid var(--dsw-alias-border-l1); background:transparent; color:var(--dsw-alias-label-secondary);
+  font:var(--dsw-font-xxs-12);
+  transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out), color var(--ds-transition-duration-slow) var(--ds-ease-in-out), border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-memory-btn svg { display:block; flex:none; }
+.dsh-my-memory-btn:hover:not(:disabled) { background:var(--dsw-alias-interactive-bg-hover); color:var(--dsw-alias-label-primary); }
+.dsh-my-memory-btn:disabled { opacity:.4; cursor:default; }
+.dsh-my-memory-iconbtn { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; padding:0;
+  border:none; border-radius:50%; background:transparent; color:var(--dsw-alias-label-secondary); cursor:pointer; flex:none;
+  transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out), color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-memory-iconbtn svg { display:block; }
+.dsh-my-memory-iconbtn:hover:not(:disabled) { background:var(--dsw-alias-interactive-bg-hover); color:var(--dsw-alias-label-primary); }
+.dsh-my-memory-iconbtn:disabled { opacity:.4; cursor:default; }
+.dsh-my-memory-iconbtn-danger:hover:not(:disabled) { color:var(--dsw-alias-state-danger-primary); }
+.dsh-my-memory-status { display:flex; align-items:center; gap:5px; font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); }
+.dsh-my-memory-status svg { display:block; flex:none; }
+.dsh-my-memory-saved { color:var(--dsw-alias-state-success-primary); }
+.dsh-my-memory-error { display:flex; align-items:center; gap:6px; font:var(--dsw-font-xxs-12);
+  color:var(--dsw-alias-state-error-primary); white-space:pre-wrap; }
+.dsh-my-memory-sections { display:flex; flex-direction:column; gap:8px; }
+.dsh-my-memory-section { display:flex; flex-direction:column; gap:6px; padding:8px; border-radius:8px;
+  border:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-layer-2); }
+/* The project scope gets the brand accent so the two scopes never blur. */
+.dsh-my-memory-section-project { border-color:color-mix(in srgb, var(--dsw-alias-accent) 45%, transparent);
+  background:color-mix(in srgb, var(--dsw-alias-accent) 5%, transparent); }
+.dsh-my-memory-section-head { display:flex; align-items:center; gap:8px; }
+.dsh-my-memory-section-title { font:var(--dsw-font-s-strong-14); color:var(--dsw-alias-label-primary); }
+.dsh-my-memory-badge { flex:none; display:inline-flex; align-items:center; height:17px; padding:0 5px; border-radius:4px;
+  font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-accent);
+  background:color-mix(in srgb, var(--dsw-alias-accent) 12%, transparent); }
+.dsh-my-memory-note { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); line-height:1.7; }
+.dsh-my-memory-empty { padding:8px 6px; font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); line-height:1.7; }
+.dsh-my-memory-empty-icon { display:inline-flex; vertical-align:-3px; margin-right:6px; color:var(--dsw-alias-label-dimmed); }
+.dsh-my-memory-empty-hint { display:block; margin-top:2px; color:var(--dsw-alias-label-dimmed); font:var(--dsw-font-xxxs-11); }
+.dsh-my-memory-row { display:flex; flex-direction:column; gap:2px; box-sizing:border-box; width:100%; min-height:26px;
+  margin:0; padding:4px 8px; border:none; background:transparent; border-radius:8px;
+  animation:dsh-my-memory-row-in 150ms var(--ds-ease-in-out); }
+.dsh-my-memory-row:hover { background:var(--dsw-alias-interactive-bg-hover); }
+.dsh-my-memory-row-head { display:flex; align-items:center; gap:8px; }
+.dsh-my-memory-desc { flex:1; min-width:0; font:var(--dsw-font-s-14); color:var(--dsw-alias-label-primary); word-break:break-word; }
+.dsh-my-memory-meta { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
+.dsh-my-memory-actions { display:flex; align-items:center; gap:2px; flex:none; }
+.dsh-my-memory-addbar { display:flex; gap:6px; align-items:center; }
+.dsh-my-memory-add-input { flex:1; min-width:0; height:28px; padding:0 8px; border-radius:6px;
+  border:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-layer-2);
+  color:var(--dsw-alias-label-primary); font:var(--dsw-font-s-14); }
+.dsh-my-memory-add-input:focus { outline:none; border-color:var(--dsw-alias-accent); }
+.dsh-my-memory-btn-save { display:inline-flex; align-items:center; gap:5px; height:28px; padding:0 12px; border-radius:6px; cursor:pointer;
+  border:1px solid color-mix(in srgb, var(--dsw-alias-state-success-primary) 55%, transparent);
+  background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);
+  color:var(--dsw-alias-state-success-primary); font:var(--dsw-font-xxs-12);
+  transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out), color var(--ds-transition-duration-slow) var(--ds-ease-in-out), border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-memory-btn-save svg { display:block; flex:none; }
+.dsh-my-memory-btn-save:hover:not(:disabled) { background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 18%, transparent); }
+.dsh-my-memory-btn-save:disabled { opacity:.4; cursor:default; }
+.dsh-my-memory-confirm { display:flex; flex-direction:column; gap:6px; padding:8px 10px; border-radius:8px;
+  border:1px solid var(--dsw-alias-border-l1); animation:dsh-my-memory-row-in 150ms var(--ds-ease-in-out); }
+.dsh-my-memory-confirm-save { border-color:color-mix(in srgb, var(--dsw-alias-state-success-primary) 55%, transparent);
+  background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 8%, transparent); }
+.dsh-my-memory-confirm-delete { border-color:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 60%, transparent);
+  background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 10%, transparent); }
+.dsh-my-memory-confirm-head { display:flex; align-items:center; gap:6px; }
+.dsh-my-memory-confirm-head svg { display:block; flex:none; }
+.dsh-my-memory-confirm-text { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-primary); }
+.dsh-my-memory-confirm-desc { font:var(--dsw-font-s-14); color:var(--dsw-alias-label-primary); word-break:break-word; }
+.dsh-my-memory-confirm-actions { display:flex; gap:6px; align-items:center; }
+.dsh-my-memory-confirm-ok { display:inline-flex; align-items:center; gap:5px; height:26px; padding:0 12px; border-radius:6px; cursor:pointer;
+  font:var(--dsw-font-xxs-12);
+  transition:filter var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-memory-confirm-ok svg { display:block; flex:none; }
+.dsh-my-memory-confirm-ok-save { border:1px solid color-mix(in srgb, var(--dsw-alias-state-success-primary) 60%, transparent);
+  background:var(--dsw-alias-state-success-primary); color:var(--dsw-alias-label-primary-foreground); }
+.dsh-my-memory-confirm-ok-delete { border:1px solid color-mix(in srgb, var(--dsw-alias-state-danger-primary) 60%, transparent);
+  background:var(--dsw-alias-state-danger-primary); color:var(--dsw-alias-label-primary-foreground); }
+.dsh-my-memory-confirm-ok:hover { filter:brightness(1.1); }
+.dsh-my-memory-confirm-cancel { display:inline-flex; align-items:center; gap:5px; height:26px; padding:0 12px; border-radius:6px; cursor:pointer;
+  border:1px solid var(--dsw-alias-border-l1); background:transparent; color:var(--dsw-alias-label-secondary);
+  font:var(--dsw-font-xxs-12);
+  transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out), color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-memory-confirm-cancel svg { display:block; flex:none; }
+.dsh-my-memory-confirm-cancel:hover { background:var(--dsw-alias-interactive-bg-hover); color:var(--dsw-alias-label-primary); }
+@keyframes dsh-my-memory-row-in { from { opacity:0; transform:translateY(1px); } to { opacity:1; transform:none; } }
 `.trim()
 
-    const STYLE_TAG = 'data-dsh-my-memory'
+const STYLE_TAG = 'data-dsh-my-memory'
 
-        // ── api: fetch helpers for the Memory views ────────────────────────────
-    const API_BASE = '/my-memory/api'
+    // ── api: fetch helpers for the Memory views ────────────────────────────
+const API_BASE = '/my-memory/api'
 
-    /** One GET memory payload into { scope, cwd, projectRoot, items }. */
-    function normalizeMemory(value) {
-      return {
-        scope: value.scope ?? 'global',
-        cwd: value.cwd ?? '',
-        projectRoot: value.projectRoot ?? '',
-        items: Array.isArray(value.items) ? value.items : [],
-      }
-    }
+/** One GET memory payload into { scope, cwd, projectRoot, items }. */
+function normalizeMemory(value) {
+  return {
+    scope: value.scope ?? 'global',
+    cwd: value.cwd ?? '',
+    projectRoot: value.projectRoot ?? '',
+    items: Array.isArray(value.items) ? value.items : [],
+  }
+}
 
-    /** GET /my-memory/api/memory?scope=…&cwd=… → normalized value; rejects on bad responses. */
-    function fetchMemory(scope, cwd) {
-      const query = cwd.trim() === '' ? `?scope=${scope}` : `?scope=${scope}&cwd=${encodeURIComponent(cwd.trim())}`
-      return fetch(`${API_BASE}/memory${query}`)
-        .then((res) => res.json())
-        .then((body) => {
-          if (body === null || body.ok !== true) throw new Error('bad memory response')
-          return normalizeMemory(body.value)
-        })
-    }
+/** GET /my-memory/api/memory?scope=…&cwd=… → normalized value; rejects on bad responses. */
+function fetchMemory(scope, cwd) {
+  const query = cwd.trim() === '' ? `?scope=${scope}` : `?scope=${scope}&cwd=${encodeURIComponent(cwd.trim())}`
+  return fetch(`${API_BASE}/memory${query}`)
+    .then((res) => res.json())
+    .then((body) => {
+      if (body === null || body.ok !== true) throw new Error('bad memory response')
+      return normalizeMemory(body.value)
+    })
+}
 
-    /** POST /my-memory/api/memory — a write gated on the user-consent marker. */
-    function writeMemory({ action, scope, cwd, id, desc }) {
-      return fetch(`${API_BASE}/memory`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action, scope, cwd, id, desc, confirmed: true }),
-      })
-        .then((res) => res.json())
-        .then((body) => {
-          if (body === null || body.ok !== true) throw new Error('write failed')
-          return normalizeMemory({ ...body.value, scope })
-        })
-    }
+/** POST /my-memory/api/memory — a write gated on the user-consent marker. */
+function writeMemory({ action, scope, cwd, id, desc }) {
+  return fetch(`${API_BASE}/memory`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ action, scope, cwd, id, desc, confirmed: true }),
+  })
+    .then((res) => res.json())
+    .then((body) => {
+      if (body === null || body.ok !== true) throw new Error('write failed')
+      return normalizeMemory({ ...body.value, scope })
+    })
+}
 
-        // ── view: Memory settings tab ─────────────────────────────────────────
-    /** Load both scopes: global always; project only when a cwd is given. */
-    function fetchAll(cwd) {
-      const projectCwd = cwd.trim()
-      const globalP = fetchMemory('global', '')
-      const projectP = projectCwd === ''
-        ? Promise.resolve({ scope: 'project', cwd: '', projectRoot: '', items: [] })
-        : fetchMemory('project', projectCwd)
-      return Promise.all([globalP, projectP]).then(([global, project]) => ({ global, project }))
-    }
+    // ── shared icons (inline, stroke=currentColor, matching better-sidebar) ──
+// Single source of truth for the plugin UI icon set (issue #54 阶段 0).
+// Extracted from dsh-file-activity's lib/parts/icons.part.js; every plugin's
+// scripts/build.mjs splices this file via the `shared: true` piece marker.
+// Keep the stroke=currentColor outline style — it inherits the surrounding
+// text color and reads on both light and dark themes.
+const ICON_STROKE = 1.8
+const iconSvg = (children, size) =>
+  createElement(
+    'svg',
+    {
+      width: size,
+      height: size,
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: ICON_STROKE,
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+      'aria-hidden': 'true',
+    },
+    children.map((child, i) =>
+      child === null || child === undefined || typeof child === 'boolean'
+        ? child
+        : createElement(child.type, { key: i, ...child.props }),
+    ),
+  )
 
-    /** Replace one scope's data inside the two-scope state. */
-    function mergeScope(data, scope, value) {
-      return scope === 'global' ? { ...data, global: value } : { ...data, project: value }
-    }
+const icon = {
+  clock: (size = 16) =>
+    iconSvg([createElement('circle', { cx: 12, cy: 12, r: 9 }), createElement('path', { d: 'M12 7v5l3 2' })], size),
+  refresh: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', { d: 'M21 12a9 9 0 1 1-2.64-6.36' }),
+        createElement('polyline', { points: '21 3 21 9 15 9' }),
+      ],
+      size,
+    ),
+  trash: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', { d: 'M3 6h18' }),
+        createElement('path', { d: 'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6' }),
+        createElement('path', { d: 'M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2' }),
+      ],
+      size,
+    ),
+  chevronRight: (size = 14) => iconSvg([createElement('polyline', { points: '9 6 15 12 9 18' })], size),
+  chevronDown: (size = 14) => iconSvg([createElement('polyline', { points: '6 9 12 15 18 9' })], size),
+  file: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', { d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z' }),
+        createElement('path', { d: 'M14 2v6h6' }),
+      ],
+      size,
+    ),
+  folder: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', {
+          d: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
+        }),
+      ],
+      size,
+    ),
+  external: (size = 15) =>
+    iconSvg(
+      [
+        createElement('path', { d: 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6' }),
+        createElement('polyline', { points: '15 3 21 3 21 9' }),
+        createElement('line', { x1: 10, y1: 14, x2: 21, y2: 3 }),
+      ],
+      size,
+    ),
+  close: (size = 15) =>
+    iconSvg(
+      [
+        createElement('line', { x1: 18, y1: 6, x2: 6, y2: 18 }),
+        createElement('line', { x1: 6, y1: 6, x2: 18, y2: 18 }),
+      ],
+      size,
+    ),
+  // ── generic action icons (issue #54 阶段 0) ─────────────────────────────
+  // Added for the upcoming plugin UI refresh: save/confirm (check), add/
+  // install (plus), market search (search), settings entry (settings).
+  check: (size = 16) => iconSvg([createElement('polyline', { points: '20 6 9 17 4 12' })], size),
+  plus: (size = 16) =>
+    iconSvg(
+      [
+        createElement('line', { x1: 12, y1: 5, x2: 12, y2: 19 }),
+        createElement('line', { x1: 5, y1: 12, x2: 19, y2: 12 }),
+      ],
+      size,
+    ),
+  pencil: (size = 15) =>
+    iconSvg([createElement('path', { d: 'M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z' })], size),
+  search: (size = 16) =>
+    iconSvg(
+      [
+        createElement('circle', { cx: 11, cy: 11, r: 8 }),
+        createElement('line', { x1: 21, y1: 21, x2: 16.65, y2: 16.65 }),
+      ],
+      size,
+    ),
+  settings: (size = 16) =>
+    iconSvg(
+      [
+        createElement('circle', { cx: 12, cy: 12, r: 3 }),
+        createElement('path', {
+          d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z',
+        }),
+      ],
+      size,
+    ),
+}
 
-    /** Data actions bound to the state setters (created once per component). */
-    function createActions({ setData, setLoading, setError, setSaved }) {
-      const applyValue = (value) => {
-        setData(value)
+// Common-language / file-type badges (issue #24): brand fill + contrast
+// ink, reading on both light and dark themes. Unmapped extensions keep the
+// neutral currentColor file icon above. [bg, fg ink, short mark]
+const FILE_BADGES = {
+  // JavaScript / TypeScript
+  js: ['#F7DF1E', '#323330', 'JS'],
+  mjs: ['#F7DF1E', '#323330', 'JS'],
+  cjs: ['#F7DF1E', '#323330', 'JS'],
+  ts: ['#3178C6', '#ffffff', 'TS'],
+  mts: ['#3178C6', '#ffffff', 'TS'],
+  cts: ['#3178C6', '#ffffff', 'TS'],
+  tsx: ['#3178C6', '#ffffff', 'TSX'],
+  jsx: ['#3178C6', '#ffffff', 'JSX'],
+  // 后端语言
+  java: ['#007396', '#ffffff', 'JAVA'],
+  c: ['#A8B9CC', '#111111', 'C'],
+  cpp: ['#00599C', '#ffffff', 'C++'],
+  cxx: ['#00599C', '#ffffff', 'C++'],
+  cc: ['#00599C', '#ffffff', 'C++'],
+  hpp: ['#00599C', '#ffffff', 'C++'],
+  h: ['#A8B9CC', '#111111', 'H'],
+  hh: ['#A8B9CC', '#111111', 'H'],
+  cs: ['#68217A', '#ffffff', 'C#'],
+  csharp: ['#68217A', '#ffffff', 'C#'],
+  go: ['#00ADD8', '#ffffff', 'GO'],
+  rs: ['#CE422B', '#ffffff', 'RS'],
+  rb: ['#B51624', '#ffffff', 'RB'],
+  php: ['#777BB4', '#ffffff', 'PHP'],
+  py: ['#3776AB', '#ffffff', 'PY'],
+  swift: ['#F05138', '#ffffff', 'SWIFT'],
+  kt: ['#7F52FF', '#ffffff', 'KT'],
+  kotlin: ['#7F52FF', '#ffffff', 'KT'],
+  dart: ['#0175C2', '#ffffff', 'DART'],
+  scala: ['#DC322F', '#ffffff', 'SCALA'],
+  lua: ['#2C2C7C', '#ffffff', 'LUA'],
+  pl: ['#0298C3', '#ffffff', 'PERL'],
+  r: ['#336DC3', '#ffffff', 'R'],
+  m: ['#C1272D', '#ffffff', 'MAT'],
+  mm: ['#C1272D', '#ffffff', 'MAT'],
+  // Web / 前端
+  html: ['#E34F26', '#ffffff', '</>'],
+  htm: ['#E34F26', '#ffffff', '</>'],
+  css: ['#663399', '#ffffff', 'CSS'],
+  scss: ['#CD6799', '#ffffff', 'SCSS'],
+  sass: ['#CD6799', '#ffffff', 'SCSS'],
+  vue: ['#42B883', '#ffffff', 'VUE'],
+  svelte: ['#FF3E00', '#ffffff', 'SVELTE'],
+  // 数据 / 结构化
+  json: ['#F7DF1E', '#323330', '{}'],
+  sql: ['#00758F', '#ffffff', 'SQL'],
+  csv: ['#2E7D32', '#ffffff', 'CSV'],
+  db: ['#0F62FE', '#ffffff', 'DB'],
+  sqlite: ['#0F62FE', '#ffffff', 'DB'],
+  sqlite3: ['#0F62FE', '#ffffff', 'DB'],
+  xml: ['#FF6F00', '#ffffff', 'XML'],
+  svg: ['#FF6F00', '#ffffff', 'SVG'],
+  // 文档
+  md: ['#42A5F5', '#ffffff', 'M↓'],
+  markdown: ['#42A5F5', '#ffffff', 'M↓'],
+  txt: ['#90A4AE', '#ffffff', 'TXT'],
+  text: ['#90A4AE', '#ffffff', 'TXT'],
+  log: ['#90A4AE', '#ffffff', 'TXT'],
+  pdf: ['#E5202B', '#ffffff', 'PDF'],
+  doc: ['#2B579A', '#ffffff', 'DOC'],
+  docx: ['#2B579A', '#ffffff', 'DOC'],
+  xls: ['#217346', '#ffffff', 'XLS'],
+  xlsx: ['#217346', '#ffffff', 'XLS'],
+  ppt: ['#D24726', '#ffffff', 'PPT'],
+  pptx: ['#D24726', '#ffffff', 'PPT'],
+  // 配置 / 构建
+  yml: ['#CB171E', '#ffffff', 'YML'],
+  yaml: ['#CB171E', '#ffffff', 'YML'],
+  toml: ['#8D6E63', '#ffffff', 'TOML'],
+  ini: ['#546E7A', '#ffffff', 'CFG'],
+  cfg: ['#546E7A', '#ffffff', 'CFG'],
+  config: ['#546E7A', '#ffffff', 'CFG'],
+  env: ['#F9A825', '#323330', 'ENV'],
+  properties: ['#7B1FA2', '#ffffff', 'PROP'],
+  lock: ['#37474F', '#ffffff', 'LOCK'],
+  dockerfile: ['#2496ED', '#ffffff', 'DOCK'],
+  docker: ['#2496ED', '#ffffff', 'DOCK'],
+  makefile: ['#607D8B', '#ffffff', 'MAKE'],
+  gradle: ['#02303A', '#ffffff', 'GRADLE'],
+  cmake: ['#265774', '#ffffff', 'CMAKE'],
+  ipynb: ['#F37726', '#ffffff', 'JNB'],
+  // 脚本 / Shell
+  sh: ['#89E051', '#111111', '>_'],
+  bash: ['#89E051', '#111111', '>_'],
+  zsh: ['#89E051', '#111111', '>_'],
+  ps1: ['#012456', '#ffffff', 'PS1'],
+  bat: ['#546E7A', '#ffffff', 'CMD'],
+  cmd: ['#546E7A', '#ffffff', 'CMD'],
+  // 打包 / 二进制
+  zip: ['#FFA726', '#323330', 'ZIP'],
+  tar: ['#FFA726', '#323330', 'ZIP'],
+  gz: ['#FFA726', '#323330', 'ZIP'],
+  '7z': ['#FFA726', '#323330', 'ZIP'],
+  rar: ['#FFA726', '#323330', 'ZIP'],
+  exe: ['#0078D4', '#ffffff', 'EXE'],
+  msi: ['#0078D4', '#ffffff', 'EXE'],
+  wasm: ['#654FF0', '#ffffff', 'WASM'],
+  // 图片 / 媒体
+  png: ['#8E44AD', '#ffffff', 'IMG'],
+  jpg: ['#8E44AD', '#ffffff', 'IMG'],
+  jpeg: ['#8E44AD', '#ffffff', 'IMG'],
+  gif: ['#8E44AD', '#ffffff', 'IMG'],
+  webp: ['#8E44AD', '#ffffff', 'IMG'],
+  ico: ['#8E44AD', '#ffffff', 'IMG'],
+  bmp: ['#8E44AD', '#ffffff', 'IMG'],
+  // 版本控制
+  gitignore: ['#F05032', '#ffffff', 'GIT'],
+  gitattributes: ['#F05032', '#ffffff', 'GIT'],
+}
+
+/** One self-colored badge svg: rounded brand rect + short contrast mark.
+ *  Mark font scales by length so 5-6 char marks (JAVA/SCALA/SWIFT) stay
+ *  inside the 24×24 viewBox. */
+const badgeIcon = ([bg, fg, mark], size) =>
+  createElement(
+    'svg',
+    {
+      width: size,
+      height: size,
+      viewBox: '0 0 24 24',
+      'aria-hidden': 'true',
+    },
+    createElement('rect', { x: 1, y: 1, width: 22, height: 22, rx: 5, fill: bg }),
+    createElement(
+      'text',
+      {
+        x: 12,
+        y: 16,
+        textAnchor: 'middle',
+        fontSize: mark.length <= 2 ? 9 : mark.length <= 4 ? 7 : 5.5,
+        fontWeight: 700,
+        fill: fg,
+      },
+      mark,
+    ),
+  )
+
+/** File-type icon dispatcher: branded badge for known extensions, the
+ *  neutral file icon for everything else (case-insensitive, tolerates a
+ *  leading dot like ".md"). */
+const fileIconByExt = (ext, size = 14) => {
+  const spec =
+    FILE_BADGES[
+      String(ext ?? '')
+        .toLowerCase()
+        .replace(/^\./, '')
+    ]
+  return spec === undefined ? icon.file(size) : badgeIcon(spec, size)
+}
+
+    // ── view: Memory settings tab ─────────────────────────────────────────
+/** Load both scopes: global always; project only when a cwd is given. */
+function fetchAll(cwd) {
+  const projectCwd = cwd.trim()
+  const globalP = fetchMemory('global', '')
+  const projectP =
+    projectCwd === ''
+      ? Promise.resolve({ scope: 'project', cwd: '', projectRoot: '', items: [] })
+      : fetchMemory('project', projectCwd)
+  return Promise.all([globalP, projectP]).then(([global, project]) => ({ global, project }))
+}
+
+function mergeScope(data, scope, value) {
+  return scope === 'global' ? { ...data, global: value } : { ...data, project: value }
+}
+
+/** Data actions bound to the state setters; error: null | 'load' | 'save'. */
+function createActions({ setData, setLoading, setError, setSaved }) {
+  const applyValue = (value) => {
+    setData(value)
+    setLoading(false)
+  }
+  const refreshWith = (fetcher, cwd) => {
+    setLoading(true)
+    setError(null)
+    setSaved(false)
+    fetcher(cwd)
+      .then(applyValue)
+      .catch(() => {
         setLoading(false)
-      }
-      const refreshWith = (fetcher, cwd) => {
-        setLoading(true)
-        setError(false)
-        setSaved(false)
-        fetcher(cwd)
-          .then(applyValue)
-          .catch(() => {
-            setLoading(false)
-            setError(true)
-          })
-      }
-      return {
-        load: (cwd) => refreshWith(fetchAll, cwd),
-        refresh: (cwd) => refreshWith(fetchAll, cwd),
-      }
-    }
+        setError('load')
+      })
+  }
+  const run = (cwd) => refreshWith(fetchAll, cwd)
+  return { load: run, refresh: run }
+}
 
-    function MemoryView() {
-      const [data, setData] = useState(null)
-      const [pathInput, setPathInput] = useState('')
-      const [loading, setLoading] = useState(true)
-      const [error, setError] = useState(false)
-      const [saved, setSaved] = useState(false)
-      const [drafts, setDrafts] = useState({ global: '', project: '' })
-      const [editing, setEditing] = useState(null)
-      const [confirming, setConfirming] = useState(null)
-      const actions = createActions({ setData, setLoading, setError, setSaved })
+function MemoryView() {
+  const [data, setData] = useState(null)
+  const [pathInput, setPathInput] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [saved, setSaved] = useState(false)
+  const [drafts, setDrafts] = useState({ global: '', project: '' })
+  const [editing, setEditing] = useState(null)
+  const [confirming, setConfirming] = useState(null)
+  const actions = createActions({ setData, setLoading, setError, setSaved })
 
-      useEffect(() => {
-        actions.load('')
-      }, [])
+  useEffect(() => {
+    actions.load('')
+  }, [])
 
-      const commit = createCommitHandler({ data, setData, setSaved, setError, setDrafts, setEditing, setConfirming })
+  const commit = createCommitHandler({ data, setData, setSaved, setError, setDrafts, setEditing, setConfirming })
 
-      return createElement('div', { className: 'dmm-root' },
-        createElement(Toolbar, { pathInput, onInput: setPathInput, onLoad: actions.load, onRefresh: actions.refresh }),
-        error ? createElement('div', { className: 'dmm-error' }, strings.loadError()) : null,
-        loading ? createElement('div', { className: 'dmm-status' }, strings.loading())
-          : data === null ? null : createElement(Sections, {
+  return createElement(
+    'div',
+    { className: 'dsh-my-memory-root' },
+    createElement(Toolbar, { pathInput, onInput: setPathInput, onLoad: actions.load, onRefresh: actions.refresh }),
+    error === null ? null : createElement(ErrorBanner, { kind: error, onRetry: () => actions.load(pathInput) }),
+    loading
+      ? createElement('div', { className: 'dsh-my-memory-status' }, strings.loading())
+      : data === null
+        ? null
+        : createElement(Sections, {
             data,
             saved,
             drafts,
@@ -273,230 +570,364 @@ window.__ModuleLoader__.load({
             onCancelConfirm: () => setConfirming(null),
             onCommit: commit,
           }),
-      )
-    }
+  )
+}
 
-    /** One confirmed write (add / update / delete) → POST + refresh the scope. */
-    function createCommitHandler({ data, setData, setSaved, setError, setDrafts, setEditing, setConfirming }) {
-      return (confirm) => {
-        setSaved(false)
-        setError(false)
-        writeMemory({
-          action: confirm.kind,
-          scope: confirm.scope,
-          cwd: confirm.scope === 'project' ? data.project.cwd : '',
-          id: confirm.id,
-          desc: confirm.desc,
-        })
-          .then((value) => {
-            setSaved(true)
-            setDrafts((d) => ({ ...d, [confirm.scope]: '' }))
-            setEditing(null)
-            setConfirming(null)
-            setData((d) => mergeScope(d, confirm.scope, value))
-          })
-          .catch(() => setError(true))
-      }
-    }
+/** Load-failure banner with a retry entry; write-failure banner without. */
+function ErrorBanner({ kind, onRetry }) {
+  if (kind === 'load') {
+    return createElement(
+      'div',
+      { className: 'dsh-my-memory-error' },
+      strings.loadError(),
+      createElement(
+        'button',
+        { className: 'dsh-my-memory-btn dsh-my-memory-btn-retry', onClick: onRetry },
+        icon.refresh(14),
+        strings.retry(),
+      ),
+    )
+  }
+  return kind === 'save' ? createElement('div', { className: 'dsh-my-memory-error' }, strings.saveFailed()) : null
+}
 
-    /** Path input + load/refresh buttons + consent note. */
-    function Toolbar({ pathInput, onInput, onLoad, onRefresh }) {
-      return createElement('div', null,
-        createElement('div', { className: 'dmm-pathbar' },
-          createElement('input', {
-            className: 'dmm-path-input',
-            placeholder: strings.projectHint(),
-            value: pathInput,
-            onChange: (event) => onInput(event.target.value),
-            onKeyDown: (event) => {
-              if (event.key === 'Enter') onLoad(pathInput)
-            },
-          }),
-          createElement('button', {
-            className: 'dmm-btn',
-            'aria-label': strings.loadProject(),
-            onClick: () => onLoad(pathInput),
-          }, strings.loadProject()),
-          createElement('button', {
-            className: 'dmm-btn',
-            'aria-label': strings.refresh(),
-            onClick: () => onRefresh(pathInput),
-          }, strings.refresh()),
-        ),
-        createElement('div', { className: 'dmm-note' }, strings.confirmHint()),
-      )
-    }
-
-    /** The two scopes side by side: global (default) + project (accented). */
-    function Sections({ data, saved, drafts, editing, confirming, onDraft, onEdit, onEditDesc, onCancelEdit, onConfirm, onCancelConfirm, onCommit }) {
-      return createElement('div', { className: 'dmm-sections' },
-        createElement(SectionBlock, {
-          scope: 'global',
-          title: strings.globalSection(),
-          badge: strings.globalSection(),
-          note: strings.globalNote(),
-          data: data.global,
-          drafts,
-          editing,
-          confirming,
-          onDraft,
-          onEdit,
-          onEditDesc,
-          onCancelEdit,
-          onConfirm,
-          onCancelConfirm,
-          onCommit,
-        }),
-        createElement(SectionBlock, {
-          scope: 'project',
-          title: strings.projectSection(),
-          badge: data.project.cwd !== '' ? strings.projectRoot() + data.project.projectRoot : strings.projectSection(),
-          note: strings.projectNote(),
-          data: data.project,
-          drafts,
-          editing,
-          confirming,
-          onDraft,
-          onEdit,
-          onEditDesc,
-          onCancelEdit,
-          onConfirm,
-          onCancelConfirm,
-          onCommit,
-        }),
-        saved ? createElement('div', { className: 'dmm-status dmm-saved' }, strings.saved()) : null,
-      )
-    }
-
-    /** One scope's section: rows + add bar + inline confirmation panel. */
-    function SectionBlock({ scope, title, badge, note, data, drafts, editing, confirming, onDraft, onEdit, onEditDesc, onCancelEdit, onConfirm, onCancelConfirm, onCommit }) {
-      const isProject = scope === 'project'
-      const rows = buildRows(data.items, scope, editing, onEdit, onEditDesc, onCancelEdit, onConfirm)
-      return createElement('div', { className: `dmm-section${isProject ? ' dmm-section-project' : ''}` },
-        createElement('div', { className: 'dmm-section-head' },
-          createElement('span', { className: 'dmm-section-title' }, title),
-          createElement('span', { className: 'dmm-badge' }, badge),
-        ),
-        createElement('div', { className: 'dmm-note' }, note),
-        rows.length === 0 ? createElement('div', { className: 'dmm-empty' }, strings.empty()) : rows,
-        createElement('div', { className: 'dmm-addbar' },
-          createElement('input', {
-            className: 'dmm-add-input',
-            placeholder: strings.addPlaceholder(),
-            value: drafts[scope],
-            onChange: (event) => onDraft(scope, event.target.value),
-          }),
-          createElement('button', {
-            className: 'dmm-btn-save',
-            'aria-label': `${strings.add()} ${scope}`,
-            onClick: () => onConfirm({ kind: 'add', scope, desc: drafts[scope] }),
-          }, strings.add()),
-        ),
-        confirming !== null && confirming.scope === scope
-          ? createElement(ConfirmPanel, { confirm: confirming, onCancel: onCancelConfirm, onOk: () => onCommit(confirming) })
-          : null,
-      )
-    }
-
-    /** Build the memory rows of one scope (edit mode swaps in an input). */
-    function buildRows(items, scope, editing, onEdit, onEditDesc, onCancelEdit, onConfirm) {
-      return items.map((item) => {
-        const isEditing = editing !== null && editing.scope === scope && editing.id === item.id
-        return createElement(MemoryRow, {
-          key: item.id,
-          item,
-          isEditing,
-          editingDesc: isEditing ? editing.desc : '',
-          onEdit: () => onEdit(scope, item.id, item.desc),
-          onEditDesc,
-          onCancelEdit,
-          onSaveEdit: () => onConfirm({ kind: 'update', scope, id: item.id, desc: editing.desc }),
-          onDelete: () => onConfirm({ kind: 'delete', scope, id: item.id, desc: item.desc }),
-        })
+/** One confirmed write (add / update / delete) → POST + refresh the scope. */
+function createCommitHandler({ data, setData, setSaved, setError, setDrafts, setEditing, setConfirming }) {
+  return (confirm) => {
+    setSaved(false)
+    setError(null)
+    writeMemory({
+      action: confirm.kind,
+      scope: confirm.scope,
+      cwd: confirm.scope === 'project' ? data.project.cwd : '',
+      id: confirm.id,
+      desc: confirm.desc,
+    })
+      .then((value) => {
+        setSaved(true)
+        setDrafts((d) => ({ ...d, [confirm.scope]: '' }))
+        setEditing(null)
+        setConfirming(null)
+        setData((d) => mergeScope(d, confirm.scope, value))
       })
-    }
+      .catch(() => setError('save'))
+  }
+}
 
-    /** One memory row: desc + meta + edit/delete; edit mode swaps in an input. */
-    function MemoryRow({ item, isEditing, editingDesc, onEdit, onEditDesc, onCancelEdit, onSaveEdit, onDelete }) {
-      if (isEditing) {
-        return createElement('div', { className: 'dmm-row' },
-          createElement('input', {
-            className: 'dmm-add-input',
-            value: editingDesc,
-            onChange: (event) => onEditDesc(event.target.value),
-          }),
-          createElement('div', { className: 'dmm-actions' },
-            createElement('button', { className: 'dmm-btn-save', onClick: onSaveEdit }, strings.save()),
-            createElement('button', { className: 'dmm-btn-edit', onClick: onCancelEdit }, strings.cancel()),
-          ),
-        )
-      }
-      return createElement('div', { className: 'dmm-row' },
-        createElement('div', { className: 'dmm-row-head' },
-          createElement('span', { className: 'dmm-desc' }, item.desc),
-          createElement('div', { className: 'dmm-actions' },
-            createElement('button', {
-              className: 'dmm-btn-edit',
-              'aria-label': `${strings.edit()} ${item.id}`,
-              onClick: onEdit,
-            }, strings.edit()),
-            createElement('button', {
-              className: 'dmm-btn-danger',
-              'aria-label': `${strings.delete()} ${item.id}`,
-              onClick: onDelete,
-            }, strings.delete()),
-          ),
+/** Path input + load/refresh buttons + consent note. */
+function Toolbar({ pathInput, onInput, onLoad, onRefresh }) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-memory-toolbar' },
+    createElement(
+      'div',
+      { className: 'dsh-my-memory-pathbar' },
+      createElement('input', {
+        className: 'dsh-my-memory-path-input',
+        placeholder: strings.projectHint(),
+        value: pathInput,
+        onChange: (event) => onInput(event.target.value),
+        onKeyDown: (event) => {
+          if (event.key === 'Enter') onLoad(pathInput)
+        },
+      }),
+      createElement(
+        'button',
+        { className: 'dsh-my-memory-btn', 'aria-label': strings.loadProject(), onClick: () => onLoad(pathInput) },
+        icon.folder(14),
+        strings.loadProject(),
+      ),
+      createElement(
+        'button',
+        { className: 'dsh-my-memory-btn', 'aria-label': strings.refresh(), onClick: () => onRefresh(pathInput) },
+        icon.refresh(14),
+        strings.refresh(),
+      ),
+    ),
+    createElement('div', { className: 'dsh-my-memory-note' }, strings.confirmHint()),
+  )
+}
+
+/** The two scopes side by side: global (default) + project (accented). */
+function Sections({
+  data,
+  saved,
+  drafts,
+  editing,
+  confirming,
+  onDraft,
+  onEdit,
+  onEditDesc,
+  onCancelEdit,
+  onConfirm,
+  onCancelConfirm,
+  onCommit,
+}) {
+  const blockProps = {
+    drafts,
+    editing,
+    confirming,
+    onDraft,
+    onEdit,
+    onEditDesc,
+    onCancelEdit,
+    onConfirm,
+    onCancelConfirm,
+    onCommit,
+  }
+  return createElement(
+    'div',
+    { className: 'dsh-my-memory-sections' },
+    createElement(SectionBlock, {
+      scope: 'global',
+      title: strings.globalSection(),
+      badge: strings.globalSection(),
+      note: strings.globalNote(),
+      data: data.global,
+      ...blockProps,
+    }),
+    createElement(SectionBlock, {
+      scope: 'project',
+      title: strings.projectSection(),
+      badge: data.project.cwd !== '' ? strings.projectRoot() + data.project.projectRoot : strings.projectSection(),
+      note: strings.projectNote(),
+      data: data.project,
+      ...blockProps,
+    }),
+    saved
+      ? createElement('div', { className: 'dsh-my-memory-status dsh-my-memory-saved' }, icon.check(14), strings.saved())
+      : null,
+  )
+}
+
+/** One scope's section: rows + add bar + inline confirmation panel. */
+function SectionBlock({
+  scope,
+  title,
+  badge,
+  note,
+  data,
+  drafts,
+  editing,
+  confirming,
+  onDraft,
+  onEdit,
+  onEditDesc,
+  onCancelEdit,
+  onConfirm,
+  onCancelConfirm,
+  onCommit,
+}) {
+  const isProject = scope === 'project'
+  const rows = buildRows(data.items, scope, editing, onEdit, onEditDesc, onCancelEdit, onConfirm)
+  return createElement(
+    'div',
+    { className: `dsh-my-memory-section${isProject ? ' dsh-my-memory-section-project' : ''}` },
+    createElement(
+      'div',
+      { className: 'dsh-my-memory-section-head' },
+      createElement('span', { className: 'dsh-my-memory-section-title' }, title),
+      createElement('span', { className: 'dsh-my-memory-badge' }, badge),
+    ),
+    createElement('div', { className: 'dsh-my-memory-note' }, note),
+    rows.length === 0 ? createElement(EmptyState) : rows,
+    createElement(
+      'div',
+      { className: 'dsh-my-memory-addbar' },
+      createElement('input', {
+        className: 'dsh-my-memory-add-input',
+        placeholder: strings.addPlaceholder(),
+        value: drafts[scope],
+        onChange: (event) => onDraft(scope, event.target.value),
+      }),
+      createElement(
+        'button',
+        {
+          className: 'dsh-my-memory-btn-save',
+          'aria-label': `${strings.add()} ${scope}`,
+          onClick: () => onConfirm({ kind: 'add', scope, desc: drafts[scope] }),
+        },
+        icon.plus(14),
+        strings.add(),
+      ),
+    ),
+    confirming !== null && confirming.scope === scope
+      ? createElement(ConfirmPanel, {
+          confirm: confirming,
+          onCancel: onCancelConfirm,
+          onOk: () => onCommit(confirming),
+        })
+      : null,
+  )
+}
+
+function EmptyState() {
+  return createElement(
+    'div',
+    { className: 'dsh-my-memory-empty' },
+    createElement('span', { className: 'dsh-my-memory-empty-icon' }, icon.file(16)),
+    strings.empty(),
+    createElement('span', { className: 'dsh-my-memory-empty-hint' }, strings.emptyHint()),
+  )
+}
+
+function buildRows(items, scope, editing, onEdit, onEditDesc, onCancelEdit, onConfirm) {
+  return items.map((item) => {
+    const isEditing = editing !== null && editing.scope === scope && editing.id === item.id
+    return createElement(MemoryRow, {
+      key: item.id,
+      item,
+      isEditing,
+      editingDesc: isEditing ? editing.desc : '',
+      onEdit: () => onEdit(scope, item.id, item.desc),
+      onEditDesc,
+      onCancelEdit,
+      onSaveEdit: () => onConfirm({ kind: 'update', scope, id: item.id, desc: editing.desc }),
+      onDelete: () => onConfirm({ kind: 'delete', scope, id: item.id, desc: item.desc }),
+    })
+  })
+}
+
+function IconButton({ className, label, onClick, children }) {
+  return createElement('button', { className, 'aria-label': label, onClick }, children)
+}
+
+/** One memory row: desc + meta + icon edit/delete; edit mode swaps in an input. */
+function MemoryRow({ item, isEditing, editingDesc, onEdit, onEditDesc, onCancelEdit, onSaveEdit, onDelete }) {
+  if (isEditing) {
+    return createElement(
+      'div',
+      { className: 'dsh-my-memory-row' },
+      createElement('input', {
+        className: 'dsh-my-memory-add-input',
+        value: editingDesc,
+        onChange: (event) => onEditDesc(event.target.value),
+      }),
+      createElement(
+        'div',
+        { className: 'dsh-my-memory-actions' },
+        createElement(
+          'button',
+          { className: 'dsh-my-memory-btn-save', onClick: onSaveEdit },
+          icon.check(14),
+          strings.save(),
         ),
-        createElement('div', { className: 'dmm-meta' }, strings.updatedAt(item.updatedAt)),
-      )
-    }
+        createElement(
+          'button',
+          { className: 'dsh-my-memory-btn', onClick: onCancelEdit },
+          icon.close(14),
+          strings.cancel(),
+        ),
+      ),
+    )
+  }
+  return createElement(
+    'div',
+    { className: 'dsh-my-memory-row' },
+    createElement(
+      'div',
+      { className: 'dsh-my-memory-row-head' },
+      createElement('span', { className: 'dsh-my-memory-desc' }, item.desc),
+      createElement(
+        'div',
+        { className: 'dsh-my-memory-actions' },
+        createElement(
+          IconButton,
+          { className: 'dsh-my-memory-iconbtn', label: `${strings.edit()} ${item.id}`, onClick: onEdit },
+          icon.pencil(14),
+        ),
+        createElement(
+          IconButton,
+          {
+            className: 'dsh-my-memory-iconbtn dsh-my-memory-iconbtn-danger',
+            label: `${strings.delete()} ${item.id}`,
+            onClick: onDelete,
+          },
+          icon.trash(14),
+        ),
+      ),
+    ),
+    createElement('div', { className: 'dsh-my-memory-meta' }, strings.updatedAt(item.updatedAt)),
+  )
+}
 
-    /** Custom confirmation panel (ask-style, not the native confirm): delete is red, save is green. */
-    function ConfirmPanel({ confirm, onCancel, onOk }) {
-      const isDelete = confirm.kind === 'delete'
-      const text = confirm.kind === 'add' ? strings.confirmAdd()
-        : confirm.kind === 'update' ? strings.confirmUpdate()
+/** Custom confirmation panel (ask-style, not the native confirm): delete is red, save is green. */
+function ConfirmPanel({ confirm, onCancel, onOk }) {
+  const isDelete = confirm.kind === 'delete'
+  const text =
+    confirm.kind === 'add'
+      ? strings.confirmAdd()
+      : confirm.kind === 'update'
+        ? strings.confirmUpdate()
         : strings.confirmDelete()
-      return createElement('div', { className: `dmm-confirm dmm-confirm-${isDelete ? 'delete' : 'save'}` },
-        createElement('div', { className: 'dmm-confirm-text' }, text),
-        createElement('div', { className: 'dmm-confirm-desc' }, confirm.desc),
-        createElement('div', { className: 'dmm-confirm-actions' },
-          createElement('button', {
-            className: `dmm-confirm-ok dmm-confirm-ok-${isDelete ? 'delete' : 'save'}`,
-            onClick: onOk,
-          }, isDelete ? strings.confirmDeleteBtn() : strings.confirmSave()),
-          createElement('button', { className: 'dmm-confirm-cancel', onClick: onCancel }, strings.cancel()),
+  return createElement(
+    'div',
+    { className: `dsh-my-memory-confirm dsh-my-memory-confirm-${isDelete ? 'delete' : 'save'}` },
+    createElement(
+      'div',
+      { className: 'dsh-my-memory-confirm-head' },
+      isDelete ? icon.trash(15) : icon.check(15),
+      createElement('div', { className: 'dsh-my-memory-confirm-text' }, text),
+    ),
+    createElement('div', { className: 'dsh-my-memory-confirm-desc' }, confirm.desc),
+    createElement(
+      'div',
+      { className: 'dsh-my-memory-confirm-actions' },
+      createElement(
+        'button',
+        {
+          className: `dsh-my-memory-confirm-ok dsh-my-memory-confirm-ok-${isDelete ? 'delete' : 'save'}`,
+          onClick: onOk,
+        },
+        isDelete ? icon.trash(14) : icon.check(14),
+        isDelete ? strings.confirmDeleteBtn() : strings.confirmSave(),
+      ),
+      createElement(
+        'button',
+        { className: 'dsh-my-memory-confirm-cancel', onClick: onCancel },
+        icon.close(14),
+        strings.cancel(),
+      ),
+    ),
+  )
+}
+
+    // ── plugin body ───────────────────────────────────────────────────────
+// 零第三方依赖：面板挂在官方 slots 扩展点（设置 → 插件 → 记忆），
+// 不依赖 dsh-better-sidebar。slots 服务是官方 client 服务，通过
+// ctx.get 动态获取——服务缺省时静默跳过（不注册 tab，server 端记忆
+// 能力不受影响）。
+exports.apply = function apply(ctx) {
+  ctx.effect(() => {
+    if (typeof document === 'undefined' || document === null || typeof document.head === 'undefined') return () => {}
+    const style = document.createElement('style')
+    style.setAttribute(STYLE_TAG, 'styles')
+    style.textContent = STYLES
+    document.head.appendChild(style)
+    return () => {
+      if (style.parentNode) style.parentNode.removeChild(style)
+    }
+  }, 'dsh-my-memory: styles')
+
+  const slots = ctx.get('slots')
+  if (slots === undefined) return
+
+  ctx.effect(
+    () =>
+      slots.inject('settings.plugins.tab', () =>
+        slots.register(
+          {
+            name: 'settings.plugins.tab',
+            id: 'my-memory',
+            order: 92,
+            label: () => strings.title(),
+          },
+          MemoryView,
         ),
-      )
-    }
-
-        // ── plugin body ───────────────────────────────────────────────────────
-    // 零第三方依赖：面板挂在官方 slots 扩展点（设置 → 插件 → 记忆），
-    // 不依赖 dsh-better-sidebar。slots 服务是官方 client 服务，通过
-    // ctx.get 动态获取——服务缺省时静默跳过（不注册 tab，server 端记忆
-    // 能力不受影响）。
-    exports.apply = function apply(ctx) {
-      ctx.effect(() => {
-        if (typeof document === 'undefined' || document === null || typeof document.head === 'undefined') return () => {}
-        const style = document.createElement('style')
-        style.setAttribute(STYLE_TAG, 'styles')
-        style.textContent = STYLES
-        document.head.appendChild(style)
-        return () => {
-          if (style.parentNode) style.parentNode.removeChild(style)
-        }
-      }, 'dsh-my-memory: styles')
-
-      const slots = ctx.get('slots')
-      if (slots === undefined) return
-
-      ctx.effect(() => slots.inject('settings.plugins.tab', () => slots.register({
-        name: 'settings.plugins.tab',
-        id: 'my-memory',
-        order: 92,
-        label: () => strings.title(),
-      }, MemoryView)), 'dsh-my-memory: settings tab registration')
-    }
+      ),
+    'dsh-my-memory: settings tab registration',
+  )
+}
 
 
     return module.exports

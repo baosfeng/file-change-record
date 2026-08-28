@@ -18,9 +18,11 @@ const strings = {
       : 'Enter a project root to view/edit its project memory (stored in <projectRoot>/.dsh/memory.json)',
   loadProject: () => (isZh() ? '加载' : 'Load'),
   refresh: () => (isZh() ? '刷新' : 'Refresh'),
+  retry: () => (isZh() ? '重试' : 'Retry'),
   loading: () => (isZh() ? '加载中…' : 'Loading…'),
   loadError: () => (isZh() ? '加载失败' : 'Load failed'),
   empty: () => (isZh() ? '暂无记忆' : 'No memories yet'),
+  emptyHint: () => (isZh() ? '点击下方输入框添加第一条记忆' : 'Add your first memory below'),
   addPlaceholder: () =>
     isZh() ? '输入要记住的内容（如：回复使用中文）' : 'Type what to remember (e.g. reply in Chinese)',
   add: () => (isZh() ? '新增' : 'Add'),

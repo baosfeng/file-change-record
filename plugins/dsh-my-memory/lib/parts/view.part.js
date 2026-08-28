@@ -10,12 +10,11 @@ function fetchAll(cwd) {
   return Promise.all([globalP, projectP]).then(([global, project]) => ({ global, project }))
 }
 
-/** Replace one scope's data inside the two-scope state. */
 function mergeScope(data, scope, value) {
   return scope === 'global' ? { ...data, global: value } : { ...data, project: value }
 }
 
-/** Data actions bound to the state setters (created once per component). */
+/** Data actions bound to the state setters; error: null | 'load' | 'save'. */
 function createActions({ setData, setLoading, setError, setSaved }) {
   const applyValue = (value) => {
     setData(value)
@@ -23,26 +22,24 @@ function createActions({ setData, setLoading, setError, setSaved }) {
   }
   const refreshWith = (fetcher, cwd) => {
     setLoading(true)
-    setError(false)
+    setError(null)
     setSaved(false)
     fetcher(cwd)
       .then(applyValue)
       .catch(() => {
         setLoading(false)
-        setError(true)
+        setError('load')
       })
   }
-  return {
-    load: (cwd) => refreshWith(fetchAll, cwd),
-    refresh: (cwd) => refreshWith(fetchAll, cwd),
-  }
+  const run = (cwd) => refreshWith(fetchAll, cwd)
+  return { load: run, refresh: run }
 }
 
 function MemoryView() {
   const [data, setData] = useState(null)
   const [pathInput, setPathInput] = useState('')
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState(null)
   const [saved, setSaved] = useState(false)
   const [drafts, setDrafts] = useState({ global: '', project: '' })
   const [editing, setEditing] = useState(null)
@@ -53,28 +50,15 @@ function MemoryView() {
     actions.load('')
   }, [])
 
-  const commit = createCommitHandler({
-    data,
-    setData,
-    setSaved,
-    setError,
-    setDrafts,
-    setEditing,
-    setConfirming,
-  })
+  const commit = createCommitHandler({ data, setData, setSaved, setError, setDrafts, setEditing, setConfirming })
 
   return createElement(
     'div',
-    { className: 'dmm-root' },
-    createElement(Toolbar, {
-      pathInput,
-      onInput: setPathInput,
-      onLoad: actions.load,
-      onRefresh: actions.refresh,
-    }),
-    error ? createElement('div', { className: 'dmm-error' }, strings.loadError()) : null,
+    { className: 'dsh-my-memory-root' },
+    createElement(Toolbar, { pathInput, onInput: setPathInput, onLoad: actions.load, onRefresh: actions.refresh }),
+    error === null ? null : createElement(ErrorBanner, { kind: error, onRetry: () => actions.load(pathInput) }),
     loading
-      ? createElement('div', { className: 'dmm-status' }, strings.loading())
+      ? createElement('div', { className: 'dsh-my-memory-status' }, strings.loading())
       : data === null
         ? null
         : createElement(Sections, {
@@ -94,11 +78,29 @@ function MemoryView() {
   )
 }
 
+/** Load-failure banner with a retry entry; write-failure banner without. */
+function ErrorBanner({ kind, onRetry }) {
+  if (kind === 'load') {
+    return createElement(
+      'div',
+      { className: 'dsh-my-memory-error' },
+      strings.loadError(),
+      createElement(
+        'button',
+        { className: 'dsh-my-memory-btn dsh-my-memory-btn-retry', onClick: onRetry },
+        icon.refresh(14),
+        strings.retry(),
+      ),
+    )
+  }
+  return kind === 'save' ? createElement('div', { className: 'dsh-my-memory-error' }, strings.saveFailed()) : null
+}
+
 /** One confirmed write (add / update / delete) → POST + refresh the scope. */
 function createCommitHandler({ data, setData, setSaved, setError, setDrafts, setEditing, setConfirming }) {
   return (confirm) => {
     setSaved(false)
-    setError(false)
+    setError(null)
     writeMemory({
       action: confirm.kind,
       scope: confirm.scope,
@@ -113,7 +115,7 @@ function createCommitHandler({ data, setData, setSaved, setError, setDrafts, set
         setConfirming(null)
         setData((d) => mergeScope(d, confirm.scope, value))
       })
-      .catch(() => setError(true))
+      .catch(() => setError('save'))
   }
 }
 
@@ -121,12 +123,12 @@ function createCommitHandler({ data, setData, setSaved, setError, setDrafts, set
 function Toolbar({ pathInput, onInput, onLoad, onRefresh }) {
   return createElement(
     'div',
-    null,
+    { className: 'dsh-my-memory-toolbar' },
     createElement(
       'div',
-      { className: 'dmm-pathbar' },
+      { className: 'dsh-my-memory-pathbar' },
       createElement('input', {
-        className: 'dmm-path-input',
+        className: 'dsh-my-memory-path-input',
         placeholder: strings.projectHint(),
         value: pathInput,
         onChange: (event) => onInput(event.target.value),
@@ -136,24 +138,18 @@ function Toolbar({ pathInput, onInput, onLoad, onRefresh }) {
       }),
       createElement(
         'button',
-        {
-          className: 'dmm-btn',
-          'aria-label': strings.loadProject(),
-          onClick: () => onLoad(pathInput),
-        },
+        { className: 'dsh-my-memory-btn', 'aria-label': strings.loadProject(), onClick: () => onLoad(pathInput) },
+        icon.folder(14),
         strings.loadProject(),
       ),
       createElement(
         'button',
-        {
-          className: 'dmm-btn',
-          'aria-label': strings.refresh(),
-          onClick: () => onRefresh(pathInput),
-        },
+        { className: 'dsh-my-memory-btn', 'aria-label': strings.refresh(), onClick: () => onRefresh(pathInput) },
+        icon.refresh(14),
         strings.refresh(),
       ),
     ),
-    createElement('div', { className: 'dmm-note' }, strings.confirmHint()),
+    createElement('div', { className: 'dsh-my-memory-note' }, strings.confirmHint()),
   )
 }
 
@@ -172,25 +168,28 @@ function Sections({
   onCancelConfirm,
   onCommit,
 }) {
+  const blockProps = {
+    drafts,
+    editing,
+    confirming,
+    onDraft,
+    onEdit,
+    onEditDesc,
+    onCancelEdit,
+    onConfirm,
+    onCancelConfirm,
+    onCommit,
+  }
   return createElement(
     'div',
-    { className: 'dmm-sections' },
+    { className: 'dsh-my-memory-sections' },
     createElement(SectionBlock, {
       scope: 'global',
       title: strings.globalSection(),
       badge: strings.globalSection(),
       note: strings.globalNote(),
       data: data.global,
-      drafts,
-      editing,
-      confirming,
-      onDraft,
-      onEdit,
-      onEditDesc,
-      onCancelEdit,
-      onConfirm,
-      onCancelConfirm,
-      onCommit,
+      ...blockProps,
     }),
     createElement(SectionBlock, {
       scope: 'project',
@@ -198,18 +197,11 @@ function Sections({
       badge: data.project.cwd !== '' ? strings.projectRoot() + data.project.projectRoot : strings.projectSection(),
       note: strings.projectNote(),
       data: data.project,
-      drafts,
-      editing,
-      confirming,
-      onDraft,
-      onEdit,
-      onEditDesc,
-      onCancelEdit,
-      onConfirm,
-      onCancelConfirm,
-      onCommit,
+      ...blockProps,
     }),
-    saved ? createElement('div', { className: 'dmm-status dmm-saved' }, strings.saved()) : null,
+    saved
+      ? createElement('div', { className: 'dsh-my-memory-status dsh-my-memory-saved' }, icon.check(14), strings.saved())
+      : null,
   )
 }
 
@@ -235,20 +227,20 @@ function SectionBlock({
   const rows = buildRows(data.items, scope, editing, onEdit, onEditDesc, onCancelEdit, onConfirm)
   return createElement(
     'div',
-    { className: `dmm-section${isProject ? ' dmm-section-project' : ''}` },
+    { className: `dsh-my-memory-section${isProject ? ' dsh-my-memory-section-project' : ''}` },
     createElement(
       'div',
-      { className: 'dmm-section-head' },
-      createElement('span', { className: 'dmm-section-title' }, title),
-      createElement('span', { className: 'dmm-badge' }, badge),
+      { className: 'dsh-my-memory-section-head' },
+      createElement('span', { className: 'dsh-my-memory-section-title' }, title),
+      createElement('span', { className: 'dsh-my-memory-badge' }, badge),
     ),
-    createElement('div', { className: 'dmm-note' }, note),
-    rows.length === 0 ? createElement('div', { className: 'dmm-empty' }, strings.empty()) : rows,
+    createElement('div', { className: 'dsh-my-memory-note' }, note),
+    rows.length === 0 ? createElement(EmptyState) : rows,
     createElement(
       'div',
-      { className: 'dmm-addbar' },
+      { className: 'dsh-my-memory-addbar' },
       createElement('input', {
-        className: 'dmm-add-input',
+        className: 'dsh-my-memory-add-input',
         placeholder: strings.addPlaceholder(),
         value: drafts[scope],
         onChange: (event) => onDraft(scope, event.target.value),
@@ -256,10 +248,11 @@ function SectionBlock({
       createElement(
         'button',
         {
-          className: 'dmm-btn-save',
+          className: 'dsh-my-memory-btn-save',
           'aria-label': `${strings.add()} ${scope}`,
           onClick: () => onConfirm({ kind: 'add', scope, desc: drafts[scope] }),
         },
+        icon.plus(14),
         strings.add(),
       ),
     ),
@@ -273,7 +266,16 @@ function SectionBlock({
   )
 }
 
-/** Build the memory rows of one scope (edit mode swaps in an input). */
+function EmptyState() {
+  return createElement(
+    'div',
+    { className: 'dsh-my-memory-empty' },
+    createElement('span', { className: 'dsh-my-memory-empty-icon' }, icon.file(16)),
+    strings.empty(),
+    createElement('span', { className: 'dsh-my-memory-empty-hint' }, strings.emptyHint()),
+  )
+}
+
 function buildRows(items, scope, editing, onEdit, onEditDesc, onCancelEdit, onConfirm) {
   return items.map((item) => {
     const isEditing = editing !== null && editing.scope === scope && editing.id === item.id
@@ -291,56 +293,66 @@ function buildRows(items, scope, editing, onEdit, onEditDesc, onCancelEdit, onCo
   })
 }
 
-/** One memory row: desc + meta + edit/delete; edit mode swaps in an input. */
+function IconButton({ className, label, onClick, children }) {
+  return createElement('button', { className, 'aria-label': label, onClick }, children)
+}
+
+/** One memory row: desc + meta + icon edit/delete; edit mode swaps in an input. */
 function MemoryRow({ item, isEditing, editingDesc, onEdit, onEditDesc, onCancelEdit, onSaveEdit, onDelete }) {
   if (isEditing) {
     return createElement(
       'div',
-      { className: 'dmm-row' },
+      { className: 'dsh-my-memory-row' },
       createElement('input', {
-        className: 'dmm-add-input',
+        className: 'dsh-my-memory-add-input',
         value: editingDesc,
         onChange: (event) => onEditDesc(event.target.value),
       }),
       createElement(
         'div',
-        { className: 'dmm-actions' },
-        createElement('button', { className: 'dmm-btn-save', onClick: onSaveEdit }, strings.save()),
-        createElement('button', { className: 'dmm-btn-edit', onClick: onCancelEdit }, strings.cancel()),
+        { className: 'dsh-my-memory-actions' },
+        createElement(
+          'button',
+          { className: 'dsh-my-memory-btn-save', onClick: onSaveEdit },
+          icon.check(14),
+          strings.save(),
+        ),
+        createElement(
+          'button',
+          { className: 'dsh-my-memory-btn', onClick: onCancelEdit },
+          icon.close(14),
+          strings.cancel(),
+        ),
       ),
     )
   }
   return createElement(
     'div',
-    { className: 'dmm-row' },
+    { className: 'dsh-my-memory-row' },
     createElement(
       'div',
-      { className: 'dmm-row-head' },
-      createElement('span', { className: 'dmm-desc' }, item.desc),
+      { className: 'dsh-my-memory-row-head' },
+      createElement('span', { className: 'dsh-my-memory-desc' }, item.desc),
       createElement(
         'div',
-        { className: 'dmm-actions' },
+        { className: 'dsh-my-memory-actions' },
         createElement(
-          'button',
-          {
-            className: 'dmm-btn-edit',
-            'aria-label': `${strings.edit()} ${item.id}`,
-            onClick: onEdit,
-          },
-          strings.edit(),
+          IconButton,
+          { className: 'dsh-my-memory-iconbtn', label: `${strings.edit()} ${item.id}`, onClick: onEdit },
+          icon.pencil(14),
         ),
         createElement(
-          'button',
+          IconButton,
           {
-            className: 'dmm-btn-danger',
-            'aria-label': `${strings.delete()} ${item.id}`,
+            className: 'dsh-my-memory-iconbtn dsh-my-memory-iconbtn-danger',
+            label: `${strings.delete()} ${item.id}`,
             onClick: onDelete,
           },
-          strings.delete(),
+          icon.trash(14),
         ),
       ),
     ),
-    createElement('div', { className: 'dmm-meta' }, strings.updatedAt(item.updatedAt)),
+    createElement('div', { className: 'dsh-my-memory-meta' }, strings.updatedAt(item.updatedAt)),
   )
 }
 
@@ -355,21 +367,32 @@ function ConfirmPanel({ confirm, onCancel, onOk }) {
         : strings.confirmDelete()
   return createElement(
     'div',
-    { className: `dmm-confirm dmm-confirm-${isDelete ? 'delete' : 'save'}` },
-    createElement('div', { className: 'dmm-confirm-text' }, text),
-    createElement('div', { className: 'dmm-confirm-desc' }, confirm.desc),
+    { className: `dsh-my-memory-confirm dsh-my-memory-confirm-${isDelete ? 'delete' : 'save'}` },
     createElement(
       'div',
-      { className: 'dmm-confirm-actions' },
+      { className: 'dsh-my-memory-confirm-head' },
+      isDelete ? icon.trash(15) : icon.check(15),
+      createElement('div', { className: 'dsh-my-memory-confirm-text' }, text),
+    ),
+    createElement('div', { className: 'dsh-my-memory-confirm-desc' }, confirm.desc),
+    createElement(
+      'div',
+      { className: 'dsh-my-memory-confirm-actions' },
       createElement(
         'button',
         {
-          className: `dmm-confirm-ok dmm-confirm-ok-${isDelete ? 'delete' : 'save'}`,
+          className: `dsh-my-memory-confirm-ok dsh-my-memory-confirm-ok-${isDelete ? 'delete' : 'save'}`,
           onClick: onOk,
         },
+        isDelete ? icon.trash(14) : icon.check(14),
         isDelete ? strings.confirmDeleteBtn() : strings.confirmSave(),
       ),
-      createElement('button', { className: 'dmm-confirm-cancel', onClick: onCancel }, strings.cancel()),
+      createElement(
+        'button',
+        { className: 'dsh-my-memory-confirm-cancel', onClick: onCancel },
+        icon.close(14),
+        strings.cancel(),
+      ),
     ),
   )
 }
