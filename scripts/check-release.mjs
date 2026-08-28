@@ -17,7 +17,7 @@
 import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const REGISTRY = 'https://registry.npmjs.org/'
@@ -25,9 +25,14 @@ const GH_TOKEN = process.env.GH_TOKEN || ''
 const errors = []
 const warnings = []
 
-function sh(cmd, opts = {}) {
+/**
+ * 参数数组版命令执行：execFileSync 不经过 shell，杜绝命令注入
+ * （CodeQL js/shell-command-injection-from-environment）；stdout trim，
+ * 失败返回 null（与原 sh() 行为一致）。
+ */
+function shArgs(bin, args, opts = {}) {
   try {
-    return execSync(cmd, { encoding: 'utf8', ...opts }).trim()
+    return execFileSync(bin, args, { encoding: 'utf8', ...opts }).trim()
   } catch {
     return null
   }
@@ -49,7 +54,7 @@ if (plugins.length === 0) {
 
 // 远程 tag 集合（一次拉取）
 const remoteTags = new Set(
-  (sh('git ls-remote --tags origin') || '')
+  (shArgs('git', ['ls-remote', '--tags', 'origin']) || '')
     .split('\n')
     .map((l) => l.split('/').pop())
     .filter((t) => t && !t.endsWith('^{}')),
@@ -58,9 +63,12 @@ const remoteTags = new Set(
 // GitHub Releases（一次拉取；无 token 时跳过）
 let releases = []
 if (GH_TOKEN) {
-  const out = sh(
-    `curl -sS -H "Authorization: Bearer ${GH_TOKEN}" "https://api.github.com/repos/baosfeng/my-dsh-plugins/releases?per_page=100"`,
-  )
+  const out = shArgs('curl', [
+    '-sS',
+    '-H',
+    `Authorization: Bearer ${GH_TOKEN}`,
+    'https://api.github.com/repos/baosfeng/my-dsh-plugins/releases?per_page=100',
+  ])
   if (out) {
     try {
       releases = JSON.parse(out)
@@ -83,7 +91,7 @@ for (const p of plugins) {
   const status = []
 
   // 1. npm 发布：包名取自 package.json name（绝不查别人的同名包）
-  const npmLatest = sh(`npm view ${JSON.stringify(p.name)} version --registry ${REGISTRY}`)
+  const npmLatest = shArgs('npm', ['view', p.name, 'version', '--registry', REGISTRY])
   if (npmLatest === null) {
     status.push('❌ npm 未发布（registry 查无此包）')
     errors.push(`${p.dir}: npm 上不存在 ${p.name}`)
@@ -95,7 +103,7 @@ for (const p of plugins) {
   }
 
   // 2. Git tag：本地存在 + 已推送
-  const localTag = sh(`git rev-parse -q --verify refs/tags/${tag}`) !== null
+  const localTag = shArgs('git', ['rev-parse', '-q', '--verify', `refs/tags/${tag}`]) !== null
   if (!localTag) {
     status.push('❌ 本地无 tag')
     errors.push(`${p.dir}: 本地缺少 tag ${tag}`)
@@ -122,8 +130,9 @@ for (const p of plugins) {
 
   // 4. 未发版提交：最新 tag 之后 plugins/<dir>/ 无新提交
   if (localTag) {
-    const cnt = sh(`git log --oneline ${tag}..HEAD -- plugins/${p.dir}/ | wc -l | tr -d ' '`)
-    const n = parseInt(cnt || '0', 10)
+    // 原 `| wc -l | tr -d ' '` 管道无法参数化，改为数输出行数（行为等价）
+    const log = shArgs('git', ['log', '--oneline', `${tag}..HEAD`, '--', `plugins/${p.dir}/`])
+    const n = log === null ? 0 : log.split('\n').filter((l) => l !== '').length
     if (n > 0) {
       status.push(`❌ tag 后 ${n} 个提交未发版`)
       errors.push(`${p.dir}: tag ${tag} 之后有 ${n} 个提交未发版（git log ${tag}..HEAD -- plugins/${p.dir}/）`)

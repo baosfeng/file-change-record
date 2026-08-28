@@ -252,9 +252,11 @@ function agentsMock({
   sessionText = '{"verdict":"changes","summary":"有密钥","topIssues":["a"]}',
   createThrows = false,
   idleThrows = false,
+  onCreate = () => {},
 } = {}) {
   return {
-    create: async () => {
+    create: async (opts) => {
+      onCreate(opts)
       if (createThrows) throw new Error('create failed')
       return {
         agent: {
@@ -286,10 +288,23 @@ test('POST /review with aiReview merges the AI conclusion', async () => {
   git(repo, 'add', 'src/a.js')
   git(repo, 'commit', '-m', 'chore: seed')
   writeFileSync(join(repo, 'src/a.js'), 'const x = 1\nconsole.log("debug")\n')
-  const { api } = boot({}, { agents: agentsMock() })
+  let createdSessionId = ''
+  const { api } = boot(
+    {},
+    {
+      agents: agentsMock({
+        // 回归断言（CodeQL js/insecure-randomness 修复）：sessionId 随机段
+        // 由 crypto.randomUUID() 生成，格式 obs-review-<ts>-<6位hex>
+        onCreate: (opts) => {
+          createdSessionId = opts.sessionId
+        },
+      }),
+    },
+  )
   await settle()
   const { status, value } = await postReview(api, { repoPath: repo, aiReview: true })
   assert.equal(status, 200)
+  assert.ok(/^obs-review-\d+-[0-9a-f]{6}$/.test(createdSessionId), 'sessionId uses crypto random hex suffix')
   assert.equal(value.value.ai.enabled, true)
   assert.equal(value.value.ai.verdict, 'changes')
   assert.equal(value.value.ai.summary, '有密钥')
