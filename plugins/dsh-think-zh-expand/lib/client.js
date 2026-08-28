@@ -188,6 +188,16 @@ const icon = {
       ],
       size,
     ),
+  // 代码（issue #54 阶段 1 新增）：尖括号 `</>`，预览/代码切换的代码视图
+  // 图标（dsh-mermaid-render 卡片），stroke=currentColor 风格与其余图标一致。
+  code: (size = 16) =>
+    iconSvg(
+      [
+        createElement('polyline', { points: '16 18 22 12 16 6' }),
+        createElement('polyline', { points: '8 6 2 12 8 18' }),
+      ],
+      size,
+    ),
 }
 
 // Common-language / file-type badges (issue #24): brand fill + contrast
@@ -914,10 +924,15 @@ exports.zhCardSummary = (text) => {
 // issue #54 UI 翻新：类名统一 dsh-think-zh-expand- 前缀；思考块卡片化
 // （圆角/边框/背景走语义 token），标题行折叠箭头 chevronRight 旋转过渡、
 // 思考图标 clock 品牌色、流式「生成中」徽章脉冲动画、行入场动画。
+// issue #57 思考/回复一眼可辨：思考内容（MarkdownView 的 .tzx-md）覆盖为
+// 浅灰 tertiary + 斜体 + 略小字号，与正式回复（主色正体）明显区分；给思考
+// 块加左侧 accent 强调线增强辨识度。代码块/引用保留正体与语义色以保可读。
 const STYLES = `
 .dsh-think-zh-expand-assistant{display:flex;flex-direction:column;gap:16px;color:var(--dsw-alias-label-primary);font-size:16px;line-height:28px}
 .dsh-think-zh-expand-assistant-body{display:flex;flex-direction:column;gap:16px}
 .dsh-think-zh-expand-think{display:flex;flex-direction:column;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:var(--dsw-alias-bg-layer-2);overflow:hidden;animation:dsh-think-zh-expand-row-in 150ms var(--ds-ease-in-out)}
+/* #57 思考块左侧 brand 强调线：与正式回复（无卡片/无竖线）一眼区分。 */
+.dsh-think-zh-expand-think{border-left:3px solid color-mix(in srgb,var(--dsw-alias-accent) 45%,var(--dsw-alias-border-l1))}
 .dsh-think-zh-expand-think[data-state='running']{border-color:color-mix(in srgb,var(--dsw-alias-accent) 35%,var(--dsw-alias-border-l1))}
 .dsh-think-zh-expand-think-head{display:flex;align-items:center;gap:6px;min-width:0;cursor:pointer;user-select:none;padding:6px 10px;border-radius:8px;transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
 .dsh-think-zh-expand-think-head:hover{background:var(--dsw-alias-interactive-bg-hover)}
@@ -931,6 +946,14 @@ const STYLES = `
 .dsh-think-zh-expand-think-badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;animation:dsh-think-zh-expand-pulse 1.2s var(--ds-ease-in-out) infinite}
 .dsh-think-zh-expand-think-summary{min-width:0;flex:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary)}
 .dsh-think-zh-expand-think-body{min-width:0;padding:2px 10px 10px;font-size:14px;line-height:24px;color:var(--dsw-alias-label-tertiary)}
+/* #57 思考与回复一眼可辨：MarkdownView 的 .tzx-md 在容器内直接声明
+   color:var(--dsw-alias-label-primary)（正文主色），元素自身声明优先于祖先
+   继承值，会覆盖上面 think-body 的浅灰，导致思考/回复文字颜色几乎一致。
+   按更高优先级重设思考内容的颜色/斜体/略小字号，与正式回复（主色正体）
+   区分；代码块与引用保留正体与语义色，保证思考内的 Markdown 仍可读。 */
+.dsh-think-zh-expand-think-body .tzx-md{font-size:13px;font-style:italic;color:var(--dsw-alias-label-tertiary)}
+.dsh-think-zh-expand-think-body .tzx-md .tzx-pre,
+.dsh-think-zh-expand-think-body .tzx-md .tzx-bq{font-style:normal;color:var(--dsw-alias-label-secondary)}
 .dsh-think-zh-expand-stopped{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-tertiary);border-radius:6px;align-self:flex-start;padding:0 6px;font:var(--dsw-font-xxxs-11);line-height:18px}
 @keyframes dsh-think-zh-expand-row-in{from{opacity:0;transform:translateY(1px)}to{opacity:1;transform:none}}
 @keyframes dsh-think-zh-expand-pulse{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}

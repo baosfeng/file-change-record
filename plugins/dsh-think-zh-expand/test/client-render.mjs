@@ -551,6 +551,20 @@ try {
   assert.ok(bundleSrc.includes('chevronRight:'), 'shared icons spliced into bundle (chevronRight)')
   assert.ok(bundleSrc.includes('clock:'), 'shared icons spliced into bundle (clock)')
 
+  // 17. #57 思考/回复视觉区分：样式常量必须包含对思考内容（MarkdownView 的
+  //     .tzx-md）的高优先级覆盖（浅灰/斜体/略小字号）。dsh-md-render 的
+  //     .tzx-md 会在容器内直接声明 color:label-primary（正文主色），元素自身
+  //     声明优先于祖先继承值，覆盖思考容器上的浅灰——故必须按更高优先级重设，
+  //     否则思考与回复的文字样式几乎一致（issue #57）。视觉样式无法在无 DOM
+  //     环境用 getComputedStyle 断言，故以 bundle 样式源码断言替代（同 12/16 组）。
+  assert.ok(
+    bundleSrc.includes('.dsh-think-zh-expand-think-body .tzx-md'),
+    'think-content md override present (re-covers .tzx-md primary color)',
+  )
+  assert.ok(bundleSrc.includes('font-style:italic'), 'think content rendered italic')
+  assert.ok(bundleSrc.includes('dsw-alias-label-tertiary'), 'think content rendered as tertiary (light gray)')
+  assert.ok(bundleSrc.includes('border-left:3px solid'), 'think card has brand accent left line')
+
   console.log('ALL CLIENT RENDER-PATH TESTS PASSED')
 } finally {
   delete global.window
