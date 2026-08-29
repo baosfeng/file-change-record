@@ -1,17 +1,21 @@
 import { test } from 'vitest'
 /**
- * Unit tests for the sidebar tab selected-state style overrides in
- * lib/parts/styles.part.js (issue #25).
+ * Unit tests for the sidebar tab selected-state styling in
+ * lib/parts/styles.part.js.
  *
- * The host (dsh-better-sidebar) renders tabs with CSS-modules hashed class
- * names (e.g. `tabActive_xxxxx`) and no data attributes, so the plugin can
- * only target them with `[class*="..."]` substring selectors. The host's own
- * `.tabActive` (0,1,0) and `.tab:hover` (0,2,0) rules must be beaten by
- * specificity, not by load order: the plugin stylesheet is injected after the
- * host's, but relying on that alone is fragile. The overrides therefore use
- * the double-attribute selector `[class*="tab"][class*="tabActive"]` (0,2,0)
- * and its `:hover` variant (0,3,0), and must keep working if the host ever
- * renames its classes (substring match is the fallback contract).
+ * Issue #25 originally injected a brand-fill override for the selected tab
+ * (`[class*="tab"][class*="tabActive"]` → `--dsw-alias-state-business-primary`,
+ * light #4176e6 / dark #679efe) because the host's grey selected state was
+ * considered too subtle. That colored the active sidebar tab blue, which the
+ * user reported as unwanted in issue #60: the request is to keep the host's
+ * original state. Per #60 we therefore REMOVE the override entirely and let the
+ * host (dsh-better-sidebar) render its own `.tabActive` (interactive-bg-active
+ * grey + label-primary ink).
+ *
+ * These tests lock in the #60 contract: the plugin must NOT inject any
+ * `[class*="tab"][class*="tabActive"]` / `[class*="tabActive"]` rule that
+ * restyles the host's selected tab, so a future regression (accidentally
+ * re-adding the blue fill) fails here.
  *
  * The parts are plain text spliced into the client bundle factory scope, so
  * this suite evals the styles part source and asserts on the CSS text.
@@ -45,61 +49,30 @@ function ruleFor(css, selector) {
 const ACTIVE = '[class*="tab"][class*="tabActive"]'
 const ACTIVE_HOVER = '[class*="tab"][class*="tabActive"]:hover'
 
-test('selected-tab override targets the hashed class via double substring selector (issue #25)', () => {
-  assert.ok(CSS.includes(ACTIVE), 'STYLES must contain the double-attribute tabActive selector')
-  // The double attribute selector (0,2,0) beats the host `.tabActive` (0,1,0)
-  // by specificity alone; a bare `[class*="tabActive"]` (0,1,0) would tie with
-  // the host rule and depend on injection order — lock the design in.
+test('plugin must not inject any tabActive selected-state override (issue #60)', () => {
+  // The double-attribute selector that (issue #25) colored the selected tab
+  // blue must be gone: the host renders its own selected state now.
+  const rule = ruleFor(CSS, ACTIVE)
+  assert.equal(rule, null, 'no [class*="tab"][class*="tabActive"] rule allowed (issue #60 removed it)')
+  assert.equal(ruleFor(CSS, ACTIVE_HOVER), null, 'no [class*="tab"][class*="tabActive"]:hover rule allowed')
+})
+
+test('plugin must not inject a bare single-attribute tabActive rule either (issue #60)', () => {
   const bare = CSS.match(/(^|[^\]])\[class\*="tabActive"\]\s*\{/)
   assert.equal(bare, null, 'no bare single-attribute tabActive rule allowed')
 })
 
-test('selected tab gets the theme-aware brand fill (issue #25)', () => {
-  const block = ruleFor(STYLES, ACTIVE)
-  assert.ok(block, 'selected-tab rule must exist')
-  assert.match(
-    block,
-    /background:\s*var\(--dsw-alias-state-business-primary\)/,
-    'selected fill must be the brand business primary (light #4176e6 / dark #679efe)',
-  )
+test('no tab-override rule may reference the brand fill (issue #60)', () => {
+  // `--dsw-alias-state-business-primary` was the blue brand fill used by the
+  // removed #25 override; any tab rule referencing it would re-introduce the bug.
+  const tabRules = CSS.split('}').filter((chunk) => chunk.includes('tabActive'))
+  for (const chunk of tabRules) {
+    assert.ok(!chunk.includes('--dsw-alias-state-business-primary'), 'tab overrides must not use the brand fill')
+  }
+  assert.equal(tabRules.length, 0, 'no tab override chunks should exist')
 })
 
-test('selected tab text uses the brand-contrast ink (issue #25)', () => {
-  const block = ruleFor(STYLES, ACTIVE)
-  assert.ok(block, 'selected-tab rule must exist')
-  assert.match(
-    block,
-    /color:\s*var\(--dsw-alias-label-primary-foreground\)/,
-    'selected text must be the foreground-on-brand ink (light #fff / dark #0f1115)',
-  )
-})
-
-test('selected tab keeps its brand fill on hover, beating the host .tab:hover (issue #25)', () => {
-  const block = ruleFor(STYLES, ACTIVE_HOVER)
-  assert.ok(block, 'selected-tab :hover rule must exist')
-  assert.match(
-    block,
-    /background:\s*var\(--dsw-alias-state-business-primary\)/,
-    'hover must not fall back to the host grey fill',
-  )
-  assert.match(
-    block,
-    /color:\s*var\(--dsw-alias-label-primary-foreground\)/,
-    'hover must keep the contrast ink readable',
-  )
-})
-
-test('selected-tab close button stays readable on the brand fill (issue #25)', () => {
-  const block = ruleFor(STYLES, `${ACTIVE} [class*="tabClose"]`)
-  assert.ok(block, 'selected-tab close button must be overridden')
-  assert.match(
-    block,
-    /color:\s*var\(--dsw-alias-label-primary-foreground\)/,
-    'close icon must use the contrast ink on the brand fill',
-  )
-})
-
-test('tab overrides never reference the undefined --dsw-alias-accent variable (issue #25)', () => {
+test('tab overrides never reference the undefined --dsw-alias-accent variable (issue #25, belt & suspenders)', () => {
   // `--dsw-alias-accent` is not defined anywhere in the DSH theme token set
   // (verified against dsh-client-ui-theme / dsh-web-frontend assets), so a
   // var() reference to it resolves to an invalid value and silently inherits.
@@ -109,7 +82,7 @@ test('tab overrides never reference the undefined --dsw-alias-accent variable (i
   }
 })
 
-test('tab overrides rely on specificity, not !important (issue #25)', () => {
+test('tab overrides rely on the host, not on !important (issue #25/#60)', () => {
   const tabRules = CSS.split('}').filter((chunk) => chunk.includes('tabActive'))
   for (const chunk of tabRules) {
     assert.ok(!chunk.includes('!important'), 'no !important in tab overrides')
