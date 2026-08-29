@@ -188,6 +188,16 @@ const icon = {
       ],
       size,
     ),
+  // 代码（issue #54 阶段 1 新增）：尖括号 `</>`，预览/代码切换的代码视图
+  // 图标（dsh-mermaid-render 卡片），stroke=currentColor 风格与其余图标一致。
+  code: (size = 16) =>
+    iconSvg(
+      [
+        createElement('polyline', { points: '16 18 22 12 16 6' }),
+        createElement('polyline', { points: '8 6 2 12 8 18' }),
+      ],
+      size,
+    ),
 }
 
 // Common-language / file-type badges (issue #24): brand fill + contrast
@@ -350,17 +360,15 @@ const fileIconByExt = (ext, size = 14) => {
  * PART: 思考块 + assistant-step 节点渲染器。
  *
  * 由 scripts/build.mjs 拼入 lib/client.js 的 factory 作用域（纯函数声明
- * 文本，无 import/export）。依赖 factory 内的 createElement、useState、
- * icon（共享图标，issue #54 阶段 0）与 MarkdownView（issue #31 迁移后
- * MarkdownView 由 dsh-md-render 提供，factory 经 `require('dsh-md-render')`
- * 取得）。行为与迁移前等价：reasoning 块默认展开、流式中强制展开、
- * 图片块相邻分组渲染。
+ * 文本，无 import/export）。依赖 factory 内的 createElement、useState 与
+ * MarkdownView（issue #31 迁移后 MarkdownView 由 dsh-md-render 提供，
+ * factory 经 `require('dsh-md-render')` 取得）。行为与迁移前等价：
+ * reasoning 块默认展开、流式中强制展开、图片块相邻分组渲染。
  *
- * issue #54 UI 翻新：样式类名统一为 dsh-think-zh-expand- 前缀（tzx- 前缀
- * 仅保留给 dsh-md-render 的 MarkdownView 输出契约：div.tzx-md / p.tzx-p /
- * table.tzx-table 等，本片段不产出这些类名）；标题行折叠箭头用共享
- * chevronRight 图标 + 旋转过渡，思考图标用共享 clock 图标，流式生成中
- * 显示「生成中」徽章（脉冲动画）。
+ * 视觉基线（用户要求）：与 DSH 官方 reasoning 渲染一致——标题行为
+ * 字符折叠箭头 + 标题 + 摘要，正文浅灰缩进文本；issue #54 的 clock 图标
+ * 与「生成中」徽章已按用户要求回退移除（类名保留 dsh-think-zh-expand-
+ * 前缀，避免与 dsh-md-render 的 tzx-md 输出契约混淆）。
  */
 
 // ── 思考块：默认展开，可点击收起，流式中强制展开 ───────────────────
@@ -389,16 +397,10 @@ function ThinkBlock({ text, running }) {
           }
         },
       },
-      // 折叠箭头：chevronRight 收起指向右，展开时旋转 90° 指向下
-      // （transition 见 styles.part.js 的 -chevron-open 规则）。
-      createElement(
-        'span',
-        { className: 'dsh-think-zh-expand-think-chevron' + (open ? ' dsh-think-zh-expand-think-chevron-open' : '') },
-        icon.chevronRight(14),
-      ),
-      createElement('span', { className: 'dsh-think-zh-expand-think-icon' }, icon.clock(14)),
+      // 折叠箭头：收起指向右「▸」，展开指向下「▾」（官方 reasoning 行的
+      // 朴素样式，无图标/无旋转动画）。
+      createElement('span', { className: 'dsh-think-zh-expand-think-chevron' }, open ? '▾' : '▸'),
       createElement('span', { className: 'dsh-think-zh-expand-think-title' }, '思考'),
-      running && createElement('span', { className: 'dsh-think-zh-expand-think-badge' }, '生成中'),
       !open && createElement('span', { className: 'dsh-think-zh-expand-think-summary' }, firstLine(text)),
     ),
     // 思考内容也走统一 Markdown 渲染（dsh-md-render 的 MarkdownView：
@@ -911,29 +913,20 @@ exports.zhCardSummary = (text) => {
 // 仅保留本插件职责相关样式（assistant 容器 / 思考块 / 已停止标记）；
 // MarkdownView 的渲染样式（.tzx-md 系列）已随 issue #31 迁移至
 // dsh-md-render（其 styles.part.js 注入）。
-// issue #54 UI 翻新：类名统一 dsh-think-zh-expand- 前缀；思考块卡片化
-// （圆角/边框/背景走语义 token），标题行折叠箭头 chevronRight 旋转过渡、
-// 思考图标 clock 品牌色、流式「生成中」徽章脉冲动画、行入场动画。
+// 视觉基线：与 DSH 官方 reasoning 渲染一致（浅灰缩进文本行、无卡片/无
+// 徽章/无动画）；issue #54 的卡片化翻新（圆角/边框/背景、clock 图标、
+// 「生成中」徽章、脉冲/入场动画）已按用户要求回退，仅保留类名前缀。
 const STYLES = `
 .dsh-think-zh-expand-assistant{display:flex;flex-direction:column;gap:16px;color:var(--dsw-alias-label-primary);font-size:16px;line-height:28px}
 .dsh-think-zh-expand-assistant-body{display:flex;flex-direction:column;gap:16px}
-.dsh-think-zh-expand-think{display:flex;flex-direction:column;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:var(--dsw-alias-bg-layer-2);overflow:hidden;animation:dsh-think-zh-expand-row-in 150ms var(--ds-ease-in-out)}
-.dsh-think-zh-expand-think[data-state='running']{border-color:color-mix(in srgb,var(--dsw-alias-accent) 35%,var(--dsw-alias-border-l1))}
-.dsh-think-zh-expand-think-head{display:flex;align-items:center;gap:6px;min-width:0;cursor:pointer;user-select:none;padding:6px 10px;border-radius:8px;transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+.dsh-think-zh-expand-think{display:flex;flex-direction:column;color:var(--dsw-alias-label-tertiary)}
+.dsh-think-zh-expand-think-head{display:flex;align-items:center;gap:8px;min-width:0;cursor:pointer;user-select:none;padding:2px 0;border-radius:6px}
 .dsh-think-zh-expand-think-head:hover{background:var(--dsw-alias-interactive-bg-hover)}
-.dsh-think-zh-expand-think-head:active{background:var(--dsw-alias-interactive-bg-hover)}
-.dsh-think-zh-expand-think-head:focus-visible{outline:2px solid var(--dsw-alias-accent);outline-offset:-2px}
-.dsh-think-zh-expand-think-chevron{flex:none;display:flex;align-items:center;color:var(--dsw-alias-label-tertiary);transition:transform var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
-.dsh-think-zh-expand-think-chevron-open{transform:rotate(90deg)}
-.dsh-think-zh-expand-think-icon{flex:none;display:flex;align-items:center;color:var(--dsw-alias-accent)}
-.dsh-think-zh-expand-think-title{flex:none;font:var(--dsw-font-s-strong-14);color:var(--dsw-alias-label-secondary)}
-.dsh-think-zh-expand-think-badge{flex:none;display:inline-flex;align-items:center;gap:4px;height:17px;padding:0 6px;border-radius:4px;font:var(--dsw-font-xxxs-strong-11);color:var(--dsw-alias-accent);background:color-mix(in srgb,var(--dsw-alias-accent) 12%,transparent)}
-.dsh-think-zh-expand-think-badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;animation:dsh-think-zh-expand-pulse 1.2s var(--ds-ease-in-out) infinite}
-.dsh-think-zh-expand-think-summary{min-width:0;flex:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary)}
-.dsh-think-zh-expand-think-body{min-width:0;padding:2px 10px 10px;font-size:14px;line-height:24px;color:var(--dsw-alias-label-tertiary)}
-.dsh-think-zh-expand-stopped{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-tertiary);border-radius:6px;align-self:flex-start;padding:0 6px;font:var(--dsw-font-xxxs-11);line-height:18px}
-@keyframes dsh-think-zh-expand-row-in{from{opacity:0;transform:translateY(1px)}to{opacity:1;transform:none}}
-@keyframes dsh-think-zh-expand-pulse{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+.dsh-think-zh-expand-think-chevron{flex:none;color:var(--dsw-alias-label-secondary);font-size:12px}
+.dsh-think-zh-expand-think-title{flex:none;font-size:14px;font-weight:400;color:var(--dsw-alias-label-secondary)}
+.dsh-think-zh-expand-think-summary{min-width:0;color:var(--dsw-alias-label-tertiary);text-overflow:ellipsis;white-space:nowrap;flex:auto;font-size:14px;line-height:24px;overflow:hidden}
+.dsh-think-zh-expand-think-body{white-space:pre-wrap;word-break:break-word;padding:4px 0 4px 24px;font-size:14px;line-height:24px;color:var(--dsw-alias-label-tertiary)}
+.dsh-think-zh-expand-stopped{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-tertiary);border-radius:6px;align-self:flex-start;padding:0 6px;font-size:11px;line-height:18px}
     `
 
 exports.inject = ['slots']

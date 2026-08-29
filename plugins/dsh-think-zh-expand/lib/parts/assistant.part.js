@@ -2,17 +2,15 @@
  * PART: 思考块 + assistant-step 节点渲染器。
  *
  * 由 scripts/build.mjs 拼入 lib/client.js 的 factory 作用域（纯函数声明
- * 文本，无 import/export）。依赖 factory 内的 createElement、useState、
- * icon（共享图标，issue #54 阶段 0）与 MarkdownView（issue #31 迁移后
- * MarkdownView 由 dsh-md-render 提供，factory 经 `require('dsh-md-render')`
- * 取得）。行为与迁移前等价：reasoning 块默认展开、流式中强制展开、
- * 图片块相邻分组渲染。
+ * 文本，无 import/export）。依赖 factory 内的 createElement、useState 与
+ * MarkdownView（issue #31 迁移后 MarkdownView 由 dsh-md-render 提供，
+ * factory 经 `require('dsh-md-render')` 取得）。行为与迁移前等价：
+ * reasoning 块默认展开、流式中强制展开、图片块相邻分组渲染。
  *
- * issue #54 UI 翻新：样式类名统一为 dsh-think-zh-expand- 前缀（tzx- 前缀
- * 仅保留给 dsh-md-render 的 MarkdownView 输出契约：div.tzx-md / p.tzx-p /
- * table.tzx-table 等，本片段不产出这些类名）；标题行折叠箭头用共享
- * chevronRight 图标 + 旋转过渡，思考图标用共享 clock 图标，流式生成中
- * 显示「生成中」徽章（脉冲动画）。
+ * 视觉基线（用户要求）：与 DSH 官方 reasoning 渲染一致——标题行为
+ * 字符折叠箭头 + 标题 + 摘要，正文浅灰缩进文本；issue #54 的 clock 图标
+ * 与「生成中」徽章已按用户要求回退移除（类名保留 dsh-think-zh-expand-
+ * 前缀，避免与 dsh-md-render 的 tzx-md 输出契约混淆）。
  */
 
 // ── 思考块：默认展开，可点击收起，流式中强制展开 ───────────────────
@@ -41,16 +39,10 @@ function ThinkBlock({ text, running }) {
           }
         },
       },
-      // 折叠箭头：chevronRight 收起指向右，展开时旋转 90° 指向下
-      // （transition 见 styles.part.js 的 -chevron-open 规则）。
-      createElement(
-        'span',
-        { className: 'dsh-think-zh-expand-think-chevron' + (open ? ' dsh-think-zh-expand-think-chevron-open' : '') },
-        icon.chevronRight(14),
-      ),
-      createElement('span', { className: 'dsh-think-zh-expand-think-icon' }, icon.clock(14)),
+      // 折叠箭头：收起指向右「▸」，展开指向下「▾」（官方 reasoning 行的
+      // 朴素样式，无图标/无旋转动画）。
+      createElement('span', { className: 'dsh-think-zh-expand-think-chevron' }, open ? '▾' : '▸'),
       createElement('span', { className: 'dsh-think-zh-expand-think-title' }, '思考'),
-      running && createElement('span', { className: 'dsh-think-zh-expand-think-badge' }, '生成中'),
       !open && createElement('span', { className: 'dsh-think-zh-expand-think-summary' }, firstLine(text)),
     ),
     // 思考内容也走统一 Markdown 渲染（dsh-md-render 的 MarkdownView：
