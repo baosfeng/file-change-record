@@ -1,17 +1,15 @@
 import { test } from 'vitest'
 /**
- * Unit tests for the sidebar tab selected-state style overrides in
- * lib/parts/styles.part.js (issue #25).
+ * Regression tests for the sidebar tab selected-state styling (issues #25/#60).
  *
- * The host (dsh-better-sidebar) renders tabs with CSS-modules hashed class
- * names (e.g. `tabActive_xxxxx`) and no data attributes, so the plugin can
- * only target them with `[class*="..."]` substring selectors. The host's own
- * `.tabActive` (0,1,0) and `.tab:hover` (0,2,0) rules must be beaten by
- * specificity, not by load order: the plugin stylesheet is injected after the
- * host's, but relying on that alone is fragile. The overrides therefore use
- * the double-attribute selector `[class*="tab"][class*="tabActive"]` (0,2,0)
- * and its `:hover` variant (0,3,0), and must keep working if the host ever
- * renames its classes (substring match is the fallback contract).
+ * issue #25 曾给侧边栏页签选中态注入品牌蓝覆盖，使用全局子串选择器
+ * `[class*="tab"][class*="tabActive"]`。该规则会误伤宿主（DSH 官方 GUI）中
+ * 任何 class 名含 "tab"/"tabActive" 的元素——包括对话/工作区 tab 的选中态，
+ * 出现用户不想要的蓝色高亮（issue #60）。issue #60 决定移除该覆盖，页签
+ * 选中态回归宿主（dsh-better-sidebar）默认样式。
+ *
+ * 本套件是 issue #60 的防复发测试：断言 STYLES **不包含**任何针对
+ * tab/tabActive 的品牌蓝覆盖规则。若未来重新引入此类全局覆盖，测试即红灯。
  *
  * The parts are plain text spliced into the client bundle factory scope, so
  * this suite evals the styles part source and asserts on the CSS text.
@@ -31,87 +29,27 @@ const STYLES = loadStyles()
 /** STYLES with CSS comments stripped, so prose can't trip string asserts. */
 const CSS = STYLES.replace(/\/\*[\s\S]*?\*\//g, '')
 
-/** Escape a CSS selector fragment for use inside a RegExp. */
-function escapeRegExp(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-/** Extract the declaration block for a selector, or null when absent. */
-function ruleFor(css, selector) {
-  const m = css.match(new RegExp(`${escapeRegExp(selector)}\\s*\\{([^}]*)\\}`))
-  return m ? m[1] : null
-}
-
-const ACTIVE = '[class*="tab"][class*="tabActive"]'
-const ACTIVE_HOVER = '[class*="tab"][class*="tabActive"]:hover'
-
-test('selected-tab override targets the hashed class via double substring selector (issue #25)', () => {
-  assert.ok(CSS.includes(ACTIVE), 'STYLES must contain the double-attribute tabActive selector')
-  // The double attribute selector (0,2,0) beats the host `.tabActive` (0,1,0)
-  // by specificity alone; a bare `[class*="tabActive"]` (0,1,0) would tie with
-  // the host rule and depend on injection order — lock the design in.
-  const bare = CSS.match(/(^|[^\]])\[class\*="tabActive"\]\s*\{/)
-  assert.equal(bare, null, 'no bare single-attribute tabActive rule allowed')
-})
-
-test('selected tab gets the theme-aware brand fill (issue #25)', () => {
-  const block = ruleFor(STYLES, ACTIVE)
-  assert.ok(block, 'selected-tab rule must exist')
-  assert.match(
-    block,
-    /background:\s*var\(--dsw-alias-state-business-primary\)/,
-    'selected fill must be the brand business primary (light #4176e6 / dark #679efe)',
+test('no brand-blue override targets any element with tab/tabActive class (issue #60)', () => {
+  // issue #60: 全局子串选择器会误伤宿主对话/工作区 tab 选中态（蓝色高亮）。
+  // 任何针对 tab/tabActive 的背景/颜色覆盖都禁止出现。
+  assert.ok(
+    !/\[class\*="tab"\]/.test(CSS),
+    'no global [class*="tab"] rule allowed (it bleeds into host tab selected states)',
+  )
+  assert.ok(
+    !/\[class\*="tabActive"\]/.test(CSS),
+    'no global [class*="tabActive"] rule allowed (it bleeds into host tab selected states)',
   )
 })
 
-test('selected tab text uses the brand-contrast ink (issue #25)', () => {
-  const block = ruleFor(STYLES, ACTIVE)
-  assert.ok(block, 'selected-tab rule must exist')
-  assert.match(
-    block,
-    /color:\s*var\(--dsw-alias-label-primary-foreground\)/,
-    'selected text must be the foreground-on-brand ink (light #fff / dark #0f1115)',
-  )
+test('no brand fill (business-primary) remains in the stylesheet (issue #60)', () => {
+  // 品牌蓝填充随 #25 的覆盖一起移除；残留的 business-primary 背景规则
+  // 说明旧覆盖又回来了。
+  const rules = CSS.split('}').filter((chunk) => chunk.includes('business-primary'))
+  assert.equal(rules.length, 0, 'no business-primary background/color rules remain')
 })
 
-test('selected tab keeps its brand fill on hover, beating the host .tab:hover (issue #25)', () => {
-  const block = ruleFor(STYLES, ACTIVE_HOVER)
-  assert.ok(block, 'selected-tab :hover rule must exist')
-  assert.match(
-    block,
-    /background:\s*var\(--dsw-alias-state-business-primary\)/,
-    'hover must not fall back to the host grey fill',
-  )
-  assert.match(
-    block,
-    /color:\s*var\(--dsw-alias-label-primary-foreground\)/,
-    'hover must keep the contrast ink readable',
-  )
-})
-
-test('selected-tab close button stays readable on the brand fill (issue #25)', () => {
-  const block = ruleFor(STYLES, `${ACTIVE} [class*="tabClose"]`)
-  assert.ok(block, 'selected-tab close button must be overridden')
-  assert.match(
-    block,
-    /color:\s*var\(--dsw-alias-label-primary-foreground\)/,
-    'close icon must use the contrast ink on the brand fill',
-  )
-})
-
-test('tab overrides never reference the undefined --dsw-alias-accent variable (issue #25)', () => {
-  // `--dsw-alias-accent` is not defined anywhere in the DSH theme token set
-  // (verified against dsh-client-ui-theme / dsh-web-frontend assets), so a
-  // var() reference to it resolves to an invalid value and silently inherits.
-  const tabRules = CSS.split('}').filter((chunk) => chunk.includes('tabActive'))
-  for (const chunk of tabRules) {
-    assert.ok(!chunk.includes('--dsw-alias-accent'), 'tab overrides must use defined tokens only')
-  }
-})
-
-test('tab overrides rely on specificity, not !important (issue #25)', () => {
-  const tabRules = CSS.split('}').filter((chunk) => chunk.includes('tabActive'))
-  for (const chunk of tabRules) {
-    assert.ok(!chunk.includes('!important'), 'no !important in tab overrides')
-  }
+test('no !important sneaks into the stylesheet (issue #25 spirit)', () => {
+  // 保持 #25 的工程约束：无 !important，样式覆盖一律靠选择器结构。
+  assert.ok(!CSS.includes('!important'), 'no !important in file-activity styles')
 })

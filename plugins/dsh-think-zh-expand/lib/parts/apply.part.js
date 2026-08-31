@@ -12,29 +12,30 @@
 // 仅保留本插件职责相关样式（assistant 容器 / 思考块 / 已停止标记）；
 // MarkdownView 的渲染样式（.tzx-md 系列）已随 issue #31 迁移至
 // dsh-md-render（其 styles.part.js 注入）。
-// issue #54 UI 翻新：类名统一 dsh-think-zh-expand- 前缀；思考块卡片化
-// （圆角/边框/背景走语义 token），标题行折叠箭头 chevronRight 旋转过渡、
-// 思考图标 clock 品牌色、流式「生成中」徽章脉冲动画、行入场动画。
+// 视觉基线：与 DSH 官方 reasoning 渲染一致（浅灰缩进文本行、无卡片/无
+// 徽章/无动画）；issue #54 的卡片化翻新（圆角/边框/背景、clock 图标、
+// 「生成中」徽章、脉冲/入场动画）已按用户要求回退，仅保留类名前缀。
+// issue #57 修复：思考正文经 MarkdownView 渲染后其根容器 .tzx-md 自带
+// primary 色，覆盖思考块浅灰继承色导致区分不开；补 think-body 内的
+// .tzx-md / 表格 / 公式颜色覆盖（见 STYLES 内注释）。
 const STYLES = `
 .dsh-think-zh-expand-assistant{display:flex;flex-direction:column;gap:16px;color:var(--dsw-alias-label-primary);font-size:16px;line-height:28px}
 .dsh-think-zh-expand-assistant-body{display:flex;flex-direction:column;gap:16px}
-.dsh-think-zh-expand-think{display:flex;flex-direction:column;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:var(--dsw-alias-bg-layer-2);overflow:hidden;animation:dsh-think-zh-expand-row-in 150ms var(--ds-ease-in-out)}
-.dsh-think-zh-expand-think[data-state='running']{border-color:color-mix(in srgb,var(--dsw-alias-accent) 35%,var(--dsw-alias-border-l1))}
-.dsh-think-zh-expand-think-head{display:flex;align-items:center;gap:6px;min-width:0;cursor:pointer;user-select:none;padding:6px 10px;border-radius:8px;transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+.dsh-think-zh-expand-think{display:flex;flex-direction:column;color:var(--dsw-alias-label-tertiary)}
+.dsh-think-zh-expand-think-head{display:flex;align-items:center;gap:8px;min-width:0;cursor:pointer;user-select:none;padding:2px 0;border-radius:6px}
 .dsh-think-zh-expand-think-head:hover{background:var(--dsw-alias-interactive-bg-hover)}
-.dsh-think-zh-expand-think-head:active{background:var(--dsw-alias-interactive-bg-hover)}
-.dsh-think-zh-expand-think-head:focus-visible{outline:2px solid var(--dsw-alias-accent);outline-offset:-2px}
-.dsh-think-zh-expand-think-chevron{flex:none;display:flex;align-items:center;color:var(--dsw-alias-label-tertiary);transition:transform var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
-.dsh-think-zh-expand-think-chevron-open{transform:rotate(90deg)}
-.dsh-think-zh-expand-think-icon{flex:none;display:flex;align-items:center;color:var(--dsw-alias-accent)}
-.dsh-think-zh-expand-think-title{flex:none;font:var(--dsw-font-s-strong-14);color:var(--dsw-alias-label-secondary)}
-.dsh-think-zh-expand-think-badge{flex:none;display:inline-flex;align-items:center;gap:4px;height:17px;padding:0 6px;border-radius:4px;font:var(--dsw-font-xxxs-strong-11);color:var(--dsw-alias-accent);background:color-mix(in srgb,var(--dsw-alias-accent) 12%,transparent)}
-.dsh-think-zh-expand-think-badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;animation:dsh-think-zh-expand-pulse 1.2s var(--ds-ease-in-out) infinite}
-.dsh-think-zh-expand-think-summary{min-width:0;flex:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary)}
-.dsh-think-zh-expand-think-body{min-width:0;padding:2px 10px 10px;font-size:14px;line-height:24px;color:var(--dsw-alias-label-tertiary)}
-.dsh-think-zh-expand-stopped{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-tertiary);border-radius:6px;align-self:flex-start;padding:0 6px;font:var(--dsw-font-xxxs-11);line-height:18px}
-@keyframes dsh-think-zh-expand-row-in{from{opacity:0;transform:translateY(1px)}to{opacity:1;transform:none}}
-@keyframes dsh-think-zh-expand-pulse{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+.dsh-think-zh-expand-think-chevron{flex:none;color:var(--dsw-alias-label-secondary);font-size:12px}
+.dsh-think-zh-expand-think-title{flex:none;font-size:14px;font-weight:400;color:var(--dsw-alias-label-secondary)}
+.dsh-think-zh-expand-think-summary{min-width:0;color:var(--dsw-alias-label-tertiary);text-overflow:ellipsis;white-space:nowrap;flex:auto;font-size:14px;line-height:24px;overflow:hidden}
+.dsh-think-zh-expand-think-body{white-space:pre-wrap;word-break:break-word;padding:4px 0 4px 24px;font-size:14px;line-height:24px;color:var(--dsw-alias-label-tertiary)}
+/* issue #57: MarkdownView 根容器自带 label-primary，覆盖思考块浅灰继承色；
+   显式把思考块内的正文/表格/公式拉回浅灰，与正式回复（primary）一眼区分 */
+.dsh-think-zh-expand-think-body .tzx-md{color:var(--dsw-alias-label-tertiary)}
+.dsh-think-zh-expand-think-body .tzx-md .tzx-p{color:var(--dsw-alias-label-tertiary)}
+.dsh-think-zh-expand-think-body .dsh-md-render-table{color:var(--dsw-alias-label-tertiary)}
+.dsh-think-zh-expand-think-body .dsh-md-render-table th,.dsh-think-zh-expand-think-body .dsh-md-render-table td{border-color:var(--dsw-alias-border-l2)}
+.dsh-think-zh-expand-think-body .dsh-md-render-math,.dsh-think-zh-expand-think-body .dsh-md-render-math-block{color:var(--dsw-alias-label-tertiary)}
+.dsh-think-zh-expand-stopped{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-tertiary);border-radius:6px;align-self:flex-start;padding:0 6px;font-size:11px;line-height:18px}
     `
 
 exports.inject = ['slots']

@@ -54,6 +54,18 @@ global.window = {
 Object.defineProperty(global, 'navigator', { value: { language: 'zh-CN' }, configurable: true })
 global.localStorage = { getItem: () => null, setItem: () => {} }
 global.fetch = () => Promise.resolve({ json: () => Promise.resolve({ ok: true, value: {} }) })
+// ── document mock: 捕获 apply() 注入的样式表（issue #57 防复发）──────────
+// 样式 effect 在 document 存在时会把 STYLES 注入 head；测试在此捕获内容，
+// 断言思考块内 Markdown 内容的浅灰覆盖规则存在（防止 .tzx-md 覆盖思考
+// 块浅灰色导致思考/非思考区分不开的问题回归）。
+const injectedStyles = []
+global.document = {
+  head: {
+    appendChild: (el) => injectedStyles.push(el.textContent),
+    removeChild: () => {},
+  },
+  createElement: () => ({ setAttribute: () => {}, textContent: '' }),
+}
 
 eval(fs.readFileSync(new URL('../../dsh-md-render/lib/client.js', import.meta.url), 'utf8'))
 eval(fs.readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8'))
@@ -366,8 +378,9 @@ try {
   assert.ok(!bundleSrc.includes('function MarkdownView'), 'MarkdownView definition removed from bundle')
   assert.ok(bundleSrc.includes("require('dsh-md-render')"), 'bundle requires dsh-md-render for rendering')
 
-  // ── issue #54 UI 翻新：思考块视觉结构 + 折叠交互 + 流式徽章 ─────────
-  // 13. 结构：统一 dsh-think-zh-expand- 前缀类名 + 共享图标（chevron/clock）
+  // ── issue #54 类名前缀统一 + 视觉回退（用户要求）：思考块结构/折叠交互 ──
+  // 13. 结构：统一 dsh-think-zh-expand- 前缀类名；视觉回归官方基线
+  //     （无卡片/徽章/动画/图标，字符折叠箭头）
   function collectClasses(node, out = []) {
     if (node === null || node === undefined || typeof node === 'boolean') return out
     if (Array.isArray(node)) {
@@ -445,11 +458,14 @@ try {
     node: { data: { blocks: [{ kind: 'reasoning', text: '第一行\n第二行' }] } },
   })
   const thinkClasses = collectClasses(thinkTree)
-  assert.ok(thinkClasses.includes('dsh-think-zh-expand-think'), 'think card class (new prefix)')
+  assert.ok(thinkClasses.includes('dsh-think-zh-expand-think'), 'think class (new prefix)')
   assert.ok(thinkClasses.includes('dsh-think-zh-expand-think-head'), 'think head class (new prefix)')
   assert.ok(thinkClasses.includes('dsh-think-zh-expand-think-chevron'), 'chevron class (new prefix)')
-  assert.ok(thinkClasses.includes('dsh-think-zh-expand-think-chevron-open'), 'chevron rotated while expanded')
-  assert.ok(thinkClasses.includes('dsh-think-zh-expand-think-icon'), 'think icon class (new prefix)')
+  assert.ok(
+    !thinkClasses.includes('dsh-think-zh-expand-think-chevron-open'),
+    'no chevron rotation transition class (visual rollback)',
+  )
+  assert.ok(!thinkClasses.includes('dsh-think-zh-expand-think-icon'), 'no clock icon class (visual rollback)')
   assert.ok(thinkClasses.includes('dsh-think-zh-expand-think-title'), 'think title class (new prefix)')
   assert.ok(thinkClasses.includes('dsh-think-zh-expand-think-body'), 'think body class (new prefix)')
   // 本插件旧类名全部清除；tzx-md / tzx-p 等是 dsh-md-render 的 MarkdownView
@@ -468,19 +484,37 @@ try {
   assert.ok(!thinkClasses.some((c) => LEGACY_OWN.includes(c)), 'no legacy own tzx-* classes in the think tree')
   assert.ok(thinkClasses.includes('tzx-md'), 'contract class tzx-md preserved (MarkdownView output)')
   assert.ok(thinkClasses.includes('tzx-p'), 'contract class tzx-p preserved (MarkdownView output)')
-  assert.ok(countSvg(thinkTree) >= 2, 'chevron + clock icons rendered (shared icon system)')
+  assert.equal(countSvg(thinkTree), 0, 'no svg icons rendered (visual rollback to plain chevron glyph)')
+  const thinkExpandedTexts = collectTexts(thinkTree)
+  assert.ok(thinkExpandedTexts.includes('▾'), 'plain chevron glyph pointing down while expanded')
   const thinkRoot = findClass(thinkTree, 'dsh-think-zh-expand-think')
   assert.equal(thinkRoot.props['data-state'], 'ok', 'data-state ok when not streaming')
   assert.equal(thinkRoot.props['data-variant'], 'think', 'data-variant think preserved')
 
-  // 14. 流式生成中：data-state=running + 「生成中」徽章 + 强制展开
+  // 13b. issue #57: 思考块内 MarkdownView 内容颜色覆盖——.tzx-md 自带
+  //      label-primary（与正式回复同色），必须被思考块的浅灰规则覆盖，
+  //      否则思考/非思考文字样式区分不开。断言注入的样式表含覆盖规则。
+  assert.ok(injectedStyles.length >= 1, 'styles injected into document head')
+  const thinkStyleSheet = injectedStyles.join('\n')
+  assert.ok(
+    thinkStyleSheet.includes('.dsh-think-zh-expand-think-body .tzx-md{color:var(--dsw-alias-label-tertiary)}'),
+    'think body overrides .tzx-md color to tertiary (issue #57)',
+  )
+  assert.ok(
+    thinkStyleSheet.includes(
+      '.dsh-think-zh-expand-think-body .dsh-md-render-table{color:var(--dsw-alias-label-tertiary)}',
+    ),
+    'think body overrides table color to tertiary (issue #57)',
+  )
+
+  // 14. 流式生成中：data-state=running + 强制展开（徽章已回退移除）
   const runningTree = capturedRenderer({
     node: { data: { status: 'running', blocks: [{ kind: 'reasoning', text: '流式思考内容' }] } },
   })
   const runningRoot = findClass(runningTree, 'dsh-think-zh-expand-think')
   assert.equal(runningRoot.props['data-state'], 'running', 'data-state running while streaming')
   const runningTexts = collectTexts(runningTree)
-  assert.ok(runningTexts.includes('生成中'), 'streaming badge text shown')
+  assert.ok(!runningTexts.includes('生成中'), 'no streaming badge text (visual rollback)')
   assert.ok(
     runningTexts.some((t) => t.includes('流式思考内容')),
     'streaming forces expanded content',

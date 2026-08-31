@@ -217,6 +217,29 @@ const icon = {
       ],
       size,
     ),
+  // 警告（issue #54 阶段 1 新增）：安全护栏告警类型图标（投毒/提示注入），
+  // 三角警示 + 感叹号，stroke=currentColor 风格与其余图标一致。
+  alert: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', {
+          d: 'M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z',
+        }),
+        createElement('line', { x1: 12, y1: 9, x2: 12, y2: 13 }),
+        createElement('line', { x1: 12, y1: 17, x2: 12.01, y2: 17 }),
+      ],
+      size,
+    ),
+  // 代码（issue #54 阶段 1 新增）：尖括号 `</>`，预览/代码切换的代码视图
+  // 图标（dsh-mermaid-render 卡片），stroke=currentColor 风格与其余图标一致。
+  code: (size = 16) =>
+    iconSvg(
+      [
+        createElement('polyline', { points: '16 18 22 12 16 6' }),
+        createElement('polyline', { points: '8 6 2 12 8 18' }),
+      ],
+      size,
+    ),
 }
 
 // Common-language / file-type badges (issue #24): brand fill + contrast
@@ -843,10 +866,13 @@ const SETTINGS_STYLES = `
 .dsh-my-notify-info{display:flex;flex-direction:column;gap:2px;min-width:0}
 .dsh-my-notify-label{font:var(--dsw-font-xs-strong-13)}
 .dsh-my-notify-hint{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary);line-height:1.5}
-.dsh-my-notify-toggle{flex:none;width:34px;height:20px;border-radius:10px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);position:relative;cursor:pointer;transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+/* issue #58: toggle 开关开/关一眼可分——关态用灰色轨道（tertiary 混合，
+   浅色主题下不再白底融入设置面板背景），开态圆点换对比墨色（foreground），
+   强化视觉差异；样式与 dsh-my-skill-manager-switch 的轨道/圆点方案一致 */
+.dsh-my-notify-toggle{flex:none;width:34px;height:20px;border-radius:10px;border:1px solid var(--dsw-alias-border-l2);background:color-mix(in srgb, var(--dsw-alias-label-tertiary) 30%, transparent);position:relative;cursor:pointer;transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out),border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
 .dsh-my-notify-toggle[data-on="true"]{background:var(--dsw-alias-state-success-primary);border-color:transparent}
-.dsh-my-notify-toggle::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--dsw-alias-label-primary);transition:transform var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
-.dsh-my-notify-toggle[data-on="true"]::after{transform:translateX(12px)}
+.dsh-my-notify-toggle::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--dsw-alias-label-primary);transition:transform var(--ds-transition-duration-slow) var(--ds-ease-in-out),background var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+.dsh-my-notify-toggle[data-on="true"]::after{transform:translateX(12px);background:var(--dsw-alias-label-primary-foreground)}
 .dsh-my-notify-input{flex:none;width:180px;height:28px;padding:0 8px;border-radius:6px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xxs-12)}
 .dsh-my-notify-actions{display:flex;align-items:center;gap:8px}
 .dsh-my-notify-btn{height:28px;padding:0 14px;border-radius:6px;cursor:pointer;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-interactive-bg);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xxs-12)}
