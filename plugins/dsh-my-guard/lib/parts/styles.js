@@ -18,15 +18,15 @@ const STYLES = `
 .dsh-my-guard-alert-confirmed{opacity:.55}
 .dsh-my-guard-alert-head{display:flex;align-items:center;gap:6px}
 .dsh-my-guard-alert-icon{flex:none;display:flex;align-items:center}
-.dsh-my-guard-icon-danger{color:var(--dsw-alias-state-danger-primary)}
+.dsh-my-guard-icon-danger{color:var(--dsw-alias-state-error-primary)}
 .dsh-my-guard-icon-warn{color:var(--dsw-alias-state-warn-primary)}
 .dsh-my-guard-icon-info{color:var(--dsw-alias-state-info-primary)}
 .dsh-my-guard-badge{flex:none;font:var(--dsw-font-xxxs-strong-11);border-radius:4px;padding:1px 6px}
-.dsh-my-guard-badge-danger{color:var(--dsw-alias-state-danger-primary);background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 14%, transparent)}
+.dsh-my-guard-badge-danger{color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent)}
 .dsh-my-guard-badge-warn{color:var(--dsw-alias-state-warn-primary);background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 14%, transparent)}
 .dsh-my-guard-badge-info{color:var(--dsw-alias-state-info-primary);background:color-mix(in srgb, var(--dsw-alias-state-info-primary) 14%, transparent)}
 .dsh-my-guard-sev{flex:none;font:var(--dsw-font-xxxs-strong-11);border-radius:4px;padding:1px 6px}
-.dsh-my-guard-sev-high{color:var(--dsw-alias-state-danger-primary);background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 10%, transparent)}
+.dsh-my-guard-sev-high{color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent)}
 .dsh-my-guard-sev-medium{color:var(--dsw-alias-state-warn-primary);background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 10%, transparent)}
 .dsh-my-guard-sev-low{color:var(--dsw-alias-state-info-primary);background:color-mix(in srgb, var(--dsw-alias-state-info-primary) 10%, transparent)}
 .dsh-my-guard-time{flex:none;margin-left:auto;font:var(--dsw-font-xxxs-11);color:var(--dsw-alias-label-tertiary);white-space:nowrap}
@@ -74,11 +74,11 @@ const STYLES = `
 .dsh-my-guard-feedback-error{color:var(--dsw-alias-state-error-primary)}
 .dsh-my-guard-feedback-head{font:var(--dsw-font-xxs-strong-12);color:var(--dsw-alias-label-primary)}
 .dsh-my-guard-issue{display:flex;flex-direction:column;gap:2px;border-radius:6px;padding:6px 8px;font:var(--dsw-font-xxs-12)}
-.dsh-my-guard-issue-high{background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 12%, transparent)}
+.dsh-my-guard-issue-high{background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 12%, transparent)}
 .dsh-my-guard-issue-medium{background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 12%, transparent)}
 .dsh-my-guard-issue-low{background:color-mix(in srgb, var(--dsw-alias-state-info-primary) 10%, transparent)}
 .dsh-my-guard-issue-sev{font:var(--dsw-font-xxxs-strong-11);text-transform:uppercase}
-.dsh-my-guard-issue-high .dsh-my-guard-issue-sev{color:var(--dsw-alias-state-danger-primary)}
+.dsh-my-guard-issue-high .dsh-my-guard-issue-sev{color:var(--dsw-alias-state-error-primary)}
 .dsh-my-guard-issue-medium .dsh-my-guard-issue-sev{color:var(--dsw-alias-state-warn-primary)}
 .dsh-my-guard-issue-low .dsh-my-guard-issue-sev{color:var(--dsw-alias-state-info-primary)}
 .dsh-my-guard-issue-rule{font:var(--dsw-font-mono-xxs);font-size:11px;color:var(--dsw-alias-label-secondary)}

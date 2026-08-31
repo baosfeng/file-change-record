@@ -23,7 +23,7 @@ const STYLES = `
 .dso-comp-system{background:var(--dsw-alias-state-info-primary)}
 .dso-comp-tools{background:var(--dsw-alias-state-warn-primary)}
 .dso-comp-user{background:var(--dsw-alias-interactive-primary)}
-.dso-comp-inject{background:var(--dsw-alias-state-danger-primary)}
+.dso-comp-inject{background:var(--dsw-alias-state-error-primary)}
 .dso-comp-assistant{background:var(--dsw-alias-state-success-primary)}
 .dso-comp-tool{background:var(--dsw-alias-label-tertiary)}
 .dso-comp-value{flex:none;font:var(--dsw-font-xxxs-11);color:var(--dsw-alias-label-tertiary)}
@@ -33,7 +33,7 @@ const STYLES = `
 .dso-request-meta{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary);line-height:1.6;margin-top:2px}
 .dso-badge{flex:none;font:var(--dsw-font-xxxs-strong-11);border-radius:4px;padding:1px 6px}
 .dso-badge-llm{color:var(--dsw-alias-state-warn-primary);background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 14%, transparent)}
-.dso-badge-budget{color:var(--dsw-alias-state-danger-primary);background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 14%, transparent)}
+.dso-badge-budget{color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent)}
 .dso-time{font:var(--dsw-font-xxxs-11);color:var(--dsw-alias-label-tertiary)}
 .dso-empty{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary);text-align:center;padding:16px 8px;line-height:1.7}
 .dso-section{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:8px}
@@ -49,7 +49,7 @@ const STYLES = `
   background:color-mix(in srgb, var(--dsw-alias-interactive-primary) 16%, transparent)}
 .dso-feedback{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary);word-break:break-all;line-height:1.5}
 .dso-alert{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:6px 10px}
-.dso-alert-danger{border-color:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 40%, transparent)}
+.dso-alert-danger{border-color:color-mix(in srgb, var(--dsw-alias-state-error-primary) 40%, transparent)}
 .dso-alert-warn{border-color:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 40%, transparent)}
 .dso-alert-head{display:flex;align-items:center;gap:8px;justify-content:space-between}
 .dso-alert-msg{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-primary);line-height:1.5;margin-top:2px}

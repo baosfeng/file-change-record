@@ -750,7 +750,7 @@ const STYLES = `
 .dfa-op-create { color:var(--dsw-alias-state-success-primary); background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 14%, transparent); }
 .dfa-op-modify { color:var(--dsw-alias-state-warn-primary); background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
 .dfa-op-read { color:var(--dsw-alias-accent); background:color-mix(in srgb, var(--dsw-alias-accent) 12%, transparent); }
-.dfa-op-delete { color:var(--dsw-alias-state-danger-primary); background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 14%, transparent); }
+.dfa-op-delete { color:var(--dsw-alias-state-error-primary); background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent); }
 .dfa-counts { flex:none; display:flex; align-items:center; gap:3px; }
 .dfa-count { flex:none; display:inline-flex; align-items:center; justify-content:center; height:15px; padding:0 4px; border-radius:4px;
   font:var(--dsw-font-xxxs-strong-11); }

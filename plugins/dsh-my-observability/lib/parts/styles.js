@@ -43,13 +43,13 @@ const STYLES = `
 .dsh-my-observability-node-llm{border-color:var(--dsw-alias-state-warn-primary)}
 .dsh-my-observability-node-call{border-color:var(--dsw-alias-accent)}
 .dsh-my-observability-node-result{border-color:var(--dsw-alias-state-success-primary)}
-.dsh-my-observability-node-fail{border-color:var(--dsw-alias-state-danger-primary)}
+.dsh-my-observability-node-fail{border-color:var(--dsw-alias-state-error-primary)}
 .dsh-my-observability-event-icon{flex:none;display:flex;align-items:center;margin-top:1px}
 .dsh-my-observability-icon-status{color:var(--dsw-alias-state-info-primary)}
 .dsh-my-observability-icon-llm{color:var(--dsw-alias-state-warn-primary)}
 .dsh-my-observability-icon-call{color:var(--dsw-alias-accent)}
 .dsh-my-observability-icon-result{color:var(--dsw-alias-state-success-primary)}
-.dsh-my-observability-icon-fail{color:var(--dsw-alias-state-danger-primary)}
+.dsh-my-observability-icon-fail{color:var(--dsw-alias-state-error-primary)}
 .dsh-my-observability-event-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .dsh-my-observability-event-head{display:flex;align-items:center;gap:8px;justify-content:space-between}
 .dsh-my-observability-badge{flex:none;font:var(--dsw-font-xxxs-strong-11);border-radius:4px;padding:1px 6px}
@@ -57,7 +57,7 @@ const STYLES = `
 .dsh-my-observability-badge-llm{color:var(--dsw-alias-state-warn-primary);background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 14%, transparent)}
 .dsh-my-observability-badge-call{color:var(--dsw-alias-accent);background:color-mix(in srgb, var(--dsw-alias-accent) 12%, transparent)}
 .dsh-my-observability-badge-result{color:var(--dsw-alias-state-success-primary);background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 14%, transparent)}
-.dsh-my-observability-badge-fail{color:var(--dsw-alias-state-danger-primary);background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 14%, transparent)}
+.dsh-my-observability-badge-fail{color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent)}
 .dsh-my-observability-time{flex:none;font:var(--dsw-font-xxxs-11);color:var(--dsw-alias-label-tertiary);white-space:nowrap}
 .dsh-my-observability-event-meta{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary);line-height:1.6;word-break:break-word}
 /* ── 状态区：loading / 空 / 错误 ── */
@@ -94,11 +94,11 @@ const STYLES = `
 .dsh-my-observability-feedback-ok{color:var(--dsw-alias-state-success-primary)}
 .dsh-my-observability-feedback-error{color:var(--dsw-alias-state-error-primary)}
 .dsh-my-observability-issue{display:flex;flex-direction:column;gap:2px;border-radius:6px;padding:6px 8px;font:var(--dsw-font-xxs-12)}
-.dsh-my-observability-issue-error{background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 12%, transparent)}
+.dsh-my-observability-issue-error{background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 12%, transparent)}
 .dsh-my-observability-issue-warning{background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 12%, transparent)}
 .dsh-my-observability-issue-info{background:color-mix(in srgb, var(--dsw-alias-state-info-primary) 10%, transparent)}
 .dsh-my-observability-issue-sev{font:var(--dsw-font-xxxs-strong-11);text-transform:uppercase}
-.dsh-my-observability-issue-error .dsh-my-observability-issue-sev{color:var(--dsw-alias-state-danger-primary)}
+.dsh-my-observability-issue-error .dsh-my-observability-issue-sev{color:var(--dsw-alias-state-error-primary)}
 .dsh-my-observability-issue-warning .dsh-my-observability-issue-sev{color:var(--dsw-alias-state-warn-primary)}
 .dsh-my-observability-issue-info .dsh-my-observability-issue-sev{color:var(--dsw-alias-state-info-primary)}
 .dsh-my-observability-issue-rule{font:var(--dsw-font-mono-xxs);font-size:11px;color:var(--dsw-alias-label-secondary)}

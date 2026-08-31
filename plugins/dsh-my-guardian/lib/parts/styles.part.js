@@ -71,22 +71,22 @@ const STYLES = `
   font:var(--dsw-font-xxxs-strong-11); }
 .dsh-my-guardian-badge-running { color:var(--dsw-alias-state-success-primary); background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 14%, transparent); }
 .dsh-my-guardian-badge-pending { color:var(--dsw-alias-accent); background:color-mix(in srgb, var(--dsw-alias-accent) 12%, transparent); }
-.dsh-my-guardian-badge-failed { color:var(--dsw-alias-state-danger-primary); background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 14%, transparent); }
+.dsh-my-guardian-badge-failed { color:var(--dsw-alias-state-error-primary); background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent); }
 .dsh-my-guardian-badge-frozen { color:var(--dsw-alias-state-warn-primary); background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
 .dsh-my-guardian-row-meta { display:flex; align-items:center; gap:6px; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
-.dsh-my-guardian-attempts { color:var(--dsw-alias-state-danger-primary); }
+.dsh-my-guardian-attempts { color:var(--dsw-alias-state-error-primary); }
 .dsh-my-guardian-link { display:inline-flex; align-items:center; gap:3px; padding:0; border:none; background:transparent; cursor:pointer;
   font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary);
   transition:color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
 .dsh-my-guardian-link svg { display:block; flex:none; }
-.dsh-my-guardian-link:hover { color:var(--dsw-alias-state-danger-primary); }
+.dsh-my-guardian-link:hover { color:var(--dsw-alias-state-error-primary); }
 .dsh-my-guardian-error-detail { white-space:pre-wrap; word-break:break-all; font:var(--dsw-font-xxs-12); margin:2px 0 0; padding:4px 6px; border-radius:6px;
-  background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 8%, transparent); color:var(--dsw-alias-state-danger-primary);
+  background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent); color:var(--dsw-alias-state-error-primary);
   max-height:120px; overflow:auto; }
 /* ── inline remove confirmation (destructive, red) ───────────────────────── */
 .dsh-my-guardian-confirm { display:flex; flex-direction:column; gap:6px; padding:8px 10px; border-radius:8px;
-  border:1px solid color-mix(in srgb, var(--dsw-alias-state-danger-primary) 60%, transparent);
-  background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 6%, transparent);
+  border:1px solid color-mix(in srgb, var(--dsw-alias-state-error-primary) 60%, transparent);
+  background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 6%, transparent);
   animation:dsh-my-guardian-row-in 150ms var(--ds-ease-in-out); }
 .dsh-my-guardian-confirm-head { display:flex; align-items:center; gap:6px; }
 .dsh-my-guardian-confirm-head svg { display:block; flex:none; }
@@ -94,9 +94,9 @@ const STYLES = `
 .dsh-my-guardian-confirm-desc { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); line-height:1.7; }
 .dsh-my-guardian-confirm-actions { display:flex; gap:6px; align-items:center; }
 .dsh-my-guardian-confirm-ok { display:inline-flex; align-items:center; gap:5px; height:26px; padding:0 12px; border-radius:6px; cursor:pointer;
-  border:1px solid color-mix(in srgb, var(--dsw-alias-state-danger-primary) 60%, transparent);
-  background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 14%, transparent);
-  color:var(--dsw-alias-state-danger-primary); font:var(--dsw-font-xxs-12);
+  border:1px solid color-mix(in srgb, var(--dsw-alias-state-error-primary) 60%, transparent);
+  background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent);
+  color:var(--dsw-alias-state-error-primary); font:var(--dsw-font-xxs-12);
   transition:filter var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
 .dsh-my-guardian-confirm-ok svg { display:block; flex:none; }
 .dsh-my-guardian-confirm-ok:hover { filter:brightness(1.1); }
@@ -113,7 +113,7 @@ const STYLES = `
 .dsh-my-guardian-iconbtn svg { display:block; }
 .dsh-my-guardian-iconbtn:hover:not(:disabled) { background:var(--dsw-alias-interactive-bg-hover); color:var(--dsw-alias-label-primary); }
 .dsh-my-guardian-iconbtn:disabled { opacity:.4; cursor:default; }
-.dsh-my-guardian-iconbtn-danger:hover:not(:disabled) { color:var(--dsw-alias-state-danger-primary); }
+.dsh-my-guardian-iconbtn-danger:hover:not(:disabled) { color:var(--dsw-alias-state-error-primary); }
 .dsh-my-guardian-iconbtn-success:hover:not(:disabled) { color:var(--dsw-alias-state-success-primary); }
 .dsh-my-guardian-iconbtn-xs { width:20px; height:20px; }
 /* ── event log: badge + key info + time, mirroring the dfa-op chips ─────── */
@@ -128,7 +128,7 @@ const STYLES = `
   font:var(--dsw-font-xxxs-strong-11); }
 .dsh-my-guardian-event-success { color:var(--dsw-alias-state-success-primary); background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 14%, transparent); }
 .dsh-my-guardian-event-accent { color:var(--dsw-alias-accent); background:color-mix(in srgb, var(--dsw-alias-accent) 12%, transparent); }
-.dsh-my-guardian-event-danger { color:var(--dsw-alias-state-danger-primary); background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 14%, transparent); }
+.dsh-my-guardian-event-danger { color:var(--dsw-alias-state-error-primary); background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent); }
 .dsh-my-guardian-event-warn { color:var(--dsw-alias-state-warn-primary); background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
 .dsh-my-guardian-event-neutral { color:var(--dsw-alias-label-tertiary); background:var(--dsw-alias-interactive-bg-hover); }
 .dsh-my-guardian-event-message { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;

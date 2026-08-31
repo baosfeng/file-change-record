@@ -381,7 +381,7 @@ window.__ModuleLoader__.load({
 .dtr-settings-input{flex:none;width:180px;height:28px;padding:0 8px;border-radius:6px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xxs-12)}
 .dtr-settings-actions{display:flex;align-items:center;gap:8px}
 .dtr-settings-saved{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-state-success-primary)}
-.dtr-settings-error{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-state-danger-primary)}
+.dtr-settings-error{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-state-error-primary)}
 .dtr-settings-status{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary)}
 `
 

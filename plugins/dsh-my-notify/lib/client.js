@@ -878,7 +878,7 @@ const SETTINGS_STYLES = `
 .dsh-my-notify-btn{height:28px;padding:0 14px;border-radius:6px;cursor:pointer;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-interactive-bg);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xxs-12)}
 .dsh-my-notify-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}
 .dsh-my-notify-saved{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-state-success-primary)}
-.dsh-my-notify-error{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-state-danger-primary)}
+.dsh-my-notify-error{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-state-error-primary)}
 .dsh-my-notify-status{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary)}
 `
 

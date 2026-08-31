@@ -105,22 +105,22 @@ const STYLES = `
   font:var(--dsw-font-xxxs-strong-11); }
 .dsh-my-guardian-badge-running { color:var(--dsw-alias-state-success-primary); background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 14%, transparent); }
 .dsh-my-guardian-badge-pending { color:var(--dsw-alias-accent); background:color-mix(in srgb, var(--dsw-alias-accent) 12%, transparent); }
-.dsh-my-guardian-badge-failed { color:var(--dsw-alias-state-danger-primary); background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 14%, transparent); }
+.dsh-my-guardian-badge-failed { color:var(--dsw-alias-state-error-primary); background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent); }
 .dsh-my-guardian-badge-frozen { color:var(--dsw-alias-state-warn-primary); background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
 .dsh-my-guardian-row-meta { display:flex; align-items:center; gap:6px; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
-.dsh-my-guardian-attempts { color:var(--dsw-alias-state-danger-primary); }
+.dsh-my-guardian-attempts { color:var(--dsw-alias-state-error-primary); }
 .dsh-my-guardian-link { display:inline-flex; align-items:center; gap:3px; padding:0; border:none; background:transparent; cursor:pointer;
   font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary);
   transition:color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
 .dsh-my-guardian-link svg { display:block; flex:none; }
-.dsh-my-guardian-link:hover { color:var(--dsw-alias-state-danger-primary); }
+.dsh-my-guardian-link:hover { color:var(--dsw-alias-state-error-primary); }
 .dsh-my-guardian-error-detail { white-space:pre-wrap; word-break:break-all; font:var(--dsw-font-xxs-12); margin:2px 0 0; padding:4px 6px; border-radius:6px;
-  background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 8%, transparent); color:var(--dsw-alias-state-danger-primary);
+  background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent); color:var(--dsw-alias-state-error-primary);
   max-height:120px; overflow:auto; }
 /* ── inline remove confirmation (destructive, red) ───────────────────────── */
 .dsh-my-guardian-confirm { display:flex; flex-direction:column; gap:6px; padding:8px 10px; border-radius:8px;
-  border:1px solid color-mix(in srgb, var(--dsw-alias-state-danger-primary) 60%, transparent);
-  background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 6%, transparent);
+  border:1px solid color-mix(in srgb, var(--dsw-alias-state-error-primary) 60%, transparent);
+  background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 6%, transparent);
   animation:dsh-my-guardian-row-in 150ms var(--ds-ease-in-out); }
 .dsh-my-guardian-confirm-head { display:flex; align-items:center; gap:6px; }
 .dsh-my-guardian-confirm-head svg { display:block; flex:none; }
@@ -128,9 +128,9 @@ const STYLES = `
 .dsh-my-guardian-confirm-desc { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); line-height:1.7; }
 .dsh-my-guardian-confirm-actions { display:flex; gap:6px; align-items:center; }
 .dsh-my-guardian-confirm-ok { display:inline-flex; align-items:center; gap:5px; height:26px; padding:0 12px; border-radius:6px; cursor:pointer;
-  border:1px solid color-mix(in srgb, var(--dsw-alias-state-danger-primary) 60%, transparent);
-  background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 14%, transparent);
-  color:var(--dsw-alias-state-danger-primary); font:var(--dsw-font-xxs-12);
+  border:1px solid color-mix(in srgb, var(--dsw-alias-state-error-primary) 60%, transparent);
+  background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent);
+  color:var(--dsw-alias-state-error-primary); font:var(--dsw-font-xxs-12);
   transition:filter var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
 .dsh-my-guardian-confirm-ok svg { display:block; flex:none; }
 .dsh-my-guardian-confirm-ok:hover { filter:brightness(1.1); }
@@ -147,7 +147,7 @@ const STYLES = `
 .dsh-my-guardian-iconbtn svg { display:block; }
 .dsh-my-guardian-iconbtn:hover:not(:disabled) { background:var(--dsw-alias-interactive-bg-hover); color:var(--dsw-alias-label-primary); }
 .dsh-my-guardian-iconbtn:disabled { opacity:.4; cursor:default; }
-.dsh-my-guardian-iconbtn-danger:hover:not(:disabled) { color:var(--dsw-alias-state-danger-primary); }
+.dsh-my-guardian-iconbtn-danger:hover:not(:disabled) { color:var(--dsw-alias-state-error-primary); }
 .dsh-my-guardian-iconbtn-success:hover:not(:disabled) { color:var(--dsw-alias-state-success-primary); }
 .dsh-my-guardian-iconbtn-xs { width:20px; height:20px; }
 /* ── event log: badge + key info + time, mirroring the dfa-op chips ─────── */
@@ -162,7 +162,7 @@ const STYLES = `
   font:var(--dsw-font-xxxs-strong-11); }
 .dsh-my-guardian-event-success { color:var(--dsw-alias-state-success-primary); background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 14%, transparent); }
 .dsh-my-guardian-event-accent { color:var(--dsw-alias-accent); background:color-mix(in srgb, var(--dsw-alias-accent) 12%, transparent); }
-.dsh-my-guardian-event-danger { color:var(--dsw-alias-state-danger-primary); background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 14%, transparent); }
+.dsh-my-guardian-event-danger { color:var(--dsw-alias-state-error-primary); background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent); }
 .dsh-my-guardian-event-warn { color:var(--dsw-alias-state-warn-primary); background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
 .dsh-my-guardian-event-neutral { color:var(--dsw-alias-label-tertiary); background:var(--dsw-alias-interactive-bg-hover); }
 .dsh-my-guardian-event-message { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
@@ -378,6 +378,15 @@ const icon = {
       ],
       size,
     ),
+  help: (size = 16) =>
+    iconSvg(
+      [
+        createElement('circle', { cx: 12, cy: 12, r: 9 }),
+        createElement('path', { d: 'M9.1 9.2a3 3 0 0 1 5.8 1.2c0 1.8-2.7 2.4-2.7 3.6' }),
+        createElement('line', { x1: 12, y1: 17.2, x2: 12.01, y2: 17.2 }),
+      ],
+      size,
+    ),
   // ── generic action icons (issue #54 阶段 0) ─────────────────────────────
   // Added for the upcoming plugin UI refresh: save/confirm (check), add/
   // install (plus), market search (search), settings entry (settings).
@@ -407,6 +416,29 @@ const icon = {
         createElement('path', {
           d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z',
         }),
+      ],
+      size,
+    ),
+  // 警告（issue #54 阶段 1 新增）：安全护栏告警类型图标（投毒/提示注入），
+  // 三角警示 + 感叹号，stroke=currentColor 风格与其余图标一致。
+  alert: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', {
+          d: 'M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z',
+        }),
+        createElement('line', { x1: 12, y1: 9, x2: 12, y2: 13 }),
+        createElement('line', { x1: 12, y1: 17, x2: 12.01, y2: 17 }),
+      ],
+      size,
+    ),
+  // 代码（issue #54 阶段 1 新增）：尖括号 `</>`，预览/代码切换的代码视图
+  // 图标（dsh-mermaid-render 卡片），stroke=currentColor 风格与其余图标一致。
+  code: (size = 16) =>
+    iconSvg(
+      [
+        createElement('polyline', { points: '16 18 22 12 16 6' }),
+        createElement('polyline', { points: '8 6 2 12 8 18' }),
       ],
       size,
     ),

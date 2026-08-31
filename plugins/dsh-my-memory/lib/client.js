@@ -110,7 +110,7 @@ const STYLES = `
 .dsh-my-memory-iconbtn svg { display:block; }
 .dsh-my-memory-iconbtn:hover:not(:disabled) { background:var(--dsw-alias-interactive-bg-hover); color:var(--dsw-alias-label-primary); }
 .dsh-my-memory-iconbtn:disabled { opacity:.4; cursor:default; }
-.dsh-my-memory-iconbtn-danger:hover:not(:disabled) { color:var(--dsw-alias-state-danger-primary); }
+.dsh-my-memory-iconbtn-danger:hover:not(:disabled) { color:var(--dsw-alias-state-error-primary); }
 .dsh-my-memory-status { display:flex; align-items:center; gap:5px; font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); }
 .dsh-my-memory-status svg { display:block; flex:none; }
 .dsh-my-memory-saved { color:var(--dsw-alias-state-success-primary); }
@@ -156,8 +156,8 @@ const STYLES = `
   border:1px solid var(--dsw-alias-border-l1); animation:dsh-my-memory-row-in 150ms var(--ds-ease-in-out); }
 .dsh-my-memory-confirm-save { border-color:color-mix(in srgb, var(--dsw-alias-state-success-primary) 55%, transparent);
   background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 8%, transparent); }
-.dsh-my-memory-confirm-delete { border-color:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 60%, transparent);
-  background:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 10%, transparent); }
+.dsh-my-memory-confirm-delete { border-color:color-mix(in srgb, var(--dsw-alias-state-error-primary) 60%, transparent);
+  background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent); }
 .dsh-my-memory-confirm-head { display:flex; align-items:center; gap:6px; }
 .dsh-my-memory-confirm-head svg { display:block; flex:none; }
 .dsh-my-memory-confirm-text { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-primary); }
@@ -169,8 +169,8 @@ const STYLES = `
 .dsh-my-memory-confirm-ok svg { display:block; flex:none; }
 .dsh-my-memory-confirm-ok-save { border:1px solid color-mix(in srgb, var(--dsw-alias-state-success-primary) 60%, transparent);
   background:var(--dsw-alias-state-success-primary); color:var(--dsw-alias-label-primary-foreground); }
-.dsh-my-memory-confirm-ok-delete { border:1px solid color-mix(in srgb, var(--dsw-alias-state-danger-primary) 60%, transparent);
-  background:var(--dsw-alias-state-danger-primary); color:var(--dsw-alias-label-primary-foreground); }
+.dsh-my-memory-confirm-ok-delete { border:1px solid color-mix(in srgb, var(--dsw-alias-state-error-primary) 60%, transparent);
+  background:var(--dsw-alias-state-error-primary); color:var(--dsw-alias-label-primary-foreground); }
 .dsh-my-memory-confirm-ok:hover { filter:brightness(1.1); }
 .dsh-my-memory-confirm-cancel { display:inline-flex; align-items:center; gap:5px; height:26px; padding:0 12px; border-radius:6px; cursor:pointer;
   border:1px solid var(--dsw-alias-border-l1); background:transparent; color:var(--dsw-alias-label-secondary);
@@ -305,6 +305,15 @@ const icon = {
       ],
       size,
     ),
+  help: (size = 16) =>
+    iconSvg(
+      [
+        createElement('circle', { cx: 12, cy: 12, r: 9 }),
+        createElement('path', { d: 'M9.1 9.2a3 3 0 0 1 5.8 1.2c0 1.8-2.7 2.4-2.7 3.6' }),
+        createElement('line', { x1: 12, y1: 17.2, x2: 12.01, y2: 17.2 }),
+      ],
+      size,
+    ),
   // ── generic action icons (issue #54 阶段 0) ─────────────────────────────
   // Added for the upcoming plugin UI refresh: save/confirm (check), add/
   // install (plus), market search (search), settings entry (settings).
@@ -334,6 +343,29 @@ const icon = {
         createElement('path', {
           d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z',
         }),
+      ],
+      size,
+    ),
+  // 警告（issue #54 阶段 1 新增）：安全护栏告警类型图标（投毒/提示注入），
+  // 三角警示 + 感叹号，stroke=currentColor 风格与其余图标一致。
+  alert: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', {
+          d: 'M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z',
+        }),
+        createElement('line', { x1: 12, y1: 9, x2: 12, y2: 13 }),
+        createElement('line', { x1: 12, y1: 17, x2: 12.01, y2: 17 }),
+      ],
+      size,
+    ),
+  // 代码（issue #54 阶段 1 新增）：尖括号 `</>`，预览/代码切换的代码视图
+  // 图标（dsh-mermaid-render 卡片），stroke=currentColor 风格与其余图标一致。
+  code: (size = 16) =>
+    iconSvg(
+      [
+        createElement('polyline', { points: '16 18 22 12 16 6' }),
+        createElement('polyline', { points: '8 6 2 12 8 18' }),
       ],
       size,
     ),

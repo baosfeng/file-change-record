@@ -59,8 +59,8 @@ const STYLES = `
 .dsh-my-plugin-manager-btn:disabled { opacity:.4; cursor:default; }
 .dsh-my-plugin-manager-btn-primary { color:var(--dsw-alias-accent); border-color:color-mix(in srgb, var(--dsw-alias-accent) 45%, transparent); }
 .dsh-my-plugin-manager-btn-primary:hover:not(:disabled) { color:var(--dsw-alias-accent); }
-.dsh-my-plugin-manager-btn-danger { color:var(--dsw-alias-state-danger-primary); border-color:color-mix(in srgb, var(--dsw-alias-state-danger-primary) 45%, transparent); }
-.dsh-my-plugin-manager-btn-danger:hover:not(:disabled) { color:var(--dsw-alias-state-danger-primary); }
+.dsh-my-plugin-manager-btn-danger { color:var(--dsw-alias-state-error-primary); border-color:color-mix(in srgb, var(--dsw-alias-state-error-primary) 45%, transparent); }
+.dsh-my-plugin-manager-btn-danger:hover:not(:disabled) { color:var(--dsw-alias-state-error-primary); }
 .dsh-my-plugin-manager-searchbar { display:flex; gap:6px; align-items:center; padding:0 6px; }
 .dsh-my-plugin-manager-search-input { flex:1; min-width:0; height:28px; padding:0 8px; border-radius:6px;
   border:1px solid var(--dsw-alias-border-l2); background:transparent; color:var(--dsw-alias-label-primary);
