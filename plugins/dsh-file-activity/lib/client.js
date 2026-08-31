@@ -484,6 +484,15 @@ const icon = {
       ],
       size,
     ),
+  help: (size = 16) =>
+    iconSvg(
+      [
+        createElement('circle', { cx: 12, cy: 12, r: 9 }),
+        createElement('path', { d: 'M9.1 9.2a3 3 0 0 1 5.8 1.2c0 1.8-2.7 2.4-2.7 3.6' }),
+        createElement('line', { x1: 12, y1: 17.2, x2: 12.01, y2: 17.2 }),
+      ],
+      size,
+    ),
   // ── generic action icons (issue #54 阶段 0) ─────────────────────────────
   // Added for the upcoming plugin UI refresh: save/confirm (check), add/
   // install (plus), market search (search), settings entry (settings).
@@ -496,6 +505,8 @@ const icon = {
       ],
       size,
     ),
+  pencil: (size = 15) =>
+    iconSvg([createElement('path', { d: 'M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z' })], size),
   search: (size = 16) =>
     iconSvg(
       [
@@ -511,6 +522,29 @@ const icon = {
         createElement('path', {
           d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z',
         }),
+      ],
+      size,
+    ),
+  // 警告（issue #54 阶段 1 新增）：安全护栏告警类型图标（投毒/提示注入），
+  // 三角警示 + 感叹号，stroke=currentColor 风格与其余图标一致。
+  alert: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', {
+          d: 'M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z',
+        }),
+        createElement('line', { x1: 12, y1: 9, x2: 12, y2: 13 }),
+        createElement('line', { x1: 12, y1: 17, x2: 12.01, y2: 17 }),
+      ],
+      size,
+    ),
+  // 代码（issue #54 阶段 1 新增）：尖括号 `</>`，预览/代码切换的代码视图
+  // 图标（dsh-mermaid-render 卡片），stroke=currentColor 风格与其余图标一致。
+  code: (size = 16) =>
+    iconSvg(
+      [
+        createElement('polyline', { points: '16 18 22 12 16 6' }),
+        createElement('polyline', { points: '8 6 2 12 8 18' }),
       ],
       size,
     ),
@@ -746,22 +780,9 @@ const STYLES = `
 .dfa-pdf-download:hover { text-decoration:underline; }
 .dfa-pdf-frame { flex:1; min-height:0; width:100%; border:none; border-radius:6px; background:transparent; }
 @keyframes dfa-row-in { from { opacity:0; transform:translateY(1px); } to { opacity:1; transform:none; } }
-/* ── sidebar tab selected-state overrides (issue #25) ─────────────────────
-   The host (dsh-better-sidebar) renders tabs with CSS-modules hashed class
-   names (e.g. tabActive_xxxxx) and no data attributes, so the selected tab
-   is targeted via the [class*="tabActive"] substring selector — the fallback
-   contract that keeps these rules working if the host ever renames its
-   classes. The double attribute selector [class*="tab"][class*="tabActive"]
-   (0,2,0) beats the host .tabActive (0,1,0) by specificity alone: no
-   !important, no reliance on injection order. Selected = theme-aware brand
-   fill + contrast ink (light #4176e6/#fff, dark #679efe/#0f1115); the :hover
-   variant (0,3,0) beats the host .tab:hover (0,2,0) so the selected state
-   never collapses into the host's grey hover. Unselected tabs stay untouched
-   (transparent + secondary label ink, host grey hover). */
-[class*="tab"][class*="tabActive"] { background:var(--dsw-alias-state-business-primary); color:var(--dsw-alias-label-primary-foreground); }
-[class*="tab"][class*="tabActive"]:hover { background:var(--dsw-alias-state-business-primary); color:var(--dsw-alias-label-primary-foreground); }
-[class*="tab"][class*="tabActive"] [class*="tabClose"] { color:var(--dsw-alias-label-primary-foreground); }
-[class*="tab"][class*="tabActive"] [class*="tabClose"]:hover { background:color-mix(in srgb, var(--dsw-alias-label-primary-foreground) 18%, transparent); color:var(--dsw-alias-label-primary-foreground); }
+/* issue #60: 移除 #25 的侧边栏页签选中态品牌蓝覆盖（[class*="tab"][class*=
+   "tabActive"] 全局子串选择器误伤宿主对话/工作区 tab 选中态，出现用户不
+   想要的蓝色高亮）。页签选中态回归宿主（dsh-better-sidebar）默认样式。 */
 `
 
     // ── row rendering helpers (recent list & stats tree) ──────────────────
