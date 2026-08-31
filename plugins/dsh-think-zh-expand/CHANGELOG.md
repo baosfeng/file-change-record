@@ -2,6 +2,19 @@
 
 本文件记录 dsh-think-zh-expand 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.5] - 2026-08-31
+
+### 变更
+
+- Merge branch 'issue-57-think-visual-rollback'
+- fix(ui): dsh-think-zh-expand 思考正文浅灰区分——覆盖 MarkdownView 的 primary 色，思考/非思考一眼可辨（issue #57）
+- fix(ui): dsh-think-zh-expand 思考块视觉回退官方基线——撤销 issue #54 卡片化翻新
+- chore(release): dsh-think-zh-expand v0.4.4（自动 bump patch + CHANGELOG 生成）
+- feat(ui): dsh-think-zh-expand 思考块视觉翻新——折叠图标/层级（issue #54）
+- chore(deps): 升级 react 19 兼容性——13 个插件 peer 声明 ^18.2.0 || ^19.2.0（issue #49）
+- style(format): 全仓 prettier 格式化（issue #44）
+- feat(release): 发版流程强制跨插件依赖校验与真实环境验证（issue #39）
+
 ## [0.4.4] - 2026-08-28
 
 ### 变更
