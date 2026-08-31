@@ -5,8 +5,14 @@ import { test } from 'vitest'
  * 问题背景：开关关闭态此前用 --dsw-alias-bg-layer-3（浅色主题下≈白色），
  * 与设置面板背景几乎融为一体、边框又淡，用户难以一眼判断开关状态
  * （issue #58）。修复：关态改灰色轨道（label-tertiary 30% 混合），开态
- * 圆点改对比墨色（label-primary-foreground），开启色保持 info-primary
- * 语义（与 dsh-my-notify / dsh-my-skill-manager 方案一致）。
+ * 圆点改对比墨色（label-primary-foreground）。
+ *
+ * 开启色注意（PR #63 实测 + 主题源码核实）：--dsw-alias-state-info-primary
+ * 在 DSH 主题（dsh-client-ui-theme）中**未定义**（仅定义 business/error/
+ * success/warn 四个 state token），var() 无效会渲染为透明——因此开启态
+ * 必须用已定义的 success-primary（绿色），与 dsh-my-notify /
+ * dsh-my-skill-manager 的开关方案一致。本套件同时防复发：禁止任何
+ * dtr-* 样式使用未定义的 info-primary / danger-primary token。
  *
  * 本套件为防复发测试：断言 toggle 样式规则**必须**是灰色轨道 + 对比圆点
  * 方案，且不得回退为 bg-layer-3 白底。
@@ -45,10 +51,27 @@ test('off-state toggle uses a visible grey track, not a white layer-3 fill (issu
   assert.ok(!block.includes('bg-layer-3'), 'off track must not fall back to the invisible white layer-3 fill')
 })
 
-test('on-state toggle keeps the info accent and clears the border (issue #58)', () => {
+test('on-state toggle uses the defined success accent and clears the border (issue #58)', () => {
   const block = ruleBlock(TOGGLE_ON)
-  assert.ok(block.includes('var(--dsw-alias-state-info-primary)'), 'on track must be the info accent (semantic)')
+  assert.ok(
+    block.includes('var(--dsw-alias-state-success-primary)'),
+    'on track must be the success accent (the only defined green state token)',
+  )
   assert.ok(block.includes('border-color:transparent'), 'on state clears the border')
+})
+
+test('no undefined state token sneaks into dtr styles (info/danger not in the DSH theme)', () => {
+  // dsh-client-ui-theme 只定义 business/error/success/warn 四个 state-primary；
+  // info-primary 与 danger-primary 未定义，var() 无效会渲染为透明（PR #63
+  // 实测 data-on=true 时 background 为 rgba(0,0,0,0)）。此处全量防复发。
+  assert.ok(
+    !CSS.includes('var(--dsw-alias-state-info-primary)'),
+    'no undefined info-primary token allowed in dsh-task-reliability styles',
+  )
+  assert.ok(
+    !CSS.includes('var(--dsw-alias-state-danger-primary)'),
+    'no undefined danger-primary token allowed in dsh-task-reliability styles',
+  )
 })
 
 test('thumb sits on the left in off state with primary ink (issue #58)', () => {
