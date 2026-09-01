@@ -196,17 +196,17 @@ async function registerTask(env, overrides = {}) {
 
 // ── trigger answer 动作 ────────────────────────────────────────────────────
 test('trigger answer 成功回答待确认问题', async () => {
-  const env = boot({ autopilot: true })
+  const env = boot({ autopilot: true, autopilotGraceMs: 20 })
   await dispatchOne(
     env.listeners,
-    'tools/pre-execute',
+    'tools/execute',
     {
       name: 'ask_user_question',
       agent: env.mainAgent,
       arguments: { questions: [{ header: '确认项' }] },
     },
-    () => Promise.resolve({ kind: 'allow' }),
-  )
+    () => new Promise(() => {}),
+  ) // 永不 resolve：缓冲超时后自动决策，问题进待确认列表
   const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
   const id = body.value[0].id
   const answered = await callApi(
@@ -257,35 +257,35 @@ test('非法 JSON body 返回 400', async () => {
 
 // ── ask 参数摘要回退与截断 ────────────────────────────────────────────────
 test('ask 只有 question 且首行超长时截断记录', async () => {
-  const env = boot({ autopilot: true })
+  const env = boot({ autopilot: true, autopilotGraceMs: 20 })
   const longQuestion = '请确认这个非常长的决策问题究竟应该选择哪一个具体的方案来处理才更合适。'.repeat(6)
   await dispatchOne(
     env.listeners,
-    'tools/pre-execute',
+    'tools/execute',
     {
       name: 'ask_user_question',
       agent: env.mainAgent,
       arguments: { questions: [{ question: longQuestion }] },
     },
-    () => Promise.resolve({ kind: 'allow' }),
-  )
+    () => new Promise(() => {}),
+  ) // 永不 resolve：缓冲超时后自动决策，问题进待确认列表
   const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
   assert.equal(body.value.length, 1)
   assert.ok(body.value[0].question.length <= 81, '问题摘要被截断到 80 字符')
 })
 
 test('ask 参数为空时不记录问题', async () => {
-  const env = boot({ autopilot: true })
+  const env = boot({ autopilot: true, autopilotGraceMs: 20 })
   await dispatchEvent(
     env.listeners,
-    'tools/pre-execute',
+    'tools/execute',
     {
       name: 'ask_user_question',
       agent: env.mainAgent,
       arguments: { questions: [] },
     },
-    () => Promise.resolve({ kind: 'allow' }),
-  )
+    () => new Promise(() => {}),
+  ) // 永不 resolve：缓冲超时后自动决策，空参数不记录问题
   const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
   assert.equal(body.value.length, 0)
 })

@@ -181,15 +181,17 @@ function dispatchOne(env, name, ...args) {
 }
 
 async function addQuestionViaAsk(env) {
+  // issue #79：autopilot 拦截从 pre-execute 立即 deny 改为 execute 缓冲超时
+  // 后自动决策——通过永不 resolve 的 next 触发缓冲超时产生待确认问题
   await dispatchOne(
     env,
-    'tools/pre-execute',
+    'tools/execute',
     {
       name: 'ask_user_question',
       agent: env.mainAgent,
       arguments: { questions: [{ header: '需要确认' }] },
     },
-    () => Promise.resolve({ kind: 'allow' }),
+    () => new Promise(() => {}),
   )
 }
 
@@ -276,7 +278,7 @@ test('status：无任务无问题时显示模式状态', async () => {
 })
 
 test('status：显示活动任务与待确认问题', async () => {
-  const env = boot({ autopilot: true })
+  const env = boot({ autopilot: true, autopilotGraceMs: 20 })
   await callApi(env, '/task-reliability/api/tasks', 'POST', {
     sessionId: 'session-cmd',
     description: '开发一个功能',
@@ -291,7 +293,7 @@ test('status：显示活动任务与待确认问题', async () => {
 })
 
 test('status：显示 tracking/verify 开启与 checking 任务，已回答问题不列出', async () => {
-  const env = boot({ autopilot: true })
+  const env = boot({ autopilot: true, autopilotGraceMs: 20 })
   await callApi(env, '/task-reliability/api/mode', 'POST', {
     tracking: true,
     verify: true,
@@ -391,7 +393,7 @@ test('continue：唤醒成功后状态落盘', async () => {
 
 // ── answer 子命令 ─────────────────────────────────────────────────────────
 test('answer：回答待确认问题', async () => {
-  const env = boot({ autopilot: true })
+  const env = boot({ autopilot: true, autopilotGraceMs: 20 })
   await addQuestionViaAsk(env)
   const qid = env.store.questions[0].id
   const result = await runCommand(env, `answer ${qid} 好的`)
@@ -514,7 +516,7 @@ test('复用：register 子命令与 HTTP API 注册效果一致（同一 regist
 })
 
 test('复用：answer 子命令与 HTTP API 回答效果一致（同一 answerQuestion）', async () => {
-  const env = boot({ autopilot: true })
+  const env = boot({ autopilot: true, autopilotGraceMs: 20 })
   await addQuestionViaAsk(env)
   const qid = env.store.questions[0].id
   await runCommand(env, `answer ${qid} 命令回答`)

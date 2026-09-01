@@ -18,7 +18,13 @@ Given('任务可靠性插件已启动', function () {
 })
 
 Given('任务可靠性插件已启动且自主决策开启', function () {
-  this.boot({ autopilot: true })
+  // autopilotGraceMs 用短缓冲（20ms）：缓冲超时路径在 cucumber step 超时内完成
+  this.boot({ autopilot: true, autopilotGraceMs: 20 })
+})
+
+// issue #79：autopilotGraceMs=0 时保持旧行为（pre-execute 立即拦截）
+Given('任务可靠性插件已启动且自主决策开启且缓冲禁用', function () {
+  this.boot({ autopilot: true, autopilotGraceMs: 0 })
 })
 
 Given('任务可靠性插件已启动且自主决策关闭', function () {
@@ -189,6 +195,19 @@ When('代理 {string} 调用 ask_user_question 工具', async function (_session
   )
 })
 
+// issue #79：autopilot 缓冲超时路径（tools/execute 延迟决策）
+When('代理 {string} 调用 ask_user_question 且缓冲超时', async function (_sessionId) {
+  this.lastDecision = await this.dispatch(
+    'tools/execute',
+    {
+      name: 'ask_user_question',
+      agent: this.mainAgent,
+      arguments: { questions: [{ header: '需要确认' }] },
+    },
+    () => new Promise(() => {}),
+  ) // 永不 resolve：缓冲超时后自动决策，问题进待确认列表
+})
+
 When('插件重新启动', async function () {
   const dir = this.dir
   for (const dispose of this.disposers.splice(0)) dispose()
@@ -303,12 +322,23 @@ Then('问题被记录到待确认列表', async function () {
   assert.equal(this.lastResponse.body.value.length, 1)
 })
 
+Then('问题未被记录到待确认列表', async function () {
+  await this.callApi('/task-reliability/api/questions', 'GET')
+  assert.equal(this.lastResponse.body.value.length, 0)
+})
+
 Then('工具流程的 next\\(\\) 未被调用', function () {
   assert.equal(this.nextCalled, false)
 })
 
 Then('工具流程的 next\\(\\) 被调用', function () {
   assert.equal(this.nextCalled, true)
+})
+
+// issue #79：缓冲超时后注入自动决策指令（AUTOPILOT_DENY_REASON）
+Then('代理收到自主决策指令', function () {
+  assert.equal(this.mainAgent.followed.length, 1)
+  assert.ok(this.mainAgent.followed[0].content[0].text.includes('用户当前不在线'))
 })
 
 Then('代理 {string} 收到系统重启恢复指令', function (_sessionId) {

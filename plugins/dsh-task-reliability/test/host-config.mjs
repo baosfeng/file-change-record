@@ -167,6 +167,7 @@ const DEFAULTS = {
   resumeGraceMs: 60000,
   rateMaxActions: 12,
   askTimeoutMs: 1800000,
+  autopilotGraceMs: 20000,
   watchdogIntervalMs: 300000,
   stallTimeoutMs: 600000,
 }
@@ -209,6 +210,7 @@ test('config API suite', async () => {
         resumeGraceMs: 1000,
         rateMaxActions: 20,
         askTimeoutMs: 900000,
+        autopilotGraceMs: 15000,
         watchdogIntervalMs: 120000,
         stallTimeoutMs: 300000,
       }
@@ -245,6 +247,7 @@ test('config API suite', async () => {
         resumeGraceMs: 60000,
         rateMaxActions: 12,
         askTimeoutMs: 1800000,
+        autopilotGraceMs: 20000,
         watchdogIntervalMs: 300000,
         stallTimeoutMs: 600000,
       }
@@ -293,6 +296,7 @@ test('config API suite', async () => {
         resumeGraceMs: 800,
         rateMaxActions: 25,
         askTimeoutMs: 600000,
+        autopilotGraceMs: 30000,
         watchdogIntervalMs: 60000,
         stallTimeoutMs: 120000,
       }

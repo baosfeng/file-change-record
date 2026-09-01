@@ -48,6 +48,7 @@ export function configToPlain(options) {
     resumeGraceMs: options.resumeGraceMs,
     rateMaxActions: options.rateMaxActions,
     askTimeoutMs: options.askTimeoutMs,
+    autopilotGraceMs: options.autopilotGraceMs,
     watchdogIntervalMs: options.watchdogIntervalMs,
     stallTimeoutMs: options.stallTimeoutMs,
   }

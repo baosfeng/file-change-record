@@ -370,7 +370,7 @@ test('摘要超过上限时截断', async () => {
 })
 
 test('ask 工具无有效 questions 参数时仍拒绝但不记录问题', async () => {
-  const env = boot({ autopilot: true })
+  const env = boot({ autopilot: true, autopilotGraceMs: 0 })
   let nextCalled = false
   const decision = await dispatchOne(
     env.listeners,
@@ -453,19 +453,19 @@ test('全局速率限制阻止过量注入', async () => {
 
 // ── 更多变异定向断言 ───────────────────────────────────────────────────────
 test('相同待确认问题不重复添加', async () => {
-  const env = boot({ autopilot: true })
+  const env = boot({ autopilot: true, autopilotGraceMs: 20 })
   const args = { questions: [{ header: '重复问题' }] }
   for (let i = 0; i < 3; i++) {
     await dispatchOne(
       env.listeners,
-      'tools/pre-execute',
+      'tools/execute',
       {
         name: 'ask_user_question',
         agent: env.mainAgent,
         arguments: args,
       },
-      () => Promise.resolve({ kind: 'allow' }),
-    )
+      () => new Promise(() => {}),
+    ) // 永不 resolve：缓冲超时后自动决策，问题进待确认列表
   }
   const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
   assert.equal(body.value.length, 1, '相同问题只记录一次')
@@ -585,20 +585,20 @@ test('校验结论 JSON 带多余文本也能解析', async () => {
 })
 
 test('info 统计任务数与待确认问题数', async () => {
-  const env = boot({ autopilot: true })
+  const env = boot({ autopilot: true, autopilotGraceMs: 20 })
   await registerTask(env)
   await tick()
-  // 通过 autopilot ask 产生一个待确认问题
+  // 通过 autopilot ask 缓冲超时产生一个待确认问题
   await dispatchOne(
     env.listeners,
-    'tools/pre-execute',
+    'tools/execute',
     {
       name: 'ask_user_question',
       agent: env.mainAgent,
       arguments: { questions: [{ header: '待确认' }] },
     },
-    () => Promise.resolve({ kind: 'allow' }),
-  )
+    () => new Promise(() => {}),
+  ) // 永不 resolve：缓冲超时后自动决策，问题进待确认列表
   await tick()
   const info = await callApi(env.api, mockRequest({ url: '/task-reliability/api/info', method: 'GET' }))
   assert.equal(info.body.value.taskCount, 1)
@@ -754,17 +754,17 @@ test('校验代理 whenIdle 拒绝时降级继续', async () => {
 })
 
 test('回答数字答案转为空字符串', async () => {
-  const env = boot({ autopilot: true })
+  const env = boot({ autopilot: true, autopilotGraceMs: 20 })
   await dispatchOne(
     env.listeners,
-    'tools/pre-execute',
+    'tools/execute',
     {
       name: 'ask_user_question',
       agent: env.mainAgent,
       arguments: { questions: [{ header: '问题' }] },
     },
-    () => Promise.resolve({ kind: 'allow' }),
-  )
+    () => new Promise(() => {}),
+  ) // 永不 resolve：缓冲超时后自动决策，问题进待确认列表
   const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
   const id = body.value[0].id
   const answered = await callApi(
@@ -919,20 +919,22 @@ test('重启恢复文本包含完整段落', async () => {
 })
 
 test('autopilot 拒绝文本包含完整段落', async () => {
-  const env = boot({ autopilot: true })
-  const decision = await dispatchOne(
+  const env = boot({ autopilot: true, autopilotGraceMs: 20 })
+  await dispatchOne(
     env.listeners,
-    'tools/pre-execute',
+    'tools/execute',
     {
       name: 'ask_user_question',
       agent: env.mainAgent,
       arguments: { questions: [{ header: 'h' }] },
     },
-    () => Promise.resolve({ kind: 'allow' }),
-  )
-  assert.ok(decision.reason.includes('用户当前不在线，无法回答问题'))
-  assert.ok(decision.reason.includes('请基于已有信息和上下文做出最合理的决策并继续执行'))
-  assert.ok(decision.reason.includes('该问题已记录，用户回来后统一处理'))
+    () => new Promise(() => {}),
+  ) // 永不 resolve：缓冲超时后注入自动决策指令
+  assert.equal(env.mainAgent.followed.length, 1, '缓冲超时后注入自动决策指令')
+  const text = env.mainAgent.followed[0].content[0].text
+  assert.ok(text.includes('用户当前不在线，无法回答问题'))
+  assert.ok(text.includes('请基于已有信息和上下文做出最合理的决策并继续执行'))
+  assert.ok(text.includes('该问题已记录，用户回来后统一处理'))
 })
 
 test('校验指令包含完整段落', async () => {
@@ -1052,18 +1054,18 @@ test('isLoopbackHostname 各变体', async () => {
 })
 
 test('addQuestion 去重变体', async () => {
-  const env = boot({ autopilot: true })
+  const env = boot({ autopilot: true, autopilotGraceMs: 20 })
   const ask = (header) =>
     dispatchOne(
       env.listeners,
-      'tools/pre-execute',
+      'tools/execute',
       {
         name: 'ask_user_question',
         agent: env.mainAgent,
         arguments: { questions: [{ header }] },
       },
-      () => Promise.resolve({ kind: 'allow' }),
-    )
+      () => new Promise(() => {}),
+    ) // 永不 resolve：缓冲超时后自动决策，问题进待确认列表
   await ask('问题A')
   await ask('问题B') // 同会话不同问题 → 新增
   await ask('问题A') // 同会话同问题 → 去重
@@ -1087,7 +1089,7 @@ test('addQuestion 去重变体', async () => {
 })
 
 test('askNoteOf 无有效参数不记录', async () => {
-  const env = boot({ autopilot: true })
+  const env = boot({ autopilot: true, autopilotGraceMs: 20 })
   const variants = [
     { questions: undefined },
     { questions: [] },
@@ -1098,14 +1100,14 @@ test('askNoteOf 无有效参数不记录', async () => {
   for (const args of variants) {
     await dispatchOne(
       env.listeners,
-      'tools/pre-execute',
+      'tools/execute',
       {
         name: 'ask_user_question',
         agent: env.mainAgent,
         arguments: args,
       },
-      () => Promise.resolve({ kind: 'allow' }),
-    )
+      () => new Promise(() => {}),
+    ) // 永不 resolve：缓冲超时后自动决策，无效参数不记录
   }
   await tick()
   const { body } = await callApi(env.api, mockRequest({ method: 'GET', url: '/task-reliability/api/questions' }))

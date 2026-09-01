@@ -67,6 +67,7 @@ import {
   RESUME_GRACE_MS,
   RATE_MAX_ACTIONS,
   ASK_TIMEOUT_MS,
+  AUTOPILOT_GRACE_MS,
   WATCHDOG_INTERVAL_MS,
   STALL_TIMEOUT_MS,
 } from './constants.js'
@@ -131,6 +132,7 @@ function buildOptionsFrom(c) {
     resumeGraceMs: nonNegInt(c.resumeGraceMs, RESUME_GRACE_MS),
     rateMaxActions: positiveInt(c.rateMaxActions, RATE_MAX_ACTIONS),
     askTimeoutMs: nonNegInt(c.askTimeoutMs, ASK_TIMEOUT_MS),
+    autopilotGraceMs: nonNegInt(c.autopilotGraceMs, AUTOPILOT_GRACE_MS),
     watchdogIntervalMs: nonNegInt(c.watchdogIntervalMs, WATCHDOG_INTERVAL_MS),
     stallTimeoutMs: positiveInt(c.stallTimeoutMs, STALL_TIMEOUT_MS),
   }

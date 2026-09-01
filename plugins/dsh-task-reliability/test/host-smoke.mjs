@@ -697,8 +697,30 @@ test('turn-stopping 检测到重复后注入打断指令', async () => {
 })
 
 // ── 自主决策模式 ──────────────────────────────────────────────────────────
-test('autopilot 开启时 ask 工具被拒绝并记录问题', async () => {
+test('autopilot 开启时 ask 先展示给用户（缓冲期放行，issue #79）', async () => {
   const env = boot({ autopilot: true })
+  let nextCalled = false
+  const decision = await dispatchOne(
+    env.listeners,
+    'tools/pre-execute',
+    {
+      name: 'ask_user_question',
+      agent: env.mainAgent,
+      arguments: { questions: [{ header: '选哪个方案？', question: 'A 还是 B？' }] },
+    },
+    () => {
+      nextCalled = true
+      return Promise.resolve({ kind: 'allow' })
+    },
+  )
+  assert.equal(decision.kind, 'allow', '缓冲期内不拦截，ask 正常展示给用户')
+  assert.equal(nextCalled, true, '放行时调用 next')
+  const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
+  assert.equal(body.value.length, 0, '缓冲期内不记录问题')
+})
+
+test('autopilotGraceMs=0 时 autopilot 立即拒绝并记录问题（旧行为保留）', async () => {
+  const env = boot({ autopilot: true, autopilotGraceMs: 0 })
   let nextCalled = false
   const decision = await dispatchOne(
     env.listeners,
@@ -761,7 +783,7 @@ test('非 ask 工具透传', async () => {
 })
 
 test('会话级 autopilot 开启后问题可远程回答', async () => {
-  const env = boot({}, { liveAgentId: 'session-main' })
+  const env = boot({ autopilotGraceMs: 20 }, { liveAgentId: 'session-main' })
   await callApi(
     env.api,
     mockRequest({
@@ -772,14 +794,14 @@ test('会话级 autopilot 开启后问题可远程回答', async () => {
   )
   await dispatchOne(
     env.listeners,
-    'tools/pre-execute',
+    'tools/execute',
     {
       name: 'ask_user_question',
       agent: env.mainAgent,
       arguments: { questions: [{ header: '需要确认' }] },
     },
-    () => Promise.resolve({ kind: 'allow' }),
-  )
+    () => new Promise(() => {}),
+  ) // 永不 resolve：缓冲超时后自动决策，问题进待确认列表
   const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
   const id = body.value[0].id
   const answered = await callApi(
@@ -800,6 +822,91 @@ test('会话级 autopilot 开启后问题可远程回答', async () => {
 })
 
 // ── ask 超时自动继续（issue #34）─────────────────────────────────────────
+test('autopilot 缓冲期内用户回答透传（issue #79）', async () => {
+  const env = boot({ autopilot: true, autopilotGraceMs: 60000 })
+  const result = await dispatchOne(
+    env.listeners,
+    'tools/execute',
+    {
+      name: 'ask_user_question',
+      agent: env.mainAgent,
+      arguments: { questions: [{ id: 'q1', question: 'A 还是 B？' }] },
+    },
+    () => Promise.resolve({ value: { answers: [{ id: 'q1', selected: ['B'] }] } }),
+  )
+  assert.deepEqual(result.value.answers[0].selected, ['B'], '缓冲期内真实回答透传')
+  assert.equal(env.mainAgent.followed.length, 0, '缓冲期内不注入自动决策指令')
+  const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
+  assert.equal(body.value.length, 0, '缓冲期内不记录问题')
+})
+
+test('autopilot 缓冲超时后自动决策：记录问题 + 注入指令 + 空回答（issue #79）', async () => {
+  const env = boot({ autopilot: true, autopilotGraceMs: 20 })
+  const result = await dispatchOne(
+    env.listeners,
+    'tools/execute',
+    {
+      name: 'ask_user_question',
+      agent: env.mainAgent,
+      arguments: {
+        questions: [{ id: 'q1', question: 'A 还是 B？', options: [{ label: '方案A' }, { label: '方案B' }] }],
+      },
+    },
+    () => new Promise(() => {}),
+  ) // 永不 resolve，模拟用户缓冲期内未回答
+  assert.deepEqual(result.value.answers, [], '缓冲超时后返回空回答，由模型自行决策（不假装用户选了推荐项）')
+  assert.equal(env.mainAgent.followed.length, 1, '注入自动决策指令')
+  assert.ok(env.mainAgent.followed[0].content[0].text.includes('用户当前不在线'))
+  const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
+  assert.equal(body.value.length, 1, '被自动决策的 ask 记录到待确认列表')
+  assert.equal(body.value[0].question, 'A 还是 B？')
+})
+
+test('autopilot 缓冲超时后问题可事后回答（issue #79）', async () => {
+  const env = boot({ autopilot: true, autopilotGraceMs: 20 })
+  await dispatchOne(
+    env.listeners,
+    'tools/execute',
+    {
+      name: 'ask_user_question',
+      agent: env.mainAgent,
+      arguments: { questions: [{ header: '需要确认' }] },
+    },
+    () => new Promise(() => {}),
+  )
+  const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
+  const id = body.value[0].id
+  const answered = await callApi(
+    env.api,
+    mockRequest({
+      url: `/task-reliability/api/questions/${id}/answer`,
+      method: 'POST',
+      body: JSON.stringify({ answer: '事后选 B' }),
+    }),
+  )
+  assert.equal(answered.body.ok, true)
+  const after = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
+  assert.equal(after.body.value[0].answer, '事后选 B')
+})
+
+test('autopilot 关闭时 execute 不延迟（透传）', async () => {
+  const env = boot({ autopilotGraceMs: 20 })
+  const result = await dispatchOne(
+    env.listeners,
+    'tools/execute',
+    {
+      name: 'ask_user_question',
+      agent: env.mainAgent,
+      arguments: { questions: [{ id: 'q1', question: 'A 还是 B？' }] },
+    },
+    () => Promise.resolve({ value: { answers: [{ id: 'q1', selected: ['B'] }] } }),
+  )
+  assert.deepEqual(result.value.answers[0].selected, ['B'], '非 autopilot 模式透传')
+  assert.equal(env.mainAgent.followed.length, 0)
+  const { body } = await callApi(env.api, mockRequest({ url: '/task-reliability/api/questions', method: 'GET' }))
+  assert.equal(body.value.length, 0)
+})
+
 test('ask 超时后注入继续指令并返回模拟回答', async () => {
   const env = boot({ askTimeoutMs: 20 })
   const result = await dispatchOne(
