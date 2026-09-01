@@ -4,6 +4,8 @@ on:
   push:
     branches: [main, master]
   pull_request:
+  # 手动触发：偶发测试超时/环境问题导致 CI 红时，Actions → CI → Run workflow 重跑
+  workflow_dispatch:
 
 # 最小权限：CI 只读仓库内容，不需要写 GITHUB_TOKEN
 permissions:
