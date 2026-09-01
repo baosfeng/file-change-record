@@ -363,7 +363,10 @@ async function cleanup() {
 // ── issue #67：发版前功能级验证清单（留痕） ────────────────────────────────
 // 自动验证项（脚本已执行且通过）自动勾选；功能级验证项（核心功能/易碎场景/
 // client UI/插件联动）留空待验证者（人工或 agent）在真实浏览器中验证后勾选。
-const CHECKLIST_TEMPLATE = (plugin, version, port) => `# 发版前功能级验证清单 — ${plugin}@${version}
+// 函数声明（提升）而非 const：main 流程在文件中部调用 writeChecklist()，
+// const 初始化在其后会导致 TDZ ReferenceError（issue #67 实测发现的坑）。
+function checklistTemplate(plugin, version, port) {
+  return `# 发版前功能级验证清单 — ${plugin}@${version}
 
 验证时间：${new Date().toISOString()}
 验证环境：隔离实例（端口 ${port}，复用生产 profile 配置组合，独立 DSH_HOME）
@@ -384,16 +387,44 @@ const CHECKLIST_TEMPLATE = (plugin, version, port) => `# 发版前功能级验�
 > 说明：功能级项由验证者（人工或 agent）在真实浏览器中逐项验证后，将 [ ] 改为 [x]。
 > release.mjs 发版门禁会校验本清单功能级项全部勾选，未全勾选将阻断发版（issue #67）。
 `
+}
 
-/** 生成验证清单文件（自动项已勾选，功能级项待勾选）。 */
+/** 生成验证清单文件（自动项已勾选，功能级项待勾选）。
+ *  若目标文件已存在（如 release.mjs 3c 重跑），保留原功能级项的勾选
+ *  状态，避免覆盖已验证的留痕（issue #67）。 */
 function writeChecklist() {
   if (options.checklist === null) return
   const plugin = options.plugin || (options.addons.length > 0 ? options.addons[0].split('/').pop() : 'unknown')
   const version = options.version || 'x.y.z'
-  const text = CHECKLIST_TEMPLATE(plugin, version, options.port)
+  let text = checklistTemplate(plugin, version, options.port)
+  if (existsSync(options.checklist)) {
+    text = mergeChecklistState(readFileSync(options.checklist, 'utf8'), text)
+  }
   mkdirSync(dirname(options.checklist), { recursive: true })
   writeFileSync(options.checklist, text, 'utf8')
   log(`验证清单已生成: ${options.checklist}（功能级项待验证后勾选）`)
+}
+
+/** 将既有清单中已勾选（[x]）的功能级项状态合并到新生成的清单文本（按文案匹配）。 */
+function mergeChecklistState(oldText, newText) {
+  const checked = new Set()
+  let inFunctional = false
+  for (const line of oldText.split('\n')) {
+    if (line.startsWith('## 功能级验证项')) inFunctional = true
+    else if (line.startsWith('## ')) inFunctional = false
+    if (!inFunctional) continue
+    const m = /^- \[(x)\] (.+)$/.exec(line.trim())
+    if (m) checked.add(m[2])
+  }
+  if (checked.size === 0) return newText
+  return newText
+    .split('\n')
+    .map((line) => {
+      const m = /^- \[( |x)\] (.+)$/.exec(line.trim())
+      if (m && checked.has(m[2])) return line.replace('- [ ]', '- [x]')
+      return line
+    })
+    .join('\n')
 }
 
 /** 校验清单文件：功能级验证项必须全部 [x]（供 release.mjs 门禁调用）。 */
