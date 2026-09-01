@@ -3,6 +3,41 @@ function isNoticeKind(kind) {
   return kind === 'end' || kind === 'ask' || kind === 'approval' || kind === 'remote'
 }
 
+// ── 通知去重（issue #70）：本地窗口 + 跨标签页协调 ─────────────────
+// 服务端已按 kind:sessionId 在 dedupeMs（默认 3000ms）内去重；客户端再做
+// 双保险：① 本标签页内存窗口（快速路径 + localStorage 不可用时的兜底）；
+// ② localStorage 时间戳锁（跨标签页协调——同一通知只由一个标签页弹系统
+// 通知 + 响铃，其余标签页静默）。窗口 2000ms，覆盖多标签页帧到达时间差
+// 与服务端窗口外的偶发重复帧。
+const CLIENT_DEDUPE_MS = 2000
+const DEDUPE_LS_PREFIX = 'dsh-notify:dedupe:'
+const localRecent = new Map() // `${kind}:${sessionId}` -> lastTime
+
+/** 通知帧是否在去重窗口内已处理（本标签页或其他标签页）；未处理则登记并返回 true。 */
+function claimNotice(key) {
+  const now = Date.now()
+  const lastLocal = localRecent.get(key)
+  if (lastLocal !== undefined && now - lastLocal < CLIENT_DEDUPE_MS) return false
+  try {
+    const lockKey = DEDUPE_LS_PREFIX + key
+    const last = Number(window.localStorage.getItem(lockKey) || 0)
+    if (now - last < CLIENT_DEDUPE_MS) {
+      localRecent.set(key, now)
+      return false
+    }
+    window.localStorage.setItem(lockKey, String(now))
+  } catch {
+    // localStorage 不可用（隐私模式等）：仅本地窗口去重
+  }
+  localRecent.set(key, now)
+  if (localRecent.size > 256) {
+    for (const [k, t] of localRecent) {
+      if (now - t >= CLIENT_DEDUPE_MS) localRecent.delete(k)
+    }
+  }
+  return true
+}
+
 function openSessionFor(sessionId, sessionsSvc) {
   return () => {
     try {
@@ -54,6 +89,8 @@ function handleNotice(notice, sessionsSvc) {
   if (notice === null || typeof notice !== 'object' || notice.type !== 'notice') return
   if (!isNoticeKind(notice.kind)) return
   const sessionId = typeof notice.sessionId === 'string' ? notice.sessionId : ''
+  const key = `${notice.kind}:${sessionId}`
+  if (!claimNotice(key)) return // 窗口内已处理（本标签页或其他标签页）→ 静默
   const openSession = openSessionFor(sessionId, sessionsSvc)
   dispatchByPermission(notice, sessionId, openSession)
   if (prefOn(LS.sound, true)) beep()
