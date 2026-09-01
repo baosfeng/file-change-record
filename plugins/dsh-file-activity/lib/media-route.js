@@ -63,18 +63,7 @@ export function createMediaHandler({ ctx, store, fence }) {
       return
     }
     try {
-      const url = new URL(request.url ?? '/', 'http://dsh.internal')
-      const sessionId = url.searchParams.get('sessionId')
-      const raw = url.searchParams.get('path')
-      assertMediaParams(sessionId, raw)
-      if (!isRecordedPath(store.state, sessionId, raw))
-        throw mediaError(403, "path is not in this session's file activity")
-      const abs = isAbsolute(raw) ? raw : join(sessionCwdOf(ctx, sessionId), raw)
-      if (url.searchParams.get('as') === 'text') {
-        await serveText(response, abs)
-        return
-      }
-      await serveMedia(response, abs, url)
+      await serveRecordedFile(request, response, ctx, store)
     } catch (error) {
       const status = typeof error?.status === 'number' ? error.status : 400
       writeJson(response, status, {
@@ -83,6 +72,26 @@ export function createMediaHandler({ ctx, store, fence }) {
       })
     }
   }
+}
+
+/**
+ * Resolve a recorded path (authorized per session) and serve it: bytes
+ * (images / PDFs, `download=1` supported) or, with `as=text`, an
+ * fs.read-shaped JSON payload for the floating preview's text fallback.
+ */
+async function serveRecordedFile(request, response, ctx, store) {
+  const url = new URL(request.url ?? '/', 'http://dsh.internal')
+  const sessionId = url.searchParams.get('sessionId')
+  const raw = url.searchParams.get('path')
+  assertMediaParams(sessionId, raw)
+  if (!isRecordedPath(store.state, sessionId, raw))
+    throw mediaError(403, "path is not in this session's file activity")
+  const abs = isAbsolute(raw) ? raw : join(sessionCwdOf(ctx, sessionId), raw)
+  if (url.searchParams.get('as') === 'text') {
+    await serveText(response, abs)
+    return
+  }
+  await serveMedia(response, abs, url)
 }
 
 /** Both query parameters are required for a media request. */
