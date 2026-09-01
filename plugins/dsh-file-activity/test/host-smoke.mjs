@@ -261,6 +261,39 @@ test('host smoke suite', async () => {
     assert.equal(foreignSession.status, 403, "other session cannot read this session's media")
     assert.equal(JSON.parse(foreignSession.body).ok, false, 'foreign session JSON error')
 
+    // 8e. TEXT ROUTE (issue #68): a recorded text file OUTSIDE the session cwd
+    // must be readable via ?as=text — the sidebar fs.read refuses such paths
+    // (workspace fence), so the floating preview falls back to this route,
+    // which returns an fs.read-shaped JSON payload: { ok, value: { content } }.
+    const textFile = join(tmpdir(), `dfa-text-${Date.now()}.md`)
+    const textContent = `# issue body\n\noutside-workspace text ${Date.now()}`
+    writeFileSync(textFile, textContent)
+    emitObserved(ctxRestarted, 'read', sid, textFile)
+    const text = await callMedia(
+      getMediaRestarted,
+      'GET',
+      `/file-activity/file?sessionId=${sid}&path=${encodeURIComponent(textFile)}&as=text`,
+    )
+    assert.equal(text.status, 200, 'recorded outside-cwd text served via as=text')
+    const textJson = JSON.parse(text.body)
+    assert.equal(textJson.ok, true, 'as=text JSON ok flag')
+    assert.equal(textJson.value.content, textContent, 'as=text returns the exact text content')
+    // as=text refuses: unrecorded paths (403) and recorded-but-deleted files (404).
+    const textUnrecorded = await callMedia(
+      getMediaRestarted,
+      'GET',
+      `/file-activity/file?sessionId=${sid}&path=${encodeURIComponent('/work/never-touched.md')}&as=text`,
+    )
+    assert.equal(textUnrecorded.status, 403, 'as=text unrecorded path refused')
+    emitObserved(ctxRestarted, 'read', sid, '/work/ghost-text.md')
+    const textGhost = await callMedia(
+      getMediaRestarted,
+      'GET',
+      `/file-activity/file?sessionId=${sid}&path=${encodeURIComponent('/work/ghost-text.md')}&as=text`,
+    )
+    assert.equal(textGhost.status, 404, 'as=text recorded but missing file → 404')
+    assert.equal(JSON.parse(textGhost.body).ok, false, 'as=text missing file JSON error')
+
     // 9. unknown route → 404
     const nf = await callRoute(getRouteRestarted, 'GET', '/file-activity/api/nope')
     assert.equal(nf.status, 404)

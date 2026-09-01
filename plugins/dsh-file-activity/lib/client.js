@@ -86,6 +86,9 @@ const strings = {
   loading: () => (isZh() ? '加载中…' : 'Loading…'),
   previewUnsupported: () => (isZh() ? '该文件类型暂不支持预览' : 'This file type cannot be previewed yet'),
   previewFailed: () => (isZh() ? '预览加载失败' : 'Preview failed to load'),
+  fileMissing: () => (isZh() ? '文件不存在或已被删除' : 'This file no longer exists'),
+  fileOutside: () =>
+    isZh() ? '文件位于工作区外，暂无法读取内容' : 'The file is outside the workspace and cannot be read',
   downloadToView: () => (isZh() ? '下载查看' : 'download to view'),
 }
 
@@ -264,6 +267,11 @@ function postClear(sessionId) {
 /** Plugin media route URL for a recorded path (authorized per session). */
 function mediaUrlOf(sessionId, path) {
   return `/file-activity/file?${new URLSearchParams({ sessionId, path })}`
+}
+
+/** Plugin text route URL (`as=text`): fs.read-shaped JSON for recorded text. */
+function textUrlOf(sessionId, path) {
+  return `/file-activity/file?${new URLSearchParams({ sessionId, path, as: 'text' })}`
 }
 
     // ── fetch interception: sidebar file operations ───────────────────────
@@ -1154,14 +1162,26 @@ function isFsReadOk(json) {
   return json !== null && typeof json === 'object' && json.ok === true && typeof json.value?.content === 'string'
 }
 
-/** Error load state from an fs.read API response (or a generic message). */
+/** Error load state from an fs.read API response (or a generic message).
+ *  Raw system errors are translated to friendly, locale-aware messages
+ *  (issue #68): deleted files and workspace-fenced paths must never surface
+ *  ENOENT / "is outside workspace" verbatim. */
 function fsReadError(json, viewer) {
-  return { status: 'error', viewer, message: json?.error?.message ?? strings.previewFailed() }
+  const raw = json?.error?.message ?? ''
+  let message
+  if (raw === '') message = strings.previewFailed()
+  else if (/ENOENT|no such file|does not exist|cannot resolve/i.test(raw)) message = strings.fileMissing()
+  else if (/outside workspace/i.test(raw)) message = strings.fileOutside()
+  else message = raw
+  return { status: 'error', viewer, message }
 }
 
 /**
  * Load fsRead content through the sidebar API and resolve the viewer's
- * load state (ready with text, or error with the API message).
+ * load state (ready with text, or error with the API message). When the
+ * sidebar refuses a recorded path (its workspace fence, e.g. agent-read
+ * files under ~/.dsh), fall back to the plugin's own text route, which
+ * authorizes exactly the paths this session recorded (issue #68).
  */
 async function loadFsReadContent(viewer, path, scope, sessionId) {
   const target = resolvePath(path, scope?.cwd ?? '')
@@ -1172,7 +1192,20 @@ async function loadFsReadContent(viewer, path, scope, sessionId) {
   })
   const json = await response.json()
   if (isFsReadOk(json)) return { status: 'ready', viewer, content: json.value.content }
+  // The sidebar refused — try OUR recorded-path text route before giving up.
+  const textJson = await fetchTextContent(sessionId, path)
+  if (isFsReadOk(textJson)) return { status: 'ready', viewer, content: textJson.value.content }
   return fsReadError(json, viewer)
+}
+
+/** Plugin text route (fs.read-shaped JSON), or null on any failure. */
+async function fetchTextContent(sessionId, path) {
+  try {
+    const response = await fetch(textUrlOf(sessionId, path))
+    return await response.json()
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -1449,6 +1482,10 @@ exports.apply = function apply(ctx) {
   // auto-open once per session (default on)
   ctx.effect(() => installAutoOpen(ctx, TAB_ID), 'dsh-file-activity: auto-open')
 }
+
+// Internal functions exposed for the render-path test suite only; inert in
+// the browser bundle (plain properties on the exports object).
+exports.__test = { loadFsReadContent, fsReadError, fetchTextContent, textUrlOf, strings }
 
 
     return module.exports

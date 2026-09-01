@@ -350,6 +350,75 @@ assert.ok(closeBtn && typeof closeBtn.onClick === 'function', 'floating preview 
 closeBtn.onClick()
 assert.equal(dataStore.getSnapshot().preview, null, 'close button dismisses the floating preview')
 
+// ── floating preview content loading (issue #68) ──────────────────────────
+// The sidebar fs.read refuses recorded files outside the session workspace;
+// the preview must fall back to the plugin's own recorded-path text route,
+// and raw system errors (ENOENT / "is outside workspace") must never surface
+// verbatim — they translate to friendly, locale-aware messages.
+const internals = exportsObj.__test
+assert.ok(internals && typeof internals.loadFsReadContent === 'function', 'test internals exported')
+const fsReadViewer = { id: 'markdown', fetchStrategy: 'fsRead' }
+const outsidePath = '/Users/bsfeng/.dsh/skills/verifying-dsh-plugins/SKILL.md'
+
+async function withFetch(handler, fn) {
+  const original = global.fetch
+  global.fetch = handler
+  try {
+    return await fn()
+  } finally {
+    global.fetch = original
+  }
+}
+
+// 场景 1: fs.read 拒绝（工作区外）→ 插件文本路由返回内容 → 预览就绪。
+const outsideLoad = await withFetch(async (url) => {
+  if (url.startsWith('/sidebar/api/fs.read')) {
+    return {
+      json: () =>
+        Promise.resolve({ ok: false, error: { message: `path "${outsidePath}" is outside workspace` } }),
+    }
+  }
+  if (url.startsWith('/file-activity/file?') && url.includes('as=text')) {
+    return { json: () => Promise.resolve({ ok: true, value: { content: '# outside text' } }) }
+  }
+  return { json: () => Promise.resolve({ ok: false, error: { message: 'unexpected fetch: ' + url } }) }
+}, () => internals.loadFsReadContent(fsReadViewer, outsidePath, { sessionId: 'sess-test', cwd: '/work' }, 'sess-test'))
+assert.equal(outsideLoad.status, 'ready', 'workspace-fenced text falls back to the plugin text route')
+assert.equal(outsideLoad.content, '# outside text', 'fallback content served')
+
+// 场景 2: 文件已删除（fs.read 与插件路由均报 ENOENT/not found）→ 友好提示
+// 「文件不存在或已被删除」，原始英文系统错误不再上屏。
+const missingLoad = await withFetch(async (url) => {
+  if (url.startsWith('/sidebar/api/fs.read')) {
+    return {
+      json: () =>
+        Promise.resolve({
+          ok: false,
+          error: { message: 'cannot resolve target "/tmp/issue-body.md": ENOENT: no such file' },
+        }),
+    }
+  }
+  if (url.startsWith('/file-activity/file?') && url.includes('as=text')) {
+    return { json: () => Promise.resolve({ ok: false, error: { message: 'file not found' } }) }
+  }
+  return { json: () => Promise.resolve({ ok: false, error: { message: 'unexpected fetch: ' + url } }) }
+}, () => internals.loadFsReadContent(fsReadViewer, '/tmp/issue-body.md', { sessionId: 'sess-test', cwd: '/work' }, 'sess-test'))
+assert.equal(missingLoad.status, 'error', 'deleted file resolves to an error state')
+assert.equal(missingLoad.message, '文件不存在或已被删除', 'ENOENT translates to a friendly zh message')
+assert.ok(!/ENOENT/i.test(missingLoad.message), 'raw ENOENT never surfaces')
+
+// 场景 3: fsReadError 对常见系统错误做中文翻译（防回归断言）。
+assert.equal(
+  internals.fsReadError({ error: { message: 'path "/x" is outside workspace' } }, fsReadViewer).message,
+  '文件位于工作区外，暂无法读取内容',
+  'outside-workspace error translates to a friendly zh message',
+)
+assert.equal(
+  internals.fsReadError({ error: { message: 'other raw error' } }, fsReadViewer).message,
+  'other raw error',
+  'unknown errors keep their message',
+)
+
 console.log('ALL CLIENT RENDER-PATH TESTS PASSED')
 console.log('sample output tree (clickable rows):')
 for (const row of rows) console.log('  '.repeat(row.depth) + row.title)

@@ -43,3 +43,8 @@ function postClear(sessionId) {
 function mediaUrlOf(sessionId, path) {
   return `/file-activity/file?${new URLSearchParams({ sessionId, path })}`
 }
+
+/** Plugin text route URL (`as=text`): fs.read-shaped JSON for recorded text. */
+function textUrlOf(sessionId, path) {
+  return `/file-activity/file?${new URLSearchParams({ sessionId, path, as: 'text' })}`
+}

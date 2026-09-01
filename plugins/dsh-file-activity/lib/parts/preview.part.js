@@ -12,14 +12,26 @@ function isFsReadOk(json) {
   return json !== null && typeof json === 'object' && json.ok === true && typeof json.value?.content === 'string'
 }
 
-/** Error load state from an fs.read API response (or a generic message). */
+/** Error load state from an fs.read API response (or a generic message).
+ *  Raw system errors are translated to friendly, locale-aware messages
+ *  (issue #68): deleted files and workspace-fenced paths must never surface
+ *  ENOENT / "is outside workspace" verbatim. */
 function fsReadError(json, viewer) {
-  return { status: 'error', viewer, message: json?.error?.message ?? strings.previewFailed() }
+  const raw = json?.error?.message ?? ''
+  let message
+  if (raw === '') message = strings.previewFailed()
+  else if (/ENOENT|no such file|does not exist|cannot resolve/i.test(raw)) message = strings.fileMissing()
+  else if (/outside workspace/i.test(raw)) message = strings.fileOutside()
+  else message = raw
+  return { status: 'error', viewer, message }
 }
 
 /**
  * Load fsRead content through the sidebar API and resolve the viewer's
- * load state (ready with text, or error with the API message).
+ * load state (ready with text, or error with the API message). When the
+ * sidebar refuses a recorded path (its workspace fence, e.g. agent-read
+ * files under ~/.dsh), fall back to the plugin's own text route, which
+ * authorizes exactly the paths this session recorded (issue #68).
  */
 async function loadFsReadContent(viewer, path, scope, sessionId) {
   const target = resolvePath(path, scope?.cwd ?? '')
@@ -30,7 +42,20 @@ async function loadFsReadContent(viewer, path, scope, sessionId) {
   })
   const json = await response.json()
   if (isFsReadOk(json)) return { status: 'ready', viewer, content: json.value.content }
+  // The sidebar refused — try OUR recorded-path text route before giving up.
+  const textJson = await fetchTextContent(sessionId, path)
+  if (isFsReadOk(textJson)) return { status: 'ready', viewer, content: textJson.value.content }
   return fsReadError(json, viewer)
+}
+
+/** Plugin text route (fs.read-shaped JSON), or null on any failure. */
+async function fetchTextContent(sessionId, path) {
+  try {
+    const response = await fetch(textUrlOf(sessionId, path))
+    return await response.json()
+  } catch {
+    return null
+  }
 }
 
 /**

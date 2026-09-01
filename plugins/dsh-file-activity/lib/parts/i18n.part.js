@@ -38,5 +38,8 @@ const strings = {
   loading: () => (isZh() ? '加载中…' : 'Loading…'),
   previewUnsupported: () => (isZh() ? '该文件类型暂不支持预览' : 'This file type cannot be previewed yet'),
   previewFailed: () => (isZh() ? '预览加载失败' : 'Preview failed to load'),
+  fileMissing: () => (isZh() ? '文件不存在或已被删除' : 'This file no longer exists'),
+  fileOutside: () =>
+    isZh() ? '文件位于工作区外，暂无法读取内容' : 'The file is outside the workspace and cannot be read',
   downloadToView: () => (isZh() ? '下载查看' : 'download to view'),
 }

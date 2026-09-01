@@ -1,12 +1,17 @@
 /**
- * /file-activity/file media route: serves recorded file bytes (images / PDFs)
- * for the floating preview. The sidebar's own /sidebar/file route refuses
- * every path outside the session working directory (isWithin(cwd, …)), but
- * file activity records files the agent touched ANYWHERE — /tmp scratch files,
- * sibling repos, … — so images/PDFs outside the workspace resolve to a broken
- * <img>. This route serves the bytes with the same trust fence, swapping the
- * "inside the session cwd" boundary for "paths this session actually
- * recorded".
+ * /file-activity/file media route: serves recorded file bytes (images / PDFs
+ * AND, with `as=text`, text content) for the floating preview. The sidebar's
+ * own /sidebar/file route refuses every path outside the session working
+ * directory (isWithin(cwd, …)), but file activity records files the agent
+ * touched ANYWHERE — /tmp scratch files, sibling repos, … — so images/PDFs
+ * outside the workspace resolve to a broken <img>. This route serves the
+ * bytes with the same trust fence, swapping the "inside the session cwd"
+ * boundary for "paths this session actually recorded".
+ *
+ * `as=text` (issue #68): the floating preview's text path first asks the
+ * sidebar fs.read API; when the sidebar refuses a recorded file (workspace
+ * fence), the client falls back to this route and receives an fs.read-shaped
+ * JSON payload ({ ok, value: { content } }) so the viewer mounts unchanged.
  */
 import { readFile, stat } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
@@ -16,6 +21,9 @@ import { isRecordedPath } from './state.js'
 
 /** Cap for the plugin's own media route (bytes): images / PDFs only. */
 const MEDIA_LIMIT = 64 * 1024 * 1024
+
+/** Cap for `as=text` payloads (characters): text previews, not archives. */
+const TEXT_LIMIT = 2 * 1024 * 1024
 
 /** Content types served by /file-activity/file (mirrors the sidebar's set). */
 const MEDIA_TYPES = {
@@ -62,6 +70,10 @@ export function createMediaHandler({ ctx, store, fence }) {
       if (!isRecordedPath(store.state, sessionId, raw))
         throw mediaError(403, "path is not in this session's file activity")
       const abs = isAbsolute(raw) ? raw : join(sessionCwdOf(ctx, sessionId), raw)
+      if (url.searchParams.get('as') === 'text') {
+        await serveText(response, abs)
+        return
+      }
       await serveMedia(response, abs, url)
     } catch (error) {
       const status = typeof error?.status === 'number' ? error.status : 400
@@ -95,4 +107,24 @@ async function serveMedia(response, abs, url) {
   }
   response.writeHead(200, headers)
   response.end(body)
+}
+
+/**
+ * `as=text` mode: serve a recorded file's text content as an fs.read-shaped
+ * JSON payload ({ ok, value: { content } }) so the floating preview's text
+ * viewers mount unchanged even when the sidebar fs.read refuses the path
+ * (workspace fence — issue #68). Same authorization as bytes serving:
+ * recorded paths only.
+ */
+async function serveText(response, abs) {
+  let info
+  try {
+    info = await stat(abs)
+  } catch {
+    throw mediaError(404, 'file not found')
+  }
+  if (!info.isFile()) throw mediaError(400, 'not a file')
+  if (info.size > TEXT_LIMIT) throw mediaError(413, 'file too large')
+  const content = await readFile(abs, 'utf8')
+  writeJson(response, 200, { ok: true, value: { content } })
 }

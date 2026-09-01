@@ -5,7 +5,7 @@
  */
 import { Given, When, Then, After, setWorldConstructor } from '@cucumber/cucumber'
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { apply } from '../../../lib/index.js'
@@ -17,6 +17,7 @@ class World {
     this.ctx = null
     this.sessionId = null
     this.apiHolder = captureRoute('/file-activity/api')
+    this.mediaHolder = captureRoute('/file-activity/file')
     this.lastResponse = null
   }
 
@@ -28,6 +29,7 @@ class World {
       webServer: {
         register: (route) => {
           this.apiHolder.set(route)
+          this.mediaHolder.set(route)
           return () => {}
         },
       },
@@ -73,6 +75,19 @@ class World {
   async stats(sessionId) {
     const r = await this.callRoute('GET', `/file-activity/api/stats?sessionId=${sessionId}`)
     return r.json.value
+  }
+
+  /** Call the binary media/text route (the response body is raw bytes or JSON text). */
+  async callMedia(method, url) {
+    const route = this.mediaHolder.get()
+    assert.ok(route, 'media route registered')
+    const res = makeResponse()
+    await route.handler(makeRequest(method, url), res)
+    this.lastResponse = {
+      status: res._status,
+      json: res._body === '' ? null : JSON.parse(res._body),
+    }
+    return this.lastResponse
   }
 }
 
@@ -182,6 +197,7 @@ When('插件实例重启', async function () {
   }
   this.ctx = null
   this.apiHolder = captureRoute('/file-activity/api')
+  this.mediaHolder = captureRoute('/file-activity/file')
   await this.boot()
 })
 
@@ -193,6 +209,17 @@ When('用非回环 host 请求统计接口', async function () {
 
 When('清空会话 {string} 的记录', async function (sessionId) {
   await this.callRoute('POST', '/file-activity/api/clear', { sessionId })
+})
+
+When('创建文本文件 {string} 内容为 {string}', async function (path, content) {
+  writeFileSync(path, content)
+})
+
+When('请求该文件 {string} 的文本路由', async function (path) {
+  await this.callMedia(
+    'GET',
+    `/file-activity/file?sessionId=${encodeURIComponent(this.sessionId)}&path=${encodeURIComponent(path)}&as=text`,
+  )
 })
 
 // ── Then ──────────────────────────────────────────────────────────────────
@@ -251,4 +278,9 @@ Then('会话 {string} 的统计包含 {string}', async function (sessionId, path
 
 Then('响应状态码为 {int}', async function (status) {
   assert.equal(this.lastResponse.status, status)
+})
+
+Then('文本路由返回内容 {string}', async function (content) {
+  assert.equal(this.lastResponse.json.ok, true, 'as=text ok flag')
+  assert.equal(this.lastResponse.json.value.content, content, 'as=text content matches')
 })

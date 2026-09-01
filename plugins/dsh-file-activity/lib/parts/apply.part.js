@@ -83,3 +83,7 @@ exports.apply = function apply(ctx) {
   // auto-open once per session (default on)
   ctx.effect(() => installAutoOpen(ctx, TAB_ID), 'dsh-file-activity: auto-open')
 }
+
+// Internal functions exposed for the render-path test suite only; inert in
+// the browser bundle (plain properties on the exports object).
+exports.__test = { loadFsReadContent, fsReadError, fetchTextContent, textUrlOf, strings }
