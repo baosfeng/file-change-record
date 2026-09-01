@@ -1,15 +1,18 @@
 /**
- * release-checks.mjs — 发版校验逻辑（issue #39：跨插件依赖校验）。
+ * release-checks.mjs — 发版校验逻辑（issue #39：跨插件依赖校验；issue #72：404 阻断 + server 端扫描）。
  *
  * 纯函数（无 IO，可单元测试）：
- *   extractDshRequires / findUndeclaredPeers / rangeMin / versionGte / findUnpublishedDeps
+ *   extractDshRequires / findUndeclaredPeers / rangeMin / versionGte / findUnpublishedDeps / isNpmNotFound
  * IO 辅助（依赖注入 fs 便于测试）：
- *   collectClientSources / buildPluginIndex / findFreePort
+ *   collectClientSources / collectServerSources / buildPluginIndex / findFreePort
  *
- * 校验规则（对应 issue #39 期望 1/3）：
- *   1. client 端 require('dsh-*') / import 的包必须在 package.json peerDependencies 声明；
+ * 校验规则（对应 issue #39 期望 1/3 + issue #72 修复）：
+ *   1. client/server 端 require('dsh-*') / import 的包必须在 package.json
+ *      peerDependencies 或 dependencies 声明；
  *   2. 声明的 dsh-* 依赖中属于本仓库插件的，必须已发布（npm）且版本已打 tag
- *      （<目录>@v<版本>）——依赖先发版、依赖方后发版。
+ *      （<目录>@v<版本>）——依赖先发版、依赖方后发版；
+ *   3. npm view 返回 404（包从未发布）必须阻断发版，不再被「已打 tag」兜底放行
+ *      （issue #72：dsh-shared 未发布 npm 但 tag 已打，4 个插件安装失败/运行崩溃）。
  */
 import { readdirSync, existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -44,6 +47,16 @@ export function versionGte(a, b) {
     if (x !== y) return x > y
   }
   return true
+}
+
+/**
+ * 判断 npm view 失败是否为「包未发布」（404 / E404）。
+ *
+ * issue #72：404 表示 npm 从未发布（依赖方安装/运行必然失败），必须阻断发版；
+ * 429 限流等临时错误可走「已打 tag」兜底（发布后可手动重试）。
+ */
+export function isNpmNotFound(stderr) {
+  return /E404|404\s+Not\s+Found/i.test(String(stderr ?? ''))
 }
 
 /**
@@ -89,6 +102,23 @@ export function collectClientSources(pluginDir) {
     }
   }
   return files
+}
+
+/**
+ * 收集 server 端源码文件：lib/*.js（排除 client.js / client.src.js 与 parts/ 子目录）。
+ *
+ * issue #72：跨插件依赖校验原先只扫 client 端（collectClientSources），
+ * server 端 import（如 `import ... from 'dsh-shared'`）漏检——dsh-shared
+ * 未发布 npm 时 4 个插件发版未被阻断。server 端源码是运行时 import 的
+ * 真实依赖，必须纳入扫描。
+ */
+export function collectServerSources(pluginDir) {
+  const libDir = join(pluginDir, 'lib')
+  if (!existsSync(libDir)) return []
+  return readdirSync(libDir)
+    .filter((f) => f.endsWith('.js') && f !== 'client.js' && f !== 'client.src.js')
+    .map((f) => join(libDir, f))
+    .sort()
 }
 
 /** 构建仓库内插件索引：Map<包名, { dir, version }>（包名取自 package.json name）。 */

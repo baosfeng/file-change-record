@@ -29,7 +29,7 @@ cordis.staged.json（候选区）
 
 ## 安装
 
-> 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-my-guardian`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。
+> 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-my-guardian`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。依赖 `dsh-shared`（server 端共享工具包）随 npm 自动安装，无需手动处理。
 
 ### 方式一：dsh plugin（推荐）
 

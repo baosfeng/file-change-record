@@ -1,8 +1,10 @@
 /**
- * release-checks.test.mjs — 发版校验纯函数单元测试（issue #39 跨插件依赖校验）。
+ * release-checks.test.mjs — 发版校验纯函数单元测试（issue #39 跨插件依赖校验；
+ * issue #72：server 端扫描 + npm 404 阻断）。
  *
  * 覆盖：extractDshRequires / findUndeclaredPeers / rangeMin / versionGte /
- * findUnpublishedDeps / collectClientSources / buildPluginIndex / findFreePort。
+ * isNpmNotFound / findUnpublishedDeps / collectClientSources / collectServerSources /
+ * buildPluginIndex / findFreePort。
  */
 import { describe, it, expect, afterAll } from 'vitest'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
@@ -13,8 +15,10 @@ import {
   findUndeclaredPeers,
   rangeMin,
   versionGte,
+  isNpmNotFound,
   findUnpublishedDeps,
   collectClientSources,
+  collectServerSources,
   buildPluginIndex,
   findFreePort,
 } from '../lib/release-checks.mjs'
@@ -95,6 +99,32 @@ describe('versionGte', () => {
     ['0.1.1', '0.1', true], // 缺位按 0
   ])('%s >= %s → %s', (a, b, expected) => {
     expect(versionGte(a, b)).toBe(expected)
+  })
+})
+
+// ── isNpmNotFound（issue #72：npm 404 必须阻断发版，不再被 tag 兜底放行）──
+describe('isNpmNotFound', () => {
+  it('npm 404（E404）→ true', () => {
+    expect(
+      isNpmNotFound('npm error code E404\nnpm error 404 Not Found - GET https://registry.npmjs.org/dsh-shared'),
+    ).toBe(true)
+  })
+
+  it('npm 404（404 Not Found）→ true', () => {
+    expect(isNpmNotFound('npm error 404 Not Found - GET https://registry.npmjs.org/dsh-shared')).toBe(true)
+  })
+
+  it('429 限流 → false（可 tag 兜底）', () => {
+    expect(isNpmNotFound('npm error code E429\nnpm error 429 Too Many Requests')).toBe(false)
+  })
+
+  it('网络错误 → false（可 tag 兜底）', () => {
+    expect(isNpmNotFound('npm error code ENETUNREACH\nnpm error network request to registry failed')).toBe(false)
+  })
+
+  it('空 stderr / undefined → false', () => {
+    expect(isNpmNotFound('')).toBe(false)
+    expect(isNpmNotFound(undefined)).toBe(false)
   })
 })
 
@@ -184,6 +214,37 @@ describe('collectClientSources', () => {
     const dir = join(tmp, 'p3')
     mkdirSync(join(dir, 'lib'), { recursive: true })
     expect(collectClientSources(dir)).toEqual([])
+  })
+})
+
+// ── collectServerSources（issue #72：server 端 import 纳入跨插件依赖扫描）──
+describe('collectServerSources', () => {
+  const tmp = mkdtempSync(join(tmpdir(), 'relsrv-'))
+  afterAll(() => rmSync(tmp, { recursive: true, force: true }))
+
+  it('收集 lib/*.js（排除 client.js / client.src.js 与 parts/ 子目录）', () => {
+    const dir = join(tmp, 'p1')
+    mkdirSync(join(dir, 'lib', 'parts'), { recursive: true })
+    writeFileSync(join(dir, 'lib', 'index.js'), '')
+    writeFileSync(join(dir, 'lib', 'routes.js'), '')
+    writeFileSync(join(dir, 'lib', 'client.js'), '')
+    writeFileSync(join(dir, 'lib', 'client.src.js'), '')
+    writeFileSync(join(dir, 'lib', 'parts', 'a.part.js'), '')
+    const files = collectServerSources(dir)
+    expect(files).toEqual([join(dir, 'lib', 'index.js'), join(dir, 'lib', 'routes.js')])
+  })
+
+  it('无 lib 目录 → 空数组', () => {
+    const dir = join(tmp, 'p2')
+    mkdirSync(dir, { recursive: true })
+    expect(collectServerSources(dir)).toEqual([])
+  })
+
+  it('lib 目录存在但无 .js 文件 → 空数组', () => {
+    const dir = join(tmp, 'p3')
+    mkdirSync(join(dir, 'lib'), { recursive: true })
+    writeFileSync(join(dir, 'lib', 'notes.txt'), '')
+    expect(collectServerSources(dir)).toEqual([])
   })
 })
 
