@@ -24,6 +24,7 @@ export const RESUME_GRACE_MS = 2000
 export const SAVE_DEBOUNCE_MS = 500
 export const SUMMARY_MAX_CHARS = 8000
 export const ASK_TIMEOUT_MS = 30 * 60 * 1000
+export const AUTOPILOT_GRACE_MS = 20 * 1000
 export const WATCHDOG_INTERVAL_MS = 5 * 60 * 1000
 export const STALL_TIMEOUT_MS = 10 * 60 * 1000
 

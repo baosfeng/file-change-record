@@ -231,11 +231,20 @@ function questionLine(first) {
   return line.length > 80 ? `${line.slice(0, 80)}…` : line
 }
 
+/**
+ * 拦截 `tools/pre-execute` 的 ask_user_question（autopilot 模式）。
+ *
+ * issue #79：默认（autopilotGraceMs > 0）不再立即 deny——ask 先正常展示给
+ * 用户，延迟决策（缓冲超时后 deny 语义）在 `tools/execute` 的
+ * handleToolExecute 中完成；仅当 autopilotGraceMs = 0（显式禁用缓冲）时
+ * 保持旧行为：立即 deny + 记录待确认。
+ */
 async function handlePreExecute(exec, next, shared) {
   if (exec === undefined || exec === null || exec.name !== 'ask_user_question') return next()
   const agent = exec.agent
   if (!isTopLevelAgent(agent)) return next()
   if (!autopilotFor(agent.id, shared)) return next()
+  if (shared.options.autopilotGraceMs > 0) return next()
   addQuestion(shared.store, agent.id, askNoteOf(exec.arguments))
   shared.save()
   return { kind: 'deny', reason: AUTOPILOT_DENY_REASON }
@@ -263,25 +272,41 @@ function simulatedAskAnswer(argumentsValue) {
 }
 
 /**
- * 包装 `tools/execute`：ask_user_question 启动空闲计时器（Promise.race），
- * 超时后记录待确认问题 + 注入继续指令 + 返回模拟回答，任务不挂起；用户
- * 回答时 next() 先 resolve，真实结果透传。
+ * 超时后的自动决策：记录待确认问题 + 注入继续指令 + 返回回答。
+ * autopilot 返回空回答（由模型自行决策，语义与 pre-execute deny 一致）；
+ * askTimeout 返回模拟回答（有推荐选项则选中第一个）。
  */
-async function handleToolExecute(exec, next, shared) {
-  if (exec === undefined || exec === null || exec.name !== 'ask_user_question') return next()
-  if (shared.options.askTimeoutMs <= 0) return next()
-  const agent = exec.agent
-  if (!isTopLevelAgent(agent)) return next()
-  const result = await Promise.race([next(), sleep(shared.options.askTimeoutMs).then(() => ASK_TIMEOUT)])
-  if (result !== ASK_TIMEOUT) return result
+function timeoutDecision(autopilot, exec, agent, shared) {
   addQuestion(shared.store, agent.id, askNoteOf(exec.arguments))
   shared.save()
   try {
-    agent.followup(userMessage(ASK_TIMEOUT_CONTINUE_TEXT))
+    agent.followup(userMessage(autopilot ? AUTOPILOT_DENY_REASON : ASK_TIMEOUT_CONTINUE_TEXT))
   } catch {
     // followup is best-effort; the simulated answer still unblocks the turn
   }
-  return simulatedAskAnswer(exec.arguments)
+  return autopilot ? { value: { answers: [] } } : simulatedAskAnswer(exec.arguments)
+}
+
+/**
+ * 包装 `tools/execute`：ask_user_question 启动空闲计时器（Promise.race），
+ * 超时后记录待确认问题 + 注入继续指令 + 返回模拟回答，任务不挂起；用户
+ * 回答时 next() 先 resolve，真实结果透传。
+ *
+ * issue #79：autopilot 模式下用 `autopilotGraceMs`（默认 20s）作为缓冲期
+ * 超时——缓冲期内用户可正常回答（透传），超时后才自动决策（记录待确认 +
+ * 注入「用户不在线，自行决策」指令 + 返回空回答由模型自行决策，语义与
+ * pre-execute deny 一致）；非 autopilot 模式沿用 `askTimeoutMs` 超时。
+ */
+async function handleToolExecute(exec, next, shared) {
+  if (exec === undefined || exec === null || exec.name !== 'ask_user_question') return next()
+  const agent = exec.agent
+  if (!isTopLevelAgent(agent)) return next()
+  const autopilot = autopilotFor(agent.id, shared)
+  const timeoutMs = autopilot ? shared.options.autopilotGraceMs : shared.options.askTimeoutMs
+  if (timeoutMs <= 0) return next()
+  const result = await Promise.race([next(), sleep(timeoutMs).then(() => ASK_TIMEOUT)])
+  if (result !== ASK_TIMEOUT) return result
+  return timeoutDecision(autopilot, exec, agent, shared)
 }
 
 // ── 注册 ───────────────────────────────────────────────────────────────────

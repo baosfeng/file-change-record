@@ -83,6 +83,8 @@ window.__ModuleLoader__.load({
       settingsSteerCooldownMsHint: () => (isZh() ? '两次自动继续之间的最小间隔' : 'Min interval between auto-continues'),
       settingsAskTimeoutMs: () => (isZh() ? 'ask 超时（毫秒）' : 'Ask timeout (ms)'),
       settingsAskTimeoutMsHint: () => (isZh() ? '询问用户超时后自动继续，问题记录待确认（0 = 禁用）' : 'Auto-continue after ask timeout, question queued (0 = disabled)'),
+      settingsAutopilotGraceMs: () => (isZh() ? '自主决策缓冲（毫秒）' : 'Autopilot grace (ms)'),
+      settingsAutopilotGraceMsHint: () => (isZh() ? '自主决策模式下 ask 先展示给用户，缓冲超时后才自动决策（0 = 立即拦截）' : 'Autopilot shows asks first; auto-decide after grace (0 = intercept immediately)'),
       settingsWatchdog: () => (isZh() ? '停滞看门狗' : 'Stall watchdog'),
       settingsWatchdogIntervalMs: () => (isZh() ? '看门狗检查间隔（毫秒）' : 'Watchdog interval (ms)'),
       settingsWatchdogIntervalMsHint: () => (isZh() ? '定期检查活动任务是否停滞（0 = 禁用）' : 'Periodic stall check (0 = disabled)'),
@@ -454,6 +456,7 @@ window.__ModuleLoader__.load({
         title: () => strings.settingsSecurity(),
         rows: [
           { label: () => strings.settingsAutopilot(), hint: () => strings.settingsAutopilotHint(), key: 'autopilot', fallback: false, switch: true },
+          { label: () => strings.settingsAutopilotGraceMs(), hint: () => strings.settingsAutopilotGraceMsHint(), key: 'autopilotGraceMs', fallback: 20000, numeric: true },
           { label: () => strings.settingsApiToken(), hint: () => strings.settingsApiTokenHint(), key: 'apiToken', fallback: '' },
         ],
       },

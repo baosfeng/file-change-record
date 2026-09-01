@@ -234,6 +234,7 @@ test('client bundle registers settings tab via slots and renders the config form
     resumeGraceMs: 1000,
     rateMaxActions: 20,
     askTimeoutMs: 900000,
+    autopilotGraceMs: 15000,
     watchdogIntervalMs: 120000,
     stallTimeoutMs: 300000,
   }
@@ -275,6 +276,7 @@ test('client bundle registers settings tab via slots and renders the config form
   assert.ok(joined.includes('Watchdog interval (ms)'), 'watchdogIntervalMs field rendered (issue #34)')
   assert.ok(joined.includes('Stall threshold (ms)'), 'stallTimeoutMs field rendered (issue #34)')
   assert.ok(joined.includes('Autopilot (default on)'), 'autopilot switch rendered')
+  assert.ok(joined.includes('Autopilot grace (ms)'), 'autopilotGraceMs field rendered (issue #79)')
   assert.ok(joined.includes('Remote trigger token'), 'apiToken field rendered')
   assert.ok(joined.includes('Save'), 'save button rendered')
 })
