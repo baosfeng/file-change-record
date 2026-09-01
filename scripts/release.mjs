@@ -2,7 +2,7 @@
 /**
  * Release automation for a plugin in this repo.
  *
- *   node scripts/release.mjs <plugin-name> [--bump patch|minor|major] [--push] [--skip-real-verify]
+ *   node scripts/release.mjs <plugin-name> [--bump patch|minor|major] [--push] [--skip-real-verify --skip-reason "<理由>"]
  *
  * Steps (dry-run by default; --push performs git commit + tag + push):
  *   1.  validate plugins/<name> exists and package.json version parses
@@ -12,8 +12,10 @@
  *   2.  validate CHANGELOG.md has a "## [<version>]" section at the top
  *   3.  run the plugin's tests (npm test)
  *   3b. validate README screenshot references under assets/
- *   3c. real-environment verification (issue #39): verify-real-profile.mjs
- *       --addons plugins/<name> (local only; CI / --skip-real-verify skip)
+ *   3c. real-environment verification (issue #39 + #67): verify-real-profile.mjs
+ *       --addons plugins/<name> --checklist verification/<name>-<version>.md
+ *       (local only; CI auto-skips; --skip-real-verify requires --skip-reason),
+ *       then gate on the functional checklist being fully checked (issue #67)
  *   4.  sync the version in root README.md plugin table and AGENTS.md
  *   5.  --push: commit doc sync, tag <name>@v<version>, push tag (triggers
  *       the release workflow), then verify Release + npm
@@ -41,6 +43,8 @@ const args = process.argv.slice(2)
 const name = args.find((a) => !a.startsWith('--'))
 const push = args.includes('--push')
 const skipRealVerify = args.includes('--skip-real-verify')
+const skipReasonIdx = args.indexOf('--skip-reason')
+const skipReason = skipReasonIdx >= 0 ? args[skipReasonIdx + 1] || '' : ''
 const bumpIdx = args.indexOf('--bump')
 const bump = bumpIdx >= 0 ? args[bumpIdx + 1] || '' : ''
 const BUMP_TYPES = new Set(['patch', 'minor', 'major'])
@@ -233,23 +237,42 @@ try {
   process.exit(1)
 }
 
-// 3c. 真实环境验证（issue #39）：发版前必须跑 verify-real-profile.mjs --addons
-// （真实 DSH 实例 + 配置组合检查），失败即阻断；CI 无生产 profile 自动跳过，
-// --skip-real-verify 显式跳过（仅限无法起真实实例的场景，如批量回归）。
+// 3c. 真实环境验证（issue #39 + #67）：发版前必须跑 verify-real-profile.mjs
+// --addons（真实 DSH 实例 + 配置组合检查），失败即阻断；CI 无生产 profile
+// 自动跳过。--skip-real-verify 显式跳过必须带 --skip-reason 记录理由
+// （issue #67 收紧：不允许无理由默认跳过）。
+// 验证通过后生成「发版前功能级验证清单」（--checklist），并校验功能级项
+// 全部勾选（--check）——未全勾选即阻断发版（issue #67 门禁）。
 const skipReal = skipRealVerify || process.env.GITHUB_ACTIONS === 'true' || process.env.DSH_SKIP_REAL_VERIFY === '1'
 if (skipReal) {
-  console.log('- 跳过真实环境验证（--skip-real-verify / CI / DSH_SKIP_REAL_VERIFY）')
+  if (skipRealVerify && skipReason === '') {
+    console.error('✗ --skip-real-verify 必须带 --skip-reason "<理由>" 显式记录跳过原因（issue #67）')
+    process.exit(1)
+  }
+  console.log(`- 跳过真实环境验证（${skipRealVerify ? `--skip-reason: ${skipReason}` : 'CI / DSH_SKIP_REAL_VERIFY'}）`)
 } else {
   const port = await findFreePort(3087)
+  const checklistPath = join(root, 'verification', `${name}-${version}.md`)
   console.log(`- 真实环境验证（verify-real-profile.mjs --addons plugins/${name} --port ${port}）…`)
   try {
-    execSync(`node scripts/verify-real-profile.mjs --addons plugins/${name} --port ${port}`, {
-      cwd: root,
-      stdio: 'inherit',
-    })
+    execSync(
+      `node scripts/verify-real-profile.mjs --addons plugins/${name} --port ${port} --checklist ${checklistPath} --plugin ${name} --version ${version}`,
+      { cwd: root, stdio: 'inherit' },
+    )
     console.log('✓ 真实环境验证通过（实例启动 + 配置组合 + 日志无错误）')
   } catch {
     console.error('✗ 真实环境验证失败 — 发版阻断。请先修复插件加载/配置问题，再重新发版')
+    process.exit(1)
+  }
+  // issue #67 门禁：功能级验证清单必须全部勾选（核心功能/易碎场景/client UI/插件联动）
+  console.log(`- 校验发版前功能级验证清单（${checklistPath}）…`)
+  try {
+    execSync(`node scripts/verify-real-profile.mjs --check ${checklistPath}`, { cwd: root, stdio: 'inherit' })
+    console.log('✓ 功能级验证清单全部勾选（发版前功能级验证完成）')
+  } catch {
+    console.error(
+      '✗ 功能级验证清单未全部勾选 — 发版阻断（issue #67）。请在隔离实例 + 真实浏览器中完成功能级验证后勾选清单，再重新发版',
+    )
     process.exit(1)
   }
 }

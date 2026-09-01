@@ -17,13 +17,23 @@
  *   node scripts/verify-real-profile.mjs [--profile web] [--port 3087]
  *        [--addons plugins/dsh-my-skill-manager]... [--api-path /my-skill-manager/api/list]...
  *        [--timeout 90] [--skip] [--keep] [--help]
+ *        [--checklist <path>] [--check <path>] [--plugin <name>] [--version <x.y.z>]
  *
  * 退出码：0 = 全部通过；1 = 任一环节失败。
+ *
+ * issue #67 增强（发版前功能级验证留痕）：
+ *   --checklist <path>  验证通过后生成「发版前功能级验证清单」Markdown 文件：
+ *                       自动验证项（配置组合/启动/日志/API）自动勾选 [x]，
+ *                       功能级验证项（核心功能/易碎场景/client UI/插件联动）
+ *                       留空 [ ] 待验证者（人工或 agent）在真实浏览器中验证后勾选。
+ *   --check <path>     校验清单文件：功能级验证项必须全部 [x]（供 release.mjs
+ *                       发版门禁调用；未全部勾选 → exit 1）。
+ *   --plugin/--version 写入清单头部（插件名与版本，便于留痕归档）。
  */
 import { spawn } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join, resolve, dirname } from 'node:path'
 
 // ── args ───────────────────────────────────────────────────────────────────
 const options = parseArgs(process.argv.slice(2))
@@ -42,6 +52,10 @@ function parseArgs(args) {
     skipWeb: false,
     keep: false,
     help: false,
+    checklist: null,
+    check: null,
+    plugin: '',
+    version: '',
   }
   for (let i = 0; i < args.length; i += 1) {
     const flag = args[i]
@@ -53,6 +67,10 @@ function parseArgs(args) {
     else if (flag === '--timeout') result.timeoutSec = Number(value())
     else if (flag === '--skip') result.skipWeb = true
     else if (flag === '--keep') result.keep = true
+    else if (flag === '--checklist') result.checklist = value()
+    else if (flag === '--check') result.check = value()
+    else if (flag === '--plugin') result.plugin = value()
+    else if (flag === '--version') result.version = value()
     else if (flag === '--help' || flag === '-h') result.help = true
     else {
       console.error(`[verify] unknown flag: ${flag}`)
@@ -72,7 +90,11 @@ function printHelp() {
       '  --api-path <path>  启动后对每个 path 做 GET 冒烟（可重复）\n' +
       '  --timeout <sec>    启动就绪超时（默认 90）\n' +
       '  --skip             只做配置组合检查（dump-config），不启动实例\n' +
-      '  --keep             失败/完成后保留临时目录（默认清理）\n',
+      '  --keep             失败/完成后保留临时目录（默认清理）\n' +
+      '  --checklist <path> 验证通过后生成发版前功能级验证清单（issue #67 留痕）\n' +
+      '  --check <path>     校验清单功能级项全部勾选（供 release.mjs 门禁；未全勾选 exit 1）\n' +
+      '  --plugin <name>    清单头部插件名（配合 --checklist）\n' +
+      '  --version <x.y.z>  清单头部版本号（配合 --checklist）\n',
   )
 }
 
@@ -145,6 +167,11 @@ async function httpStatus(port, path = '/') {
 }
 
 // ── 0. 前置校验 ────────────────────────────────────────────────────────────
+// --check 模式：只校验清单文件功能级项是否全部勾选（供 release.mjs 门禁调用）。
+if (options.check !== null) {
+  const ok = checkChecklist(options.check)
+  process.exit(ok ? 0 : 1)
+}
 if (!existsSync(realProfile)) {
   console.error(`[verify] profile 不存在: ${realProfile}`)
   process.exit(1)
@@ -301,6 +328,9 @@ for (const path of options.apiPaths) {
   }
 }
 
+// ── 5b. 验证清单留痕（issue #67）：自动项已勾选，功能级项待验证者勾选 ─────
+if (!failed) writeChecklist()
+
 // ── 6. 收尾 ────────────────────────────────────────────────────────────────
 if (!options.keep) {
   await cleanup()
@@ -328,4 +358,66 @@ async function cleanup() {
   }
   rmSync(simHome, { recursive: true, force: true })
   log('实例已停止，临时目录已清理')
+}
+
+// ── issue #67：发版前功能级验证清单（留痕） ────────────────────────────────
+// 自动验证项（脚本已执行且通过）自动勾选；功能级验证项（核心功能/易碎场景/
+// client UI/插件联动）留空待验证者（人工或 agent）在真实浏览器中验证后勾选。
+const CHECKLIST_TEMPLATE = (plugin, version, port) => `# 发版前功能级验证清单 — ${plugin}@${version}
+
+验证时间：${new Date().toISOString()}
+验证环境：隔离实例（端口 ${port}，复用生产 profile 配置组合，独立 DSH_HOME）
+
+## 自动验证项（verify-real-profile.mjs 自动执行）
+- [x] 配置组合唯一性（dump-config 无重复插件行 id）
+- [x] 实例启动就绪（HTTP 200）
+- [x] 启动日志无 error / duplicate 记录
+- [x] 插件 API 冒烟（--api-path 全部 200）
+
+## 功能级验证项（需在隔离实例 + 真实浏览器中验证后勾选）
+- [ ] 核心功能走通（插件主功能在真实 GUI 中可用）
+- [ ] 易碎场景（重启恢复 / 会话隔离 / 持久化）
+- [ ] client UI 正常（侧边栏页签 / 设置页 / 交互）
+- [ ] 插件间联动不崩（与相邻插件共存）
+- [ ] 验证后环境已清理（实例停止 / 临时目录删除 / 端口释放）
+
+> 说明：功能级项由验证者（人工或 agent）在真实浏览器中逐项验证后，将 [ ] 改为 [x]。
+> release.mjs 发版门禁会校验本清单功能级项全部勾选，未全勾选将阻断发版（issue #67）。
+`
+
+/** 生成验证清单文件（自动项已勾选，功能级项待勾选）。 */
+function writeChecklist() {
+  if (options.checklist === null) return
+  const plugin = options.plugin || (options.addons.length > 0 ? options.addons[0].split('/').pop() : 'unknown')
+  const version = options.version || 'x.y.z'
+  const text = CHECKLIST_TEMPLATE(plugin, version, options.port)
+  mkdirSync(dirname(options.checklist), { recursive: true })
+  writeFileSync(options.checklist, text, 'utf8')
+  log(`验证清单已生成: ${options.checklist}（功能级项待验证后勾选）`)
+}
+
+/** 校验清单文件：功能级验证项必须全部 [x]（供 release.mjs 门禁调用）。 */
+function checkChecklist(path) {
+  if (!existsSync(path)) {
+    console.error(`[verify] ✗ 验证清单不存在: ${path}（发版前必须先跑 verify-real-profile.mjs --checklist）`)
+    return false
+  }
+  const text = readFileSync(path, 'utf8')
+  const lines = text.split('\n')
+  const pending = []
+  let inFunctional = false
+  for (const line of lines) {
+    if (line.startsWith('## 功能级验证项')) inFunctional = true
+    else if (line.startsWith('## ')) inFunctional = false
+    if (!inFunctional) continue
+    const m = /^- \[( |x)\] (.+)$/.exec(line.trim())
+    if (m !== null && m[1] !== 'x') pending.push(m[2])
+  }
+  if (pending.length > 0) {
+    console.error(`[verify] ✗ 功能级验证项未全部勾选（${pending.length} 项待验证）:`)
+    for (const item of pending) console.error(`[verify]   - ${item}`)
+    return false
+  }
+  console.log(`[verify] ✓ 验证清单全部勾选: ${path}`)
+  return true
 }
