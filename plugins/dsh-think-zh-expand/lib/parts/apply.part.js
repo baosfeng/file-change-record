@@ -12,29 +12,28 @@
 // 仅保留本插件职责相关样式（assistant 容器 / 思考块 / 已停止标记）；
 // MarkdownView 的渲染样式（.tzx-md 系列）已随 issue #31 迁移至
 // dsh-md-render（其 styles.part.js 注入）。
-// 视觉基线：与 DSH 官方 reasoning 渲染一致（浅灰缩进文本行、无卡片/无
-// 徽章/无动画）；issue #54 的卡片化翻新（圆角/边框/背景、clock 图标、
-// 「生成中」徽章、脉冲/入场动画）已按用户要求回退，仅保留类名前缀。
-// issue #57 修复：思考正文经 MarkdownView 渲染后其根容器 .tzx-md 自带
-// primary 色，覆盖思考块浅灰继承色导致区分不开；补 think-body 内的
-// .tzx-md / 表格 / 公式颜色覆盖（见 STYLES 内注释）。
+// 视觉基线（issue #73 用户要求）：与 DSH 官方 ReasoningRow 完全一致——
+// 头部 DisclosureRow 结构（leading 图标区 + 标题 + separator + 摘要），
+// 正文 thinkBody 样式（tertiary 色、22px 缩进、14px/24px）；issue #54 的
+// 卡片化翻新（圆角/边框/背景、clock 图标、「生成中」徽章、脉冲/入场动画）
+// 已按用户要求回退，仅保留类名前缀。issue #57 的思考正文浅灰覆盖规则
+// （.tzx-md / 表格 / 公式拉回 label-tertiary）已按用户要求移除：思考正文
+// 经 MarkdownView 渲染后颜色跟随其官方默认（与正式回复一致的 primary）。
 const STYLES = `
-.dsh-think-zh-expand-assistant{display:flex;flex-direction:column;gap:16px;color:var(--dsw-alias-label-primary);font-size:16px;line-height:28px}
+.dsh-think-zh-expand-assistant{display:flex;flex-direction:column;color:var(--dsw-alias-label-primary);font-size:16px;line-height:28px}
 .dsh-think-zh-expand-assistant-body{display:flex;flex-direction:column;gap:16px}
-.dsh-think-zh-expand-think{display:flex;flex-direction:column;color:var(--dsw-alias-label-tertiary)}
-.dsh-think-zh-expand-think-head{display:flex;align-items:center;gap:8px;min-width:0;cursor:pointer;user-select:none;padding:2px 0;border-radius:6px}
-.dsh-think-zh-expand-think-head:hover{background:var(--dsw-alias-interactive-bg-hover)}
-.dsh-think-zh-expand-think-chevron{flex:none;color:var(--dsw-alias-label-secondary);font-size:12px}
-.dsh-think-zh-expand-think-title{flex:none;font-size:14px;font-weight:400;color:var(--dsw-alias-label-secondary)}
+.dsh-think-zh-expand-think{display:flex;flex-direction:column;width:100%;min-width:0}
+.dsh-think-zh-expand-think-head{position:relative;overflow:hidden;display:flex;align-items:center;height:24px;min-width:0;cursor:pointer;user-select:none}
+.dsh-think-zh-expand-think-leading{position:relative;flex:none;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;margin-right:6px;padding:0;border:none;background:none;color:var(--dsw-alias-label-tertiary);cursor:pointer}
+.dsh-think-zh-expand-think-icon{display:inline-flex;opacity:1;transition:opacity .1s ease}
+.dsh-think-zh-expand-think-head:hover .dsh-think-zh-expand-think-icon{opacity:0}
+.dsh-think-zh-expand-think-chevron{display:inline-flex;color:var(--dsw-alias-label-secondary)}
+.dsh-think-zh-expand-think-chevron-hover{position:absolute;top:0;right:0;bottom:0;left:0;margin:auto;opacity:0;transition:opacity .1s ease}
+.dsh-think-zh-expand-think-head:hover .dsh-think-zh-expand-think-chevron-hover{opacity:1}
+.dsh-think-zh-expand-think-title{flex:none;font-size:14px;line-height:24px;color:var(--dsw-alias-label-secondary)}
+.dsh-think-zh-expand-think-separator{background:var(--dsw-alias-label-caption);border-radius:1px;flex:none;width:2px;height:2px;margin:0 8px}
 .dsh-think-zh-expand-think-summary{min-width:0;color:var(--dsw-alias-label-tertiary);text-overflow:ellipsis;white-space:nowrap;flex:auto;font-size:14px;line-height:24px;overflow:hidden}
-.dsh-think-zh-expand-think-body{white-space:pre-wrap;word-break:break-word;padding:4px 0 4px 24px;font-size:14px;line-height:24px;color:var(--dsw-alias-label-tertiary)}
-/* issue #57: MarkdownView 根容器自带 label-primary，覆盖思考块浅灰继承色；
-   显式把思考块内的正文/表格/公式拉回浅灰，与正式回复（primary）一眼区分 */
-.dsh-think-zh-expand-think-body .tzx-md{color:var(--dsw-alias-label-tertiary)}
-.dsh-think-zh-expand-think-body .tzx-md .tzx-p{color:var(--dsw-alias-label-tertiary)}
-.dsh-think-zh-expand-think-body .dsh-md-render-table{color:var(--dsw-alias-label-tertiary)}
-.dsh-think-zh-expand-think-body .dsh-md-render-table th,.dsh-think-zh-expand-think-body .dsh-md-render-table td{border-color:var(--dsw-alias-border-l2)}
-.dsh-think-zh-expand-think-body .dsh-md-render-math,.dsh-think-zh-expand-think-body .dsh-md-render-math-block{color:var(--dsw-alias-label-tertiary)}
+.dsh-think-zh-expand-think-body{white-space:pre-wrap;word-break:break-word;padding:4px 0 4px 22px;font-size:14px;line-height:24px;color:var(--dsw-alias-label-tertiary)}
 .dsh-think-zh-expand-stopped{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-tertiary);border-radius:6px;align-self:flex-start;padding:0 6px;font-size:11px;line-height:18px}
     `
 
