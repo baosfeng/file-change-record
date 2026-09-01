@@ -372,12 +372,14 @@ function checklistTemplate(plugin, version, port) {
 验证环境：隔离实例（端口 ${port}，复用生产 profile 配置组合，独立 DSH_HOME）
 
 ## 自动验证项（verify-real-profile.mjs 自动执行）
+
 - [x] 配置组合唯一性（dump-config 无重复插件行 id）
 - [x] 实例启动就绪（HTTP 200）
 - [x] 启动日志无 error / duplicate 记录
 - [x] 插件 API 冒烟（--api-path 全部 200）
 
 ## 功能级验证项（需在隔离实例 + 真实浏览器中验证后勾选）
+
 - [ ] 核心功能走通（插件主功能在真实 GUI 中可用）
 - [ ] 易碎场景（重启恢复 / 会话隔离 / 持久化）
 - [ ] client UI 正常（侧边栏页签 / 设置页 / 交互）
