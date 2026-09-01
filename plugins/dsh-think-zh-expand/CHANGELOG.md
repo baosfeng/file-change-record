@@ -2,6 +2,16 @@
 
 本文件记录 dsh-think-zh-expand 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.6] - 2026-09-01
+
+### 变更
+
+- fix(think-zh-expand): #73 思考块样式完全回官方默认（ReasoningRow） (#98)
+- chore(release): dsh-think-zh-expand v0.4.5（自动 bump patch + CHANGELOG 生成）
+- Merge branch 'issue-57-think-visual-rollback'
+- fix(ui): dsh-think-zh-expand 思考正文浅灰区分——覆盖 MarkdownView 的 primary 色，思考/非思考一眼可辨（issue #57）
+- fix(ui): dsh-think-zh-expand 思考块视觉回退官方基线——撤销 issue #54 卡片化翻新
+
 ## [0.4.5] - 2026-08-31
 
 ### 变更
