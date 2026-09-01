@@ -2,11 +2,11 @@
 
 本文件记录 dsh-notify 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [0.3.5] - 2026-09-01
 
 ### 变更
 
-- feat(sound): 提示音音量可配置——默认峰值增益 0.18 → 0.6，新增 `dsh-notify:volume`（localStorage 0~1，默认 0.6）+ 设置页音量滑杆（issue #71）
+- feat(notify): #71 提示音音量可配置——默认增益 0.18→0.6，新增 dsh-notify:volume + 设置页音量滑杆
 
 ## [0.3.4] - 2026-09-01
 
