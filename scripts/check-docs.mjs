@@ -101,8 +101,9 @@ for (const entry of readdirSync(join(root, 'plugins'))) {
   if (!existsSync(join(root, 'docs', module, '概述.md'))) {
     errors.push(`✗ docs/${module}/概述.md 不存在`)
   }
-  // 3. 安装章节含 npm 方式（agent preset 除外）
-  if (npm) {
+  // 3. 安装章节含 npm 方式（agent preset 除外；共享工具包 dsh.kind=library 豁免——
+  //    非 DSH 插件，无 cordis.patch.yml，`dsh plugin add` 不适用，随依赖方自动安装）
+  if (npm && pkg.dsh?.kind !== 'library') {
     const plugReadme = readFileSync(join(root, 'plugins', entry, 'README.md'), 'utf8')
     if (!plugReadme.includes(`dsh plugin --profile web add ${npm}`)) {
       errors.push(`✗ plugins/${entry}/README.md 安装章节缺少 npm 方式（dsh plugin --profile web add ${npm}）`)

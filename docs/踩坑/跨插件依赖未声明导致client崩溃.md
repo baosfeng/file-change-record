@@ -22,8 +22,8 @@ status: 已解决
 
 1. **修复声明**：`dsh-think-zh-expand/package.json` 的 `peerDependencies` 补声明 `"dsh-md-render": "^0.1.1"`；
 2. **发版流程强制校验**（`scripts/release.mjs` 步骤 1c，纯函数在 `scripts/lib/release-checks.mjs`）：
-   - 扫描 client 端源码 `require('dsh-*')` / `import` 的包 → 必须在 `peerDependencies` 声明；
-   - 声明的仓库内 dsh-* 依赖必须已发布（`npm view`）且已打 tag（`<目录>@v<版本>`）——**依赖先发版、依赖方后发版**；
+   - 扫描 client/server 端源码 `require('dsh-*')` / `import` 的包 → 必须在 `peerDependencies` 或 `dependencies` 声明（issue #72：扫描范围从 client 端扩展到 server 端——dsh-shared 是 server 端运行时 import 的，原先漏检）；
+   - 声明的仓库内 dsh-* 依赖必须已发布（`npm view`）且已打 tag（`<目录>@v<版本>`）——**依赖先发版、依赖方后发版**；npm view 返回 404（从未发布）直接阻断，不再被「已打 tag」兜底放行（issue #72）；
 3. **真实环境验证强制**（`scripts/release.mjs` 步骤 3c）：发版前自动跑 `verify-real-profile.mjs --addons plugins/<名>`，失败即阻断；CI 无生产 profile 自动跳过，本地 `--skip-real-verify` 显式跳过。
 
 ## 防复发

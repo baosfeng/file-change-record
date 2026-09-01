@@ -9,8 +9,8 @@
  *    writePatchConfig — 配置持久化（cordis.patch.yml YAML 子集读写）
  *
  * 由各插件 lib/fence.js、lib/http.js、lib/config-store.js 抽取合并
- * （issue #45），消除多插件间复制粘贴；依赖方在 peerDependencies
- * 声明 dsh-shared（依赖先发版）。
+ * （issue #45），消除多插件间复制粘贴；依赖方在 dependencies
+ * 声明 dsh-shared（issue #72：npm 随插件安装自动安装，依赖先发版）。
  */
 export { isTrustedApiRequest, header } from './fence.js'
 export { readJsonBody, writeJson, writeError } from './http.js'

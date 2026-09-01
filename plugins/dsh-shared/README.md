@@ -13,9 +13,7 @@ DSH 插件共享工具包：多插件共用的 server 端工具，消除复制�
 
 ## 安装
 
-```bash
-dsh plugin --profile web add dsh-shared
-```
+`dsh-shared` 是纯工具库（`dsh.kind=library`，非 DSH 插件，无 `cordis.patch.yml`），**无需单独安装**——依赖方在 `dependencies` 声明后由 npm 自动安装（issue #72：依赖随插件安装自动安装，用户无需手动处理）。
 
 ## 使用
 
@@ -32,11 +30,11 @@ writeJson(response, 200, { ok: true })
 
 ## 依赖方
 
-依赖本包的插件须在 `peerDependencies` 声明 `dsh-shared`（依赖先发版，见 `scripts/release.mjs` 跨插件依赖校验）：
+依赖本包的插件须在 `dependencies` 声明 `dsh-shared`（issue #72：dsh-shared 是自家工具库而非宿主提供的运行时，用 dependencies 语义——npm 随插件安装自动安装，用户无需手动装；依赖先发版，见 `scripts/release.mjs` 跨插件依赖校验）：
 
 ```json
 {
-  "peerDependencies": {
+  "dependencies": {
     "dsh-shared": "^0.1.0"
   }
 }

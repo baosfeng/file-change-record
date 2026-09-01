@@ -69,7 +69,7 @@ curl -X POST http://127.0.0.1:3080/notify/api/trigger \
 
 ## 安装
 
-> 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-my-notify`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。
+> 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-my-notify`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。依赖 `dsh-shared`（server 端共享工具包）随 npm 自动安装，无需手动处理。
 
 ```bash
 # 1) 克隆本仓库（任意目录）
@@ -107,10 +107,11 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-my-notify
 
 ## 依赖
 
-| 依赖                             | 用途                       | 可选           |
-| -------------------------------- | -------------------------- | -------------- |
-| `cordis`                         | 插件运行时                 | 是（宿主提供） |
-| `@deepseek-ai/dsh-session-title` | 会话标题读取（缺失时回退） | 是             |
+| 依赖                             | 用途                                                     | 可选               |
+| -------------------------------- | -------------------------------------------------------- | ------------------ |
+| `cordis`                         | 插件运行时                                               | 是（宿主提供）     |
+| `@deepseek-ai/dsh-session-title` | 会话标题读取（缺失时回退）                               | 是                 |
+| `dsh-shared`                     | server 端共享工具包（信任围栏 / HTTP JSON / 配置持久化） | 否（npm 自动安装） |
 
 ## 限制与说明
 

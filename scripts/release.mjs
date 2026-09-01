@@ -31,10 +31,12 @@ import {
   findUndeclaredPeers,
   findUnpublishedDeps,
   collectClientSources,
+  collectServerSources,
   buildPluginIndex,
   findFreePort,
   versionGte,
   rangeMin,
+  isNpmNotFound,
 } from './lib/release-checks.mjs'
 import { verifyPostRelease } from './lib/post-release.mjs'
 
@@ -171,32 +173,57 @@ if (isLibrary) {
   console.log(`✓ peerDependencies.cordis ^${cordisMajor} 已声明且与其他插件一致`)
 }
 
-// 1c. 跨插件依赖校验（issue #39）：client require('dsh-*') 必须声明 peerDependencies；
-// 仓库内 dsh-* 依赖必须已发布且已打 tag（依赖先发版）。
+// 1c. 跨插件依赖校验（issue #39 + #72）：client/server 端 require('dsh-*') 必须声明
+// （peerDependencies 或 dependencies）；仓库内 dsh-* 依赖必须已发布且已打 tag
+// （依赖先发版）。issue #72：扫描范围覆盖 server 端 import（dsh-shared 是 server 端
+// 运行时依赖，原先只扫 client 端漏检）；声明检查覆盖 dependencies（dsh-shared 从
+// peerDependencies 移到 dependencies 后由 npm 自动安装）。
 const clientSources = collectClientSources(pluginDir)
-const requires = extractDshRequires(clientSources.map((f) => readFileSync(f, 'utf8')).join('\n'))
-const undeclared = findUndeclaredPeers(requires, peers)
+const serverSources = collectServerSources(pluginDir)
+const allSources = [...clientSources, ...serverSources]
+const requires = extractDshRequires(allSources.map((f) => readFileSync(f, 'utf8')).join('\n'))
+const declared = { ...(pkg.peerDependencies || {}), ...(pkg.dependencies || {}) }
+const undeclared = findUndeclaredPeers(requires, declared)
 if (undeclared.length > 0) {
-  console.error(`✗ client 端 require 了以下 dsh-* 包但未在 peerDependencies 声明: ${undeclared.join(', ')}`)
-  console.error(`  修复: 在 plugins/${name}/package.json 的 peerDependencies 中声明（如 "dsh-md-render": "^0.1.1"）`)
+  console.error(`✗ 源码 require 了以下 dsh-* 包但未在 peerDependencies/dependencies 声明: ${undeclared.join(', ')}`)
+  console.error(
+    `  修复: 在 plugins/${name}/package.json 的 peerDependencies 或 dependencies 中声明（如 "dsh-shared": "^0.1.0"）`,
+  )
   process.exit(1)
 }
-if (requires.length > 0) console.log(`✓ client 端跨插件依赖已声明: ${requires.join(', ')}`)
+if (requires.length > 0) console.log(`✓ 跨插件依赖已声明: ${requires.join(', ')}`)
 
 const pluginIndex = buildPluginIndex(root)
+// 仓库内 library 依赖（dsh.kind=library，如 dsh-shared）：运行时 import 的共享工具包，
+// npm 未发布 = 依赖方安装失败，必须确认 npm 发布成功才放行（不允许 tag 兜底）。
+const isLibraryDep = (dir) => {
+  try {
+    const pkg = JSON.parse(readFileSync(join(root, 'plugins', dir, 'package.json'), 'utf8'))
+    return pkg.dsh?.kind === 'library'
+  } catch {
+    return false
+  }
+}
 const isPublished = (dep, range) => {
   const min = rangeMin(range)
   if (!min) return false
   try {
     // CodeQL js/shell-command-injection-from-environment 修复：dep 来自
-    // peerDependencies 键（外部输入），execFileSync 参数数组不经过 shell
+    // peerDependencies/dependencies 键（外部输入），execFileSync 参数数组不经过 shell
     return versionGte(execFileSync('npm', ['view', dep, 'version'], { encoding: 'utf8' }).trim(), min)
-  } catch {
-    // npm 未发布（如 429 限流）：仓库内依赖（pluginIndex）认可「已打 tag」——
+  } catch (err) {
+    // 404（npm 从未发布）→ 必须阻断：依赖方安装/运行必然失败（issue #72）。
+    if (isNpmNotFound(err?.stderr)) return false
+    // 429 限流等临时错误：仓库内依赖（pluginIndex）认可「已打 tag」——
     // tag push 必触发 Release workflow，GitHub Release 为仓库主交付物（issue #12）；
     // npm 发布失败不阻塞依赖顺序校验（发布后可手动重试）。
     const entry = pluginIndex.get(dep)
-    if (entry !== undefined && isTagged(entry.dir, entry.version)) return true
+    if (entry !== undefined && isTagged(entry.dir, entry.version)) {
+      // 但 library 依赖（dsh.kind=library）是运行时 import 的共享工具包：
+      // npm 未发布 = 依赖方安装失败，必须确认 npm 发布成功才放行（issue #72）。
+      if (isLibraryDep(entry.dir)) return false
+      return true
+    }
     return false
   }
 }
@@ -210,13 +237,13 @@ const isTagged = (dir, version) => {
     return false
   }
 }
-const depProblems = findUnpublishedDeps(peers, pluginIndex, isPublished, isTagged)
+const depProblems = findUnpublishedDeps(declared, pluginIndex, isPublished, isTagged)
 if (depProblems.length > 0) {
   for (const p of depProblems) console.error(`✗ ${p.reason}`)
   console.error('  修复: 先发版依赖包（node scripts/release.mjs <依赖目录> --push），再发本插件')
   process.exit(1)
 }
-const inRepoDeps = Object.keys(peers).filter((d) => pluginIndex.has(d))
+const inRepoDeps = Object.keys(declared).filter((d) => pluginIndex.has(d))
 if (inRepoDeps.length > 0)
   console.log(`✓ 仓库内 dsh-* 依赖均已发布且已打 tag（发布顺序正确）: ${inRepoDeps.join(', ')}`)
 
