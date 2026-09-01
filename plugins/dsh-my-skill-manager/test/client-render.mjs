@@ -4,6 +4,10 @@
  * settings tab through a mocked slots service, then invokes the view
  * component to verify the global/project sections, disabled badges and the
  * toggle→PUT wiring.
+ *
+ * issue #69: 断言新结构——标题区（唯一刷新按钮）、分段控件（全局|当前项目，
+ * 项目 tab 仅会话 cwd 非空时出现）、状态 chip（文字+颜色双编码）、来源/未收录
+ * 弱化为 meta 小字、诊断折叠条；路径输入框/加载按钮已移除。
  */
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
@@ -36,16 +40,24 @@ const stubbed = {
     }
     return hookValues.get(idx)
   },
-  useEffect: (() => {
-    let ran = false
-    return (fn) => {
-      if (!ran) {
-        ran = true
-        fn()
-      }
+  useEffect: (fn) => {
+    if (!effectState.ran) {
+      effectState.ran = true
+      fn()
     }
-  })(),
+  },
 }
+/** useEffect 只跑一次（模拟真实组件挂载）；测试可重置以模拟重新挂载。 */
+const effectState = { ran: false }
+
+/**
+ * SkillManagerView 的 useState 数量（data/view/sessionCwd/loading/error/saved）。
+ * 辅助函数（walkText/collectByClass/collectButtons）展开函数组件时会消耗全局
+ * hookIndex——若不重置，DiagnosticsBlock 的 useState 会被分配多个影子索引，
+ * 点击的 setter 与渲染读取的索引错位（issue #69 测试实测）。展开时重置为
+ * 真实渲染的继续位置，保证每次展开复用同一索引。
+ */
+const VIEW_HOOK_COUNT = 6
 
 /** Render the tab component once (hooks restart at index 0 each render). */
 function renderView() {
@@ -64,6 +76,13 @@ global.window = {
   location: { href: 'http://127.0.0.1:3080/app', search: '' },
 }
 Object.defineProperty(global, 'navigator', { value: { language: 'zh-CN' }, configurable: true })
+
+/** 可配置的 localStorage：dsh.sessions.current 返回测试设定的会话。 */
+let storedSession = null
+global.localStorage = {
+  getItem: (key) => (key === 'dsh.sessions.current' ? storedSession : null),
+  setItem: () => {},
+}
 
 const fetchCalls = []
 let cannedResponses = []
@@ -139,7 +158,10 @@ function walkText(node, out) {
     return
   }
   if (typeof node.type === 'function') {
+    const saved = hookIndex
+    hookIndex = VIEW_HOOK_COUNT
     walkText(node.type(node.props), out)
+    hookIndex = saved
     return
   }
   walkText(node.props.children, out)
@@ -150,7 +172,7 @@ assert.ok(texts0.join('|').includes('加载中'), 'initial render shows the load
 // await the fetch microtasks so setData lands in the stub hook
 await new Promise((resolve) => setTimeout(resolve, 0))
 
-// ── re-render: catalog branch ──────────────────────────────────────────────
+// ── re-render: catalog branch (global view, no session) ────────────────────
 const tree2 = renderView()
 const texts = []
 walkText(tree2, texts)
@@ -161,64 +183,41 @@ assert.equal(countSections(tree2), 1, 'global view renders exactly one section (
 assert.ok(joined.includes('web-search'), 'skill name rendered')
 assert.ok(joined.includes('codebase-memory'), 'second skill rendered')
 assert.ok(joined.includes('网络搜索'), 'skill description rendered')
-assert.ok(joined.includes('已禁用'), 'disabled badge rendered for web-search')
-assert.ok(joined.includes('启用'), 'enabled badge rendered for codebase-memory')
+assert.ok(joined.includes('已禁用'), 'disabled chip rendered for web-search')
+assert.ok(joined.includes('启用'), 'enabled chip rendered for codebase-memory')
+assert.ok(joined.includes('全局（user-dsh）'), 'source note rendered in meta line')
+assert.ok(joined.includes('项目（project-dsh）'), 'project source note rendered in meta line')
 
 const listCall = fetchCalls[0]
 assert.ok(listCall.url.startsWith('/my-skill-manager/api/list'), 'initial list fetch')
-assert.equal(fetchCalls.length, 1, 'only the initial list call so far')
+assert.equal(fetchCalls.length, 1, 'only the initial list call so far (no session → no /session call)')
+
+// ── issue #69: no path input / no load button; single refresh action ───────
+const inputs = []
+collectByClass(tree2, 'dsh-my-skill-manager-path-input', inputs)
+assert.equal(inputs.length, 0, 'path input removed (issue #69)')
+const buttons = []
+collectButtons(tree2, buttons)
+assert.ok(!buttons.some((b) => b.label.includes('加载')), 'load button removed (issue #69)')
+const refreshBtn = buttons.find((b) => b.label.includes('刷新'))
+assert.ok(refreshBtn, 'refresh button rendered (the only action)')
+
+// ── issue #69: segmented control — global on, no project tab (no cwd) ─────
+const segs = []
+collectByClass(tree2, 'dsh-my-skill-manager-seg', segs)
+assert.equal(segs.length, 1, 'only the global segment without a session cwd')
+assert.equal(segs[0].props['aria-pressed'], true, 'global segment active by default')
+assert.equal(segs[0].props.children, '全局', 'global segment label')
+
+// ── issue #69: state chips (text + color double encoding) ──────────────────
+const chips = []
+collectByClass(tree2, 'dsh-my-skill-manager-chip', chips)
+assert.equal(chips.length, 2, 'one chip per skill row')
+const chipOn = chips.filter((c) => c.props.className.includes('dsh-my-skill-manager-chip-on'))
+assert.equal(chipOn.length, 1, 'enabled skill carries the on-chip')
 
 // ── toggle: click the global enable toggle of codebase-memory ─────────────
-const toggles = []
-function collectButtons(node) {
-  if (node === null || typeof node !== 'object') return
-  const props = node.props ?? {}
-  if (typeof props.onClick === 'function' && typeof props['aria-label'] === 'string') {
-    toggles.push({ label: props['aria-label'], onClick: props.onClick })
-  }
-  if (Array.isArray(node)) {
-    for (const c of node) collectButtons(c)
-    return
-  }
-  if (typeof node.type === 'function') {
-    collectButtons(node.type(node.props))
-    return
-  }
-  collectButtons(props.children)
-}
-
-/** Count rendered `.dsh-my-skill-manager-section` blocks (global view = 1, project view = 1). */
-function countSections(node) {
-  if (node === null || typeof node !== 'object') return 0
-  const props = node.props ?? {}
-  let count = props.className === 'dsh-my-skill-manager-section' ? 1 : 0
-  if (Array.isArray(node)) {
-    for (const c of node) count += countSections(c)
-    return count
-  }
-  if (typeof node.type === 'function') return count + countSections(node.type(node.props))
-  return count + countSections(props.children)
-}
-
-/** Collect the path input element props (className dsh-my-skill-manager-path-input). */
-function collectInputs(node, out) {
-  if (node === null || typeof node !== 'object') return
-  const props = node.props ?? {}
-  if (props.className === 'dsh-my-skill-manager-path-input') out.push(props)
-  if (Array.isArray(node)) {
-    for (const c of node) collectInputs(c, out)
-    return
-  }
-  if (typeof node.type === 'function') {
-    collectInputs(node.type(node.props), out)
-    return
-  }
-  collectInputs(props.children, out)
-}
-collectButtons(tree2)
-const loadBtn2 = toggles.find((t) => t.label.includes('加载'))
-assert.ok(loadBtn2, 'load button rendered')
-const toggle = toggles.find((t) => t.label.includes('codebase-memory') && t.label.includes('启用'))
+const toggle = buttons.find((t) => t.label.includes('codebase-memory') && t.label.includes('启用'))
 assert.ok(toggle, 'toggle for the enabled skill found')
 
 cannedResponses.push({ ok: true }) // PUT response
@@ -235,8 +234,6 @@ assert.deepEqual(payload.disabled, ['web-search', 'codebase-memory'], 'disabled 
 assert.equal(payload.cwd, '', 'global scope saves without cwd')
 
 // ── refresh button: click triggers a rescan fetch and shows new skills ─────
-const refreshBtn = toggles.find((t) => t.label.includes('刷新'))
-assert.ok(refreshBtn, 'refresh button rendered')
 cannedResponses.push({
   ok: true,
   value: {
@@ -278,25 +275,58 @@ const texts3 = []
 walkText(tree3, texts3)
 const joined3 = texts3.join('|')
 assert.ok(joined3.includes('dsh-issue-request'), 'new skill visible after rescan')
-assert.ok(joined3.includes('未收录'), 'not-cataloged badge rendered')
-assert.ok(joined3.includes('扫描诊断'), 'diagnostics section rendered after rescan')
-assert.ok(joined3.includes('ego-browser'), 'missing entry name rendered')
-assert.ok(joined3.includes('符号链接'), 'missing entry reason rendered')
+assert.ok(joined3.includes('未收录'), 'not-cataloged note rendered in meta line')
+assert.ok(joined3.includes('扫描诊断'), 'diagnostics bar rendered after rescan')
+assert.ok(!joined3.includes('ego-browser'), 'diagnostics body hidden while collapsed')
 
-// ── project view: load a project path, only the project section renders ────
-const inputProps = []
-collectInputs(tree3, inputProps)
-assert.equal(inputProps.length, 1, 'path input rendered')
-inputProps[0].onChange({ target: { value: '/proj' } })
+// ── issue #69: diagnostics is a collapsible bar (closed by default) ────────
+const diagBars = []
+collectByClass(tree3, 'dsh-my-skill-manager-diag-bar', diagBars)
+assert.equal(diagBars.length, 1, 'diagnostics bar rendered')
+assert.equal(diagBars[0].props['aria-expanded'], false, 'diagnostics collapsed by default')
+const diagBodies = []
+collectByClass(tree3, 'dsh-my-skill-manager-diag-body', diagBodies)
+assert.equal(diagBodies.length, 0, 'diagnostics body hidden while collapsed')
+console.log('DBG hookValues[6] before click:', JSON.stringify(hookValues.get(6)?.[0]))
+diagBars[0].props.onClick()
+console.log('DBG hookValues[6] after click:', JSON.stringify(hookValues.get(6)?.[0]))
+const tree3b = renderView()
+console.log('DBG hookIndex after render:', hookIndex)
+const diagBodies2 = []
+collectByClass(tree3b, 'dsh-my-skill-manager-diag-body', diagBodies2)
+assert.equal(diagBodies2.length, 1, 'diagnostics body expands on click')
+const texts3b = []
+walkText(tree3b, texts3b)
+const joined3b = texts3b.join('|')
+assert.ok(joined3b.includes('ego-browser'), 'missing entry name rendered after expand')
+assert.ok(joined3b.includes('符号链接'), 'missing entry reason rendered after expand')
+
+// ── issue #69: project tab appears when the session has a cwd ──────────────
+// 模拟重新挂载（useEffect 重跑）：会话存在 → /session 返回 cwd → 项目 tab 出现。
+storedSession = JSON.stringify({ sessionId: 'sess-1' })
+effectState.ran = false
+cannedResponses.push({ ok: true, value: { cwd: '/work/proj' } }) // /session
+cannedResponses.push(catalog) // initial list (global view)
+renderView()
+await new Promise((resolve) => setTimeout(resolve, 0))
+
+const sessionCall = fetchCalls.find((c) => c.url.startsWith('/my-skill-manager/api/session'))
+assert.ok(sessionCall, 'session cwd fetched when a session exists')
+assert.ok(sessionCall.url.includes('sessionId=sess-1'), 'session id passed to /session')
+
 const tree4 = renderView()
-collectButtons(tree4)
-const loadBtn = toggles.find((b) => b.label.includes('加载'))
-assert.ok(loadBtn, 'load button rendered')
+const segs4 = []
+collectByClass(tree4, 'dsh-my-skill-manager-seg', segs4)
+assert.equal(segs4.length, 2, 'project segment appears when session cwd detected')
+assert.equal(segs4[1].props.children, '当前项目', 'project segment label')
+assert.equal(segs4[1].props['aria-pressed'], false, 'project segment inactive initially')
+
+// ── switch to the project view: list?cwd=… + project-only rows ─────────────
 cannedResponses.push({
   ok: true,
   value: {
-    cwd: '/proj',
-    projectRoot: '/proj',
+    cwd: '/work/proj',
+    projectRoot: '/work/proj',
     skills: [
       {
         name: 'codebase-memory',
@@ -310,19 +340,115 @@ cannedResponses.push({
     diagnostics: { missing: [] },
   },
 })
-loadBtn.onClick()
+segs4[1].props.onClick()
 await new Promise((resolve) => setTimeout(resolve, 0))
+
+const projectListCall = fetchCalls.find((c) => c.url.startsWith('/my-skill-manager/api/list?cwd='))
+assert.ok(projectListCall, 'project view fetches list with cwd')
+assert.ok(projectListCall.url.includes(encodeURIComponent('/work/proj')), 'cwd passed to list')
 
 const tree5 = renderView()
 const texts5 = []
 walkText(tree5, texts5)
 const joined5 = texts5.join('|')
-assert.ok(joined5.includes('项目'), 'project section present in project view')
+assert.ok(joined5.includes('当前项目'), 'project section present in project view')
+assert.ok(joined5.includes('项目根：/work/proj'), 'project root shown read-only in the title')
 assert.ok(!joined5.includes('全局（'), 'no global-sourced skill rows in project view')
 assert.equal(countSections(tree5), 1, 'project view renders exactly one section')
 assert.ok(joined5.includes('codebase-memory'), 'project skill rendered in project view')
 assert.ok(!joined5.includes('web-search'), 'global skill not rendered in project view')
 
+// ── project toggle saves with the session cwd ──────────────────────────────
+const buttons5 = []
+collectButtons(tree5, buttons5)
+const projToggle = buttons5.find((t) => t.label.includes('codebase-memory') && t.label.includes('启用'))
+assert.ok(projToggle, 'project toggle found')
+cannedResponses.push({ ok: true }) // PUT
+cannedResponses.push({
+  ok: true,
+  value: {
+    cwd: '/work/proj',
+    projectRoot: '/work/proj',
+    skills: [
+      {
+        name: 'codebase-memory',
+        description: '图查询',
+        source: 'project-dsh',
+        provider: 'filesystem',
+      },
+    ],
+    global: { disabled: [] },
+    project: ['codebase-memory'],
+    diagnostics: { missing: [] },
+  },
+})
+projToggle.onClick()
+await new Promise((resolve) => setTimeout(resolve, 0))
+const projPut = fetchCalls.find((c) => c.url.startsWith('/my-skill-manager/api/config') && c !== putCall)
+assert.ok(projPut, 'project toggle issues a PUT config call')
+const projPayload = JSON.parse(projPut.options.body)
+assert.equal(projPayload.scope, 'project', 'project scope saved')
+assert.equal(projPayload.cwd, '/work/proj', 'project save carries the session cwd')
+
 console.log('ALL SKILL-MANAGER CLIENT RENDER-PATH TESTS PASSED')
+
+// ── helpers ────────────────────────────────────────────────────────────────
+/** Count rendered `.dsh-my-skill-manager-section` blocks (global view = 1, project view = 1). */
+function countSections(node) {
+  if (node === null || typeof node !== 'object') return 0
+  const props = node.props ?? {}
+  let count = props.className === 'dsh-my-skill-manager-section' ? 1 : 0
+  if (Array.isArray(node)) {
+    for (const c of node) count += countSections(c)
+    return count
+  }
+  if (typeof node.type === 'function') return count + countSections(node.type(node.props))
+  return count + countSections(props.children)
+}
+
+/** Collect elements whose className contains the given member. */
+function collectByClass(node, className, out) {
+  if (node === null || typeof node !== 'object') return
+  const props = node.props ?? {}
+  if (
+    String(props.className ?? '')
+      .split(' ')
+      .includes(className)
+  )
+    out.push(node)
+  if (Array.isArray(node)) {
+    for (const c of node) collectByClass(c, className, out)
+    return
+  }
+  if (typeof node.type === 'function') {
+    const saved = hookIndex
+    hookIndex = VIEW_HOOK_COUNT
+    collectByClass(node.type(node.props), className, out)
+    hookIndex = saved
+    return
+  }
+  collectByClass(props.children, className, out)
+}
+
+/** Collect buttons with an aria-label (switch toggles + icon actions). */
+function collectButtons(node, out) {
+  if (node === null || typeof node !== 'object') return
+  const props = node.props ?? {}
+  if (typeof props.onClick === 'function' && typeof props['aria-label'] === 'string') {
+    out.push({ label: props['aria-label'], onClick: props.onClick })
+  }
+  if (Array.isArray(node)) {
+    for (const c of node) collectButtons(c, out)
+    return
+  }
+  if (typeof node.type === 'function') {
+    const saved = hookIndex
+    hookIndex = VIEW_HOOK_COUNT
+    collectButtons(node.type(node.props), out)
+    hookIndex = saved
+    return
+  }
+  collectButtons(props.children, out)
+}
 
 test('script-style suite (assertions ran at module load)', () => {})

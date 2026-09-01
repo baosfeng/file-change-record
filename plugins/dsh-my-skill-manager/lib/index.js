@@ -19,7 +19,7 @@ import { createDisablerProvider } from './provider.js'
 
 export const name = 'dsh-my-skill-manager'
 
-export const inject = ['skills', 'webServer', 'webRuntime']
+export const inject = ['skills', 'webServer', 'webRuntime', 'sessions']
 
 export function apply(ctx) {
   // 禁用占位 provider：配置变化时 invalidate 让 skill 目录立即重算。

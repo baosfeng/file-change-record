@@ -105,6 +105,7 @@ async function boot(overrides) {
     logger: { warn: () => {} },
     webRuntime: { trustedHosts: [] },
     skills: fakeSkills(),
+    sessions: { get: () => undefined },
     webServer: {
       register: (route) => {
         apiHolder.set(route)
@@ -141,9 +142,27 @@ test('apply registers the provider and the API route', async () => {
   assert.ok(getRoute(), '/my-skill-manager/api route registered')
 })
 
+test('GET /session returns the session cwd (issue #69 auto-detection)', async () => {
+  // 无会话 / 无 cwd → 空字符串（settings tab 不显示项目 tab）
+  const { getRoute } = await boot()
+  const none = await callRoute(getRoute, 'GET', '/my-skill-manager/api/session?sessionId=ghost')
+  assert.equal(none.status, 200)
+  assert.equal(none.json.value.cwd, '', 'unknown session → empty cwd')
+
+  // 会话 header.cwd 存在 → 返回该 cwd（client 据此显示「当前项目」tab）
+  const { getRoute: getRoute2 } = await boot({
+    sessions: { get: (id) => (id === 'sess-1' ? { header: { cwd: '/work/proj' } } : undefined) },
+  })
+  const withCwd = await callRoute(getRoute2, 'GET', '/my-skill-manager/api/session?sessionId=sess-1')
+  assert.equal(withCwd.status, 200)
+  assert.equal(withCwd.json.value.cwd, '/work/proj', 'session header cwd returned')
+  const noParam = await callRoute(getRoute2, 'GET', '/my-skill-manager/api/session')
+  assert.equal(noParam.json.value.cwd, '', 'missing sessionId → empty cwd')
+})
+
 test('apply declares the required injects and returns effect disposers', async () => {
   const { ctx } = await boot()
-  assert.deepEqual(inject, ['skills', 'webServer', 'webRuntime'], 'inject list intact')
+  assert.deepEqual(inject, ['skills', 'webServer', 'webRuntime', 'sessions'], 'inject list intact')
   const disposers = ctx.effectCallbacks.filter((e) => typeof e.disposer === 'function')
   assert.ok(disposers.length >= 2, 'provider and route effects return disposers')
 })

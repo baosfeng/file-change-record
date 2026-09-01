@@ -4,22 +4,31 @@
 // 8px-radius rows with hover fills, badge chips, and a role=switch toggle
 // (track + sliding thumb, checked = success accent). All colors ride the
 // --dsw-alias-* tokens; motion rides --ds-*.
+// issue #69 重设计：标题区（标题+唯一刷新按钮）/ 分段控件 / 状态 chip /
+// 折叠诊断条；移除路径输入相关样式。
 const STYLES = `
 .dsh-my-skill-manager-root { display:flex; flex-direction:column; gap:8px; padding:2px 6px 8px;
   font:var(--dsw-font-s-14); color:var(--dsw-alias-label-primary); }
-.dsh-my-skill-manager-toolbar { display:flex; flex-direction:column; gap:4px; }
-.dsh-my-skill-manager-pathbar { display:flex; gap:6px; align-items:center; }
-.dsh-my-skill-manager-path-input { flex:1; min-width:0; height:28px; padding:0 8px; border-radius:6px;
-  border:1px solid var(--dsw-alias-border-l1); background:transparent; color:var(--dsw-alias-label-primary);
-  font:var(--dsw-font-s-14); transition:border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
-.dsh-my-skill-manager-path-input:focus { outline:none; border-color:var(--dsw-alias-accent); }
+/* ── header: title + single refresh action (issue #69) ─────────────────── */
+.dsh-my-skill-manager-header { display:flex; align-items:center; gap:8px; min-height:28px; }
+.dsh-my-skill-manager-header-title { flex:1; min-width:0; font:var(--dsw-font-m-strong-16); color:var(--dsw-alias-label-primary); }
+.dsh-my-skill-manager-header-hint { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); }
 .dsh-my-skill-manager-iconbtn { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; padding:0;
   border:none; border-radius:50%; background:transparent; color:var(--dsw-alias-label-secondary); cursor:pointer; flex:none;
   transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out), color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
 .dsh-my-skill-manager-iconbtn svg { display:block; }
 .dsh-my-skill-manager-iconbtn:hover:not(:disabled) { background:var(--dsw-alias-interactive-bg-hover); color:var(--dsw-alias-label-primary); }
 .dsh-my-skill-manager-iconbtn:disabled { opacity:.4; cursor:default; }
-.dsh-my-skill-manager-note { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); line-height:1.7; }
+.dsh-my-skill-manager-iconbtn-spin svg { animation:dsh-my-skill-manager-spin 900ms linear infinite; }
+@keyframes dsh-my-skill-manager-spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+/* ── view switch: segmented control (全局 | 当前项目) ───────────────────── */
+.dsh-my-skill-manager-switchseg { display:inline-flex; gap:2px; padding:2px; border-radius:8px;
+  background:var(--dsw-alias-interactive-bg-hover); align-self:flex-start; }
+.dsh-my-skill-manager-seg { height:24px; padding:0 12px; border:none; border-radius:6px; background:transparent;
+  font:var(--dsw-font-xxs-strong-12); color:var(--dsw-alias-label-secondary); cursor:pointer;
+  transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out), color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-skill-manager-seg:hover { color:var(--dsw-alias-label-primary); }
+.dsh-my-skill-manager-seg-on { background:var(--dsw-alias-surface-1); color:var(--dsw-alias-label-primary); }
 .dsh-my-skill-manager-status { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); padding:4px 6px; }
 .dsh-my-skill-manager-saved { color:var(--dsw-alias-state-success-primary); }
 .dsh-my-skill-manager-error { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-state-error-primary); padding:4px 6px; white-space:pre-wrap; }
@@ -42,13 +51,13 @@ const STYLES = `
 .dsh-my-skill-manager-row-head { display:flex; align-items:center; gap:6px; min-width:0; }
 .dsh-my-skill-manager-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   font:var(--dsw-font-s-strong-14); color:var(--dsw-alias-label-primary); }
-.dsh-my-skill-manager-src { flex:none; display:inline-flex; align-items:center; height:17px; padding:0 5px; border-radius:4px;
+/* ── state chip: text + color double encoding (issue #69) ───────────────── */
+.dsh-my-skill-manager-chip { flex:none; display:inline-flex; align-items:center; height:17px; padding:0 6px; border-radius:4px;
   font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-label-tertiary); background:var(--dsw-alias-interactive-bg-hover); }
-.dsh-my-skill-manager-src-warn { color:var(--dsw-alias-state-warn-primary);
-  background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
-.dsh-my-skill-manager-state { flex:none; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
-.dsh-my-skill-manager-state-on { color:var(--dsw-alias-state-success-primary); }
+.dsh-my-skill-manager-chip-on { color:var(--dsw-alias-state-success-primary);
+  background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 16%, transparent); }
 .dsh-my-skill-manager-desc { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-secondary); }
+.dsh-my-skill-manager-row-meta { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
 /* ── switch (role=switch): track + sliding thumb, checked = enabled ────────
    Off = neutral grey track, on = success accent; both thumb and track
    transition on --ds-transition-duration-slow. */
@@ -64,13 +73,22 @@ const STYLES = `
 .dsh-my-skill-manager-switch:hover:not(:disabled) .dsh-my-skill-manager-switch-track { background:color-mix(in srgb, var(--dsw-alias-label-tertiary) 40%, transparent); }
 .dsh-my-skill-manager-switch:hover:not(:disabled).dsh-my-skill-manager-switch-on .dsh-my-skill-manager-switch-track { background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 85%, var(--dsw-alias-label-tertiary)); }
 .dsh-my-skill-manager-switch:disabled { opacity:.4; cursor:default; }
-/* ── diagnostics: badge + key info + detail, mirroring the dfa-op chips ──── */
-.dsh-my-skill-manager-diag-row { display:flex; align-items:center; gap:6px; padding:4px 8px; border-radius:8px;
-  border:1px solid var(--dsw-alias-border-l1); background:transparent;
-  animation:dsh-my-skill-manager-row-in 150ms var(--ds-ease-in-out); }
+/* ── diagnostics: collapsible warn bar (issue #69) ──────────────────────── */
+.dsh-my-skill-manager-diag { display:flex; flex-direction:column; gap:2px; margin-top:4px; }
+.dsh-my-skill-manager-diag-bar { display:flex; align-items:center; gap:6px; padding:4px 8px; border-radius:8px;
+  border:1px solid color-mix(in srgb, var(--dsw-alias-state-warn-primary) 40%, var(--dsw-alias-border-l1));
+  background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 8%, transparent); cursor:pointer;
+  font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-primary); }
 .dsh-my-skill-manager-diag-badge { flex:none; display:inline-flex; align-items:center; height:17px; padding:0 5px; border-radius:4px;
   font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-state-warn-primary);
   background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
+.dsh-my-skill-manager-diag-title { font:var(--dsw-font-xxs-strong-12); color:var(--dsw-alias-label-primary); }
+.dsh-my-skill-manager-diag-count { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); }
+.dsh-my-skill-manager-diag-chevron { margin-left:auto; color:var(--dsw-alias-label-tertiary); }
+.dsh-my-skill-manager-diag-body { display:flex; flex-direction:column; gap:2px; padding:2px 0 0 8px; }
+.dsh-my-skill-manager-diag-row { display:flex; align-items:center; gap:6px; padding:4px 8px; border-radius:8px;
+  border:1px solid var(--dsw-alias-border-l1); background:transparent;
+  animation:dsh-my-skill-manager-row-in 150ms var(--ds-ease-in-out); }
 .dsh-my-skill-manager-diag-name { flex:none; font:var(--dsw-font-s-strong-14); color:var(--dsw-alias-label-primary); }
 .dsh-my-skill-manager-diag-reason { flex:none; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-state-warn-primary); }
 .dsh-my-skill-manager-diag-path { flex:1; min-width:0; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary);

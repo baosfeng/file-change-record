@@ -42,12 +42,7 @@ function isZh() {
 const strings = {
   title: () => (isZh() ? 'Skill 管理' : 'Skill Manager'),
   globalSection: () => (isZh() ? '全局' : 'Global'),
-  projectSection: () => (isZh() ? '项目' : 'Project'),
-  projectHint: () =>
-    isZh()
-      ? '输入项目根路径以查看 / 编辑该项目级启用/禁用配置（写入 <项目根>/.dsh/skills.enabled.json，随仓库版本化）'
-      : 'Enter a project root to view/edit its per-project skill config (stored in <projectRoot>/.dsh/skills.enabled.json)',
-  loadProject: () => (isZh() ? '加载' : 'Load'),
+  projectSection: () => (isZh() ? '当前项目' : 'Current project'),
   refresh: () => (isZh() ? '刷新' : 'Refresh'),
   enabled: () => (isZh() ? '启用' : 'Enabled'),
   disabled: () => (isZh() ? '已禁用' : 'Disabled'),
@@ -68,10 +63,6 @@ const strings = {
       ? '禁用的 skill 不再注入本项目/全局会话：模型不可见、不可加载（占位覆盖）'
       : 'A disabled skill is no longer injected into this scope: the model cannot see or load it (placeholder override)',
   projectRoot: () => (isZh() ? '项目根：' : 'Project root: '),
-  projectConfigNote: () =>
-    isZh()
-      ? '项目配置随仓库提交，可版本化；全局配置存于 $DSH_HOME'
-      : 'Project config travels with the repo; global config lives in $DSH_HOME',
   saved: () => (isZh() ? '已保存' : 'Saved'),
   saveFailed: () => (isZh() ? '保存失败' : 'Save failed'),
   diagnosticsTitle: () => (isZh() ? '扫描诊断' : 'Scan diagnostics'),
@@ -177,6 +168,15 @@ const icon = {
       ],
       size,
     ),
+  help: (size = 16) =>
+    iconSvg(
+      [
+        createElement('circle', { cx: 12, cy: 12, r: 9 }),
+        createElement('path', { d: 'M9.1 9.2a3 3 0 0 1 5.8 1.2c0 1.8-2.7 2.4-2.7 3.6' }),
+        createElement('line', { x1: 12, y1: 17.2, x2: 12.01, y2: 17.2 }),
+      ],
+      size,
+    ),
   // ── generic action icons (issue #54 阶段 0) ─────────────────────────────
   // Added for the upcoming plugin UI refresh: save/confirm (check), add/
   // install (plus), market search (search), settings entry (settings).
@@ -189,6 +189,8 @@ const icon = {
       ],
       size,
     ),
+  pencil: (size = 15) =>
+    iconSvg([createElement('path', { d: 'M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z' })], size),
   search: (size = 16) =>
     iconSvg(
       [
@@ -204,6 +206,29 @@ const icon = {
         createElement('path', {
           d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z',
         }),
+      ],
+      size,
+    ),
+  // 警告（issue #54 阶段 1 新增）：安全护栏告警类型图标（投毒/提示注入），
+  // 三角警示 + 感叹号，stroke=currentColor 风格与其余图标一致。
+  alert: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', {
+          d: 'M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z',
+        }),
+        createElement('line', { x1: 12, y1: 9, x2: 12, y2: 13 }),
+        createElement('line', { x1: 12, y1: 17, x2: 12.01, y2: 17 }),
+      ],
+      size,
+    ),
+  // 代码（issue #54 阶段 1 新增）：尖括号 `</>`，预览/代码切换的代码视图
+  // 图标（dsh-mermaid-render 卡片），stroke=currentColor 风格与其余图标一致。
+  code: (size = 16) =>
+    iconSvg(
+      [
+        createElement('polyline', { points: '16 18 22 12 16 6' }),
+        createElement('polyline', { points: '8 6 2 12 8 18' }),
       ],
       size,
     ),
@@ -369,22 +394,31 @@ const fileIconByExt = (ext, size = 14) => {
 // 8px-radius rows with hover fills, badge chips, and a role=switch toggle
 // (track + sliding thumb, checked = success accent). All colors ride the
 // --dsw-alias-* tokens; motion rides --ds-*.
+// issue #69 重设计：标题区（标题+唯一刷新按钮）/ 分段控件 / 状态 chip /
+// 折叠诊断条；移除路径输入相关样式。
 const STYLES = `
 .dsh-my-skill-manager-root { display:flex; flex-direction:column; gap:8px; padding:2px 6px 8px;
   font:var(--dsw-font-s-14); color:var(--dsw-alias-label-primary); }
-.dsh-my-skill-manager-toolbar { display:flex; flex-direction:column; gap:4px; }
-.dsh-my-skill-manager-pathbar { display:flex; gap:6px; align-items:center; }
-.dsh-my-skill-manager-path-input { flex:1; min-width:0; height:28px; padding:0 8px; border-radius:6px;
-  border:1px solid var(--dsw-alias-border-l1); background:transparent; color:var(--dsw-alias-label-primary);
-  font:var(--dsw-font-s-14); transition:border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
-.dsh-my-skill-manager-path-input:focus { outline:none; border-color:var(--dsw-alias-accent); }
+/* ── header: title + single refresh action (issue #69) ─────────────────── */
+.dsh-my-skill-manager-header { display:flex; align-items:center; gap:8px; min-height:28px; }
+.dsh-my-skill-manager-header-title { flex:1; min-width:0; font:var(--dsw-font-m-strong-16); color:var(--dsw-alias-label-primary); }
+.dsh-my-skill-manager-header-hint { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); }
 .dsh-my-skill-manager-iconbtn { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; padding:0;
   border:none; border-radius:50%; background:transparent; color:var(--dsw-alias-label-secondary); cursor:pointer; flex:none;
   transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out), color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
 .dsh-my-skill-manager-iconbtn svg { display:block; }
 .dsh-my-skill-manager-iconbtn:hover:not(:disabled) { background:var(--dsw-alias-interactive-bg-hover); color:var(--dsw-alias-label-primary); }
 .dsh-my-skill-manager-iconbtn:disabled { opacity:.4; cursor:default; }
-.dsh-my-skill-manager-note { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); line-height:1.7; }
+.dsh-my-skill-manager-iconbtn-spin svg { animation:dsh-my-skill-manager-spin 900ms linear infinite; }
+@keyframes dsh-my-skill-manager-spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+/* ── view switch: segmented control (全局 | 当前项目) ───────────────────── */
+.dsh-my-skill-manager-switchseg { display:inline-flex; gap:2px; padding:2px; border-radius:8px;
+  background:var(--dsw-alias-interactive-bg-hover); align-self:flex-start; }
+.dsh-my-skill-manager-seg { height:24px; padding:0 12px; border:none; border-radius:6px; background:transparent;
+  font:var(--dsw-font-xxs-strong-12); color:var(--dsw-alias-label-secondary); cursor:pointer;
+  transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out), color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-skill-manager-seg:hover { color:var(--dsw-alias-label-primary); }
+.dsh-my-skill-manager-seg-on { background:var(--dsw-alias-surface-1); color:var(--dsw-alias-label-primary); }
 .dsh-my-skill-manager-status { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); padding:4px 6px; }
 .dsh-my-skill-manager-saved { color:var(--dsw-alias-state-success-primary); }
 .dsh-my-skill-manager-error { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-state-error-primary); padding:4px 6px; white-space:pre-wrap; }
@@ -407,13 +441,13 @@ const STYLES = `
 .dsh-my-skill-manager-row-head { display:flex; align-items:center; gap:6px; min-width:0; }
 .dsh-my-skill-manager-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   font:var(--dsw-font-s-strong-14); color:var(--dsw-alias-label-primary); }
-.dsh-my-skill-manager-src { flex:none; display:inline-flex; align-items:center; height:17px; padding:0 5px; border-radius:4px;
+/* ── state chip: text + color double encoding (issue #69) ───────────────── */
+.dsh-my-skill-manager-chip { flex:none; display:inline-flex; align-items:center; height:17px; padding:0 6px; border-radius:4px;
   font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-label-tertiary); background:var(--dsw-alias-interactive-bg-hover); }
-.dsh-my-skill-manager-src-warn { color:var(--dsw-alias-state-warn-primary);
-  background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
-.dsh-my-skill-manager-state { flex:none; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
-.dsh-my-skill-manager-state-on { color:var(--dsw-alias-state-success-primary); }
+.dsh-my-skill-manager-chip-on { color:var(--dsw-alias-state-success-primary);
+  background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 16%, transparent); }
 .dsh-my-skill-manager-desc { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-secondary); }
+.dsh-my-skill-manager-row-meta { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
 /* ── switch (role=switch): track + sliding thumb, checked = enabled ────────
    Off = neutral grey track, on = success accent; both thumb and track
    transition on --ds-transition-duration-slow. */
@@ -429,13 +463,22 @@ const STYLES = `
 .dsh-my-skill-manager-switch:hover:not(:disabled) .dsh-my-skill-manager-switch-track { background:color-mix(in srgb, var(--dsw-alias-label-tertiary) 40%, transparent); }
 .dsh-my-skill-manager-switch:hover:not(:disabled).dsh-my-skill-manager-switch-on .dsh-my-skill-manager-switch-track { background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 85%, var(--dsw-alias-label-tertiary)); }
 .dsh-my-skill-manager-switch:disabled { opacity:.4; cursor:default; }
-/* ── diagnostics: badge + key info + detail, mirroring the dfa-op chips ──── */
-.dsh-my-skill-manager-diag-row { display:flex; align-items:center; gap:6px; padding:4px 8px; border-radius:8px;
-  border:1px solid var(--dsw-alias-border-l1); background:transparent;
-  animation:dsh-my-skill-manager-row-in 150ms var(--ds-ease-in-out); }
+/* ── diagnostics: collapsible warn bar (issue #69) ──────────────────────── */
+.dsh-my-skill-manager-diag { display:flex; flex-direction:column; gap:2px; margin-top:4px; }
+.dsh-my-skill-manager-diag-bar { display:flex; align-items:center; gap:6px; padding:4px 8px; border-radius:8px;
+  border:1px solid color-mix(in srgb, var(--dsw-alias-state-warn-primary) 40%, var(--dsw-alias-border-l1));
+  background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 8%, transparent); cursor:pointer;
+  font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-primary); }
 .dsh-my-skill-manager-diag-badge { flex:none; display:inline-flex; align-items:center; height:17px; padding:0 5px; border-radius:4px;
   font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-state-warn-primary);
   background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
+.dsh-my-skill-manager-diag-title { font:var(--dsw-font-xxs-strong-12); color:var(--dsw-alias-label-primary); }
+.dsh-my-skill-manager-diag-count { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); }
+.dsh-my-skill-manager-diag-chevron { margin-left:auto; color:var(--dsw-alias-label-tertiary); }
+.dsh-my-skill-manager-diag-body { display:flex; flex-direction:column; gap:2px; padding:2px 0 0 8px; }
+.dsh-my-skill-manager-diag-row { display:flex; align-items:center; gap:6px; padding:4px 8px; border-radius:8px;
+  border:1px solid var(--dsw-alias-border-l1); background:transparent;
+  animation:dsh-my-skill-manager-row-in 150ms var(--ds-ease-in-out); }
 .dsh-my-skill-manager-diag-name { flex:none; font:var(--dsw-font-s-strong-14); color:var(--dsw-alias-label-primary); }
 .dsh-my-skill-manager-diag-reason { flex:none; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-state-warn-primary); }
 .dsh-my-skill-manager-diag-path { flex:1; min-width:0; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary);
@@ -471,6 +514,29 @@ function fetchList(cwd) {
     })
 }
 
+/** Current session id from localStorage ('dsh.sessions.current' → { sessionId }). */
+function currentSessionId() {
+  try {
+    const raw = localStorage.getItem('dsh.sessions.current')
+    const parsed = raw === null ? null : JSON.parse(raw)
+    return typeof parsed?.sessionId === 'string' ? parsed.sessionId : ''
+  } catch {
+    return ''
+  }
+}
+
+/** GET /my-skill-manager/api/session → the session's working directory ('' if none). */
+function fetchSessionCwd(sessionId) {
+  if (sessionId === '') return Promise.resolve('')
+  return fetch(`${API_BASE}/session?sessionId=${encodeURIComponent(sessionId)}`)
+    .then((res) => res.json())
+    .then((body) => {
+      if (body === null || body.ok !== true) return ''
+      return typeof body.value?.cwd === 'string' ? body.value.cwd : ''
+    })
+    .catch(() => '')
+}
+
 /** GET /my-skill-manager/api/rescan → invalidate + fresh normalized value. */
 function rescanCatalog(cwd) {
   const query = cwd.trim() === '' ? '' : `?cwd=${encodeURIComponent(cwd.trim())}`
@@ -496,6 +562,9 @@ function saveConfig(scope, disabled, cwd) {
 }
 
     // ── view: Skill Manager settings tab ───────────────────────────────────
+// issue #69 重设计（Minimal Single Column）：标题区（标题+唯一刷新按钮）/
+// 视图区（分段控件：全局|当前项目，自动感知会话 cwd）/ 列表区（名称+状态
+// chip 为主、描述次之）/ 诊断区（仅异常时出现、可折叠）。无路径输入。
 function isProjectSource(source) {
   return typeof source === 'string' && source.startsWith('project-')
 }
@@ -537,138 +606,164 @@ function createActions({ setData, setLoading, setError, setSaved }) {
   return {
     load,
     rescan,
-    toggle: (data, scope, name, isDisabled) => {
-      if (scope === 'project' && data.cwd === '') return
+    toggle: (data, scope, name, isDisabled, cwd) => {
+      if (scope === 'project' && cwd === '') return
       const list = scope === 'global' ? data.globalDisabled : data.projectDisabled
-      save(scope, flipDisabled(list, name, isDisabled), scope === 'project' ? data.cwd : '')
+      save(scope, flipDisabled(list, name, isDisabled), scope === 'project' ? cwd : '')
     },
   }
 }
 
+/** Skill Manager settings tab: header + view switch + skill list + diagnostics. */
 function SkillManagerView() {
   const [data, setData] = useState(null)
-  const [pathInput, setPathInput] = useState('')
+  const [view, setView] = useState('global')
+  const [sessionCwd, setSessionCwd] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [saved, setSaved] = useState(false)
   const actions = createActions({ setData, setLoading, setError, setSaved })
 
   useEffect(() => {
-    actions.load('')
+    fetchSessionCwd(currentSessionId()).then((cwd) => {
+      setSessionCwd(cwd)
+      actions.load('')
+    })
   }, [])
+
+  const projectRoot = data === null ? '' : data.projectRoot
+  const cwdOf = (scope) => (scope === 'project' ? sessionCwd : '')
+  const switchView = (scope) => {
+    if (scope === view) return
+    setView(scope)
+    actions.load(cwdOf(scope))
+  }
 
   return createElement(
     'div',
     { className: 'dsh-my-skill-manager-root' },
-    createElement(Toolbar, {
-      pathInput,
-      onInput: setPathInput,
-      onLoad: actions.load,
-      onRescan: actions.rescan,
+    createElement(Header, {
+      loading,
+      error,
+      saved,
+      onRefresh: () => actions.rescan(cwdOf(view)),
     }),
-    error ? createElement('div', { className: 'dsh-my-skill-manager-error' }, strings.loadError()) : null,
+    createElement(ViewSwitch, { view, hasProject: sessionCwd !== '', onSwitch: switchView }),
     loading
       ? createElement('div', { className: 'dsh-my-skill-manager-status' }, strings.loading())
-      : data === null
-        ? null
-        : createElement(Sections, {
-            data,
-            saved,
-            onToggle: (scope, name, isDisabled) => actions.toggle(data, scope, name, isDisabled),
-          }),
+      : error
+        ? createElement('div', { className: 'dsh-my-skill-manager-error' }, strings.loadError())
+        : data === null
+          ? null
+          : createElement(Sections, {
+              data,
+              view,
+              saved,
+              onToggle: (scope, name, isDisabled) => actions.toggle(data, scope, name, isDisabled, cwdOf(scope)),
+            }),
   )
 }
 
-/** Path input + icon buttons (load project / rescan) + config note. */
-function Toolbar({ pathInput, onInput, onLoad, onRescan }) {
+/** Title row with the single refresh action (icon button, spins while loading). */
+function Header({ loading, error, saved, onRefresh }) {
   return createElement(
     'div',
-    { className: 'dsh-my-skill-manager-toolbar' },
+    { className: 'dsh-my-skill-manager-header' },
+    createElement('span', { className: 'dsh-my-skill-manager-header-title' }, strings.title()),
+    loading ? createElement('div', { className: 'dsh-my-skill-manager-header-hint' }, strings.loading()) : null,
+    saved
+      ? createElement(
+          'div',
+          { className: 'dsh-my-skill-manager-header-hint dsh-my-skill-manager-saved' },
+          strings.saved(),
+        )
+      : null,
     createElement(
-      'div',
-      { className: 'dsh-my-skill-manager-pathbar' },
-      createElement('input', {
-        className: 'dsh-my-skill-manager-path-input',
-        placeholder: strings.projectHint(),
-        value: pathInput,
-        onChange: (event) => onInput(event.target.value),
-        onKeyDown: (event) => {
-          if (event.key === 'Enter') onLoad(pathInput)
-        },
-      }),
-      createElement(
-        'button',
-        {
-          className: 'dsh-my-skill-manager-iconbtn',
-          'aria-label': strings.loadProject(),
-          title: strings.loadProject(),
-          onClick: () => onLoad(pathInput),
-        },
-        icon.folder(14),
-      ),
-      createElement(
-        'button',
-        {
-          className: 'dsh-my-skill-manager-iconbtn',
-          'aria-label': strings.refresh(),
-          title: strings.refresh(),
-          onClick: () => onRescan(pathInput),
-        },
-        icon.refresh(14),
-      ),
+      'button',
+      {
+        className: `dsh-my-skill-manager-iconbtn${loading ? ' dsh-my-skill-manager-iconbtn-spin' : ''}`,
+        'aria-label': strings.refresh(),
+        title: strings.refresh(),
+        disabled: loading,
+        onClick: onRefresh,
+      },
+      icon.refresh(14),
     ),
-    createElement('div', { className: 'dsh-my-skill-manager-note' }, strings.projectConfigNote()),
   )
 }
 
-/** The toggle section for the current view (global or project) + diagnostics. */
-function Sections({ data, saved, onToggle }) {
-  const projectMode = data.cwd !== ''
+/** Segmented control: 全局 / 当前项目 (project tab only when cwd detected). */
+function ViewSwitch({ view, hasProject, onSwitch }) {
+  const seg = (scope, label) =>
+    createElement(
+      'button',
+      {
+        type: 'button',
+        className: `dsh-my-skill-manager-seg${view === scope ? ' dsh-my-skill-manager-seg-on' : ''}`,
+        'aria-pressed': view === scope,
+        onClick: () => onSwitch(scope),
+      },
+      label,
+    )
+  return createElement('div', { className: 'dsh-my-skill-manager-switchseg' }, [
+    seg('global', strings.globalSection()),
+    hasProject ? seg('project', strings.projectSection()) : null,
+  ])
+}
+
+/** The toggle section for the current view + diagnostics (collapsible). */
+function Sections({ data, view, onToggle }) {
+  const projectMode = view === 'project'
   return createElement(
     'div',
     { className: 'dsh-my-skill-manager-sections' },
-    projectMode
-      ? createElement(SectionBlock, {
-          title: projectTitleOf(data),
-          hint: strings.disabledHint(),
-          skills: data.skills,
-          disabledNames: data.projectDisabled,
-          onToggle: (name, isDisabled) => onToggle('project', name, isDisabled),
-        })
-      : createElement(SectionBlock, {
-          title: strings.globalSection(),
-          hint: strings.disabledHint(),
-          skills: data.skills,
-          disabledNames: data.globalDisabled,
-          onToggle: (name, isDisabled) => onToggle('global', name, isDisabled),
-        }),
+    createElement(SectionBlock, {
+      title: projectMode ? projectTitleOf(data) : strings.globalSection(),
+      hint: strings.disabledHint(),
+      skills: data.skills,
+      disabledNames: projectMode ? data.projectDisabled : data.globalDisabled,
+      onToggle: (name, isDisabled) => onToggle(projectMode ? 'project' : 'global', name, isDisabled),
+    }),
     createElement(DiagnosticsBlock, { diagnostics: data.diagnostics }),
-    saved
-      ? createElement('div', { className: 'dsh-my-skill-manager-status dsh-my-skill-manager-saved' }, strings.saved())
-      : null,
   )
 }
 
-/** Skipped skill entries reported by the server-side directory scan:
- *  warn badge + key info (name/reason) + detail (path). */
+/** Collapsed warn bar when there are skipped entries; expandable row list. */
 function DiagnosticsBlock({ diagnostics }) {
   const missing = diagnostics?.missing ?? []
+  const [open, setOpen] = useState(false)
   if (missing.length === 0) return null
   return createElement(
     'div',
-    { className: 'dsh-my-skill-manager-section' },
-    createElement('div', { className: 'dsh-my-skill-manager-section-head' }, strings.diagnosticsTitle()),
-    createElement('div', { className: 'dsh-my-skill-manager-hint' }, strings.diagnosticsHint()),
-    missing.map((item) =>
-      createElement(
-        'div',
-        { key: item.path, className: 'dsh-my-skill-manager-diag-row' },
-        createElement('span', { className: 'dsh-my-skill-manager-diag-badge' }, strings.diagBadge()),
-        createElement('span', { className: 'dsh-my-skill-manager-diag-name' }, item.name),
-        createElement('span', { className: 'dsh-my-skill-manager-diag-reason' }, strings.diagReason(item.reason)),
-        createElement('span', { className: 'dsh-my-skill-manager-diag-path' }, item.path),
-      ),
+    { className: 'dsh-my-skill-manager-diag' },
+    createElement(
+      'button',
+      {
+        type: 'button',
+        className: 'dsh-my-skill-manager-diag-bar',
+        'aria-expanded': open,
+        onClick: () => setOpen(!open),
+      },
+      createElement('span', { className: 'dsh-my-skill-manager-diag-badge' }, strings.diagBadge()),
+      createElement('span', { className: 'dsh-my-skill-manager-diag-title' }, strings.diagnosticsTitle()),
+      createElement('span', { className: 'dsh-my-skill-manager-diag-count' }, `(${missing.length})`),
+      createElement('span', { className: 'dsh-my-skill-manager-diag-chevron' }, open ? '▾' : '▸'),
     ),
+    open
+      ? createElement(
+          'div',
+          { className: 'dsh-my-skill-manager-diag-body' },
+          missing.map((item) =>
+            createElement(
+              'div',
+              { key: item.path, className: 'dsh-my-skill-manager-diag-row' },
+              createElement('span', { className: 'dsh-my-skill-manager-diag-name' }, item.name),
+              createElement('span', { className: 'dsh-my-skill-manager-diag-reason' }, strings.diagReason(item.reason)),
+              createElement('span', { className: 'dsh-my-skill-manager-diag-path' }, item.path),
+            ),
+          ),
+        )
+      : null,
   )
 }
 
@@ -678,13 +773,12 @@ function projectTitleOf(data) {
     : `${strings.projectSection()} · ${strings.projectRoot()}${data.projectRoot}`
 }
 
-function SectionBlock({ title, hint, skills, disabledNames, onToggle, locked }) {
+function SectionBlock({ title, hint, skills, disabledNames, onToggle }) {
   const rows = skills.map((skill) =>
     createElement(SkillRow, {
       key: skill.name,
       skill,
       disabled: disabledNames.includes(skill.name),
-      locked,
       onToggle: () => onToggle(skill.name, disabledNames.includes(skill.name)),
     }),
   )
@@ -696,7 +790,6 @@ function SectionBlock({ title, hint, skills, disabledNames, onToggle, locked }) 
       { className: 'dsh-my-skill-manager-section-head' },
       createElement('span', { className: 'dsh-my-skill-manager-section-title' }, title),
     ),
-    createElement('div', { className: 'dsh-my-skill-manager-hint' }, hint),
     rows.length === 0
       ? createElement(
           'div',
@@ -706,10 +799,19 @@ function SectionBlock({ title, hint, skills, disabledNames, onToggle, locked }) 
           createElement('span', { className: 'dsh-my-skill-manager-empty-hint' }, strings.emptyHint()),
         )
       : rows,
+    createElement('div', { className: 'dsh-my-skill-manager-hint' }, hint),
   )
 }
 
-function SkillRow({ skill, disabled, locked, onToggle }) {
+/** Card row: name + state chip on the main line, description (with source /
+ *  not-cataloged note in small text) below — issue #69 information hierarchy. */
+function SkillRow({ skill, disabled, onToggle }) {
+  const meta = [
+    isProjectSource(skill.source) ? strings.sourceProject(skill.source) : strings.sourceGlobal(skill.source),
+    skill.cataloged === false ? strings.notCataloged() : null,
+  ]
+    .filter((item) => item !== null)
+    .join(' · ')
   return createElement(
     'div',
     { className: `dsh-my-skill-manager-row${disabled ? ' dsh-my-skill-manager-row-disabled' : ''}` },
@@ -717,31 +819,33 @@ function SkillRow({ skill, disabled, locked, onToggle }) {
       'div',
       { className: 'dsh-my-skill-manager-row-head' },
       createElement('span', { className: 'dsh-my-skill-manager-name' }, skill.name),
-      skill.cataloged === false
-        ? createElement(
-            'span',
-            { className: 'dsh-my-skill-manager-src dsh-my-skill-manager-src-warn', title: strings.notCatalogedHint() },
-            strings.notCataloged(),
-          )
-        : null,
-      createElement(
-        'span',
-        { className: 'dsh-my-skill-manager-src' },
-        isProjectSource(skill.source) ? strings.sourceProject(skill.source) : strings.sourceGlobal(skill.source),
-      ),
-      createElement(
-        'span',
-        { className: `dsh-my-skill-manager-state${disabled ? '' : ' dsh-my-skill-manager-state-on'}` },
-        disabled ? strings.disabled() : strings.enabled(),
-      ),
+      createElement(StateChip, { disabled }),
       createElement(Switch, {
         checked: !disabled,
-        disabled: locked,
         label: `${skill.name}: ${disabled ? strings.disabled() : strings.enabled()}`,
         onToggle,
       }),
     ),
     createElement('div', { className: 'dsh-my-skill-manager-desc' }, skill.description),
+    meta !== ''
+      ? createElement(
+          'div',
+          {
+            className: 'dsh-my-skill-manager-row-meta',
+            title: skill.cataloged === false ? strings.notCatalogedHint() : undefined,
+          },
+          meta,
+        )
+      : null,
+  )
+}
+
+/** State chip: text + color double encoding (enabled = success, disabled = neutral). */
+function StateChip({ disabled }) {
+  return createElement(
+    'span',
+    { className: `dsh-my-skill-manager-chip${disabled ? '' : ' dsh-my-skill-manager-chip-on'}` },
+    disabled ? strings.disabled() : strings.enabled(),
   )
 }
 

@@ -32,28 +32,37 @@ export function createApiHandler({ ctx, invalidate, fence }) {
       writeJson(response, 403, { ok: false, error: { code: 'forbidden', message: 'forbidden' } })
       return
     }
-    const url = new URL(request.url ?? '/', 'http://dsh.internal')
     try {
-      if (url.pathname.endsWith('/list') && request.method === 'GET') {
-        await handleList(ctx, url, response)
-        return
-      }
-      if (url.pathname.endsWith('/rescan') && request.method === 'GET') {
-        await handleRescan(ctx, url, response, invalidate)
-        return
-      }
-      if (url.pathname.endsWith('/config') && request.method === 'PUT') {
-        await handleConfig(request, response, invalidate)
-        return
-      }
-      writeJson(response, 404, {
-        ok: false,
-        error: { message: 'unknown my-skill-manager API method' },
-      })
+      await dispatch(request, response, ctx, invalidate)
     } catch (error) {
       writeError(response, error)
     }
   }
+}
+
+/** Route dispatch: /session, /list, /rescan, /config (GET/PUT). */
+async function dispatch(request, response, ctx, invalidate) {
+  const url = new URL(request.url ?? '/', 'http://dsh.internal')
+  if (url.pathname.endsWith('/session') && request.method === 'GET') {
+    await handleSession(ctx, url, response)
+    return
+  }
+  if (url.pathname.endsWith('/list') && request.method === 'GET') {
+    await handleList(ctx, url, response)
+    return
+  }
+  if (url.pathname.endsWith('/rescan') && request.method === 'GET') {
+    await handleRescan(ctx, url, response, invalidate)
+    return
+  }
+  if (url.pathname.endsWith('/config') && request.method === 'PUT') {
+    await handleConfig(request, response, invalidate)
+    return
+  }
+  writeJson(response, 404, {
+    ok: false,
+    error: { message: 'unknown my-skill-manager API method' },
+  })
 }
 
 /** GET /list — grouped catalog + configs for the cwd. */
@@ -61,6 +70,15 @@ async function handleList(ctx, url, response) {
   const safeCwd = cwdOf(url)
   const data = await resolveListData(ctx, safeCwd)
   writeJson(response, 200, { ok: true, value: data })
+}
+
+/** GET /session — the session's working directory (issue #69: the settings
+ *  tab auto-detects the current project instead of a manual path input). */
+async function handleSession(ctx, url, response) {
+  const sessionId = url.searchParams.get('sessionId')
+  const session = typeof sessionId === 'string' && sessionId !== '' ? ctx.sessions.get(sessionId) : undefined
+  const cwd = session?.header?.cwd
+  writeJson(response, 200, { ok: true, value: { cwd: typeof cwd === 'string' && cwd !== '' ? cwd : '' } })
 }
 
 /** GET /rescan — invalidate the official catalog, then return a fresh list. */

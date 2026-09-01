@@ -24,6 +24,29 @@ function fetchList(cwd) {
     })
 }
 
+/** Current session id from localStorage ('dsh.sessions.current' → { sessionId }). */
+function currentSessionId() {
+  try {
+    const raw = localStorage.getItem('dsh.sessions.current')
+    const parsed = raw === null ? null : JSON.parse(raw)
+    return typeof parsed?.sessionId === 'string' ? parsed.sessionId : ''
+  } catch {
+    return ''
+  }
+}
+
+/** GET /my-skill-manager/api/session → the session's working directory ('' if none). */
+function fetchSessionCwd(sessionId) {
+  if (sessionId === '') return Promise.resolve('')
+  return fetch(`${API_BASE}/session?sessionId=${encodeURIComponent(sessionId)}`)
+    .then((res) => res.json())
+    .then((body) => {
+      if (body === null || body.ok !== true) return ''
+      return typeof body.value?.cwd === 'string' ? body.value.cwd : ''
+    })
+    .catch(() => '')
+}
+
 /** GET /my-skill-manager/api/rescan → invalidate + fresh normalized value. */
 function rescanCatalog(cwd) {
   const query = cwd.trim() === '' ? '' : `?cwd=${encodeURIComponent(cwd.trim())}`

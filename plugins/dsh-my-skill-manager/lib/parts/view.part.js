@@ -1,4 +1,7 @@
 // ── view: Skill Manager settings tab ───────────────────────────────────
+// issue #69 重设计（Minimal Single Column）：标题区（标题+唯一刷新按钮）/
+// 视图区（分段控件：全局|当前项目，自动感知会话 cwd）/ 列表区（名称+状态
+// chip 为主、描述次之）/ 诊断区（仅异常时出现、可折叠）。无路径输入。
 function isProjectSource(source) {
   return typeof source === 'string' && source.startsWith('project-')
 }
@@ -40,138 +43,164 @@ function createActions({ setData, setLoading, setError, setSaved }) {
   return {
     load,
     rescan,
-    toggle: (data, scope, name, isDisabled) => {
-      if (scope === 'project' && data.cwd === '') return
+    toggle: (data, scope, name, isDisabled, cwd) => {
+      if (scope === 'project' && cwd === '') return
       const list = scope === 'global' ? data.globalDisabled : data.projectDisabled
-      save(scope, flipDisabled(list, name, isDisabled), scope === 'project' ? data.cwd : '')
+      save(scope, flipDisabled(list, name, isDisabled), scope === 'project' ? cwd : '')
     },
   }
 }
 
+/** Skill Manager settings tab: header + view switch + skill list + diagnostics. */
 function SkillManagerView() {
   const [data, setData] = useState(null)
-  const [pathInput, setPathInput] = useState('')
+  const [view, setView] = useState('global')
+  const [sessionCwd, setSessionCwd] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [saved, setSaved] = useState(false)
   const actions = createActions({ setData, setLoading, setError, setSaved })
 
   useEffect(() => {
-    actions.load('')
+    fetchSessionCwd(currentSessionId()).then((cwd) => {
+      setSessionCwd(cwd)
+      actions.load('')
+    })
   }, [])
+
+  const projectRoot = data === null ? '' : data.projectRoot
+  const cwdOf = (scope) => (scope === 'project' ? sessionCwd : '')
+  const switchView = (scope) => {
+    if (scope === view) return
+    setView(scope)
+    actions.load(cwdOf(scope))
+  }
 
   return createElement(
     'div',
     { className: 'dsh-my-skill-manager-root' },
-    createElement(Toolbar, {
-      pathInput,
-      onInput: setPathInput,
-      onLoad: actions.load,
-      onRescan: actions.rescan,
+    createElement(Header, {
+      loading,
+      error,
+      saved,
+      onRefresh: () => actions.rescan(cwdOf(view)),
     }),
-    error ? createElement('div', { className: 'dsh-my-skill-manager-error' }, strings.loadError()) : null,
+    createElement(ViewSwitch, { view, hasProject: sessionCwd !== '', onSwitch: switchView }),
     loading
       ? createElement('div', { className: 'dsh-my-skill-manager-status' }, strings.loading())
-      : data === null
-        ? null
-        : createElement(Sections, {
-            data,
-            saved,
-            onToggle: (scope, name, isDisabled) => actions.toggle(data, scope, name, isDisabled),
-          }),
+      : error
+        ? createElement('div', { className: 'dsh-my-skill-manager-error' }, strings.loadError())
+        : data === null
+          ? null
+          : createElement(Sections, {
+              data,
+              view,
+              saved,
+              onToggle: (scope, name, isDisabled) => actions.toggle(data, scope, name, isDisabled, cwdOf(scope)),
+            }),
   )
 }
 
-/** Path input + icon buttons (load project / rescan) + config note. */
-function Toolbar({ pathInput, onInput, onLoad, onRescan }) {
+/** Title row with the single refresh action (icon button, spins while loading). */
+function Header({ loading, error, saved, onRefresh }) {
   return createElement(
     'div',
-    { className: 'dsh-my-skill-manager-toolbar' },
+    { className: 'dsh-my-skill-manager-header' },
+    createElement('span', { className: 'dsh-my-skill-manager-header-title' }, strings.title()),
+    loading ? createElement('div', { className: 'dsh-my-skill-manager-header-hint' }, strings.loading()) : null,
+    saved
+      ? createElement(
+          'div',
+          { className: 'dsh-my-skill-manager-header-hint dsh-my-skill-manager-saved' },
+          strings.saved(),
+        )
+      : null,
     createElement(
-      'div',
-      { className: 'dsh-my-skill-manager-pathbar' },
-      createElement('input', {
-        className: 'dsh-my-skill-manager-path-input',
-        placeholder: strings.projectHint(),
-        value: pathInput,
-        onChange: (event) => onInput(event.target.value),
-        onKeyDown: (event) => {
-          if (event.key === 'Enter') onLoad(pathInput)
-        },
-      }),
-      createElement(
-        'button',
-        {
-          className: 'dsh-my-skill-manager-iconbtn',
-          'aria-label': strings.loadProject(),
-          title: strings.loadProject(),
-          onClick: () => onLoad(pathInput),
-        },
-        icon.folder(14),
-      ),
-      createElement(
-        'button',
-        {
-          className: 'dsh-my-skill-manager-iconbtn',
-          'aria-label': strings.refresh(),
-          title: strings.refresh(),
-          onClick: () => onRescan(pathInput),
-        },
-        icon.refresh(14),
-      ),
+      'button',
+      {
+        className: `dsh-my-skill-manager-iconbtn${loading ? ' dsh-my-skill-manager-iconbtn-spin' : ''}`,
+        'aria-label': strings.refresh(),
+        title: strings.refresh(),
+        disabled: loading,
+        onClick: onRefresh,
+      },
+      icon.refresh(14),
     ),
-    createElement('div', { className: 'dsh-my-skill-manager-note' }, strings.projectConfigNote()),
   )
 }
 
-/** The toggle section for the current view (global or project) + diagnostics. */
-function Sections({ data, saved, onToggle }) {
-  const projectMode = data.cwd !== ''
+/** Segmented control: 全局 / 当前项目 (project tab only when cwd detected). */
+function ViewSwitch({ view, hasProject, onSwitch }) {
+  const seg = (scope, label) =>
+    createElement(
+      'button',
+      {
+        type: 'button',
+        className: `dsh-my-skill-manager-seg${view === scope ? ' dsh-my-skill-manager-seg-on' : ''}`,
+        'aria-pressed': view === scope,
+        onClick: () => onSwitch(scope),
+      },
+      label,
+    )
+  return createElement('div', { className: 'dsh-my-skill-manager-switchseg' }, [
+    seg('global', strings.globalSection()),
+    hasProject ? seg('project', strings.projectSection()) : null,
+  ])
+}
+
+/** The toggle section for the current view + diagnostics (collapsible). */
+function Sections({ data, view, onToggle }) {
+  const projectMode = view === 'project'
   return createElement(
     'div',
     { className: 'dsh-my-skill-manager-sections' },
-    projectMode
-      ? createElement(SectionBlock, {
-          title: projectTitleOf(data),
-          hint: strings.disabledHint(),
-          skills: data.skills,
-          disabledNames: data.projectDisabled,
-          onToggle: (name, isDisabled) => onToggle('project', name, isDisabled),
-        })
-      : createElement(SectionBlock, {
-          title: strings.globalSection(),
-          hint: strings.disabledHint(),
-          skills: data.skills,
-          disabledNames: data.globalDisabled,
-          onToggle: (name, isDisabled) => onToggle('global', name, isDisabled),
-        }),
+    createElement(SectionBlock, {
+      title: projectMode ? projectTitleOf(data) : strings.globalSection(),
+      hint: strings.disabledHint(),
+      skills: data.skills,
+      disabledNames: projectMode ? data.projectDisabled : data.globalDisabled,
+      onToggle: (name, isDisabled) => onToggle(projectMode ? 'project' : 'global', name, isDisabled),
+    }),
     createElement(DiagnosticsBlock, { diagnostics: data.diagnostics }),
-    saved
-      ? createElement('div', { className: 'dsh-my-skill-manager-status dsh-my-skill-manager-saved' }, strings.saved())
-      : null,
   )
 }
 
-/** Skipped skill entries reported by the server-side directory scan:
- *  warn badge + key info (name/reason) + detail (path). */
+/** Collapsed warn bar when there are skipped entries; expandable row list. */
 function DiagnosticsBlock({ diagnostics }) {
   const missing = diagnostics?.missing ?? []
+  const [open, setOpen] = useState(false)
   if (missing.length === 0) return null
   return createElement(
     'div',
-    { className: 'dsh-my-skill-manager-section' },
-    createElement('div', { className: 'dsh-my-skill-manager-section-head' }, strings.diagnosticsTitle()),
-    createElement('div', { className: 'dsh-my-skill-manager-hint' }, strings.diagnosticsHint()),
-    missing.map((item) =>
-      createElement(
-        'div',
-        { key: item.path, className: 'dsh-my-skill-manager-diag-row' },
-        createElement('span', { className: 'dsh-my-skill-manager-diag-badge' }, strings.diagBadge()),
-        createElement('span', { className: 'dsh-my-skill-manager-diag-name' }, item.name),
-        createElement('span', { className: 'dsh-my-skill-manager-diag-reason' }, strings.diagReason(item.reason)),
-        createElement('span', { className: 'dsh-my-skill-manager-diag-path' }, item.path),
-      ),
+    { className: 'dsh-my-skill-manager-diag' },
+    createElement(
+      'button',
+      {
+        type: 'button',
+        className: 'dsh-my-skill-manager-diag-bar',
+        'aria-expanded': open,
+        onClick: () => setOpen(!open),
+      },
+      createElement('span', { className: 'dsh-my-skill-manager-diag-badge' }, strings.diagBadge()),
+      createElement('span', { className: 'dsh-my-skill-manager-diag-title' }, strings.diagnosticsTitle()),
+      createElement('span', { className: 'dsh-my-skill-manager-diag-count' }, `(${missing.length})`),
+      createElement('span', { className: 'dsh-my-skill-manager-diag-chevron' }, open ? '▾' : '▸'),
     ),
+    open
+      ? createElement(
+          'div',
+          { className: 'dsh-my-skill-manager-diag-body' },
+          missing.map((item) =>
+            createElement(
+              'div',
+              { key: item.path, className: 'dsh-my-skill-manager-diag-row' },
+              createElement('span', { className: 'dsh-my-skill-manager-diag-name' }, item.name),
+              createElement('span', { className: 'dsh-my-skill-manager-diag-reason' }, strings.diagReason(item.reason)),
+              createElement('span', { className: 'dsh-my-skill-manager-diag-path' }, item.path),
+            ),
+          ),
+        )
+      : null,
   )
 }
 
@@ -181,13 +210,12 @@ function projectTitleOf(data) {
     : `${strings.projectSection()} · ${strings.projectRoot()}${data.projectRoot}`
 }
 
-function SectionBlock({ title, hint, skills, disabledNames, onToggle, locked }) {
+function SectionBlock({ title, hint, skills, disabledNames, onToggle }) {
   const rows = skills.map((skill) =>
     createElement(SkillRow, {
       key: skill.name,
       skill,
       disabled: disabledNames.includes(skill.name),
-      locked,
       onToggle: () => onToggle(skill.name, disabledNames.includes(skill.name)),
     }),
   )
@@ -199,7 +227,6 @@ function SectionBlock({ title, hint, skills, disabledNames, onToggle, locked }) 
       { className: 'dsh-my-skill-manager-section-head' },
       createElement('span', { className: 'dsh-my-skill-manager-section-title' }, title),
     ),
-    createElement('div', { className: 'dsh-my-skill-manager-hint' }, hint),
     rows.length === 0
       ? createElement(
           'div',
@@ -209,10 +236,19 @@ function SectionBlock({ title, hint, skills, disabledNames, onToggle, locked }) 
           createElement('span', { className: 'dsh-my-skill-manager-empty-hint' }, strings.emptyHint()),
         )
       : rows,
+    createElement('div', { className: 'dsh-my-skill-manager-hint' }, hint),
   )
 }
 
-function SkillRow({ skill, disabled, locked, onToggle }) {
+/** Card row: name + state chip on the main line, description (with source /
+ *  not-cataloged note in small text) below — issue #69 information hierarchy. */
+function SkillRow({ skill, disabled, onToggle }) {
+  const meta = [
+    isProjectSource(skill.source) ? strings.sourceProject(skill.source) : strings.sourceGlobal(skill.source),
+    skill.cataloged === false ? strings.notCataloged() : null,
+  ]
+    .filter((item) => item !== null)
+    .join(' · ')
   return createElement(
     'div',
     { className: `dsh-my-skill-manager-row${disabled ? ' dsh-my-skill-manager-row-disabled' : ''}` },
@@ -220,31 +256,33 @@ function SkillRow({ skill, disabled, locked, onToggle }) {
       'div',
       { className: 'dsh-my-skill-manager-row-head' },
       createElement('span', { className: 'dsh-my-skill-manager-name' }, skill.name),
-      skill.cataloged === false
-        ? createElement(
-            'span',
-            { className: 'dsh-my-skill-manager-src dsh-my-skill-manager-src-warn', title: strings.notCatalogedHint() },
-            strings.notCataloged(),
-          )
-        : null,
-      createElement(
-        'span',
-        { className: 'dsh-my-skill-manager-src' },
-        isProjectSource(skill.source) ? strings.sourceProject(skill.source) : strings.sourceGlobal(skill.source),
-      ),
-      createElement(
-        'span',
-        { className: `dsh-my-skill-manager-state${disabled ? '' : ' dsh-my-skill-manager-state-on'}` },
-        disabled ? strings.disabled() : strings.enabled(),
-      ),
+      createElement(StateChip, { disabled }),
       createElement(Switch, {
         checked: !disabled,
-        disabled: locked,
         label: `${skill.name}: ${disabled ? strings.disabled() : strings.enabled()}`,
         onToggle,
       }),
     ),
     createElement('div', { className: 'dsh-my-skill-manager-desc' }, skill.description),
+    meta !== ''
+      ? createElement(
+          'div',
+          {
+            className: 'dsh-my-skill-manager-row-meta',
+            title: skill.cataloged === false ? strings.notCatalogedHint() : undefined,
+          },
+          meta,
+        )
+      : null,
+  )
+}
+
+/** State chip: text + color double encoding (enabled = success, disabled = neutral). */
+function StateChip({ disabled }) {
+  return createElement(
+    'span',
+    { className: `dsh-my-skill-manager-chip${disabled ? '' : ' dsh-my-skill-manager-chip-on'}` },
+    disabled ? strings.disabled() : strings.enabled(),
   )
 }
 
