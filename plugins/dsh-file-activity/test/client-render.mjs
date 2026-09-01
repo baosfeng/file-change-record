@@ -430,6 +430,63 @@ assert.equal(
   'unknown errors keep their message',
 )
 
+// ── floating preview auto-dismiss (issue #76) ────────────────────────────
+// The preview must never linger: clicking anywhere outside closes it,
+// switching tabs closes it, and an error state closes itself (or on any
+// click inside the shell). The behaviors are pure functions exercised here;
+// the component wires them into DOM listeners in a real browser.
+assert.ok(fpTexts.includes('点击外部关闭'), 'floating preview shows the click-outside hint')
+assert.equal(internals.AUTO_CLOSE_MS, 2500, 'error-state auto-close delay is 2.5s')
+// pointerdown outside the window → dismiss; inside → keep.
+assert.equal(internals.isInsideFloating(null), false, 'null target counts as outside')
+assert.equal(internals.isInsideFloating({ closest: () => null }), false, 'outside target dismisses')
+assert.equal(internals.isInsideFloating({ closest: () => ({}) }), true, 'inside target keeps the window')
+// window-surface click: error state closes on ANY click, ready/loading
+// states stop propagation so the viewer's own interactions keep working.
+assert.equal(internals.previewClickAction({ status: 'error' }, {}), 'close', 'error state closes on any click')
+let stopped = false
+const fakeEvent = {
+  stopPropagation: () => {
+    stopped = true
+  },
+}
+assert.equal(internals.previewClickAction({ status: 'ready' }, fakeEvent), 'stop', 'ready state keeps the window')
+assert.equal(stopped, true, 'ready state stops propagation')
+assert.equal(internals.previewClickAction({ status: 'loading' }, null), 'stop', 'loading state keeps the window')
+// error body renders the friendly message + the auto-close hint.
+const errBody = internals.renderPreviewBody(
+  { status: 'error', viewer: null, message: '文件不存在或已被删除' },
+  null,
+  null,
+  { sessionId: 'sess-test' },
+  '/work/missing.txt',
+  'missing.txt',
+  'sess-test',
+)
+const errTexts = []
+const walkErr = (node) => {
+  if (node === null || node === undefined || typeof node === 'boolean') return
+  if (typeof node === 'string' || typeof node === 'number') {
+    errTexts.push(String(node))
+    return
+  }
+  if (Array.isArray(node)) {
+    for (const c of node) walkErr(c)
+    return
+  }
+  walkErr(node.props?.children)
+}
+walkErr(errBody)
+assert.ok(errTexts.includes('预览加载失败'), 'error panel shows the failure title')
+assert.ok(errTexts.includes('文件不存在或已被删除'), 'error panel shows the friendly message')
+assert.ok(errTexts.includes('预览失败，即将自动关闭'), 'error panel announces the auto-close')
+// switching tabs (visible=false) closes the preview; staying visible keeps it.
+dataStore.set({ preview: { abs: '/work/README.md', name: 'README.md' } })
+internals.closePreviewOnHidden(true, dataStore)
+assert.ok(dataStore.getSnapshot().preview !== null, 'visible tab keeps the preview open')
+internals.closePreviewOnHidden(false, dataStore)
+assert.equal(dataStore.getSnapshot().preview, null, 'hidden tab closes the floating preview')
+
 console.log('ALL CLIENT RENDER-PATH TESTS PASSED')
 console.log('sample output tree (clickable rows):')
 for (const row of rows) console.log('  '.repeat(row.depth) + row.title)
