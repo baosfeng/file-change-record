@@ -2,6 +2,12 @@
 
 本文件记录 dsh-file-activity 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.5.4] - 2026-09-01
+
+### 变更
+
+- fix(file-activity): 浮窗预览优雅降级与工作区外文本读取（issue #68）
+
 ## [0.5.3] - 2026-09-01
 
 ### 变更
