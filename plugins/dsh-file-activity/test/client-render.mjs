@@ -371,38 +371,49 @@ async function withFetch(handler, fn) {
 }
 
 // 场景 1: fs.read 拒绝（工作区外）→ 插件文本路由返回内容 → 预览就绪。
-const outsideLoad = await withFetch(async (url) => {
-  if (url.startsWith('/sidebar/api/fs.read')) {
-    return {
-      json: () =>
-        Promise.resolve({ ok: false, error: { message: `path "${outsidePath}" is outside workspace` } }),
+const outsideLoad = await withFetch(
+  async (url) => {
+    if (url.startsWith('/sidebar/api/fs.read')) {
+      return {
+        json: () => Promise.resolve({ ok: false, error: { message: `path "${outsidePath}" is outside workspace` } }),
+      }
     }
-  }
-  if (url.startsWith('/file-activity/file?') && url.includes('as=text')) {
-    return { json: () => Promise.resolve({ ok: true, value: { content: '# outside text' } }) }
-  }
-  return { json: () => Promise.resolve({ ok: false, error: { message: 'unexpected fetch: ' + url } }) }
-}, () => internals.loadFsReadContent(fsReadViewer, outsidePath, { sessionId: 'sess-test', cwd: '/work' }, 'sess-test'))
+    if (url.startsWith('/file-activity/file?') && url.includes('as=text')) {
+      return { json: () => Promise.resolve({ ok: true, value: { content: '# outside text' } }) }
+    }
+    return { json: () => Promise.resolve({ ok: false, error: { message: 'unexpected fetch: ' + url } }) }
+  },
+  () => internals.loadFsReadContent(fsReadViewer, outsidePath, { sessionId: 'sess-test', cwd: '/work' }, 'sess-test'),
+)
 assert.equal(outsideLoad.status, 'ready', 'workspace-fenced text falls back to the plugin text route')
 assert.equal(outsideLoad.content, '# outside text', 'fallback content served')
 
 // 场景 2: 文件已删除（fs.read 与插件路由均报 ENOENT/not found）→ 友好提示
 // 「文件不存在或已被删除」，原始英文系统错误不再上屏。
-const missingLoad = await withFetch(async (url) => {
-  if (url.startsWith('/sidebar/api/fs.read')) {
-    return {
-      json: () =>
-        Promise.resolve({
-          ok: false,
-          error: { message: 'cannot resolve target "/tmp/issue-body.md": ENOENT: no such file' },
-        }),
+const missingLoad = await withFetch(
+  async (url) => {
+    if (url.startsWith('/sidebar/api/fs.read')) {
+      return {
+        json: () =>
+          Promise.resolve({
+            ok: false,
+            error: { message: 'cannot resolve target "/tmp/issue-body.md": ENOENT: no such file' },
+          }),
+      }
     }
-  }
-  if (url.startsWith('/file-activity/file?') && url.includes('as=text')) {
-    return { json: () => Promise.resolve({ ok: false, error: { message: 'file not found' } }) }
-  }
-  return { json: () => Promise.resolve({ ok: false, error: { message: 'unexpected fetch: ' + url } }) }
-}, () => internals.loadFsReadContent(fsReadViewer, '/tmp/issue-body.md', { sessionId: 'sess-test', cwd: '/work' }, 'sess-test'))
+    if (url.startsWith('/file-activity/file?') && url.includes('as=text')) {
+      return { json: () => Promise.resolve({ ok: false, error: { message: 'file not found' } }) }
+    }
+    return { json: () => Promise.resolve({ ok: false, error: { message: 'unexpected fetch: ' + url } }) }
+  },
+  () =>
+    internals.loadFsReadContent(
+      fsReadViewer,
+      '/tmp/issue-body.md',
+      { sessionId: 'sess-test', cwd: '/work' },
+      'sess-test',
+    ),
+)
 assert.equal(missingLoad.status, 'error', 'deleted file resolves to an error state')
 assert.equal(missingLoad.message, '文件不存在或已被删除', 'ENOENT translates to a friendly zh message')
 assert.ok(!/ENOENT/i.test(missingLoad.message), 'raw ENOENT never surfaces')

@@ -84,8 +84,7 @@ async function serveRecordedFile(request, response, ctx, store) {
   const sessionId = url.searchParams.get('sessionId')
   const raw = url.searchParams.get('path')
   assertMediaParams(sessionId, raw)
-  if (!isRecordedPath(store.state, sessionId, raw))
-    throw mediaError(403, "path is not in this session's file activity")
+  if (!isRecordedPath(store.state, sessionId, raw)) throw mediaError(403, "path is not in this session's file activity")
   const abs = isAbsolute(raw) ? raw : join(sessionCwdOf(ctx, sessionId), raw)
   if (url.searchParams.get('as') === 'text') {
     await serveText(response, abs)
