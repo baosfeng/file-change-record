@@ -62,13 +62,14 @@ function beep() {
   void Promise.resolve(resume)
     .then(() => {
       if (!prefOn(LS.sound, true)) return
+      const volume = prefVolume()
       const t0 = ac.currentTime
       const osc = ac.createOscillator()
       const gain = ac.createGain()
       osc.type = 'sine'
       osc.frequency.value = 880
       gain.gain.setValueAtTime(0.0001, t0)
-      gain.gain.exponentialRampToValueAtTime(0.18, t0 + 0.015)
+      gain.gain.exponentialRampToValueAtTime(volume, t0 + 0.015)
       gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22)
       osc.connect(gain)
       gain.connect(ac.destination)

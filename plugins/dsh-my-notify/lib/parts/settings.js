@@ -15,6 +15,9 @@ const SETTINGS_STYLES = `
 .dsh-my-notify-toggle::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--dsw-alias-label-primary);transition:transform var(--ds-transition-duration-slow) var(--ds-ease-in-out),background var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
 .dsh-my-notify-toggle[data-on="true"]::after{transform:translateX(12px);background:var(--dsw-alias-label-primary-foreground)}
 .dsh-my-notify-input{flex:none;width:180px;height:28px;padding:0 8px;border-radius:6px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xxs-12)}
+/* issue #71: 音量滑杆（range）——细轨道 + 主色填充，与设置面板风格一致 */
+.dsh-my-notify-range{flex:none;width:140px;accent-color:var(--dsw-alias-state-success-primary);cursor:pointer}
+.dsh-my-notify-range-value{flex:none;min-width:40px;text-align:right;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary)}
 .dsh-my-notify-actions{display:flex;align-items:center;gap:8px}
 .dsh-my-notify-btn{height:28px;padding:0 14px;border-radius:6px;cursor:pointer;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-interactive-bg);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xxs-12)}
 .dsh-my-notify-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}
@@ -64,8 +67,33 @@ function TextRow({ label, hint, value, onChange, type }) {
   )
 }
 
-/** 设置表单渲染（触发开关 + 高级项 + 保存动作）。 */
-function renderSettingsForm(draft, patch, save, saved, error) {
+/** 音量滑杆行（0~1，issue #71：音量走 localStorage，不走 server config）。 */
+function VolumeRow({ label, hint, value, onChange }) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-notify-row' },
+    createElement(
+      'div',
+      { className: 'dsh-my-notify-info' },
+      createElement('div', { className: 'dsh-my-notify-label' }, label),
+      createElement('div', { className: 'dsh-my-notify-hint' }, hint),
+    ),
+    createElement('input', {
+      className: 'dsh-my-notify-range',
+      type: 'range',
+      min: '0',
+      max: '1',
+      step: '0.05',
+      value: String(value),
+      'aria-label': label,
+      onChange: (event) => onChange(Number(event.target.value)),
+    }),
+    createElement('div', { className: 'dsh-my-notify-range-value' }, `${Math.round(value * 100)}%`),
+  )
+}
+
+/** 设置表单渲染（触发开关 + 音量 + 高级项 + 保存动作）。 */
+function renderSettingsForm(draft, patch, save, saved, error, volume, onVolumeChange) {
   return createElement(
     'div',
     { className: 'dsh-my-notify-settings' },
@@ -96,6 +124,12 @@ function renderSettingsForm(draft, patch, save, saved, error) {
         hint: strings.settingsSubagentEndHint(),
         on: draft.subagentEnd === true,
         onChange: (v) => patch('subagentEnd', v),
+      }),
+      createElement(VolumeRow, {
+        label: strings.settingsVolume(),
+        hint: strings.settingsVolumeHint(),
+        value: volume,
+        onChange: onVolumeChange,
       }),
     ),
     createElement(
@@ -150,6 +184,8 @@ function NotifySettingsView() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [saved, setSaved] = useState(false)
+  // issue #71: 音量走 localStorage（纯 client 端偏好，不随 server config 保存）
+  const [volume, setVolume] = useState(() => prefVolume())
 
   useEffect(() => {
     fetch('/notify/api/config')
@@ -182,7 +218,15 @@ function NotifySettingsView() {
   }
   const patch = (key, value) => setDraft({ ...draft, [key]: value })
   const save = () => saveConfig(draft, setSaved, setError)
-  return renderSettingsForm(draft, patch, save, saved, error)
+  const onVolumeChange = (v) => {
+    setVolume(v)
+    try {
+      window.localStorage.setItem(LS.volume, String(v))
+    } catch {
+      // storage unavailable: volume stays in-memory for this session
+    }
+  }
+  return renderSettingsForm(draft, patch, save, saved, error, volume, onVolumeChange)
 }
 
 /** 设置页 tab 注册（官方 slots 扩展点；服务缺省时静默跳过）。 */

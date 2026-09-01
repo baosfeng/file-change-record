@@ -13,6 +13,7 @@
  *  - dsh-notify:notify = '0' 关闭系统通知（默认开）
  *  - dsh-notify:sound   = '0' 关闭提示音（默认开）
  *  - dsh-notify:toast   = '0' 关闭页面内 toast（默认开）
+ *  - dsh-notify:volume  = 0~1 提示音音量（默认 0.6，issue #71）
  *
  * BUILD NOTE: 本文件是模板源码，不是 DSH 实际服务的文件。scripts/build.mjs
  * 将三个片段文件（lib/parts/i18n.js / render.js / stream.js，均为无

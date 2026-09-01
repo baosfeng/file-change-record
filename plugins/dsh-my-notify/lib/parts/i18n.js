@@ -35,6 +35,8 @@ const strings = {
     isZh() ? '配置后远程 hook 需携带 x-notify-token 头' : 'Remote hooks must send x-notify-token when set',
   settingsDedupeMs: () => (isZh() ? '去重窗口（毫秒）' : 'Dedupe window (ms)'),
   settingsDedupeMsHint: () => (isZh() ? '同类通知在窗口内只推一次' : 'Same-kind notices are deduped within the window'),
+  settingsVolume: () => (isZh() ? '提示音音量' : 'Sound volume'),
+  settingsVolumeHint: () => (isZh() ? '调节提示音大小（0~100%）' : 'Adjust the beep volume (0-100%)'),
   save: () => (isZh() ? '保存' : 'Save'),
   saved: () => (isZh() ? '已保存' : 'Saved'),
   saveFailed: () => (isZh() ? '保存失败' : 'Save failed'),
@@ -43,7 +45,12 @@ const strings = {
 }
 
 // ── 本地开关（localStorage 覆盖，默认全开）──────────────────────────
-const LS = { notify: 'dsh-notify:notify', sound: 'dsh-notify:sound', toast: 'dsh-notify:toast' }
+const LS = {
+  notify: 'dsh-notify:notify',
+  sound: 'dsh-notify:sound',
+  toast: 'dsh-notify:toast',
+  volume: 'dsh-notify:volume',
+}
 
 function prefOn(key, def) {
   try {
@@ -53,4 +60,17 @@ function prefOn(key, def) {
   } catch {
     return def
   }
+}
+
+/** 提示音音量（0~1，默认 0.6；issue #71：0.18 太小听不见）。 */
+function prefVolume() {
+  try {
+    const raw = window.localStorage.getItem(LS.volume)
+    if (raw === null) return 0.6
+    const v = Number(raw)
+    if (Number.isFinite(v) && v >= 0 && v <= 1) return v
+  } catch {
+    // fall through to default
+  }
+  return 0.6
 }
