@@ -465,9 +465,16 @@ try {
     !thinkClasses.includes('dsh-think-zh-expand-think-chevron-open'),
     'no chevron rotation transition class (visual rollback)',
   )
-  assert.ok(!thinkClasses.includes('dsh-think-zh-expand-think-icon'), 'no clock icon class (visual rollback)')
+  // issue #73: 展开态无 think 图标（官方展开态 leading 只显示 chevron）
+  assert.ok(!thinkClasses.includes('dsh-think-zh-expand-think-icon'), 'no think icon while expanded (official)')
   assert.ok(thinkClasses.includes('dsh-think-zh-expand-think-title'), 'think title class (new prefix)')
   assert.ok(thinkClasses.includes('dsh-think-zh-expand-think-body'), 'think body class (new prefix)')
+  // issue #73: 头部结构对齐官方 DisclosureRow——leading 图标区 + separator
+  assert.ok(thinkClasses.includes('dsh-think-zh-expand-think-leading'), 'think leading class (official DisclosureRow)')
+  assert.ok(
+    !thinkClasses.includes('dsh-think-zh-expand-think-separator'),
+    'no separator while expanded (official collapsedContent hidden)',
+  )
   // 本插件旧类名全部清除；tzx-md / tzx-p 等是 dsh-md-render 的 MarkdownView
   // 输出契约类名（跨插件表格增强依赖），必须保留。
   const LEGACY_OWN = [
@@ -484,28 +491,34 @@ try {
   assert.ok(!thinkClasses.some((c) => LEGACY_OWN.includes(c)), 'no legacy own tzx-* classes in the think tree')
   assert.ok(thinkClasses.includes('tzx-md'), 'contract class tzx-md preserved (MarkdownView output)')
   assert.ok(thinkClasses.includes('tzx-p'), 'contract class tzx-p preserved (MarkdownView output)')
-  assert.equal(countSvg(thinkTree), 0, 'no svg icons rendered (visual rollback to plain chevron glyph)')
+  // issue #73: 折叠箭头为官方 IconChevronDownOutline14（14px SVG 图标），
+  // 不再是字符 ▸/▾；展开态渲染 1 个 chevron svg
+  assert.equal(countSvg(thinkTree), 1, 'chevron svg icon rendered while expanded (official)')
   const thinkExpandedTexts = collectTexts(thinkTree)
-  assert.ok(thinkExpandedTexts.includes('▾'), 'plain chevron glyph pointing down while expanded')
+  assert.ok(!thinkExpandedTexts.includes('▾'), 'no plain chevron glyph (official svg icon)')
+  assert.ok(!thinkExpandedTexts.includes('▸'), 'no plain chevron glyph (official svg icon)')
   const thinkRoot = findClass(thinkTree, 'dsh-think-zh-expand-think')
   assert.equal(thinkRoot.props['data-state'], 'ok', 'data-state ok when not streaming')
   assert.equal(thinkRoot.props['data-variant'], 'think', 'data-variant think preserved')
 
-  // 13b. issue #57: 思考块内 MarkdownView 内容颜色覆盖——.tzx-md 自带
-  //      label-primary（与正式回复同色），必须被思考块的浅灰规则覆盖，
-  //      否则思考/非思考文字样式区分不开。断言注入的样式表含覆盖规则。
+  // 13b. issue #73: #57 的思考正文浅灰覆盖规则已移除——思考正文经
+  //      MarkdownView 渲染后颜色跟随其官方默认（primary，与正式回复一致），
+  //      不再有 .tzx-md / 表格 / 公式的 label-tertiary 覆盖。断言注入的
+  //      样式表不含这些覆盖规则（防 #57 回归）。
   assert.ok(injectedStyles.length >= 1, 'styles injected into document head')
   const thinkStyleSheet = injectedStyles.join('\n')
   assert.ok(
-    thinkStyleSheet.includes('.dsh-think-zh-expand-think-body .tzx-md{color:var(--dsw-alias-label-tertiary)}'),
-    'think body overrides .tzx-md color to tertiary (issue #57)',
+    !thinkStyleSheet.includes('.dsh-think-zh-expand-think-body .tzx-md{color:var(--dsw-alias-label-tertiary)}'),
+    'no .tzx-md tertiary override (issue #73)',
   )
   assert.ok(
-    thinkStyleSheet.includes(
+    !thinkStyleSheet.includes(
       '.dsh-think-zh-expand-think-body .dsh-md-render-table{color:var(--dsw-alias-label-tertiary)}',
     ),
-    'think body overrides table color to tertiary (issue #57)',
+    'no table tertiary override (issue #73)',
   )
+  // 正文缩进对齐官方 thinkBody（22px，非 24px）
+  assert.ok(thinkStyleSheet.includes('padding:4px 0 4px 22px'), 'think body 22px indent (official thinkBody)')
 
   // 14. 流式生成中：data-state=running + 强制展开（徽章已回退移除）
   const runningTree = capturedRenderer({
@@ -570,6 +583,20 @@ try {
     'summary shows first line when collapsed',
   )
   assert.ok(!collapsedTexts.some((t) => t.includes('第二行')), 'body hidden when collapsed')
+  // issue #73: 收起态结构对齐官方——think 图标 + chevron(hover 显示) +
+  // separator + summary
+  const collapsedTree = renderThink()
+  const collapsedClasses = collectClasses(collapsedTree)
+  assert.ok(collapsedClasses.includes('dsh-think-zh-expand-think-icon'), 'think icon shown when collapsed (official)')
+  assert.ok(
+    collapsedClasses.includes('dsh-think-zh-expand-think-chevron-hover'),
+    'chevron hover class when collapsed (official)',
+  )
+  assert.ok(
+    collapsedClasses.includes('dsh-think-zh-expand-think-separator'),
+    'separator shown when collapsed (official)',
+  )
+  assert.equal(countSvg(collapsedTree), 2, 'think icon + chevron svg when collapsed (official)')
   const head2 = findClass(renderThink(), 'dsh-think-zh-expand-think-head')
   head2.props.onClick()
   const reexpandedTexts = collectTexts(renderThink())
