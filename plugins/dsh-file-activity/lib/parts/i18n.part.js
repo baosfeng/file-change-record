@@ -42,4 +42,6 @@ const strings = {
   fileOutside: () =>
     isZh() ? '文件位于工作区外，暂无法读取内容' : 'The file is outside the workspace and cannot be read',
   downloadToView: () => (isZh() ? '下载查看' : 'download to view'),
+  clickOutsideToClose: () => (isZh() ? '点击外部关闭' : 'Click outside to close'),
+  autoCloseHint: () => (isZh() ? '预览失败，即将自动关闭' : 'Preview failed — closing automatically'),
 }

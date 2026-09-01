@@ -90,6 +90,8 @@ const strings = {
   fileOutside: () =>
     isZh() ? '文件位于工作区外，暂无法读取内容' : 'The file is outside the workspace and cannot be read',
   downloadToView: () => (isZh() ? '下载查看' : 'download to view'),
+  clickOutsideToClose: () => (isZh() ? '点击外部关闭' : 'Click outside to close'),
+  autoCloseHint: () => (isZh() ? '预览失败，即将自动关闭' : 'Preview failed — closing automatically'),
 }
 
     // ── path / time formatting helpers ────────────────────────────────────
@@ -776,6 +778,7 @@ const STYLES = `
   display:flex; flex-direction:column; overflow:hidden; }
 .dfa-fp-head { display:flex; align-items:center; gap:6px; padding:6px 8px; border-bottom:1px solid var(--dsw-alias-border-l1); flex:none; }
 .dfa-fp-title { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:var(--dsw-font-s-strong-14); color:var(--dsw-alias-label-primary); }
+.dfa-fp-hint { flex:none; font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); opacity:0.8; }
 .dfa-fp-actions { display:flex; align-items:center; gap:2px; flex:none; }
 .dfa-fp-body { flex:1; overflow:auto; padding:10px 12px; min-height:0; }
 .dfa-fp-note { color:var(--dsw-alias-label-tertiary); font:var(--dsw-font-xxs-12); }
@@ -1124,6 +1127,11 @@ function FileActivityView({ ctx, store, scope, visible, dataStore }) {
   useEffect(() => {
     dataStore.set({ preview: null })
   }, [sessionId, dataStore])
+  // Switching tabs hides this view: close any floating preview so it never
+  // lingers over the main UI (issue #76).
+  useEffect(() => {
+    closePreviewOnHidden(visible, dataStore)
+  }, [visible, dataStore])
   const toggleDir = (path) => setCollapsedDirs((prev) => toggleInSet(prev, path))
   const openPreview = (path) => dataStore.set({ preview: { abs: path, name: basenameOf(path) } })
   const closePreview = () => dataStore.set({ preview: null })
@@ -1174,6 +1182,34 @@ function fsReadError(json, viewer) {
   else if (/outside workspace/i.test(raw)) message = strings.fileOutside()
   else message = raw
   return { status: 'error', viewer, message }
+}
+
+/** Milliseconds after which an error-state preview closes itself (issue #76):
+ *  a shell that failed to load any content is useless, so it must not linger
+ *  over the main UI until the user finds the × button. */
+const AUTO_CLOSE_MS = 2500
+
+/** Whether a pointerdown target lies inside the floating window. The window
+ *  surface carries the `.dfa-fp` class; anything else counts as "outside"
+ *  and dismisses the preview (issue #76 — click anywhere outside closes). */
+function isInsideFloating(target) {
+  if (!target || typeof target.closest !== 'function') return false
+  return target.closest('.dfa-fp') !== null
+}
+
+/** Click behavior for the window surface: in the error state ANY click
+ *  closes the shell (there is no content to interact with), otherwise the
+ *  click is swallowed so the viewer's own interactions keep working. */
+function previewClickAction(load, event) {
+  if (load.status === 'error') return 'close'
+  if (event && event.stopPropagation) event.stopPropagation()
+  return 'stop'
+}
+
+/** Close the floating preview when the tab goes hidden (switching tabs /
+ *  operating the main UI), so it never lingers over the interface. */
+function closePreviewOnHidden(visible, dataStore) {
+  if (!visible) dataStore.set({ preview: null })
 }
 
 /**
@@ -1275,6 +1311,7 @@ function renderPreviewBody(load, ctx, store, scope, path, title, sessionId) {
       load.message
         ? createElement('div', { style: { marginTop: '6px', fontSize: '11px', opacity: 0.85 } }, load.message)
         : null,
+      createElement('div', { style: { marginTop: '6px', fontSize: '11px', opacity: 0.7 } }, strings.autoCloseHint()),
     )
   }
   if (load.viewer.id === 'pdf') {
@@ -1310,15 +1347,25 @@ function renderPreviewBody(load, ctx, store, scope, path, title, sessionId) {
  * built-in viewer that fetches its own URL internally (it ignores the
  * `mediaUrl` prop), so it gets a small iframe preview instead.
  */
-function FloatingPreview({ ctx, store, scope, preview, onClose }) {
-  const sessionId = scope?.sessionId ?? ''
-  const path = preview.abs
-  const title = preview.name
-  const service = ctx.betterSidebar
-  const load = usePreviewLoader(service, path, sessionId, scope)
+/**
+ * Dismissal affordances (issue #76 — the preview must never linger):
+ * 1. pointerdown anywhere OUTSIDE the window closes it (capture phase, so
+ *    it fires even if another element sits above the scrim);
+ * 2. the scrim's own onClick (kept as a fallback);
+ * 3. Escape;
+ * 4. the × button;
+ * 5. an error state closes itself after AUTO_CLOSE_MS (no content to show).
+ */
+function usePreviewDismiss(load, onClose) {
+  useEffect(() => {
+    if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return () => {}
+    const handler = (event) => {
+      if (!isInsideFloating(event?.target)) onClose()
+    }
+    document.addEventListener('pointerdown', handler, true)
+    return () => document.removeEventListener('pointerdown', handler, true)
+  }, [onClose])
 
-  // Clicking outside is the primary dismiss (the overlay's onClick);
-  // Escape is a keyboard affordance. Both call onClose.
   useEffect(() => {
     if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return () => {}
     const handler = (event) => {
@@ -1328,6 +1375,16 @@ function FloatingPreview({ ctx, store, scope, preview, onClose }) {
     return () => document.removeEventListener('keydown', handler)
   }, [onClose])
 
+  useEffect(() => {
+    if (load.status !== 'error') return undefined
+    if (typeof window === 'undefined' || typeof window.setTimeout !== 'function') return undefined
+    const timer = window.setTimeout(onClose, AUTO_CLOSE_MS)
+    return () => window.clearTimeout(timer)
+  }, [load.status, onClose])
+}
+
+/** The floating window element: head (title + hint + close) and body. */
+function renderFloatingWindow(load, ctx, store, scope, path, title, sessionId, onClose) {
   return createElement(
     'div',
     { className: 'dfa-fp-overlay', onClick: onClose },
@@ -1336,13 +1393,14 @@ function FloatingPreview({ ctx, store, scope, preview, onClose }) {
       {
         className: 'dfa-fp',
         onClick: (event) => {
-          if (event && event.stopPropagation) event.stopPropagation()
+          if (previewClickAction(load, event) === 'close') onClose()
         },
       },
       createElement(
         'div',
         { className: 'dfa-fp-head' },
         createElement('span', { className: 'dfa-fp-title' }, title),
+        createElement('span', { className: 'dfa-fp-hint' }, strings.clickOutsideToClose()),
         createElement(
           'span',
           { className: 'dfa-fp-actions' },
@@ -1365,6 +1423,16 @@ function FloatingPreview({ ctx, store, scope, preview, onClose }) {
       ),
     ),
   )
+}
+
+function FloatingPreview({ ctx, store, scope, preview, onClose }) {
+  const sessionId = scope?.sessionId ?? ''
+  const path = preview.abs
+  const title = preview.name
+  const service = ctx.betterSidebar
+  const load = usePreviewLoader(service, path, sessionId, scope)
+  usePreviewDismiss(load, onClose)
+  return renderFloatingWindow(load, ctx, store, scope, path, title, sessionId, onClose)
 }
 
 /**
@@ -1495,7 +1563,18 @@ exports.apply = function apply(ctx) {
 
 // Internal functions exposed for the render-path test suite only; inert in
 // the browser bundle (plain properties on the exports object).
-exports.__test = { loadFsReadContent, fsReadError, fetchTextContent, textUrlOf, strings }
+exports.__test = {
+  loadFsReadContent,
+  fsReadError,
+  fetchTextContent,
+  textUrlOf,
+  strings,
+  renderPreviewBody,
+  previewClickAction,
+  isInsideFloating,
+  closePreviewOnHidden,
+  AUTO_CLOSE_MS,
+}
 
 
     return module.exports

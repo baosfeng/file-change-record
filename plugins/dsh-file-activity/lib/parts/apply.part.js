@@ -96,4 +96,15 @@ exports.apply = function apply(ctx) {
 
 // Internal functions exposed for the render-path test suite only; inert in
 // the browser bundle (plain properties on the exports object).
-exports.__test = { loadFsReadContent, fsReadError, fetchTextContent, textUrlOf, strings }
+exports.__test = {
+  loadFsReadContent,
+  fsReadError,
+  fetchTextContent,
+  textUrlOf,
+  strings,
+  renderPreviewBody,
+  previewClickAction,
+  isInsideFloating,
+  closePreviewOnHidden,
+  AUTO_CLOSE_MS,
+}

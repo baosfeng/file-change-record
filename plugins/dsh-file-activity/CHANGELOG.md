@@ -2,6 +2,12 @@
 
 本文件记录 dsh-file-activity 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 变更
+
+- fix(ui): 浮窗预览失焦自动关闭——点击外部任意处/切换页签即关，预览失败 2.5s 自动关闭或点击任意处关闭，头部「点击外部关闭」提示（issue #76）
+
 ## [0.5.4] - 2026-09-01
 
 ### 变更

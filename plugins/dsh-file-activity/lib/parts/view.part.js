@@ -158,6 +158,11 @@ function FileActivityView({ ctx, store, scope, visible, dataStore }) {
   useEffect(() => {
     dataStore.set({ preview: null })
   }, [sessionId, dataStore])
+  // Switching tabs hides this view: close any floating preview so it never
+  // lingers over the main UI (issue #76).
+  useEffect(() => {
+    closePreviewOnHidden(visible, dataStore)
+  }, [visible, dataStore])
   const toggleDir = (path) => setCollapsedDirs((prev) => toggleInSet(prev, path))
   const openPreview = (path) => dataStore.set({ preview: { abs: path, name: basenameOf(path) } })
   const closePreview = () => dataStore.set({ preview: null })
