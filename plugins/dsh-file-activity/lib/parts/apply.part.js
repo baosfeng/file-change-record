@@ -68,7 +68,17 @@ exports.apply = function apply(ctx) {
   // Stylesheet first, unconditionally (HMR pitfall — see injectStyles).
   injectStyles(ctx)
   const service = ctx.betterSidebar
-  if (service === undefined) return
+  if (service === undefined) {
+    // 依赖缺失提示（issue #72 同类问题）：dsh-file-activity 的 client 端
+    // 依赖 dsh-better-sidebar 提供侧边栏扩展点，未安装时静默返回会让用户
+    // 以为插件坏了——明确提示安装方式。
+    if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+      console.warn(
+        '[dsh-file-activity] dsh-better-sidebar 未安装：文件活动页签无法挂载。请安装宿主插件：dsh plugin --profile web add dsh-better-sidebar dsh-file-activity',
+      )
+    }
+    return
+  }
 
   // Per-session data store: { bySession: { [sessionId]: { recent, counts, loading } }, preview }
   // Each conversation reads/writes only its own bucket, so switching

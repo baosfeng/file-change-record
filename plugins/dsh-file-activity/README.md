@@ -36,9 +36,7 @@
 
 ## 安装
 
-> 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-file-activity`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。
-
-前置：已安装 `dsh-better-sidebar`（v0.12+，推荐 v0.14）。
+> 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-file-activity`——无需克隆本仓库；`dsh-better-sidebar`（宿主，提供侧边栏扩展点）已声明为 dependencies，**安装时自动级联安装并加入 profile bundles**，无需手动单独安装。
 
 ```sh
 # 方式一：dsh plugin（推荐）
