@@ -152,6 +152,15 @@ function installFetch(handler) {
   return { calls, restore: () => (globalThis.fetch = original) }
 }
 
+/**
+ * 精确提取 URL 的 host（CodeQL js/incomplete-url-substring-sanitization）。
+ * 不能用 substring（startsWith/includes）判断 URL 是否属于可信主机——攻击者可用
+ * `https://evil.com/https://qyapi.weixin.qq.com` 之类构造绕过；必须 new URL().host 精确匹配。
+ */
+function urlHost(url) {
+  return new URL(url).host
+}
+
 // 测试 7 需等待真实重试退避（≈7s），超时放宽到 20s
 test('webhook integration suite', async () => {
   try {
@@ -173,7 +182,7 @@ test('webhook integration suite', async () => {
         await dispatchEvent(listeners, 'agent/status', { agent: topAgent('s1'), status: 'idle' })
         await flush()
         assert.equal(mock.calls.length, 1, 'only the end-matching webhook is pushed')
-        assert.ok(mock.calls[0].url.startsWith('https://qyapi.weixin.qq.com'), 'wecom URL used')
+        assert.equal(urlHost(mock.calls[0].url), 'qyapi.weixin.qq.com', 'wecom URL used')
         const body = JSON.parse(mock.calls[0].options.body)
         assert.equal(body.msgtype, 'text')
         assert.ok(body.text.content.includes('标题-s1'), 'message carries the session title')
@@ -449,3 +458,28 @@ test('webhook integration suite', async () => {
     for (const dir of tmpDirs.splice(0)) rmSync(dir, { recursive: true, force: true })
   }
 }, 20_000)
+
+// ── 10. URL host 精确校验：substring 检查可被构造 URL 绕过，host 精确匹配须拒绝 ──
+test('URL host sanitization rejects bypass (CodeQL js/incomplete-url-substring-sanitization)', () => {
+  const TRUSTED_HOST = 'qyapi.weixin.qq.com'
+  const isTrustedUrl = (url) => {
+    try {
+      return urlHost(url) === TRUSTED_HOST
+    } catch {
+      return false
+    }
+  }
+
+  // 可信主机：正常通过
+  assert.ok(isTrustedUrl('https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=abc'), 'trusted wecom URL')
+  assert.ok(isTrustedUrl('https://qyapi.weixin.qq.com/'), 'trusted wecom root')
+
+  // 绕过场景：若用 substring/startsWith 判断会误判为可信，host 精确匹配必须全部拒绝
+  assert.ok(!isTrustedUrl('http://evil.com/qyapi.weixin.qq.com'), 'path trick rejected')
+  assert.ok(!isTrustedUrl('https://qyapi.weixin.qq.com.evil.com/hook'), 'suffix host trick rejected')
+  assert.ok(!isTrustedUrl('https://evil.com/?next=https://qyapi.weixin.qq.com'), 'query trick rejected')
+  assert.ok(!isTrustedUrl('https://qyapi.weixin.qq.com@evil.com/hook'), 'userinfo trick rejected')
+
+  // 畸形 URL 安全地返回失败而不是抛错
+  assert.ok(!isTrustedUrl('not a url'), 'malformed url safely rejected')
+})
