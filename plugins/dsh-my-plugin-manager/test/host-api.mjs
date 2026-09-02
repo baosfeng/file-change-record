@@ -34,6 +34,21 @@ const registryMock = vi.hoisted(() => ({
       repository: '',
     },
   ]),
+  fetchPackageDetail: vi.fn(async () => ({
+    name: 'dsh-x',
+    version: '1.0.0',
+    latest: '1.0.0',
+    description: 'desc',
+    author: 'alice',
+    license: 'MIT',
+    homepage: 'https://foo',
+    repository: 'https://github.com/x/y',
+    readme: '# hi',
+    versions: [{ version: '1.0.0', date: '2026-01-01' }],
+    dependencies: [],
+    peerDependencies: [],
+    downloads: 5,
+  })),
 }))
 vi.mock('../lib/registry.js', () => registryMock)
 
@@ -194,6 +209,42 @@ test('GET /search calls the npm registry and clamps size', async () => {
   assert.equal(r.json.value.results[0].name, 'dsh-x')
   const empty = await callRoute(getRoute, 'GET', '/my-plugin-manager/api/search?q=')
   assert.deepEqual(empty.json.value.results, [], 'blank query returns no results')
+})
+
+test('GET /detail surfaces package detail and forwards the version', async () => {
+  const { getRoute } = await boot()
+  const r = await callRoute(getRoute, 'GET', '/my-plugin-manager/api/detail?name=dsh-x')
+  assert.equal(r.status, 200)
+  assert.equal(r.json.ok, true)
+  assert.equal(r.json.value.readme, '# hi')
+  assert.equal(r.json.value.version, '1.0.0')
+  assert.ok(
+    registryMock.fetchPackageDetail.mock.calls.some((call) => call[0] === 'dsh-x' && call[1] === ''),
+    'defaults to empty version (latest)',
+  )
+
+  await callRoute(getRoute, 'GET', '/my-plugin-manager/api/detail?name=dsh-x&version=2.0.0')
+  assert.ok(
+    registryMock.fetchPackageDetail.mock.calls.some((call) => call[0] === 'dsh-x' && call[1] === '2.0.0'),
+    'version query forwarded',
+  )
+})
+
+test('GET /detail requires a name (400)', async () => {
+  const { getRoute } = await boot()
+  const r = await callRoute(getRoute, 'GET', '/my-plugin-manager/api/detail?name=')
+  assert.equal(r.status, 400)
+  assert.equal(r.json.ok, false)
+  assert.ok(r.json.error.message.includes('name'))
+})
+
+test('GET /detail returns a load-failure fallback when the fetch throws', async () => {
+  registryMock.fetchPackageDetail.mockRejectedValueOnce(new Error('package not found'))
+  const { getRoute } = await boot()
+  const r = await callRoute(getRoute, 'GET', '/my-plugin-manager/api/detail?name=ghost')
+  assert.equal(r.status, 200)
+  assert.equal(r.json.ok, false)
+  assert.ok(r.json.error.message.includes('package not found'))
 })
 
 test('GET /updates surfaces outdated entries', async () => {

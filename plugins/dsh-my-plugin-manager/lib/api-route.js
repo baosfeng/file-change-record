@@ -3,6 +3,7 @@
  *
  *  - GET  /my-plugin-manager/api/installed  → loader 已安装清单 + 版本；
  *  - GET  /my-plugin-manager/api/search?q=… → npm registry 市场搜索；
+ *  - GET  /my-plugin-manager/api/detail?name=… → 插件详情（README/版本/依赖）；
  *  - POST /my-plugin-manager/api/install    → `dsh plugin --profile <p> add`;
  *  - POST /my-plugin-manager/api/uninstall  → `dsh plugin --profile <p> remove`;
  *  - GET  /my-plugin-manager/api/updates    → `pnpm outdated --json`（更新检查）。
@@ -11,7 +12,7 @@
  */
 import { readJsonBody, writeError, writeJson } from 'dsh-shared'
 import { installedVersionOf, installPlugin, uninstallPlugin, outdatedPlugins } from './manage.js'
-import { searchNpmPlugins } from './registry.js'
+import { fetchPackageDetail, searchNpmPlugins } from './registry.js'
 
 export function createApiHandler({ ctx, profile, profileDir, fence }) {
   const handlers = {
@@ -20,6 +21,7 @@ export function createApiHandler({ ctx, profile, profileDir, fence }) {
       run: (url, request, response) => handleInstalled(ctx, profileDir, response),
     },
     search: { method: 'GET', run: (url, request, response) => handleSearch(url, response) },
+    detail: { method: 'GET', run: (url, request, response) => handleDetail(url, response) },
     updates: { method: 'GET', run: (url, request, response) => handleUpdates(profile, response) },
     install: {
       method: 'POST',
@@ -97,6 +99,25 @@ async function handleSearch(url, response) {
   }
   const results = await searchNpmPlugins(query.trim(), safeSize(size))
   writeJson(response, 200, { ok: true, value: { results } })
+}
+
+/** GET /detail?name=…&version=… — package detail (README/versions/deps). */
+async function handleDetail(url, response) {
+  const name = url.searchParams.get('name') ?? ''
+  const version = url.searchParams.get('version') ?? ''
+  if (name.trim() === '') {
+    writeJson(response, 400, { ok: false, error: { message: 'name is required' } })
+    return
+  }
+  try {
+    const detail = await fetchPackageDetail(name.trim(), version.trim())
+    writeJson(response, 200, { ok: true, value: detail })
+  } catch (error) {
+    writeJson(response, 200, {
+      ok: false,
+      error: { message: String(error?.message ?? 'failed to load plugin detail') },
+    })
+  }
 }
 
 /** GET /updates — pnpm outdated --json parsed into a flat list. */

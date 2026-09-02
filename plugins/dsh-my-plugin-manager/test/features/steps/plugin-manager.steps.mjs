@@ -137,6 +137,76 @@ When('搜索关键词 {string} 返回官方与用户结果', async function (que
   }
 })
 
+When('请求插件详情 {string}', async function (name) {
+  const originalFetch = global.fetch
+  global.fetch = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({
+      name: 'dsh-a',
+      'dist-tags': { latest: '1.0.0' },
+      readme: 'hello readme',
+      time: { created: 'x', '1.0.0': '2026-01-01' },
+      versions: {
+        '1.0.0': {
+          version: '1.0.0',
+          license: 'MIT',
+          repository: 'https://github.com/x/y',
+          dependencies: { 'dsh-y': '^2' },
+          peerDependencies: { cordis: '^4', 'dsh-shared': '^0.1.0' },
+        },
+      },
+    }),
+  })
+  try {
+    await this.call('GET', `/my-plugin-manager/api/detail?name=${encodeURIComponent(name)}`)
+  } finally {
+    global.fetch = originalFetch
+  }
+})
+
+When('加载不存在的插件详情 {string}', async function (name) {
+  const originalFetch = global.fetch
+  global.fetch = async () => ({ ok: false, status: 404, json: async () => ({}) })
+  try {
+    await this.call('GET', `/my-plugin-manager/api/detail?name=${encodeURIComponent(name)}`)
+  } finally {
+    global.fetch = originalFetch
+  }
+})
+
+Then('详情包含 README {string}', function (text) {
+  assert.equal(this.lastStatus, 200)
+  assert.ok(this.lastJson.value.readme.includes(text), `readme includes ${text}`)
+})
+
+Then('详情版本历史包含 {string}', function (version) {
+  assert.ok(
+    this.lastJson.value.versions.some((v) => v.version === version),
+    `version ${version} in timeline`,
+  )
+})
+
+Then('详情元数据包含许可证 {string}', function (license) {
+  assert.equal(this.lastJson.value.license, license)
+})
+
+Then('详情对等依赖包含缺失 {string}', function (name) {
+  const peer = this.lastJson.value.peerDependencies.find((p) => p.name === name)
+  assert.ok(peer && peer.missing === true, `peer ${name} marked missing`)
+})
+
+Then('详情对等依赖不缺失 {string}', function (name) {
+  const peer = this.lastJson.value.peerDependencies.find((p) => p.name === name)
+  assert.ok(peer && peer.missing === false, `peer ${name} not missing`)
+})
+
+Then('详情加载失败且给出错误消息', function () {
+  assert.equal(this.lastStatus, 200)
+  assert.equal(this.lastJson.ok, false)
+  assert.ok(this.lastJson.error.message, 'error message present')
+})
+
 Then('响应包含 {int} 个条目', function (count) {
   assert.equal(this.lastStatus, 200)
   assert.equal(this.lastJson.value.entries.length, count)

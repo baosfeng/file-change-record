@@ -28,6 +28,15 @@ window.__ModuleLoader__.load({
     var exports = module.exports
     Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' })
     const { createElement, useEffect, useState } = require('react')
+    // README Markdown 渲染复用 dsh-md-render 的统一 MarkdownView（issue #31
+    // 跨插件 require 模式，package.json dsh.client.external 声明）；该插件
+    // 不可用时回退纯文本 <pre>（issue #90 加载兜底）。
+    let MarkdownView = null
+    try {
+      MarkdownView = require('dsh-md-render').MarkdownView
+    } catch {
+      MarkdownView = null
+    }
 
     // ── parts (injected by scripts/build.mjs; keep this exact order — the
     //    const initializers below run in splice order) ─────────────────────
@@ -36,6 +45,7 @@ window.__ModuleLoader__.load({
     __PART_STYLES__
     __PART_API__
     __PART_VIEW__
+    __PART_DETAIL__
     __PART_APPLY__
 
     return module.exports
