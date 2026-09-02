@@ -55,6 +55,10 @@ const strings = {
   loadError: () => (isZh() ? '加载失败' : 'Load failed'),
   empty: () => (isZh() ? '暂无记忆' : 'No memories yet'),
   emptyHint: () => (isZh() ? '点击下方输入框添加第一条记忆' : 'Add your first memory below'),
+  projectEmptyHint: () =>
+    isZh()
+      ? '当前无项目会话，请在上方输入项目根路径加载项目记忆'
+      : 'No active project session; enter a project root above to load its memory',
   addPlaceholder: () =>
     isZh() ? '输入要记住的内容（如：回复使用中文）' : 'Type what to remember (e.g. reply in Chinese)',
   add: () => (isZh() ? '新增' : 'Add'),
@@ -221,6 +225,30 @@ function writeMemory({ action, scope, cwd, id, desc }) {
     })
 }
 
+/** Current session id from localStorage ('dsh.sessions.current' → { sessionId }). */
+function currentSessionId() {
+  try {
+    const raw = localStorage.getItem('dsh.sessions.current')
+    const parsed = raw === null ? null : JSON.parse(raw)
+    return typeof parsed?.sessionId === 'string' ? parsed.sessionId : ''
+  } catch {
+    return ''
+  }
+}
+
+/** GET /my-memory/api/session → the session's working directory ('' if none).
+ *  The panel uses it to auto-load the current project memory on open (issue #104). */
+function fetchSessionCwd(sessionId) {
+  if (sessionId === '') return Promise.resolve('')
+  return fetch(`${API_BASE}/session?sessionId=${encodeURIComponent(sessionId)}`)
+    .then((res) => res.json())
+    .then((body) => {
+      if (body === null || body.ok !== true) return ''
+      return typeof body.value?.cwd === 'string' ? body.value.cwd : ''
+    })
+    .catch(() => '')
+}
+
     // ── shared icons (inline, stroke=currentColor, matching better-sidebar) ──
 // Single source of truth for the plugin UI icon set (issue #54 阶段 0).
 // Extracted from dsh-file-activity's lib/parts/icons.part.js; every plugin's
@@ -366,6 +394,27 @@ const icon = {
       [
         createElement('polyline', { points: '16 18 22 12 16 6' }),
         createElement('polyline', { points: '8 6 2 12 8 18' }),
+      ],
+      size,
+    ),
+  // 下载（issue #85 新增）：箭头入托盘，图表导出按钮（dsh-mermaid-render
+  // 卡片下载 PNG/SVG），stroke=currentColor 风格与其余图标一致。
+  download: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+        createElement('polyline', { points: '7 10 12 15 17 10' }),
+        createElement('line', { x1: 12, y1: 15, x2: 12, y2: 3 }),
+      ],
+      size,
+    ),
+  // 复制（issue #85 新增）：双层矩形，复制源码按钮（dsh-mermaid-render
+  // 卡片复制代码），stroke=currentColor 风格与其余图标一致。
+  copy: (size = 16) =>
+    iconSvg(
+      [
+        createElement('rect', { x: 9, y: 9, width: 13, height: 13, rx: 2 }),
+        createElement('path', { d: 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1' }),
       ],
       size,
     ),
@@ -574,7 +623,7 @@ function MemoryView() {
   const actions = createActions({ setData, setLoading, setError, setSaved })
 
   useEffect(() => {
-    actions.load('')
+    fetchSessionCwd(currentSessionId()).then((cwd) => actions.load(cwd))
   }, [])
 
   const commit = createCommitHandler({ data, setData, setSaved, setError, setDrafts, setEditing, setConfirming })
@@ -751,6 +800,7 @@ function SectionBlock({
   onCommit,
 }) {
   const isProject = scope === 'project'
+  const emptyHint = isProject && data.cwd === '' ? strings.projectEmptyHint() : undefined
   const rows = buildRows(data.items, scope, editing, onEdit, onEditDesc, onCancelEdit, onConfirm)
   return createElement(
     'div',
@@ -762,7 +812,7 @@ function SectionBlock({
       createElement('span', { className: 'dsh-my-memory-badge' }, badge),
     ),
     createElement('div', { className: 'dsh-my-memory-note' }, note),
-    rows.length === 0 ? createElement(EmptyState) : rows,
+    rows.length === 0 ? createElement(EmptyState, { hint: emptyHint }) : rows,
     createElement(
       'div',
       { className: 'dsh-my-memory-addbar' },
@@ -793,13 +843,13 @@ function SectionBlock({
   )
 }
 
-function EmptyState() {
+function EmptyState({ hint }) {
   return createElement(
     'div',
     { className: 'dsh-my-memory-empty' },
     createElement('span', { className: 'dsh-my-memory-empty-icon' }, icon.file(16)),
     strings.empty(),
-    createElement('span', { className: 'dsh-my-memory-empty-hint' }, strings.emptyHint()),
+    createElement('span', { className: 'dsh-my-memory-empty-hint' }, hint ?? strings.emptyHint()),
   )
 }
 
