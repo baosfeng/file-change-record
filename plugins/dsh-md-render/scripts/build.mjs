@@ -29,6 +29,7 @@ const PARTS = [
   ['/*__PART_COPY__*/', 'copy.part.js'],
   ['/*__PART_HIGHLIGHT__*/', 'highlight.part.js'],
   ['/*__PART_CODEBLOCK__*/', 'codeblock.part.js'],
+  ['/*__PART_SYNTAX__*/', 'syntax.part.js'],
   ['/*__PART_MARKDOWN__*/', 'markdown.part.js'],
   ['/*__PART_DETECT__*/', 'detect.part.js'],
   ['/*__PART_INLINE__*/', 'inline.part.js'],

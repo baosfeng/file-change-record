@@ -917,17 +917,146 @@ function renderCodeBlock({ key, lang, code }) {
 exports.setRenderOptions = setRenderOptions
 
 
-    // ── 统一 MarkdownView：行内 + 块级渲染（导出供 think-zh-expand）──
-    // ── 统一 MarkdownView：行内 + 块级渲染（issue #31 从
-//    dsh-think-zh-expand 迁移，行为等价 + 新增公式渲染）────────────
-// 由 scripts/build.mjs 拼入 lib/client.js 的 factory 作用域（纯函数
-// 声明文本，依赖 factory 内 createElement）；输出结构保持迁移前约定
-// （div.tzx-md / p.tzx-p / table.tzx-table / div.md-code-block）。
+    // ── 语法补全（issue #81）：图片 / 任务列表 / 行内元素构造 / 列表解析 ──
+    // ── 语法补全（issue #81）：图片 / 任务列表 / 行内元素构造 / 列表解析 ──
+// 零运行时依赖（R10）。与 markdown.part.js 处于同一 factory 作用域（经
+// build.mjs 拼接），函数声明共享：markdown.part.js 的 mdInline 与块级
+// MD_RENDERERS 调用本文件声明的 inlineMatch / tryList；本文件的 mdInline
+// 依赖构造函数（linkEl / mathSpanOrText）与列表解析（listInfo / parseList）。
 
-// ── 轻量行内 Markdown：行内代码 / 粗体 / 斜体 / 链接 / 公式 ──────
-// 行内代码按 CommonMark 语义：N 个反引号开闭配对（\1 回声闭合串），
-// 内容允许含单个反引号（`` `agent/status` `` → <code>`agent/status`</code>）；
-// 闭合串后不能紧跟反引号（(?!`)。行内公式 $...$：内容非空且不以空白开头/结尾，开 $ 前与闭 $ 后不得是字母数字或 $（货币/变量/块级保护）。
+// ── 图片嵌入：![alt](url) → <img>，alt 兜底 + 加载失败占位 ──────
+function MarkdownImage({ src, alt }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) {
+    return createElement('span', { className: 'dsh-md-render-img-fallback', role: 'img' }, alt || '图片加载失败')
+  }
+  return createElement('img', {
+    src,
+    alt: alt || 'image',
+    loading: 'lazy',
+    className: 'dsh-md-render-img',
+    onError: () => setFailed(true),
+  })
+}
+
+// ── 任务列表复选框：- [ ] / - [x] → <input type=checkbox> ────────
+function TaskCheckbox({ checked }) {
+  const [value, setValue] = useState(Boolean(checked))
+  return createElement('input', {
+    type: 'checkbox',
+    className: 'dsh-md-render-task-checkbox',
+    checked: value,
+    onChange: (e) => setValue(e.currentTarget.checked),
+  })
+}
+
+// ── 行内元素构造（单分支小函数，控制 mdInline 圈复杂度 ≤ 10）──────
+function linkEl(full, kk) {
+  const lm = full.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
+  if (lm) {
+    return createElement('a', { key: kk, href: lm[2], target: '_blank', rel: 'noreferrer' }, lm[1])
+  }
+  return full
+}
+
+function mathSpanOrText(m, text, kk) {
+  if (isMathSpan(text, m)) {
+    return createElement('span', { key: kk, className: 'dsh-md-render-math' }, m[7].slice(1, -1))
+  }
+  if (isMathError(m)) {
+    return createElement(
+      'span',
+      { key: kk, className: 'dsh-md-render-math-error', title: MATH_ERROR_TITLES.malformed },
+      icon.alert(12),
+      m[7],
+    )
+  }
+  return m[7]
+}
+
+function inlineMatch(m, text, kk) {
+  if (m[1] !== undefined) return createElement('code', { key: kk }, trimCode(m[2]))
+  if (m[3] !== undefined) return createElement('strong', { key: kk }, m[3].slice(2, -2))
+  if (m[4] !== undefined) return createElement(MarkdownImage, { key: kk, src: m[5], alt: m[4] })
+  if (m[6] !== undefined) return linkEl(m[6], kk)
+  if (m[7] !== undefined) return mathSpanOrText(m, text, kk)
+  if (m[8] !== undefined) return createElement('del', { key: kk, className: 'dsh-md-render-del' }, m[8])
+  return createElement('em', { key: kk }, m[9].slice(1, -1))
+}
+
+// ── 列表解析（issue #81 增强）：多级嵌套 + 任务列表（- [ ] / - [x]）
+//    按缩进层级递归解析 ul / ol（保留层级正确嵌套）；任务标记
+//    [ ]/[x]/[X] 渲染 checkbox（勾选态由标记决定）。复用 mdInline。────────
+function listInfo(line) {
+  const m = line.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)$/)
+  if (!m) return null
+  const indent = m[1].length
+  const ordered = /^\d/.test(m[2])
+  let rest = m[3]
+  let task = false
+  let checked = false
+  const tm = rest.match(/^\[( |x|X)\]\s+(.*)$/)
+  if (tm) {
+    task = true
+    checked = tm[1] !== ' '
+    rest = tm[2]
+  }
+  return { indent, ordered, marker: m[2], rest, task, checked }
+}
+
+function sameLevel(info, indent, ordered) {
+  return info && info.indent === indent && info.ordered === ordered
+}
+
+function itemKids(info, i) {
+  const kids = []
+  if (info.task) kids.push(createElement(TaskCheckbox, { key: 'task' + i, checked: info.checked }))
+  kids.push(...mdInline(info.rest, 'li' + i))
+  return kids
+}
+
+function parseList(lines, start) {
+  const first = listInfo(lines[start])
+  const ordered = first.ordered
+  const indent = first.indent
+  const items = []
+  let i = start
+  while (i < lines.length) {
+    const info = listInfo(lines[i])
+    if (!sameLevel(info, indent, ordered)) break
+    const kids = itemKids(info, i)
+    i += 1
+    while (i < lines.length) {
+      const nxt = listInfo(lines[i])
+      if (!nxt || nxt.indent <= indent) break
+      const nested = parseList(lines, i)
+      kids.push(nested.node)
+      i = nested.index
+    }
+    items.push(createElement('li', { key: items.length }, ...kids))
+  }
+  return {
+    node: createElement(ordered ? 'ol' : 'ul', { className: ordered ? 'tzx-ol' : 'tzx-ul' }, ...items),
+    index: i,
+  }
+}
+
+function tryList(lines, i, out) {
+  if (!listInfo(lines[i])) return 0
+  const parsed = parseList(lines, i)
+  out.push(parsed.node)
+  return parsed.index
+}
+
+
+    // ── 统一 MarkdownView：行内 + 块级渲染（导出供 think-zh-expand）──
+    // ── 统一 MarkdownView：行内 + 块级渲染（issue #31 自 dsh-think-zh-expand
+//    迁移，行为等价 + 公式渲染）。由 scripts/build.mjs 拼入 client.js 的
+//    factory 作用域（纯函数声明文本，依赖 factory 内 createElement）；输出
+//    结构保持迁移前约定（div.tzx-md / p.tzx-p / table.tzx-table /
+//    div.md-code-block）。零运行时依赖（issue #81 语法补全见 syntax.part.js）。
+
+// ── 行内 code（CommonMark 多反引号语义）────────────────────────────
 function trimCode(raw) {
   if (raw.length > 1 && raw[0] === ' ' && raw[raw.length - 1] === ' ' && raw.trim() !== '') {
     return raw.slice(1, -1)
@@ -935,9 +1064,9 @@ function trimCode(raw) {
   return raw
 }
 
-/** 行内公式候选验证（货币/变量/块级保护），通过才渲染为公式。 */
+// ── 行内公式候选验证（货币/变量/块级保护，通过才渲染为公式）──────
 function isMathSpan(text, m) {
-  const content = m[5].slice(1, -1)
+  const content = m[7].slice(1, -1)
   if (content === '' || content.trim() !== content) return false
   const before = text[m.index - 1]
   const after = text[m.index + m[0].length]
@@ -956,7 +1085,7 @@ const MATH_ERROR_TITLES = {
 }
 
 function isMathError(m) {
-  const content = m[5].slice(1, -1)
+  const content = m[7].slice(1, -1)
   return content[0] === ' ' || content[0] === '\t'
 }
 
@@ -1013,44 +1142,19 @@ function scanMathErrors(text, start, end, key, k, out) {
   return k
 }
 
+// ── 轻量行内 Markdown：行内代码 / 粗体 / 图片 / 链接 / 公式 / 删除线 / 斜体 ──
+// 图片须先于链接（`![alt](url)` 内含 `[alt](url)` 链式子结构）；行内公式
+// $...$ 保护货币/变量/块级 `$$`。元素构造见 syntax.part.js 的 inlineMatch。
 function mdInline(text, key) {
   const out = []
-  const re = /(`+)([^`\n][^\n]*?)\1(?!`)|(\*\*[^*]+\*\*)|(\[[^\]]+\]\([^)]+\))|(\$[^$\n]+?\$)|(\*[^*]+\*)/g
+  const re =
+    /(`+)([^`\n][^\n]*?)\1(?!`)|(\*\*[^*]+\*\*)|!\[([^\]]*)\]\(([^)]+)\)|(\[[^\]]+\]\([^)]+\))|(\$[^$\n]+?\$)|~~([^~]+)~~|(\*[^*]+\*)/g
   let last = 0
   let m,
     k = 0
   while ((m = re.exec(text)) !== null) {
     k = scanMathErrors(text, last, m.index, key, k, out)
-    const kk = key + '-i' + k
-    if (m[1] !== undefined) {
-      out.push(createElement('code', { key: kk }, trimCode(m[2])))
-    } else if (m[3] !== undefined) {
-      out.push(createElement('strong', { key: kk }, m[3].slice(2, -2)))
-    } else if (m[4] !== undefined) {
-      const lm = m[4].match(/^\[([^\]]+)\]\(([^)]+)\)$/)
-      if (lm) {
-        out.push(createElement('a', { key: kk, href: lm[2], target: '_blank', rel: 'noreferrer' }, lm[1]))
-      } else {
-        out.push(m[4])
-      }
-    } else if (m[5] !== undefined) {
-      if (isMathSpan(text, m)) {
-        out.push(createElement('span', { key: kk, className: 'dsh-md-render-math' }, m[5].slice(1, -1)))
-      } else if (isMathError(m)) {
-        out.push(
-          createElement(
-            'span',
-            { key: kk, className: 'dsh-md-render-math-error', title: MATH_ERROR_TITLES.malformed },
-            icon.alert(12),
-            m[5],
-          ),
-        )
-      } else {
-        out.push(m[5])
-      }
-    } else {
-      out.push(createElement('em', { key: kk }, m[6].slice(1, -1)))
-    }
+    out.push(inlineMatch(m, text, key + '-i' + k))
     k += 1
     last = m.index + m[0].length
   }
@@ -1059,9 +1163,8 @@ function mdInline(text, key) {
 }
 
 // ── 轻量块级 Markdown：代码块 / 标题 / 列表 / 引用 / 表格 / 公式 ──
-// 每个 tryXxx 尝试从 lines[i] 消费一类块：成功则 push 元素（key 与迁移
-// 前一致：'b' + out.length）并返回下一行下标，失败返回 0（不消费）。
-// 复制按钮（CopyButton 见 copy.part.js，issue #74）：代码块/整段右下角。
+// 每个 tryXxx 尝试从 lines[i] 消费一类块：成功则 push 元素并返回下一行下标，
+// 失败返回 0（不消费）。复制按钮（CopyButton，issue #74）代码块/整段右下角。
 function tryFence(lines, i, out) {
   const fence = lines[i].match(/^```(\w*)\s*$/)
   if (!fence) return 0
@@ -1072,7 +1175,7 @@ function tryFence(lines, i, out) {
     i += 1
   }
   i += 1
-  // 语法高亮 / 语言标签 / 行号（issue #80）：结构见 highlight.part.js。
+  // 语法高亮 / 语言标签 / 行号（issue #80）：结构见 highlight/codeblock.part.js。
   out.push(renderCodeBlock({ key: 'b' + out.length, lang: fence[1], code: buf.join('\n') }))
   return i
 }
@@ -1089,48 +1192,6 @@ function tryHeading(lines, i, out) {
     ),
   )
   return i + 1
-}
-
-function tryBullet(lines, i, out) {
-  const bullet = lines[i].match(/^\s*[-*+]\s+(.*)$/)
-  if (!bullet) return 0
-  const items = [bullet[1]]
-  i += 1
-  while (i < lines.length) {
-    const b2 = lines[i].match(/^\s*[-*+]\s+(.*)$/)
-    if (!b2) break
-    items.push(b2[1])
-    i += 1
-  }
-  out.push(
-    createElement(
-      'ul',
-      { key: 'b' + out.length, className: 'tzx-ul' },
-      items.map((it, j) => createElement('li', { key: j }, ...mdInline(it, 'ul' + out.length + '-' + j))),
-    ),
-  )
-  return i
-}
-
-function tryNumList(lines, i, out) {
-  const num = lines[i].match(/^\s*\d+[.)]\s+(.*)$/)
-  if (!num) return 0
-  const items = [num[1]]
-  i += 1
-  while (i < lines.length) {
-    const n2 = lines[i].match(/^\s*\d+[.)]\s+(.*)$/)
-    if (!n2) break
-    items.push(n2[1])
-    i += 1
-  }
-  out.push(
-    createElement(
-      'ol',
-      { key: 'b' + out.length, className: 'tzx-ol' },
-      ...items.map((it, j) => createElement('li', { key: j }, ...mdInline(it, 'ol' + out.length + '-' + j))),
-    ),
-  )
-  return i
 }
 
 function tryQuote(lines, i, out) {
@@ -1221,7 +1282,6 @@ function tryTable(lines, i, out) {
 }
 
 // ── 块级公式：$$...$$ 单行或 $$ 开闭块；异常（未闭合/空）→ 错误标记 ──
-// 错误标记带共享 alert 图标（issue #54 阶段 1：错误状态视觉统一）。
 function mathErrorEl(out, title, content) {
   return createElement(
     'div',
@@ -1277,7 +1337,8 @@ function tryParagraph(lines, i, out) {
 }
 
 // 块级渲染顺序（与迁移前逐分支判断的顺序一致，公式块追加在末尾）。
-const MD_RENDERERS = [tryFence, tryHeading, tryBullet, tryNumList, tryQuote, tryTable, tryMath]
+// 列表（内联 task/嵌套）与行内元素构造见 syntax.part.js。
+const MD_RENDERERS = [tryFence, tryHeading, tryList, tryQuote, tryTable, tryMath]
 
 function MarkdownView({ text }) {
   const lines = String(text).split('\n')
@@ -1387,42 +1448,78 @@ exports.parseTable = parseTable
 
 
     // ── 行内渲染：单元格内的 code / strong / em / link ─────────────
-    // ── 行内渲染：单元格内的 code / strong / em / link ─────────────
+    // ── 行内渲染：单元格内的 code / strong / em / link / del / img ──
 // 与 dsh-think-zh-expand 的 mdInline 同规则（CommonMark 语义）：
-// N 个反引号开闭配对、**bold**、[link](url)、*em*。返回
-// DocumentFragment（无匹配时含单个文本节点）。
+// N 个反引号开闭配对、**bold**、[link](url)、*em*；issue #81 增补
+// **删除线** ~~text~~ 与 **图片** ![alt](url)（图片须先于链接）。返回
+// DocumentFragment（无匹配时含单个文本节点）。零运行时依赖。
+// 各分支拆为小函数（domXxx），控制 renderInline 圈复杂度 ≤ 10。
+function domCode(m) {
+  const el = document.createElement('code')
+  el.textContent = m[2]
+  return el
+}
+
+function domStrong(m) {
+  const el = document.createElement('strong')
+  el.textContent = m[3].slice(2, -2)
+  return el
+}
+
+function domImg(m) {
+  const img = document.createElement('img')
+  img.src = m[5]
+  img.alt = m[4] || 'image'
+  img.className = 'dsh-md-render-img'
+  img.setAttribute('loading', 'lazy')
+  return img
+}
+
+function domLink(m) {
+  const lm = m[6].match(/^\[([^\]]+)\]\(([^)]+)\)$/)
+  if (!lm) return m[6]
+  const a = document.createElement('a')
+  a.href = lm[2]
+  a.target = '_blank'
+  a.rel = 'noreferrer'
+  a.textContent = lm[1]
+  return a
+}
+
+function domDel(m) {
+  const el = document.createElement('del')
+  el.className = 'dsh-md-render-del'
+  el.textContent = m[7]
+  return el
+}
+
+function domEm(m) {
+  const el = document.createElement('em')
+  el.textContent = m[8].slice(1, -1)
+  return el
+}
+
+function inlineDomMatch(m) {
+  if (m[1] !== undefined) return domCode(m)
+  if (m[3] !== undefined) return domStrong(m)
+  if (m[4] !== undefined) return domImg(m)
+  if (m[6] !== undefined) return domLink(m)
+  if (m[7] !== undefined) return domDel(m)
+  return domEm(m)
+}
+
 function renderInline(text) {
   const frag = document.createDocumentFragment()
-  const re = /(`+)([^`\n][^\n]*?)\1(?!`)|(\*\*[^*]+\*\*)|(\[[^\]]+\]\([^)]+\))|(\*[^*]+\*)/g
+  // 行内代码 / 粗体 / 图片 / 链接 / 删除线 / 斜体（图片须先于链接）。
+  const re =
+    /(`+)([^`\n][^\n]*?)\1(?!`)|(\*\*[^*]+\*\*)|!\[([^\]]*)\]\(([^)]+)\)|(\[[^\]]+\]\([^)]+\))|~~([^~]+)~~|(\*[^*]+\*)/g
   let last = 0
   let m
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)))
-    if (m[1] !== undefined) {
-      const code = document.createElement('code')
-      code.textContent = m[2]
-      frag.appendChild(code)
-    } else if (m[3] !== undefined) {
-      const strong = document.createElement('strong')
-      strong.textContent = m[3].slice(2, -2)
-      frag.appendChild(strong)
-    } else if (m[4] !== undefined) {
-      const lm = m[4].match(/^\[([^\]]+)\]\(([^)]+)\)$/)
-      if (lm) {
-        const a = document.createElement('a')
-        a.href = lm[2]
-        a.target = '_blank'
-        a.rel = 'noreferrer'
-        a.textContent = lm[1]
-        frag.appendChild(a)
-      } else {
-        frag.appendChild(document.createTextNode(m[4]))
-      }
-    } else {
-      const em = document.createElement('em')
-      em.textContent = m[5].slice(1, -1)
-      frag.appendChild(em)
-    }
+    const node = inlineDomMatch(m)
+    if (typeof node === 'string') frag.appendChild(document.createTextNode(node))
+    else if (node) frag.appendChild(node)
     last = m.index + m[0].length
   }
   if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)))
@@ -1799,6 +1896,13 @@ div.dsh-md-render-math-error{margin:0;text-align:center;justify-content:center;p
 .dsh-md-render-tok-number{color:var(--dsh-md-render-c-num)}
 .dsh-md-render-tok-function{color:var(--dsh-md-render-c-fn)}
 @media (prefers-color-scheme:dark){.md-code-block{--dsh-md-render-c-kw:#c4b5fd;--dsh-md-render-c-str:#86efac;--dsh-md-render-c-com:#64748b;--dsh-md-render-c-num:#f87171;--dsh-md-render-c-fn:#93c5fd}}
+/* ── 语法补全（issue #81）：任务列表 / 删除线 / 图片 ──
+   任务列表：checkbox 与文本同排、状态色走 accent；删除线 <del>
+   line-through 弱化次级字色；图片块级自适应、失败占位。 */
+.tzx-md del,.dsh-md-render-del{text-decoration:line-through;color:var(--dsw-alias-label-secondary)}
+.dsh-md-render-task-checkbox{width:14px;height:14px;margin:0 6px 0 0;vertical-align:-2px;accent-color:var(--dsw-alias-accent-primary);cursor:pointer;flex:none}
+.dsh-md-render-img{display:block;max-width:100%;max-height:40vh;margin:4px 0;border-radius:8px;object-fit:contain}
+.dsh-md-render-img-fallback{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border:1px dashed var(--dsw-alias-border-l2);border-radius:6px;color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xxs-12)}
 `
 
 

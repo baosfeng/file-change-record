@@ -77,4 +77,11 @@ div.dsh-md-render-math-error{margin:0;text-align:center;justify-content:center;p
 .dsh-md-render-tok-number{color:var(--dsh-md-render-c-num)}
 .dsh-md-render-tok-function{color:var(--dsh-md-render-c-fn)}
 @media (prefers-color-scheme:dark){.md-code-block{--dsh-md-render-c-kw:#c4b5fd;--dsh-md-render-c-str:#86efac;--dsh-md-render-c-com:#64748b;--dsh-md-render-c-num:#f87171;--dsh-md-render-c-fn:#93c5fd}}
+/* ── 语法补全（issue #81）：任务列表 / 删除线 / 图片 ──
+   任务列表：checkbox 与文本同排、状态色走 accent；删除线 <del>
+   line-through 弱化次级字色；图片块级自适应、失败占位。 */
+.tzx-md del,.dsh-md-render-del{text-decoration:line-through;color:var(--dsw-alias-label-secondary)}
+.dsh-md-render-task-checkbox{width:14px;height:14px;margin:0 6px 0 0;vertical-align:-2px;accent-color:var(--dsw-alias-accent-primary);cursor:pointer;flex:none}
+.dsh-md-render-img{display:block;max-width:100%;max-height:40vh;margin:4px 0;border-radius:8px;object-fit:contain}
+.dsh-md-render-img-fallback{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border:1px dashed var(--dsw-alias-border-l2);border-radius:6px;color:var(--dsw-alias-label-secondary);font:var(--dsw-font-xxs-12)}
 `
