@@ -21,11 +21,13 @@
 - **兼容 dsh-think-zh-expand**：think-zh-expand 跨插件 require 本插件 MarkdownView（`dsh.client.external`）；识别其渲染器产出的 `div.tzx-md` 容器；已渲染的表格（`table.tzx-table`）不重复处理。
 - **兼容内置 MarkdownText**：识别内置渲染器的 `div.md-table-wide` 宽表格容器，不干扰已渲染表格。
 - **流式兼容**：MutationObserver 跟随消息流式渲染；流式中的容器（`[data-streaming]` 祖先）等内容稳定后再处理。
+- **一键复制**（issue #74）：每个代码块右下角 + 整段 markdown 内容右下角有复制按钮（hover 才显示，不遮挡内容），点击一键复制代码内容（不含语言标记）/ 整段纯文本（不含按钮文案）；复制成功按钮短暂显示「已复制」；流式渲染中不显示按钮，避免复制到半截内容。
 - **零依赖**：表格检测与渲染全部自实现，无第三方库、无 CDN。
 
 ## 工作原理
 
 - **统一 MarkdownView**（`lib/parts/markdown.part.js`）：从 dsh-think-zh-expand 迁移的轻量 Markdown 渲染管线（`mdInline` + 块级 `tryXxx`），输出结构保持迁移前约定（`div.tzx-md` / `p.tzx-p` / `table.tzx-table` / `div.md-code-block`）；新增行内/块级公式渲染；`exports.MarkdownView` 供 think-zh-expand 跨 bundle require。
+- **复制按钮**（`lib/parts/markdown.part.js`）：MarkdownView 在每个 `div.md-code-block` 与 `div.tzx-md` 容器内渲染 `button.dsh-md-render-copy`（右下角绝对定位）；点击时从 DOM 取文本——代码块取 `code` 元素文本、内容块递归收集纯文本并跳过按钮文案；`navigator.clipboard.writeText` 优先、失败回退 `document.execCommand('copy')`（textarea 中转）；流式渲染中由 CSS（`[data-streaming] .dsh-md-render-copy{display:none}`）隐藏。
 - **DOM 层表格增强**（`lib/parts/detect|render|scanner.part.js`）：扫描 `[data-conversation-scroll]` 内的 `div.tzx-md`（MarkdownView 输出）与 `div.md-table-wide`（内置 MarkdownText 的宽表格容器）容器；对容器内以纯文本段落（`p.tzx-p`）形式存在的表格文本，用增强检测规则解析（表头 + 分隔行 + 数据行 + 对齐），将段落替换为 `div.dsh-md-render-table-scroll > table.dsh-md-render-table`（thead/tbody/逐列对齐）；单元格内的 `**bold**` / `` `code` `` / `*em*` / `[link]` 行内格式重新渲染。
 - **构建**（`scripts/build.mjs`）：把 `lib/parts/*.part.js` 片段拼接进 `lib/client.src.js` 模板，生成 `lib/client.js`（DSH 实际服务的单一 `__ModuleLoader__` bundle）。
 - **Server 端**（`lib/index.js`）：空壳（纯 client 插件，无 host 逻辑）。

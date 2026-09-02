@@ -141,6 +141,7 @@ function mdInline(text, key) {
 // ── 轻量块级 Markdown：代码块 / 标题 / 列表 / 引用 / 表格 / 公式 ──
 // 每个 tryXxx 尝试从 lines[i] 消费一类块：成功则 push 元素（key 与迁移
 // 前一致：'b' + out.length）并返回下一行下标，失败返回 0（不消费）。
+// 复制按钮（CopyButton 见 copy.part.js，issue #74）：代码块/整段右下角。
 function tryFence(lines, i, out) {
   const fence = lines[i].match(/^```(\w*)\s*$/)
   if (!fence) return 0
@@ -151,7 +152,6 @@ function tryFence(lines, i, out) {
     i += 1
   }
   i += 1
-  // Keep the fence language on <code> and wrap in the host's `md-code-block` container.
   out.push(
     createElement(
       'div',
@@ -161,6 +161,7 @@ function tryFence(lines, i, out) {
         { className: 'tzx-pre' },
         createElement('code', { className: fence[1] ? 'language-' + fence[1] : '' }, buf.join('\n')),
       ),
+      createElement(CopyButton, { kind: 'code' }),
     ),
   )
   return i
@@ -389,7 +390,7 @@ function MarkdownView({ text }) {
     }
     i = tryParagraph(lines, i, out)
   }
-  return createElement('div', { className: 'tzx-md' }, out)
+  return createElement('div', { className: 'tzx-md' }, out, createElement(CopyButton, { kind: 'content' }))
 }
 
 exports.MarkdownView = MarkdownView

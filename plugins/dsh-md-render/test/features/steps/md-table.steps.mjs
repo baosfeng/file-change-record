@@ -179,6 +179,7 @@ class World {
     let mathSpans = 0
     let mathErrorSpans = 0
     let mathErrorBlocks = 0
+    let copyButtons = 0
     function walk(node) {
       if (node === null || node === undefined || typeof node === 'boolean') return
       if (typeof node === 'string' || typeof node === 'number') {
@@ -197,6 +198,13 @@ class World {
         if (node.type === 'span' && props.className === 'dsh-md-render-math') mathSpans += 1
         if (node.type === 'span' && props.className === 'dsh-md-render-math-error') mathErrorSpans += 1
         if (node.type === 'div' && props.className === 'dsh-md-render-math-error') mathErrorBlocks += 1
+        if (
+          node.type === 'button' &&
+          typeof props.className === 'string' &&
+          props.className.includes('dsh-md-render-copy')
+        ) {
+          copyButtons += 1
+        }
       } else if (typeof node.type === 'function') {
         walk(node.type(node.props))
         return
@@ -212,6 +220,7 @@ class World {
       mathSpans,
       mathErrorSpans,
       mathErrorBlocks,
+      copyButtons,
     }
   }
 
@@ -457,4 +466,9 @@ Then('原始公式文本保留', async function () {
     this.lastMarkdown.texts.some((t) => t.includes('$x^2 测试')),
     'original formula text kept',
   )
+})
+
+Then('输出包含复制按钮', async function () {
+  assert.ok(this.lastMarkdown.copyButtons >= 1, 'copy button rendered')
+  assert.ok(this.lastMarkdown.texts.includes('复制'), 'button label 复制 rendered')
 })

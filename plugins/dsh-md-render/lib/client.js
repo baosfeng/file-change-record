@@ -32,8 +32,9 @@ window.__ModuleLoader__.load({
     var module = { exports: {} }
     var exports = module.exports
     Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' })
-    // MarkdownView（markdown.part.js 片段）使用 createElement。
-    const { createElement } = require('react')
+    // MarkdownView（markdown.part.js 片段）使用 createElement；
+    // CopyButton（issue #74 复制按钮）使用 useState。
+    const { createElement, useState } = require('react')
 
     // ── 共享图标（dsh-shared/client-parts，issue #54 阶段 0）────────
     // ── shared icons (inline, stroke=currentColor, matching better-sidebar) ──
@@ -171,6 +172,16 @@ const icon = {
         }),
         createElement('line', { x1: 12, y1: 9, x2: 12, y2: 13 }),
         createElement('line', { x1: 12, y1: 17, x2: 12.01, y2: 17 }),
+      ],
+      size,
+    ),
+  // 代码（issue #54 阶段 1 新增）：尖括号 `</>`，预览/代码切换的代码视图
+  // 图标（dsh-mermaid-render 卡片），stroke=currentColor 风格与其余图标一致。
+  code: (size = 16) =>
+    iconSvg(
+      [
+        createElement('polyline', { points: '16 18 22 12 16 6' }),
+        createElement('polyline', { points: '8 6 2 12 8 18' }),
       ],
       size,
     ),
@@ -331,6 +342,99 @@ const fileIconByExt = (ext, size = 14) => {
 }
 
 
+    // ── 复制按钮（issue #74）：CopyButton + 复制工具函数 ──────────
+    // ── 复制按钮（issue #74）：代码块 / 整段内容一键复制 ─────────────
+// 复制实现：navigator.clipboard.writeText 优先，失败回退
+// document.execCommand('copy')（textarea 中转）；复制成功后按钮文案
+// 切换「已复制」1.5s 后恢复；流式渲染中（[data-streaming] 祖先）由
+// styles.part.js 的 `[data-streaming] .dsh-md-render-copy{display:none}`
+// 规则隐藏（按钮始终渲染，流式结束自动可见）。
+function fallbackCopyText(text) {
+  const ta = document.createElement('textarea')
+  ta.value = text
+  ta.setAttribute('readonly', '')
+  ta.style.position = 'fixed'
+  ta.style.top = '0'
+  ta.style.left = '0'
+  ta.style.opacity = '0'
+  document.body.appendChild(ta)
+  ta.select()
+  let ok
+  try {
+    ok = document.execCommand('copy')
+  } catch (e) {
+    ok = false
+  }
+  document.body.removeChild(ta)
+  return ok
+}
+
+function copyText(text) {
+  if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    return navigator.clipboard.writeText(text).catch(() => {
+      if (!fallbackCopyText(text)) throw new Error('copy failed')
+    })
+  }
+  if (!fallbackCopyText(text)) return Promise.reject(new Error('copy failed'))
+  return Promise.resolve()
+}
+
+// 收集容器纯文本（跳过复制按钮，避免按钮文案混入复制内容）。
+// 不用 textContent 直取：textContent 包含 display:none 元素的文本，
+// 按钮文案会混入；递归遍历 childNodes 并跳过 .dsh-md-render-copy。
+function collectCopyText(node, out) {
+  if (node.nodeType === 3) {
+    out.push(node.textContent)
+    return
+  }
+  if (node.nodeType !== 1) return
+  if (node.matches && node.matches('.dsh-md-render-copy')) return
+  const kids = node.childNodes || []
+  for (let i = 0; i < kids.length; i += 1) collectCopyText(kids[i], out)
+}
+
+// kind: 'code'（md-code-block 内，复制 code 文本）| 'content'（tzx-md 内，
+// 复制整段纯文本）。点击时从 DOM 取文本（流式结束后内容已稳定）。
+function CopyButton({ kind }) {
+  const [copied, setCopied] = useState(false)
+  const [timer, setTimer] = useState(null)
+  const onClick = (event) => {
+    const host =
+      event && event.currentTarget ? event.currentTarget.closest(kind === 'code' ? '.md-code-block' : '.tzx-md') : null
+    if (!host) return
+    let text
+    if (kind === 'code') {
+      const codeEl = host.querySelector('code')
+      text = codeEl ? codeEl.textContent : ''
+    } else {
+      const out = []
+      collectCopyText(host, out)
+      text = out.join('')
+    }
+    if (!text) return
+    copyText(text).then(
+      () => {
+        setCopied(true)
+        if (timer) clearTimeout(timer)
+        setTimer(setTimeout(() => setCopied(false), 1500))
+      },
+      () => {},
+    )
+  }
+  return createElement(
+    'button',
+    {
+      type: 'button',
+      className: 'dsh-md-render-copy' + (copied ? ' dsh-md-render-copy-done' : ''),
+      title: copied ? '已复制' : '复制',
+      'aria-label': copied ? '已复制' : '复制',
+      onClick,
+    },
+    copied ? '已复制' : '复制',
+  )
+}
+
+
     // ── 统一 MarkdownView：行内 + 块级渲染（导出供 think-zh-expand）──
     // ── 统一 MarkdownView：行内 + 块级渲染（issue #31 从
 //    dsh-think-zh-expand 迁移，行为等价 + 新增公式渲染）────────────
@@ -475,6 +579,7 @@ function mdInline(text, key) {
 // ── 轻量块级 Markdown：代码块 / 标题 / 列表 / 引用 / 表格 / 公式 ──
 // 每个 tryXxx 尝试从 lines[i] 消费一类块：成功则 push 元素（key 与迁移
 // 前一致：'b' + out.length）并返回下一行下标，失败返回 0（不消费）。
+// 复制按钮（CopyButton 见 copy.part.js，issue #74）：代码块/整段右下角。
 function tryFence(lines, i, out) {
   const fence = lines[i].match(/^```(\w*)\s*$/)
   if (!fence) return 0
@@ -485,7 +590,6 @@ function tryFence(lines, i, out) {
     i += 1
   }
   i += 1
-  // Keep the fence language on <code> and wrap in the host's `md-code-block` container.
   out.push(
     createElement(
       'div',
@@ -495,6 +599,7 @@ function tryFence(lines, i, out) {
         { className: 'tzx-pre' },
         createElement('code', { className: fence[1] ? 'language-' + fence[1] : '' }, buf.join('\n')),
       ),
+      createElement(CopyButton, { kind: 'code' }),
     ),
   )
   return i
@@ -723,7 +828,7 @@ function MarkdownView({ text }) {
     }
     i = tryParagraph(lines, i, out)
   }
-  return createElement('div', { className: 'tzx-md' }, out)
+  return createElement('div', { className: 'tzx-md' }, out, createElement(CopyButton, { kind: 'content' }))
 }
 
 exports.MarkdownView = MarkdownView
@@ -1050,6 +1155,17 @@ div.dsh-md-render-math-error{margin:0;text-align:center;justify-content:center;p
 .dsh-md-render-scroll-hint{display:flex;align-items:center;gap:4px;padding:2px 8px;font:var(--dsw-font-xxxs-11);color:var(--dsw-alias-label-tertiary)}
 .dsh-md-render-scroll-hint svg{display:block;flex:none}
 .dsh-md-render-prefix,.dsh-md-render-suffix{margin:0}
+/* ── 复制按钮（issue #74）：代码块 / 整段内容右下角一键复制 ──
+   绝对定位右下角、hover 才显示（不干扰阅读）；DSH 语义 token 深浅
+   主题自适应；流式渲染中（[data-streaming] 祖先）隐藏，避免复制到
+   半截内容。 */
+.md-code-block{position:relative}
+.tzx-md{position:relative}
+.md-code-block>.dsh-md-render-copy,.tzx-md>.dsh-md-render-copy{position:absolute;right:8px;bottom:8px;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font:var(--dsw-font-xxxs-11);line-height:20px;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:6px;cursor:pointer;opacity:0;transition:opacity var(--ds-transition-duration-slow) var(--ds-ease-in-out),color var(--ds-transition-duration-slow) var(--ds-ease-in-out),border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+.md-code-block:hover>.dsh-md-render-copy,.tzx-md:hover>.dsh-md-render-copy{opacity:1}
+.dsh-md-render-copy:hover{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l2)}
+.dsh-md-render-copy-done{color:var(--dsw-alias-state-success-primary);border-color:var(--dsw-alias-state-success-primary)}
+[data-streaming] .dsh-md-render-copy{display:none}
 `
 
 
