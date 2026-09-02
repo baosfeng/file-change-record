@@ -293,6 +293,27 @@ const icon = {
       ],
       size,
     ),
+  // 下载（issue #85 新增）：箭头入托盘，图表导出按钮（dsh-mermaid-render
+  // 卡片下载 PNG/SVG），stroke=currentColor 风格与其余图标一致。
+  download: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+        createElement('polyline', { points: '7 10 12 15 17 10' }),
+        createElement('line', { x1: 12, y1: 15, x2: 12, y2: 3 }),
+      ],
+      size,
+    ),
+  // 复制（issue #85 新增）：双层矩形，复制源码按钮（dsh-mermaid-render
+  // 卡片复制代码），stroke=currentColor 风格与其余图标一致。
+  copy: (size = 16) =>
+    iconSvg(
+      [
+        createElement('rect', { x: 9, y: 9, width: 13, height: 13, rx: 2 }),
+        createElement('path', { d: 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1' }),
+      ],
+      size,
+    ),
 }
 
 // Common-language / file-type badges (issue #24): brand fill + contrast
@@ -821,18 +842,22 @@ function isNoticeKind(kind) {
 // ── 通知去重（issue #70）：本地窗口 + 跨标签页协调 ─────────────────
 // 服务端已按 kind:sessionId 在 dedupeMs（默认 3000ms）内去重；客户端再做
 // 双保险：① 本标签页内存窗口（快速路径 + localStorage 不可用时的兜底）；
-// ② localStorage 时间戳锁（跨标签页协调——同一通知只由一个标签页弹系统
-// 通知 + 响铃，其余标签页静默）。窗口 2000ms，覆盖多标签页帧到达时间差
-// 与服务端窗口外的偶发重复帧。
+// ② 跨标签页互斥（Web Locks，Chrome 69+/Firefox 96+/Safari 15.4+）——
+// 同一通知只由一个标签页弹系统通知 + 响铃，其余标签页静默。窗口
+// 2000ms，覆盖多标签页帧到达时间差与服务端窗口外的偶发重复帧。
+//
+// 为什么不用 localStorage 做锁：get→check→set 三个步骤非原子（TOCTOU），
+// 两个标签页几乎同时收到同一帧时都会读到「未过期」而各自弹通知（真实
+// 浏览器复现双弹；单元测试串行调用测不出来）。navigator.locks.request
+// 为同名锁提供浏览器级跨标签页互斥：回调串行执行，后到的标签页在回调
+// 里读到的锁时间戳已在窗口内 → 静默。无 Web Locks（旧浏览器）时降级为
+// 原 localStorage 快速路径（尽力而为，保留历史行为）。
 const CLIENT_DEDUPE_MS = 2000
 const DEDUPE_LS_PREFIX = 'dsh-notify:dedupe:'
 const localRecent = new Map() // `${kind}:${sessionId}` -> lastTime
 
-/** 通知帧是否在去重窗口内已处理（本标签页或其他标签页）；未处理则登记并返回 true。 */
-function claimNotice(key) {
-  const now = Date.now()
-  const lastLocal = localRecent.get(key)
-  if (lastLocal !== undefined && now - lastLocal < CLIENT_DEDUPE_MS) return false
+/** 锁内检查窗口并登记；返回 true = 本标签页应处理（调用方需已持有锁或降级）。 */
+function claimLocked(key, now) {
   try {
     const lockKey = DEDUPE_LS_PREFIX + key
     const last = Number(window.localStorage.getItem(lockKey) || 0)
@@ -851,6 +876,21 @@ function claimNotice(key) {
     }
   }
   return true
+}
+
+/** 通知帧是否在去重窗口内已处理（本标签页或其他标签页）；未处理则登记并返回 true。
+ *  返回 Promise（Web Locks 互斥异步；无 Web Locks 时立即 resolve，接口统一）。 */
+function claimNotice(key) {
+  const now = Date.now()
+  const lastLocal = localRecent.get(key)
+  if (lastLocal !== undefined && now - lastLocal < CLIENT_DEDUPE_MS) return Promise.resolve(false)
+  const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined
+  if (locks !== undefined && locks !== null && typeof locks.request === 'function') {
+    // 跨标签页互斥：同名锁回调串行执行，后到者读到窗口内时间戳 → 静默。
+    return locks.request(DEDUPE_LS_PREFIX + key, () => claimLocked(key, Date.now()))
+  }
+  // 降级：无 Web Locks（旧浏览器）→ 原 localStorage 快速路径。
+  return Promise.resolve(claimLocked(key, now))
 }
 
 function openSessionFor(sessionId, sessionsSvc) {
@@ -901,14 +941,16 @@ function dispatchByPermission(notice, sessionId, openSession) {
 }
 
 function handleNotice(notice, sessionsSvc) {
-  if (notice === null || typeof notice !== 'object' || notice.type !== 'notice') return
-  if (!isNoticeKind(notice.kind)) return
+  if (notice === null || typeof notice !== 'object' || notice.type !== 'notice') return Promise.resolve()
+  if (!isNoticeKind(notice.kind)) return Promise.resolve()
   const sessionId = typeof notice.sessionId === 'string' ? notice.sessionId : ''
   const key = `${notice.kind}:${sessionId}`
-  if (!claimNotice(key)) return // 窗口内已处理（本标签页或其他标签页）→ 静默
-  const openSession = openSessionFor(sessionId, sessionsSvc)
-  dispatchByPermission(notice, sessionId, openSession)
-  if (prefOn(LS.sound, true)) beep()
+  return claimNotice(key).then((claimed) => {
+    if (!claimed) return // 窗口内已处理（本标签页或其他标签页）→ 静默
+    const openSession = openSessionFor(sessionId, sessionsSvc)
+    dispatchByPermission(notice, sessionId, openSession)
+    if (prefOn(LS.sound, true)) beep()
+  })
 }
 
 // ── SSE 订阅（server 事件 → 浏览器通知）─────────────────────────────
@@ -918,7 +960,7 @@ function subscribeStream(sessionsSvc) {
   source.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data)
-      handleNotice(data, sessionsSvc)
+      void handleNotice(data, sessionsSvc)
     } catch {
       // one bad frame must never kill the stream handler
     }
@@ -944,6 +986,281 @@ exports.apply = function apply(ctx) {
 
   // 设置页 tab（官方 slots 扩展点，issue #27 配置可视化）。
   attachSettingsTab(ctx)
+}
+
+
+    // ── 设置页：出站 webhook 可视化编辑（issue #92）────────────────────
+    // 拼接顺序：webhook-settings.js 必须先于 settings.js——settings.js 顶层
+    // `SETTINGS_STYLES = ... + WEBHOOK_STYLES` 引用 webhook-settings.js 声明的
+    // WEBHOOK_STYLES，顺序颠倒会 TDZ（#92 引入，0.3.6 客户端在真实浏览器
+    // 挂载失败：Cannot access 'WEBHOOK_STYLES' before initialization）。
+    // ── 出站 Webhook 设置（issue #92）：列表 + 编辑表单 + 失败记录 ──────
+const WEBHOOK_STYLES = `
+.dsh-my-notify-webhook-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-2)}
+.dsh-my-notify-webhook-editor{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-2)}
+.dsh-my-notify-webhook-field{display:flex;flex-direction:column;gap:4px}
+.dsh-my-notify-webhook-field-label{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary)}
+.dsh-my-notify-webhook-input{height:28px;padding:0 8px;border-radius:6px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xxs-12)}
+.dsh-my-notify-webhook-select{height:28px;padding:0 8px;border-radius:6px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xxs-12)}
+.dsh-my-notify-webhook-events{display:flex;flex-wrap:wrap;gap:6px}
+.dsh-my-notify-webhook-event{display:flex;align-items:center;gap:4px;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-primary)}
+.dsh-my-notify-webhook-failures{display:flex;flex-direction:column;gap:4px}
+.dsh-my-notify-webhook-failure{display:flex;flex-direction:column;gap:2px;padding:6px 8px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-2)}
+.dsh-my-notify-webhook-failure-time{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary)}
+.dsh-my-notify-webhook-failure-msg{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-state-error-primary)}
+`
+
+const CHANNEL_OPTIONS = [
+  { value: 'wecom', label: () => strings.channelWecom() },
+  { value: 'feishu', label: () => strings.channelFeishu() },
+  { value: 'dingtalk', label: () => strings.channelDingtalk() },
+  { value: 'generic', label: () => strings.channelGeneric() },
+]
+
+const EVENT_OPTIONS = [
+  { value: 'end', label: () => strings.eventEnd() },
+  { value: 'ask', label: () => strings.eventAsk() },
+  { value: 'approval', label: () => strings.eventApproval() },
+  { value: 'remote', label: () => strings.eventRemote() },
+]
+
+/** 空 webhook 模板（添加时使用）。 */
+function emptyWebhook() {
+  return {
+    name: '',
+    channel: 'wecom',
+    url: '',
+    secret: '',
+    events: ['end', 'ask', 'approval'],
+    enabled: true,
+    msgType: 'text',
+  }
+}
+
+/** 渠道中文标签。 */
+function channelLabel(channel) {
+  const option = CHANNEL_OPTIONS.find((o) => o.value === channel)
+  return option !== undefined ? option.label() : channel
+}
+
+/** 事件选择中文标签（空数组 = 全部）。 */
+function eventsLabel(events) {
+  if (!Array.isArray(events) || events.length === 0) return strings.eventAll()
+  return events
+    .map((event) => {
+      const option = EVENT_OPTIONS.find((o) => o.value === event)
+      return option !== undefined ? option.label() : event
+    })
+    .join(' / ')
+}
+
+/** 消息类型选项（按渠道：wecom/dingtalk → text/markdown，feishu → text/post）。 */
+function msgTypeOptions(channel) {
+  if (channel === 'feishu') {
+    return [
+      { value: 'text', label: () => strings.msgTypeText() },
+      { value: 'post', label: () => strings.msgTypePost() },
+    ]
+  }
+  return [
+    { value: 'text', label: () => strings.msgTypeText() },
+    { value: 'markdown', label: () => strings.msgTypeMarkdown() },
+  ]
+}
+
+/** 单条 webhook 显示行：名称/渠道/事件 + 启用开关 + 编辑/删除。 */
+function WebhookRow({ webhook, onEdit, onDelete, onToggle }) {
+  const enabled = webhook.enabled !== false
+  return createElement(
+    'div',
+    { className: 'dsh-my-notify-webhook-row' },
+    createElement(
+      'div',
+      { className: 'dsh-my-notify-info' },
+      createElement('div', { className: 'dsh-my-notify-label' }, webhook.name),
+      createElement(
+        'div',
+        { className: 'dsh-my-notify-hint' },
+        `${channelLabel(webhook.channel)} · ${eventsLabel(webhook.events)}`,
+      ),
+    ),
+    createElement(
+      'div',
+      { className: 'dsh-my-notify-actions' },
+      createElement('div', {
+        className: 'dsh-my-notify-toggle',
+        'data-on': String(enabled),
+        role: 'switch',
+        'aria-checked': String(enabled),
+        onClick: () => onToggle(!enabled),
+      }),
+      createElement('button', { className: 'dsh-my-notify-btn', onClick: onEdit }, strings.webhookEdit()),
+      createElement('button', { className: 'dsh-my-notify-btn', onClick: onDelete }, strings.webhookDelete()),
+    ),
+  )
+}
+
+/** 编辑表单字段容器（label + control）。 */
+function editorField(label, control) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-notify-webhook-field' },
+    createElement('div', { className: 'dsh-my-notify-webhook-field-label' }, label),
+    control,
+  )
+}
+
+/** 文本输入控件。 */
+function textInput(value, placeholder, onChange) {
+  return createElement('input', {
+    className: 'dsh-my-notify-webhook-input',
+    value,
+    placeholder,
+    onChange: (event) => onChange(event.target.value),
+  })
+}
+
+/** 下拉选择控件。 */
+function selectInput(value, options, onChange) {
+  return createElement(
+    'select',
+    { className: 'dsh-my-notify-webhook-select', value, onChange: (event) => onChange(event.target.value) },
+    options.map((option) => createElement('option', { key: option.value, value: option.value }, option.label())),
+  )
+}
+
+/** 编辑表单：名称/渠道/URL/secret/事件多选/消息类型 + 保存/取消。 */
+function WebhookEditor({ draft, onChange, onSave, onCancel }) {
+  const patch = (key, value) => onChange({ ...draft, [key]: value })
+  const toggleEvent = (event) => {
+    const events = draft.events.includes(event) ? draft.events.filter((e) => e !== event) : [...draft.events, event]
+    patch('events', events)
+  }
+  return createElement(
+    'div',
+    { className: 'dsh-my-notify-webhook-editor' },
+    editorField(
+      strings.webhookName(),
+      textInput(draft.name, strings.webhookNamePlaceholder(), (v) => patch('name', v)),
+    ),
+    editorField(
+      strings.webhookChannel(),
+      selectInput(draft.channel, CHANNEL_OPTIONS, (v) => patch('channel', v)),
+    ),
+    editorField(
+      strings.webhookUrl(),
+      textInput(draft.url, strings.webhookUrlPlaceholder(), (v) => patch('url', v)),
+    ),
+    editorField(
+      strings.webhookSecret(),
+      textInput(draft.secret, strings.webhookSecretPlaceholder(), (v) => patch('secret', v)),
+    ),
+    editorField(
+      strings.webhookEvents(),
+      createElement(
+        'div',
+        { className: 'dsh-my-notify-webhook-events' },
+        EVENT_OPTIONS.map((option) =>
+          createElement(
+            'label',
+            { key: option.value, className: 'dsh-my-notify-webhook-event' },
+            createElement('input', {
+              type: 'checkbox',
+              checked: draft.events.includes(option.value),
+              onChange: () => toggleEvent(option.value),
+            }),
+            option.label(),
+          ),
+        ),
+      ),
+    ),
+    editorField(
+      strings.webhookMsgType(),
+      selectInput(draft.msgType, msgTypeOptions(draft.channel), (v) => patch('msgType', v)),
+    ),
+    createElement(
+      'div',
+      { className: 'dsh-my-notify-actions' },
+      createElement('button', { className: 'dsh-my-notify-btn', onClick: onSave }, strings.webhookSave()),
+      createElement('button', { className: 'dsh-my-notify-btn', onClick: onCancel }, strings.webhookCancel()),
+    ),
+  )
+}
+
+/** 失败记录条目。 */
+function FailureRow({ failure }) {
+  const time = new Date(failure.time).toLocaleString()
+  return createElement(
+    'div',
+    { className: 'dsh-my-notify-webhook-failure' },
+    createElement(
+      'div',
+      { className: 'dsh-my-notify-webhook-failure-time' },
+      `${time} · ${failure.webhookName}（${channelLabel(failure.channel)}）· ${failure.attempts} 次尝试`,
+    ),
+    createElement('div', { className: 'dsh-my-notify-webhook-failure-msg' }, failure.error),
+  )
+}
+
+/** 出站 Webhook 区块：列表 + 添加/编辑 + 失败记录。 */
+function WebhookSection({ webhooks, failures, onPatchWebhooks }) {
+  const [editing, setEditing] = useState(-1)
+  const [editorDraft, setEditorDraft] = useState(null)
+  const startAdd = () => {
+    setEditorDraft(emptyWebhook())
+    setEditing(webhooks.length)
+  }
+  const startEdit = (index) => {
+    setEditorDraft({ ...webhooks[index] })
+    setEditing(index)
+  }
+  const saveEditor = () => {
+    const next = [...webhooks]
+    if (editing >= next.length) next.push(editorDraft)
+    else next[editing] = editorDraft
+    onPatchWebhooks(next)
+    setEditing(-1)
+  }
+  const removeAt = (index) => onPatchWebhooks(webhooks.filter((_, i) => i !== index))
+  const toggleAt = (index, enabled) => {
+    const next = webhooks.map((webhook, i) => (i === index ? { ...webhook, enabled } : webhook))
+    onPatchWebhooks(next)
+  }
+  return createElement(
+    'div',
+    { className: 'dsh-my-notify-section' },
+    createElement('div', { className: 'dsh-my-notify-section-title' }, strings.settingsWebhooks()),
+    (webhooks ?? []).map((webhook, index) =>
+      createElement(WebhookRow, {
+        key: `${index}-${webhook.name}`,
+        webhook,
+        onEdit: () => startEdit(index),
+        onDelete: () => removeAt(index),
+        onToggle: (enabled) => toggleAt(index, enabled),
+      }),
+    ),
+    editing >= 0
+      ? createElement(WebhookEditor, {
+          draft: editorDraft,
+          onChange: setEditorDraft,
+          onSave: saveEditor,
+          onCancel: () => setEditing(-1),
+        })
+      : null,
+    createElement(
+      'div',
+      { className: 'dsh-my-notify-actions' },
+      createElement('button', { className: 'dsh-my-notify-btn', onClick: startAdd }, strings.webhookAdd()),
+    ),
+    createElement('div', { className: 'dsh-my-notify-section-title' }, strings.webhookFailures()),
+    failures !== undefined && failures.length > 0
+      ? createElement(
+          'div',
+          { className: 'dsh-my-notify-webhook-failures' },
+          failures.map((failure, index) => createElement(FailureRow, { key: index, failure })),
+        )
+      : createElement('div', { className: 'dsh-my-notify-hint' }, strings.webhookNoFailures()),
+  )
 }
 
 
@@ -1238,277 +1555,6 @@ function attachSettingsTab(ctx) {
         ),
       ),
     'dsh-my-notify: settings tab registration',
-  )
-}
-
-
-    // ── 设置页：出站 webhook 可视化编辑（issue #92）────────────────────
-    // ── 出站 Webhook 设置（issue #92）：列表 + 编辑表单 + 失败记录 ──────
-const WEBHOOK_STYLES = `
-.dsh-my-notify-webhook-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-2)}
-.dsh-my-notify-webhook-editor{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-2)}
-.dsh-my-notify-webhook-field{display:flex;flex-direction:column;gap:4px}
-.dsh-my-notify-webhook-field-label{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary)}
-.dsh-my-notify-webhook-input{height:28px;padding:0 8px;border-radius:6px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xxs-12)}
-.dsh-my-notify-webhook-select{height:28px;padding:0 8px;border-radius:6px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xxs-12)}
-.dsh-my-notify-webhook-events{display:flex;flex-wrap:wrap;gap:6px}
-.dsh-my-notify-webhook-event{display:flex;align-items:center;gap:4px;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-primary)}
-.dsh-my-notify-webhook-failures{display:flex;flex-direction:column;gap:4px}
-.dsh-my-notify-webhook-failure{display:flex;flex-direction:column;gap:2px;padding:6px 8px;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-2)}
-.dsh-my-notify-webhook-failure-time{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary)}
-.dsh-my-notify-webhook-failure-msg{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-state-error-primary)}
-`
-
-const CHANNEL_OPTIONS = [
-  { value: 'wecom', label: () => strings.channelWecom() },
-  { value: 'feishu', label: () => strings.channelFeishu() },
-  { value: 'dingtalk', label: () => strings.channelDingtalk() },
-  { value: 'generic', label: () => strings.channelGeneric() },
-]
-
-const EVENT_OPTIONS = [
-  { value: 'end', label: () => strings.eventEnd() },
-  { value: 'ask', label: () => strings.eventAsk() },
-  { value: 'approval', label: () => strings.eventApproval() },
-  { value: 'remote', label: () => strings.eventRemote() },
-]
-
-/** 空 webhook 模板（添加时使用）。 */
-function emptyWebhook() {
-  return {
-    name: '',
-    channel: 'wecom',
-    url: '',
-    secret: '',
-    events: ['end', 'ask', 'approval'],
-    enabled: true,
-    msgType: 'text',
-  }
-}
-
-/** 渠道中文标签。 */
-function channelLabel(channel) {
-  const option = CHANNEL_OPTIONS.find((o) => o.value === channel)
-  return option !== undefined ? option.label() : channel
-}
-
-/** 事件选择中文标签（空数组 = 全部）。 */
-function eventsLabel(events) {
-  if (!Array.isArray(events) || events.length === 0) return strings.eventAll()
-  return events
-    .map((event) => {
-      const option = EVENT_OPTIONS.find((o) => o.value === event)
-      return option !== undefined ? option.label() : event
-    })
-    .join(' / ')
-}
-
-/** 消息类型选项（按渠道：wecom/dingtalk → text/markdown，feishu → text/post）。 */
-function msgTypeOptions(channel) {
-  if (channel === 'feishu') {
-    return [
-      { value: 'text', label: () => strings.msgTypeText() },
-      { value: 'post', label: () => strings.msgTypePost() },
-    ]
-  }
-  return [
-    { value: 'text', label: () => strings.msgTypeText() },
-    { value: 'markdown', label: () => strings.msgTypeMarkdown() },
-  ]
-}
-
-/** 单条 webhook 显示行：名称/渠道/事件 + 启用开关 + 编辑/删除。 */
-function WebhookRow({ webhook, onEdit, onDelete, onToggle }) {
-  const enabled = webhook.enabled !== false
-  return createElement(
-    'div',
-    { className: 'dsh-my-notify-webhook-row' },
-    createElement(
-      'div',
-      { className: 'dsh-my-notify-info' },
-      createElement('div', { className: 'dsh-my-notify-label' }, webhook.name),
-      createElement(
-        'div',
-        { className: 'dsh-my-notify-hint' },
-        `${channelLabel(webhook.channel)} · ${eventsLabel(webhook.events)}`,
-      ),
-    ),
-    createElement(
-      'div',
-      { className: 'dsh-my-notify-actions' },
-      createElement('div', {
-        className: 'dsh-my-notify-toggle',
-        'data-on': String(enabled),
-        role: 'switch',
-        'aria-checked': String(enabled),
-        onClick: () => onToggle(!enabled),
-      }),
-      createElement('button', { className: 'dsh-my-notify-btn', onClick: onEdit }, strings.webhookEdit()),
-      createElement('button', { className: 'dsh-my-notify-btn', onClick: onDelete }, strings.webhookDelete()),
-    ),
-  )
-}
-
-/** 编辑表单字段容器（label + control）。 */
-function editorField(label, control) {
-  return createElement(
-    'div',
-    { className: 'dsh-my-notify-webhook-field' },
-    createElement('div', { className: 'dsh-my-notify-webhook-field-label' }, label),
-    control,
-  )
-}
-
-/** 文本输入控件。 */
-function textInput(value, placeholder, onChange) {
-  return createElement('input', {
-    className: 'dsh-my-notify-webhook-input',
-    value,
-    placeholder,
-    onChange: (event) => onChange(event.target.value),
-  })
-}
-
-/** 下拉选择控件。 */
-function selectInput(value, options, onChange) {
-  return createElement(
-    'select',
-    { className: 'dsh-my-notify-webhook-select', value, onChange: (event) => onChange(event.target.value) },
-    options.map((option) => createElement('option', { key: option.value, value: option.value }, option.label())),
-  )
-}
-
-/** 编辑表单：名称/渠道/URL/secret/事件多选/消息类型 + 保存/取消。 */
-function WebhookEditor({ draft, onChange, onSave, onCancel }) {
-  const patch = (key, value) => onChange({ ...draft, [key]: value })
-  const toggleEvent = (event) => {
-    const events = draft.events.includes(event) ? draft.events.filter((e) => e !== event) : [...draft.events, event]
-    patch('events', events)
-  }
-  return createElement(
-    'div',
-    { className: 'dsh-my-notify-webhook-editor' },
-    editorField(
-      strings.webhookName(),
-      textInput(draft.name, strings.webhookNamePlaceholder(), (v) => patch('name', v)),
-    ),
-    editorField(
-      strings.webhookChannel(),
-      selectInput(draft.channel, CHANNEL_OPTIONS, (v) => patch('channel', v)),
-    ),
-    editorField(
-      strings.webhookUrl(),
-      textInput(draft.url, strings.webhookUrlPlaceholder(), (v) => patch('url', v)),
-    ),
-    editorField(
-      strings.webhookSecret(),
-      textInput(draft.secret, strings.webhookSecretPlaceholder(), (v) => patch('secret', v)),
-    ),
-    editorField(
-      strings.webhookEvents(),
-      createElement(
-        'div',
-        { className: 'dsh-my-notify-webhook-events' },
-        EVENT_OPTIONS.map((option) =>
-          createElement(
-            'label',
-            { key: option.value, className: 'dsh-my-notify-webhook-event' },
-            createElement('input', {
-              type: 'checkbox',
-              checked: draft.events.includes(option.value),
-              onChange: () => toggleEvent(option.value),
-            }),
-            option.label(),
-          ),
-        ),
-      ),
-    ),
-    editorField(
-      strings.webhookMsgType(),
-      selectInput(draft.msgType, msgTypeOptions(draft.channel), (v) => patch('msgType', v)),
-    ),
-    createElement(
-      'div',
-      { className: 'dsh-my-notify-actions' },
-      createElement('button', { className: 'dsh-my-notify-btn', onClick: onSave }, strings.webhookSave()),
-      createElement('button', { className: 'dsh-my-notify-btn', onClick: onCancel }, strings.webhookCancel()),
-    ),
-  )
-}
-
-/** 失败记录条目。 */
-function FailureRow({ failure }) {
-  const time = new Date(failure.time).toLocaleString()
-  return createElement(
-    'div',
-    { className: 'dsh-my-notify-webhook-failure' },
-    createElement(
-      'div',
-      { className: 'dsh-my-notify-webhook-failure-time' },
-      `${time} · ${failure.webhookName}（${channelLabel(failure.channel)}）· ${failure.attempts} 次尝试`,
-    ),
-    createElement('div', { className: 'dsh-my-notify-webhook-failure-msg' }, failure.error),
-  )
-}
-
-/** 出站 Webhook 区块：列表 + 添加/编辑 + 失败记录。 */
-function WebhookSection({ webhooks, failures, onPatchWebhooks }) {
-  const [editing, setEditing] = useState(-1)
-  const [editorDraft, setEditorDraft] = useState(null)
-  const startAdd = () => {
-    setEditorDraft(emptyWebhook())
-    setEditing(webhooks.length)
-  }
-  const startEdit = (index) => {
-    setEditorDraft({ ...webhooks[index] })
-    setEditing(index)
-  }
-  const saveEditor = () => {
-    const next = [...webhooks]
-    if (editing >= next.length) next.push(editorDraft)
-    else next[editing] = editorDraft
-    onPatchWebhooks(next)
-    setEditing(-1)
-  }
-  const removeAt = (index) => onPatchWebhooks(webhooks.filter((_, i) => i !== index))
-  const toggleAt = (index, enabled) => {
-    const next = webhooks.map((webhook, i) => (i === index ? { ...webhook, enabled } : webhook))
-    onPatchWebhooks(next)
-  }
-  return createElement(
-    'div',
-    { className: 'dsh-my-notify-section' },
-    createElement('div', { className: 'dsh-my-notify-section-title' }, strings.settingsWebhooks()),
-    (webhooks ?? []).map((webhook, index) =>
-      createElement(WebhookRow, {
-        key: `${index}-${webhook.name}`,
-        webhook,
-        onEdit: () => startEdit(index),
-        onDelete: () => removeAt(index),
-        onToggle: (enabled) => toggleAt(index, enabled),
-      }),
-    ),
-    editing >= 0
-      ? createElement(WebhookEditor, {
-          draft: editorDraft,
-          onChange: setEditorDraft,
-          onSave: saveEditor,
-          onCancel: () => setEditing(-1),
-        })
-      : null,
-    createElement(
-      'div',
-      { className: 'dsh-my-notify-actions' },
-      createElement('button', { className: 'dsh-my-notify-btn', onClick: startAdd }, strings.webhookAdd()),
-    ),
-    createElement('div', { className: 'dsh-my-notify-section-title' }, strings.webhookFailures()),
-    failures !== undefined && failures.length > 0
-      ? createElement(
-          'div',
-          { className: 'dsh-my-notify-webhook-failures' },
-          failures.map((failure, index) => createElement(FailureRow, { key: index, failure })),
-        )
-      : createElement('div', { className: 'dsh-my-notify-hint' }, strings.webhookNoFailures()),
   )
 }
 

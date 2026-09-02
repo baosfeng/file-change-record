@@ -45,11 +45,15 @@ window.__ModuleLoader__.load({
     // ── SSE 客户端：通知分发 / EventSource 订阅 / 插件体 ─────────────────
     /*__PART_STREAM__*/
 
+    // ── 设置页：出站 webhook 可视化编辑（issue #92）────────────────────
+    // 拼接顺序：webhook-settings.js 必须先于 settings.js——settings.js 顶层
+    // `SETTINGS_STYLES = ... + WEBHOOK_STYLES` 引用 webhook-settings.js 声明的
+    // WEBHOOK_STYLES，顺序颠倒会 TDZ（#92 引入，0.3.6 客户端在真实浏览器
+    // 挂载失败：Cannot access 'WEBHOOK_STYLES' before initialization）。
+    /*__PART_WEBHOOK_SETTINGS__*/
+
     // ── 设置页视图：配置可视化（issue #27，官方 slots 扩展点）───────────
     /*__PART_SETTINGS__*/
-
-    // ── 设置页：出站 webhook 可视化编辑（issue #92）────────────────────
-    /*__PART_WEBHOOK_SETTINGS__*/
 
     return module.exports
   },

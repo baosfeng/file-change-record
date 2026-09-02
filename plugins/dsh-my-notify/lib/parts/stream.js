@@ -6,18 +6,22 @@ function isNoticeKind(kind) {
 // ── 通知去重（issue #70）：本地窗口 + 跨标签页协调 ─────────────────
 // 服务端已按 kind:sessionId 在 dedupeMs（默认 3000ms）内去重；客户端再做
 // 双保险：① 本标签页内存窗口（快速路径 + localStorage 不可用时的兜底）；
-// ② localStorage 时间戳锁（跨标签页协调——同一通知只由一个标签页弹系统
-// 通知 + 响铃，其余标签页静默）。窗口 2000ms，覆盖多标签页帧到达时间差
-// 与服务端窗口外的偶发重复帧。
+// ② 跨标签页互斥（Web Locks，Chrome 69+/Firefox 96+/Safari 15.4+）——
+// 同一通知只由一个标签页弹系统通知 + 响铃，其余标签页静默。窗口
+// 2000ms，覆盖多标签页帧到达时间差与服务端窗口外的偶发重复帧。
+//
+// 为什么不用 localStorage 做锁：get→check→set 三个步骤非原子（TOCTOU），
+// 两个标签页几乎同时收到同一帧时都会读到「未过期」而各自弹通知（真实
+// 浏览器复现双弹；单元测试串行调用测不出来）。navigator.locks.request
+// 为同名锁提供浏览器级跨标签页互斥：回调串行执行，后到的标签页在回调
+// 里读到的锁时间戳已在窗口内 → 静默。无 Web Locks（旧浏览器）时降级为
+// 原 localStorage 快速路径（尽力而为，保留历史行为）。
 const CLIENT_DEDUPE_MS = 2000
 const DEDUPE_LS_PREFIX = 'dsh-notify:dedupe:'
 const localRecent = new Map() // `${kind}:${sessionId}` -> lastTime
 
-/** 通知帧是否在去重窗口内已处理（本标签页或其他标签页）；未处理则登记并返回 true。 */
-function claimNotice(key) {
-  const now = Date.now()
-  const lastLocal = localRecent.get(key)
-  if (lastLocal !== undefined && now - lastLocal < CLIENT_DEDUPE_MS) return false
+/** 锁内检查窗口并登记；返回 true = 本标签页应处理（调用方需已持有锁或降级）。 */
+function claimLocked(key, now) {
   try {
     const lockKey = DEDUPE_LS_PREFIX + key
     const last = Number(window.localStorage.getItem(lockKey) || 0)
@@ -36,6 +40,21 @@ function claimNotice(key) {
     }
   }
   return true
+}
+
+/** 通知帧是否在去重窗口内已处理（本标签页或其他标签页）；未处理则登记并返回 true。
+ *  返回 Promise（Web Locks 互斥异步；无 Web Locks 时立即 resolve，接口统一）。 */
+function claimNotice(key) {
+  const now = Date.now()
+  const lastLocal = localRecent.get(key)
+  if (lastLocal !== undefined && now - lastLocal < CLIENT_DEDUPE_MS) return Promise.resolve(false)
+  const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined
+  if (locks !== undefined && locks !== null && typeof locks.request === 'function') {
+    // 跨标签页互斥：同名锁回调串行执行，后到者读到窗口内时间戳 → 静默。
+    return locks.request(DEDUPE_LS_PREFIX + key, () => claimLocked(key, Date.now()))
+  }
+  // 降级：无 Web Locks（旧浏览器）→ 原 localStorage 快速路径。
+  return Promise.resolve(claimLocked(key, now))
 }
 
 function openSessionFor(sessionId, sessionsSvc) {
@@ -86,14 +105,16 @@ function dispatchByPermission(notice, sessionId, openSession) {
 }
 
 function handleNotice(notice, sessionsSvc) {
-  if (notice === null || typeof notice !== 'object' || notice.type !== 'notice') return
-  if (!isNoticeKind(notice.kind)) return
+  if (notice === null || typeof notice !== 'object' || notice.type !== 'notice') return Promise.resolve()
+  if (!isNoticeKind(notice.kind)) return Promise.resolve()
   const sessionId = typeof notice.sessionId === 'string' ? notice.sessionId : ''
   const key = `${notice.kind}:${sessionId}`
-  if (!claimNotice(key)) return // 窗口内已处理（本标签页或其他标签页）→ 静默
-  const openSession = openSessionFor(sessionId, sessionsSvc)
-  dispatchByPermission(notice, sessionId, openSession)
-  if (prefOn(LS.sound, true)) beep()
+  return claimNotice(key).then((claimed) => {
+    if (!claimed) return // 窗口内已处理（本标签页或其他标签页）→ 静默
+    const openSession = openSessionFor(sessionId, sessionsSvc)
+    dispatchByPermission(notice, sessionId, openSession)
+    if (prefOn(LS.sound, true)) beep()
+  })
 }
 
 // ── SSE 订阅（server 事件 → 浏览器通知）─────────────────────────────
@@ -103,7 +124,7 @@ function subscribeStream(sessionsSvc) {
   source.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data)
-      handleNotice(data, sessionsSvc)
+      void handleNotice(data, sessionsSvc)
     } catch {
       // one bad frame must never kill the stream handler
     }

@@ -30,8 +30,9 @@ const PARTS = [
   ['/*__PART_ICONS__*/', 'icons.part.js', { shared: true }],
   ['/*__PART_NOTIFY_RENDER__*/', 'render.js'],
   ['/*__PART_STREAM__*/', 'stream.js'],
-  ['/*__PART_SETTINGS__*/', 'settings.js'],
+  // 顺序重要：webhook-settings.js 必须先于 settings.js（顶层引用 WEBHOOK_STYLES，见 client.src.js 注释）。
   ['/*__PART_WEBHOOK_SETTINGS__*/', 'webhook-settings.js'],
+  ['/*__PART_SETTINGS__*/', 'settings.js'],
 ]
 
 let src = readFileSync(join(root, 'lib/client.src.js'), 'utf8')
