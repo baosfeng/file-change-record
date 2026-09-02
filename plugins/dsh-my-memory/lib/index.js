@@ -24,7 +24,7 @@ import { createMemoryQueryTool } from './tool.js'
 
 export const name = 'dsh-my-memory'
 
-export const inject = ['systemPrompt', 'tools', 'webServer', 'webRuntime']
+export const inject = ['systemPrompt', 'tools', 'webServer', 'webRuntime', 'sessions']
 
 export function apply(ctx, config) {
   // ── stores：全局一个实例；项目按 cwd 懒创建并缓存 ────────────────────
@@ -68,7 +68,7 @@ export function apply(ctx, config) {
       ctx.webServer.register({
         kind: 'prefix',
         path: '/my-memory/api',
-        handler: createApiHandler({ globalStore, getProjectStore, fence }),
+        handler: createApiHandler({ globalStore, getProjectStore, fence, sessions: ctx.sessions }),
       }),
     'dsh-my-memory: /my-memory/api routes',
   )

@@ -4,6 +4,10 @@
  *  - GET  /my-memory/api/memory?scope=global|project&cwd=… → the memory
  *    items of one scope (read-only; project scope resolves the project root
  *    from cwd);
+ *  - GET  /my-memory/api/session?sessionId=… → the session's working
+ *    directory ('' when the session has none) — the settings panel uses it
+ *    to auto-load the current project's memory on open (issue #104), the
+ *    same session-cwd resolution as the memory_query tool;
  *  - POST /my-memory/api/memory → a write operation (add / update / delete).
  *    Every write MUST carry `confirmed: true` — the user-consent marker the
  *    settings panel sets only after its custom confirmation UI (delete is
@@ -22,7 +26,7 @@ function cwdOf(url) {
   return cwd !== '' ? cwd : undefined
 }
 
-export function createApiHandler({ globalStore, getProjectStore, fence }) {
+export function createApiHandler({ globalStore, getProjectStore, fence, sessions }) {
   return async (request, response) => {
     if (!fence(request)) {
       writeJson(response, 403, { ok: false, error: { code: 'forbidden', message: 'forbidden' } })
@@ -30,6 +34,10 @@ export function createApiHandler({ globalStore, getProjectStore, fence }) {
     }
     const url = new URL(request.url ?? '/', 'http://dsh.internal')
     try {
+      if (url.pathname.endsWith('/session') && request.method === 'GET') {
+        await handleSession(sessions, url, response)
+        return
+      }
       if (url.pathname.endsWith('/memory') && request.method === 'GET') {
         await handleList(url, response, globalStore, getProjectStore)
         return
@@ -43,6 +51,16 @@ export function createApiHandler({ globalStore, getProjectStore, fence }) {
       writeError(response, error)
     }
   }
+}
+
+/** GET /session — the session's working directory ('' when none). The settings
+ *  panel auto-loads the current project memory from it (issue #104), the same
+ *  session-cwd resolution the memory_query tool uses. */
+async function handleSession(sessions, url, response) {
+  const sessionId = url.searchParams.get('sessionId')
+  const session = typeof sessionId === 'string' && sessionId !== '' ? sessions?.get(sessionId) : undefined
+  const cwd = session?.header?.cwd
+  writeJson(response, 200, { ok: true, value: { cwd: typeof cwd === 'string' && cwd !== '' ? cwd : '' } })
 }
 
 /** GET /memory — one scope's items (global, or project resolved from cwd). */

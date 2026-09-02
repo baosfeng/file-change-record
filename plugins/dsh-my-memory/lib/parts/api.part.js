@@ -35,3 +35,27 @@ function writeMemory({ action, scope, cwd, id, desc }) {
       return normalizeMemory({ ...body.value, scope })
     })
 }
+
+/** Current session id from localStorage ('dsh.sessions.current' → { sessionId }). */
+function currentSessionId() {
+  try {
+    const raw = localStorage.getItem('dsh.sessions.current')
+    const parsed = raw === null ? null : JSON.parse(raw)
+    return typeof parsed?.sessionId === 'string' ? parsed.sessionId : ''
+  } catch {
+    return ''
+  }
+}
+
+/** GET /my-memory/api/session → the session's working directory ('' if none).
+ *  The panel uses it to auto-load the current project memory on open (issue #104). */
+function fetchSessionCwd(sessionId) {
+  if (sessionId === '') return Promise.resolve('')
+  return fetch(`${API_BASE}/session?sessionId=${encodeURIComponent(sessionId)}`)
+    .then((res) => res.json())
+    .then((body) => {
+      if (body === null || body.ok !== true) return ''
+      return typeof body.value?.cwd === 'string' ? body.value.cwd : ''
+    })
+    .catch(() => '')
+}

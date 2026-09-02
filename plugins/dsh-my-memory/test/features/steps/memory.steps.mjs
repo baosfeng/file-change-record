@@ -35,6 +35,9 @@ class World {
           return () => {}
         },
       },
+      sessions: {
+        get: (id) => (id === 'work-session' ? { header: { cwd: '/work/proj' } } : undefined),
+      },
       systemPrompt: {
         section: (section) => {
           this.sections.push(section)
@@ -301,4 +304,17 @@ Then('只返回 {string}', function (desc) {
 Then('查询不改变记忆内容', async function () {
   const r = await this.callRoute('GET', '/my-memory/api/memory?scope=global')
   assert.equal(r.json.value.items.length, 2, 'memory unchanged after read-only queries')
+})
+
+// ── 场景 6：面板打开时解析当前会话项目根 ──────────────────────────────────
+When('查询会话 {string} 的工作目录', async function (sessionId) {
+  await this.callRoute('GET', `/my-memory/api/session?sessionId=${encodeURIComponent(sessionId)}`)
+})
+
+Then('返回工作目录 {string}', function (cwd) {
+  assert.equal(this.lastResponse.json.value.cwd, cwd)
+})
+
+Then('返回空工作目录', function () {
+  assert.equal(this.lastResponse.json.value.cwd, '')
 })

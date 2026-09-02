@@ -82,6 +82,9 @@ async function boot(overrides) {
         return () => {}
       },
     },
+    sessions: {
+      get: (id) => (id === 'work-session' ? { header: { cwd: '/work/proj' } } : undefined),
+    },
     events: [],
     effectCallbacks: [],
     on(name, listener) {
@@ -110,7 +113,7 @@ async function callRoute(getRoute, method, url, body, overrides) {
 test('apply registers the API route and declares the required injects', async () => {
   const { getRoute, ctx } = await boot()
   assert.ok(getRoute(), '/my-memory/api route registered')
-  assert.deepEqual(inject, ['systemPrompt', 'tools', 'webServer', 'webRuntime'], 'inject list intact')
+  assert.deepEqual(inject, ['systemPrompt', 'tools', 'webServer', 'webRuntime', 'sessions'], 'inject list intact')
   const disposers = ctx.effectCallbacks.filter((e) => typeof e.disposer === 'function')
   assert.ok(disposers.length >= 4, 'store/section/tool/route effects return disposers')
 })
@@ -135,6 +138,28 @@ test('GET /memory lists the global scope', async () => {
   assert.equal(r.json.ok, true)
   assert.equal(r.json.value.scope, 'global')
   assert.deepEqual(r.json.value.items, [])
+})
+
+test('GET /session resolves the session working directory', async () => {
+  const { getRoute } = await boot()
+  const r = await callRoute(getRoute, 'GET', '/my-memory/api/session?sessionId=work-session')
+  assert.equal(r.status, 200)
+  assert.equal(r.json.ok, true)
+  assert.equal(r.json.value.cwd, '/work/proj', 'known session resolves its cwd')
+})
+
+test('GET /session returns empty cwd for unknown, absent or missing-sessions hosts', async () => {
+  const { getRoute } = await boot()
+  const unknown = await callRoute(getRoute, 'GET', '/my-memory/api/session?sessionId=missing')
+  assert.equal(unknown.status, 200)
+  assert.equal(unknown.json.value.cwd, '', 'unknown session → empty cwd')
+  const none = await callRoute(getRoute, 'GET', '/my-memory/api/session')
+  assert.equal(none.json.value.cwd, '', 'no sessionId → empty cwd')
+  const noSessions = await boot({ sessions: undefined })
+  const res = makeResponse()
+  await noSessions.getRoute().handler(makeRequest('GET', '/my-memory/api/session?sessionId=any'), res)
+  assert.equal(res._status, 200, 'sessions service absent → 200 with empty cwd')
+  assert.equal(JSON.parse(res._body).value.cwd, '', 'tolerates a missing sessions service')
 })
 
 test('POST /memory refuses writes without the user-consent marker (400)', async () => {

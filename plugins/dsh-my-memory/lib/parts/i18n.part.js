@@ -23,6 +23,10 @@ const strings = {
   loadError: () => (isZh() ? '加载失败' : 'Load failed'),
   empty: () => (isZh() ? '暂无记忆' : 'No memories yet'),
   emptyHint: () => (isZh() ? '点击下方输入框添加第一条记忆' : 'Add your first memory below'),
+  projectEmptyHint: () =>
+    isZh()
+      ? '当前无项目会话，请在上方输入项目根路径加载项目记忆'
+      : 'No active project session; enter a project root above to load its memory',
   addPlaceholder: () =>
     isZh() ? '输入要记住的内容（如：回复使用中文）' : 'Type what to remember (e.g. reply in Chinese)',
   add: () => (isZh() ? '新增' : 'Add'),

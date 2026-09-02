@@ -66,6 +66,8 @@ global.window = {
   },
   location: { href: 'http://127.0.0.1:3080/app', search: '' },
 }
+// 无当前会话（no-session）场景：localStorage 返回 null → currentSessionId() → ''
+global.localStorage = { getItem: () => null }
 Object.defineProperty(global, 'navigator', { value: { language: 'zh-CN' }, configurable: true })
 
 const fetchCalls = []
@@ -233,7 +235,7 @@ assert.ok(joined.includes('项目记忆'), 'project section present')
 assert.equal(countSections(tree2), 2, 'both scopes render as sections (side by side)')
 assert.ok(joined.includes('回复使用中文'), 'global memory desc rendered')
 assert.ok(joined.includes('暂无记忆'), 'project section empty before a project is loaded')
-assert.ok(joined.includes('点击下方输入框添加第一条记忆'), 'empty state shows the add hint')
+assert.ok(joined.includes('当前无项目会话'), 'project empty state prompts to load a project path')
 const buttons2 = []
 collectButtons(tree2, buttons2)
 assert.ok(

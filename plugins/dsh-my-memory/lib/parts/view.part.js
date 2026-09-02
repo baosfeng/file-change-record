@@ -47,7 +47,7 @@ function MemoryView() {
   const actions = createActions({ setData, setLoading, setError, setSaved })
 
   useEffect(() => {
-    actions.load('')
+    fetchSessionCwd(currentSessionId()).then((cwd) => actions.load(cwd))
   }, [])
 
   const commit = createCommitHandler({ data, setData, setSaved, setError, setDrafts, setEditing, setConfirming })
@@ -224,6 +224,7 @@ function SectionBlock({
   onCommit,
 }) {
   const isProject = scope === 'project'
+  const emptyHint = isProject && data.cwd === '' ? strings.projectEmptyHint() : undefined
   const rows = buildRows(data.items, scope, editing, onEdit, onEditDesc, onCancelEdit, onConfirm)
   return createElement(
     'div',
@@ -235,7 +236,7 @@ function SectionBlock({
       createElement('span', { className: 'dsh-my-memory-badge' }, badge),
     ),
     createElement('div', { className: 'dsh-my-memory-note' }, note),
-    rows.length === 0 ? createElement(EmptyState) : rows,
+    rows.length === 0 ? createElement(EmptyState, { hint: emptyHint }) : rows,
     createElement(
       'div',
       { className: 'dsh-my-memory-addbar' },
@@ -266,13 +267,13 @@ function SectionBlock({
   )
 }
 
-function EmptyState() {
+function EmptyState({ hint }) {
   return createElement(
     'div',
     { className: 'dsh-my-memory-empty' },
     createElement('span', { className: 'dsh-my-memory-empty-icon' }, icon.file(16)),
     strings.empty(),
-    createElement('span', { className: 'dsh-my-memory-empty-hint' }, strings.emptyHint()),
+    createElement('span', { className: 'dsh-my-memory-empty-hint' }, hint ?? strings.emptyHint()),
   )
 }
 
