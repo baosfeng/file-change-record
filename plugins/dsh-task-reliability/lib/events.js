@@ -10,6 +10,7 @@ import { sleep, userMessage } from './util.js'
 import { activeTaskOf, finishTask, addQuestion, registerTask } from './store.js'
 import { isTopLevelAgent } from './text.js'
 import { wrapStreamForLoop } from './repeat.js'
+import { loopNotify, detectNoProgress, recordToolLoop, repeatStateOf } from './loop.js'
 import { runVerification } from './verify.js'
 import {
   ASK_TIMEOUT_CONTINUE_TEXT,
@@ -35,16 +36,6 @@ function retryBudget(sessionId, shared) {
     return next
   }
   return bucket
-}
-
-/** 思考重复状态（会话级）。 */
-function repeatStateOf(sessionId, shared) {
-  let state = shared.repeatStates.get(sessionId)
-  if (state === undefined) {
-    state = { count: 0, gaveUp: false, notified: false }
-    shared.repeatStates.set(sessionId, state)
-  }
-  return state
 }
 
 /** 全局动作速率限制。 */
@@ -127,10 +118,31 @@ function shouldSteer(task, repeat) {
   return repeat !== undefined && repeat.count > 0 && !repeat.gaveUp
 }
 
-/** 思考重复打断优先于任务继续（避免指令混杂）。 */
-function repeatBreak(repeat, agent) {
+/**
+ * 循环打断（reason/tool/progress）优先于任务继续（避免指令混杂）。
+ * 采用一次性消费：只在「刚检测到循环」（pendingBreak 非空）时注入打断指令，
+ * 避免在后续回合反复注入同一打断。命中返回 true（占用本次 turn-stopping）。
+ */
+function repeatBreak(repeat, agent, shared) {
   if (repeat === undefined || repeat.count === 0 || repeat.gaveUp) return false
-  agent.steer(userMessage(REPEAT_BREAK_TEXT(repeat.count)))
+  if (repeat.pendingBreak === null) return false
+  agent.steer(userMessage(REPEAT_BREAK_TEXT(repeat.count, repeat.pendingBreak)))
+  void loopNotify(shared, repeat.pendingBreak, agent.id)
+  repeat.pendingBreak = null
+  return true
+}
+
+/** 对一次命中的循环做计数/上限处理并注入分级打断指令；若达上限放弃则返回 false。 */
+function escalateLoop(repeat, shared, agent, kind) {
+  repeat.count += 1
+  repeat.lastKind = kind
+  if (repeat.count > shared.options.repeatMaxPerSession) {
+    repeat.gaveUp = true
+    repeat.notified = false
+    return false
+  }
+  agent.steer(userMessage(REPEAT_BREAK_TEXT(repeat.count, kind)))
+  void loopNotify(shared, kind, agent.id)
   return true
 }
 
@@ -149,6 +161,22 @@ function steerContinue(task, agent, shared) {
   shared.save()
 }
 
+/** 无进展命中即注入打断指令；无需继续时返回 false。 */
+function noProgressBreak(task, repeat, agent, shared) {
+  if (task === undefined) return false
+  if (!detectNoProgress(repeat, shared.options)) return false
+  return escalateLoop(repeat, shared, agent, 'progress')
+}
+
+/** 常规任务继续：冷却/上限/verify 模式不继续。 */
+function continueTask(task, agent, shared) {
+  if (Date.now() - task.lastSteerAt < shared.options.steerCooldownMs) return false
+  if (atLoopLimit(task, shared)) return false
+  if (task.mode === 'verify') return false
+  steerContinue(task, agent, shared)
+  return true
+}
+
 async function handleTurnStopping(agent, signal, shared) {
   if (!isTopLevelAgent(agent)) return
   if (signalAborted(signal)) return
@@ -156,12 +184,12 @@ async function handleTurnStopping(agent, signal, shared) {
   const repeat = shared.repeatStates.get(agent.id)
   if (!shouldSteer(task, repeat)) return
   if (!rateAllowed(shared)) return
-  if (repeatBreak(repeat, agent)) return
+  // 1. 思考/工具循环打断优先（立即中断后自动继续由打断指令驱动）。
+  if (repeatBreak(repeat, agent, shared)) return
+  // 2. 无进展循环（仅当存在活动任务；命中即注入打断指令继续）。
+  if (noProgressBreak(task, repeat, agent, shared)) return
   if (task === undefined) return
-  if (Date.now() - task.lastSteerAt < shared.options.steerCooldownMs) return
-  if (atLoopLimit(task, shared)) return
-  if (task.mode === 'verify') return
-  steerContinue(task, agent, shared)
+  continueTask(task, agent, shared)
 }
 
 // ── 4. 会话结束后完成度校验（verify 模式） ───────────────────────────────
@@ -199,7 +227,7 @@ function handleStream(options, next, shared) {
   const sessionId = typeof options?.sessionId === 'string' ? options.sessionId : ''
   if (sessionId === '') return next()
   const stream = next()
-  return wrapStreamForLoop(stream, repeatStateOf(sessionId, shared))
+  return wrapStreamForLoop(stream, repeatStateOf(sessionId, shared), shared.options)
 }
 
 // ── 7. 自主决策：拦截 ask（deny，不调 next）；收集待确认问题 ─────────────
@@ -298,10 +326,19 @@ function timeoutDecision(autopilot, exec, agent, shared) {
  * pre-execute deny 一致）；非 autopilot 模式沿用 `askTimeoutMs` 超时。
  */
 async function handleToolExecute(exec, next, shared) {
-  if (exec === undefined || exec === null || exec.name !== 'ask_user_question') return next()
+  if (exec === undefined || exec === null) return next()
   const agent = exec.agent
   if (!isTopLevelAgent(agent)) return next()
-  const autopilot = autopilotFor(agent.id, shared)
+  const sessionId = agent.id
+  // 工具调用序列循环检测：命中立即抛错中断回合（与 reasoning 循环一致）。
+  if (recordToolLoop(sessionId, exec, shared)) {
+    void loopNotify(shared, 'tool', sessionId)
+    const error = new Error(`tool loop detected (count=${repeatStateOf(sessionId, shared).count})`)
+    error.code = 'TOOL_LOOP'
+    throw error
+  }
+  if (exec.name !== 'ask_user_question') return next()
+  const autopilot = autopilotFor(sessionId, shared)
   const timeoutMs = autopilot ? shared.options.autopilotGraceMs : shared.options.askTimeoutMs
   if (timeoutMs <= 0) return next()
   const result = await Promise.race([next(), sleep(timeoutMs).then(() => ASK_TIMEOUT)])
