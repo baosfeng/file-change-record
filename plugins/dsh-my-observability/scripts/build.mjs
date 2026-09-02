@@ -26,11 +26,15 @@ const partsDir = join(root, 'lib/parts')
 const sharedPartsDir = join(root, '..', 'dsh-shared', 'client-parts')
 
 /** (placeholder, part file, opts?) — 拼接顺序固定（const 初始化器依赖）。
- *  file 相对 partsDir（本地）或 sharedPartsDir（shared: true）。 */
+ *  file 相对 partsDir（本地）或 sharedPartsDir（shared: true）。
+ *  opts.root 覆盖片段根目录（如 'lib'）；opts.stripExport 逐行剥离行首
+ *  `export ` 前缀（用于把可单测的 ESM 模块作为片段拼进 client 作用域）。 */
 const PARTS = [
   ['/*__PART_I18N__*/', 'i18n.js'],
   ['/*__PART_ICONS__*/', 'icons.part.js', { shared: true }],
+  ['/*__PART_AUDIT_VIEW__*/', 'audit-view.js', { root: 'lib', stripExport: true }],
   ['/*__PART_REPLAY__*/', 'replay.js'],
+  ['/*__PART_REPLAY_EXT__*/', 'replay-ext.js'],
   ['/*__PART_GIT__*/', 'git.js'],
   ['/*__PART_STYLES__*/', 'styles.js'],
 ]
@@ -40,8 +44,9 @@ for (const [placeholder, file, opts = {}] of PARTS) {
   if (!src.includes(placeholder)) {
     throw new Error(`client.src.js is missing the ${placeholder} placeholder`)
   }
-  const dir = opts.shared ? sharedPartsDir : partsDir
-  const part = readFileSync(join(dir, file), 'utf8')
+  const dir = opts.shared ? sharedPartsDir : opts.root ? join(root, opts.root) : partsDir
+  let part = readFileSync(join(dir, file), 'utf8')
+  if (opts.stripExport) part = part.replace(/^export /gm, '')
   // 函数式替换：片段内容作为字面文本返回，$&/$1 不会被特殊解释。
   src = src.replaceAll(placeholder, () => part)
 }

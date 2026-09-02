@@ -32,7 +32,9 @@ window.__ModuleLoader__.load({
     // ── parts（scripts/build.mjs 拼接；顺序固定）───────────────────────
     /*__PART_I18N__*/
     /*__PART_ICONS__*/
+    /*__PART_AUDIT_VIEW__*/
     /*__PART_REPLAY__*/
+    /*__PART_REPLAY_EXT__*/
     /*__PART_GIT__*/
     /*__PART_STYLES__*/
 

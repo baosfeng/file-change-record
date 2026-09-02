@@ -68,6 +68,25 @@ const strings = {
   agentUnknown: () => (isZh() ? '未知' : 'unknown'),
   toolOk: () => (isZh() ? '成功' : 'ok'),
   toolFail: () => (isZh() ? '失败' : 'failed'),
+  // 审计日志搜索 / 过滤 / 导出 / 统计
+  searchPlaceholder: () => (isZh() ? '搜索工具名/参数/错误…' : 'Search tool/args/error…'),
+  filterAllResult: () => (isZh() ? '全部结果' : 'All results'),
+  filterSuccess: () => (isZh() ? '成功' : 'Ok'),
+  filterFail: () => (isZh() ? '失败' : 'Failed'),
+  timeStartLabel: () => (isZh() ? '开始' : 'Start'),
+  timeEndLabel: () => (isZh() ? '结束' : 'End'),
+  clearFilters: () => (isZh() ? '清除' : 'Clear'),
+  exportJson: () => (isZh() ? '导出 JSON' : 'Export JSON'),
+  exportCsv: () => (isZh() ? '导出 CSV' : 'Export CSV'),
+  scopeSession: () => (isZh() ? '当前会话' : 'This session'),
+  scopeAll: () => (isZh() ? '全部会话' : 'All sessions'),
+  statsTitle: () => (isZh() ? '工具统计' : 'Tool stats'),
+  statsTool: () => (isZh() ? '工具' : 'Tool'),
+  statsCalls: () => (isZh() ? '调用' : 'Calls'),
+  statsFailRate: () => (isZh() ? '失败率' : 'Fail rate'),
+  statsEmpty: () => (isZh() ? '暂无工具调用数据' : 'No tool call data'),
+  noMatches: () => (isZh() ? '无匹配事件' : 'No matching events'),
+  exportFileName: () => (isZh() ? 'dsh-observability-审计导出' : 'dsh-observability-audit-export'),
   // Git 面板
   repoLabel: () => (isZh() ? '仓库路径' : 'Repo path'),
   repoPlaceholder: () => (isZh() ? '如 /path/to/project' : 'e.g. /path/to/project'),
@@ -252,6 +271,27 @@ const icon = {
       ],
       size,
     ),
+  // 下载（issue #85 新增）：箭头入托盘，图表导出按钮（dsh-mermaid-render
+  // 卡片下载 PNG/SVG），stroke=currentColor 风格与其余图标一致。
+  download: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+        createElement('polyline', { points: '7 10 12 15 17 10' }),
+        createElement('line', { x1: 12, y1: 15, x2: 12, y2: 3 }),
+      ],
+      size,
+    ),
+  // 复制（issue #85 新增）：双层矩形，复制源码按钮（dsh-mermaid-render
+  // 卡片复制代码），stroke=currentColor 风格与其余图标一致。
+  copy: (size = 16) =>
+    iconSvg(
+      [
+        createElement('rect', { x: 9, y: 9, width: 13, height: 13, rx: 2 }),
+        createElement('path', { d: 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1' }),
+      ],
+      size,
+    ),
 }
 
 // Common-language / file-type badges (issue #24): brand fill + contrast
@@ -408,8 +448,266 @@ const fileIconByExt = (ext, size = 14) => {
   return spec === undefined ? icon.file(size) : badgeIcon(spec, size)
 }
 
+    /**
+ * dsh-my-observability — audit log view helpers (pure functions).
+ *
+ * 轨迹回放面板的搜索 / 组合过滤 / 导出（JSON/CSV）/ 统计的纯逻辑，无副作用、
+ * 不依赖 React 与 cordis（可被 vitest 直接导入单测），仅供 client 端在已加载
+ * 的审计事件数据上做视图变换。DSH ModuleLoader 不支持相对路径 require，client
+ * 侧经 scripts/build.mjs 把本文件（剥离 `export` 前缀）作为片段拼接进
+ * lib/client.js 的 factory 作用域，因此本文件约定：
+ *  - 只用 `export function`（单行形式），不用 export 块 / export default；
+ *  - 顶层没有 import / 副作用；
+ *  - 不读取 strings —— 涉及界面文案的默认值集中在此，client 如需 i18n 覆盖
+ *    通过参数传入。
+ */
+
+/** 事件类型 → 中文标签（CSV 默认；client 可传 labels 覆盖）。非导出常量。 */
+const DEFAULT_CSV_LABELS = Object.freeze({
+  time: '时间',
+  type: '类型',
+  tool: '工具',
+  result: '结果',
+  typeMap: Object.freeze({
+    agent_status: 'agent 状态',
+    llm_stream: '模型流',
+    tool_call: '工具调用',
+    tool_result: '工具结果',
+  }),
+  ok: '成功',
+  fail: '失败',
+  error: '错误',
+})
+
+const MAX_STATS_TOP = 50
+
+/** 两位补零。 */
+function pad2(n) {
+  return String(n).padStart(2, '0')
+}
+
+/** 毫秒时间戳 → `YYYY-MM-DD HH:MM:SS`（本地时区）；非法输入返回空串。 */
+function formatTime(time) {
+  if (typeof time !== 'number' || !Number.isFinite(time)) return ''
+  const d = new Date(time)
+  if (Number.isNaN(d.getTime())) return ''
+  const date = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+  const clock = `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
+  return `${date} ${clock}`
+}
+
+/** agent 状态事件的搜索片段。 */
+function agentStatusParts(data) {
+  return [data.status, data.agentType].filter((part) => typeof part === 'string')
+}
+
+/** 模型流事件的搜索片段（含错误消息）。 */
+function llmParts(data) {
+  const parts = [data.phase]
+  if (typeof data.message === 'string' && data.message !== '') parts.push(data.message)
+  return parts
+}
+
+/** 工具调用事件的搜索片段（工具名 + 参数键 + 参数摘要）。 */
+function toolCallParts(data) {
+  const parts = []
+  if (typeof data.name === 'string') parts.push(data.name)
+  if (Array.isArray(data.args?.keys)) parts.push(...data.args.keys)
+  if (typeof data.args?.summary === 'string' && data.args.summary !== '') parts.push(data.args.summary)
+  return parts
+}
+
+/** 工具结果事件的搜索片段（工具名 + 成败）。 */
+function toolResultParts(data) {
+  const parts = []
+  if (typeof data.name === 'string') parts.push(data.name)
+  parts.push(data.ok === false ? '失败' : '成功')
+  return parts
+}
+
+/** 事件类型 → 搜索片段收集函数（查表消分支）。 */
+const PARTS_COLLECTORS = {
+  agent_status: agentStatusParts,
+  llm_stream: llmParts,
+  tool_call: toolCallParts,
+  tool_result: toolResultParts,
+}
+
+/** 提取事件可用于关键词匹配的文本（工具名/参数摘要/错误信息/状态/阶段等）。 */
+function searchableText(event) {
+  const data = event && event.data ? event.data : {}
+  const parts = [event?.type, event?.sessionId]
+  const collector = PARTS_COLLECTORS[event?.type]
+  if (collector !== undefined) parts.push(...collector(data))
+  return parts
+    .filter((part) => typeof part === 'string')
+    .join(' ')
+    .toLowerCase()
+}
+
+/** 事件是否命中关键词（不区分大小写；空关键词视为命中全部）。 */
+function matchesKeyword(event, keyword) {
+  const kw = String(keyword ?? '')
+    .trim()
+    .toLowerCase()
+  if (kw === '') return true
+  return searchableText(event).includes(kw)
+}
+
+/** 返回 `true` 表示事件具备失败语义（工具失败 / 模型流出错）。 */
+function isFailEvent(event) {
+  if (event?.type === 'tool_result') return event.data?.ok === false
+  if (event?.type === 'llm_stream') return event.data?.phase === 'error'
+  return false
+}
+
+/** 归一化过滤条件（时间转为闭区间数值；空值透传）。 */
+function normalizeCriteria(criteria) {
+  const start =
+    typeof criteria.timeStart === 'number' && Number.isFinite(criteria.timeStart) ? criteria.timeStart : undefined
+  const end = typeof criteria.timeEnd === 'number' && Number.isFinite(criteria.timeEnd) ? criteria.timeEnd : undefined
+  return { type: criteria.type ?? '', keyword: criteria.keyword ?? '', result: criteria.result ?? '', start, end }
+}
+
+/** 类型过滤（'tool' 表示 tool_call + tool_result）。 */
+function passType(type, filterType) {
+  if (filterType === '') return true
+  if (filterType === 'tool') return type === 'tool_call' || type === 'tool_result'
+  return type === filterType
+}
+
+/** 时间范围闭区间。 */
+function passTime(time, start, end) {
+  if (start !== undefined && time < start) return false
+  if (end !== undefined && time > end) return false
+  return true
+}
+
+/** 成功/失败过滤：只作用于有成败语义的事件，其余事件透传。 */
+function passResult(event, result) {
+  if (result === '') return true
+  if (result === 'success') return !isFailEvent(event)
+  if (result === 'fail') return isFailEvent(event)
+  return true
+}
+
+/** 组合过滤：类型（tool 表示 tool_call+tool_result）+ 时间范围 + 成功/失败 + 关键词。
+ *  criteria: { type, timeStart, timeEnd, result, keyword } */
+function applyAuditFilter(events, criteria = {}) {
+  const ctx = normalizeCriteria(criteria)
+  return (events ?? []).filter(
+    (event) =>
+      passType(event.type, ctx.type) &&
+      passTime(event.time, ctx.start, ctx.end) &&
+      passResult(event, ctx.result) &&
+      matchesKeyword(event, ctx.keyword),
+  )
+}
+
+/** CSV 单元格转义：含逗号/引号/换行时用双引号包裹并转义内嵌引号。 */
+function csvCell(value) {
+  const s = value === null || value === undefined ? '' : String(value)
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+
+/** 事件的工具名（仅 tool_call/tool_result；否则空）。 */
+function toolNameOf(event) {
+  if (event?.type === 'tool_call' || event?.type === 'tool_result') return String(event.data?.name ?? '')
+  return ''
+}
+
+/** 事件的结果摘要（成功/失败/错误；其余空）。 */
+function resultTextOf(event, labels = DEFAULT_CSV_LABELS) {
+  if (event?.type === 'tool_result') return event.data?.ok === false ? labels.fail : labels.ok
+  if (event?.type === 'llm_stream' && event.data?.phase === 'error') return labels.error
+  return ''
+}
+
+/** 生成 CSV 摘要（表头：时间/类型/工具/结果）。labels 可覆盖默认中文。
+ *  返回不含换行结尾符的 CSV 文本。 */
+function auditToCsv(events, labels = DEFAULT_CSV_LABELS) {
+  const typeMap = labels.typeMap ?? {}
+  const header = [labels.time, labels.type, labels.tool, labels.result]
+  const lines = [header.map(csvCell).join(',')]
+  for (const event of events ?? []) {
+    const typeLabel = typeMap[event.type] ?? String(event.type)
+    const row = [formatTime(event.time), typeLabel, toolNameOf(event), resultTextOf(event, labels)]
+    lines.push(row.map(csvCell).join(','))
+  }
+  return lines.join('\n')
+}
+
+/** 生成 JSON 完整数据（缩进默认 2）。 */
+function auditToJson(events, space = 2) {
+  return JSON.stringify(events ?? [], null, space)
+}
+
+/** 事件是否为工具类（tool_call / tool_result）。 */
+function isToolEvent(event) {
+  return event?.type === 'tool_call' || event?.type === 'tool_result'
+}
+
+/** 把单条工具事件计入聚合（调用次数 / 失败次数）。 */
+function bumpTool(byTool, event, name) {
+  const entry = byTool.get(name) ?? { tool: name, calls: 0, fails: 0 }
+  if (event.type === 'tool_call') entry.calls += 1
+  if (event.type === 'tool_result' && event.data?.ok === false) entry.fails += 1
+  byTool.set(name, entry)
+}
+
+/** 按工具名聚合调用次数与失败次数。 */
+function aggregateToolStats(events) {
+  const byTool = new Map()
+  for (const event of events ?? []) {
+    if (!isToolEvent(event)) continue
+    const name = String(event.data?.name ?? '')
+    if (name === '') continue
+    bumpTool(byTool, event, name)
+  }
+  return byTool
+}
+
+/** 聚合结果 → 排序 + 失败率列表。 */
+function rankTools(byTool) {
+  return [...byTool.values()]
+    .map((entry) => ({ ...entry, failRate: entry.calls > 0 ? entry.fails / entry.calls : 0 }))
+    .sort((a, b) => b.calls - a.calls || b.fails - a.fails || a.tool.localeCompare(b.tool))
+}
+
+/** 工具调用统计：每个工具调用次数 + 失败率（topN 截断，默认 5）。
+ *  返回 [{ tool, calls, fails, failRate }] 按调用次数降序。 */
+function computeToolStats(events, topN = 5) {
+  const n = typeof topN === 'number' && topN > 0 ? Math.min(topN, MAX_STATS_TOP) : 5
+  return rankTools(aggregateToolStats(events)).slice(0, n)
+}
+
+/** 把 text 按 keyword 切成 [ { text, hit } ] 分段（用于命中关键词高亮）。
+ *  空关键词返回整段未命中。 */
+function highlightSegments(text, keyword) {
+  const raw = String(text ?? '')
+  const kw = String(keyword ?? '')
+    .trim()
+    .toLowerCase()
+  if (kw === '') return [{ text: raw, hit: false }]
+  const lower = raw.toLowerCase()
+  const out = []
+  let cursor = 0
+  for (;;) {
+    const idx = lower.indexOf(kw, cursor)
+    if (idx === -1) {
+      if (cursor < raw.length) out.push({ text: raw.slice(cursor), hit: false })
+      break
+    }
+    if (idx > cursor) out.push({ text: raw.slice(cursor, idx), hit: false })
+    out.push({ text: raw.slice(idx, idx + kw.length), hit: true })
+    cursor = idx + kw.length
+  }
+  return out.length === 0 ? [{ text: raw, hit: false }] : out
+}
+
     // ── 轨迹回放面板（时间轴）──────────────────────────────────────────
-const REPLAY_POLL_MS = 5000
+// 拆分的审计视图组件（搜索/组合过滤/导出/统计/高亮/hook）位于
+// replay-ext.js 片段（见 client.src.js 占位符顺序）。
 
 /** 请求插件 API（非 2xx 抛错；返回响应 JSON 的 value 字段）。 */
 function apiJson(path, options) {
@@ -515,8 +813,9 @@ function eventMeta(event) {
   return ''
 }
 
-/** 单条事件行：节点圆点 + 类型图标 + 徽标/时间 + 摘要（hover/active 反馈）。 */
-function EventRow({ event }) {
+/** 单条事件行：节点圆点 + 类型图标 + 徽标/时间 + 摘要（hover/active 反馈）。
+ *  摘要命中关键词时以 mark 高亮。 */
+function EventRow({ event, keyword }) {
   const meta = eventMeta(event)
   const kind = typeKind(event)
   return createElement(
@@ -541,7 +840,13 @@ function EventRow({ event }) {
         ),
         createElement('span', { className: 'dsh-my-observability-time' }, timeText(event.time)),
       ),
-      meta !== '' ? createElement('span', { className: 'dsh-my-observability-event-meta' }, meta) : null,
+      meta !== ''
+        ? createElement(
+            'span',
+            { className: 'dsh-my-observability-event-meta' },
+            createElement(HighlightText, { text: meta, keyword }),
+          )
+        : null,
     ),
   )
 }
@@ -570,14 +875,6 @@ function TypeFilter({ filter, onFilter }) {
         label,
       ),
     ),
-  )
-}
-
-/** 按过滤条件筛选事件（tool = tool_call + tool_result）。 */
-function filterEvents(events, filter) {
-  if (filter === '') return events
-  return events.filter((event) =>
-    filter === 'tool' ? event.type === 'tool_call' || event.type === 'tool_result' : event.type === filter,
   )
 }
 
@@ -681,13 +978,324 @@ function ErrorState({ message, onRetry }) {
   )
 }
 
-/** 轨迹回放主面板：会话选择 + 类型过滤 + 时间轴（可见时轮询）。 */
+/** 轨迹回放主面板：会话选择 + 类型过滤 + 搜索/组合过滤 + 导出 + 统计 + 时间轴。
+ *  状态与派生值集中在 replay-ext.js 的 useReplayState；本组件只拼装视图。
+ *  面板可见时轮询、隐藏时暂停。 */
 function ReplayPanel(props) {
-  const currentSession = props.scope?.sessionId || ''
-  const visible = props.visible !== false
+  const s = useReplayState(props)
+  return createElement(
+    'div',
+    { className: 'dsh-my-observability-panel' },
+    createElement(ReplayToolbar, {
+      sessions: s.sessions,
+      selected: s.selected,
+      onSelect: s.setSelected,
+      filter: s.filter,
+      onFilter: s.setFilter,
+      onRefresh: s.retry,
+    }),
+    createElement(SearchFilterBar, {
+      keyword: s.keyword,
+      onKeyword: s.setKeyword,
+      timeStart: s.timeStart,
+      onTimeStart: s.setTimeStart,
+      timeEnd: s.timeEnd,
+      onTimeEnd: s.setTimeEnd,
+      result: s.result,
+      onResult: s.setResult,
+      onClear: s.clearFilters,
+    }),
+    createElement(ExportBar, {
+      scope: s.scope,
+      onScope: s.setScope,
+      onExportJson: () => void s.onExport('json'),
+      onExportCsv: () => void s.onExport('csv'),
+      showStats: s.showStats,
+      onToggleStats: () => s.setShowStats((value) => !value),
+      disabled: !s.canExport,
+    }),
+    s.error !== '' ? createElement(ErrorState, { message: s.error, onRetry: s.retry }) : null,
+    s.loading && s.error === '' ? createElement(LoadingState, null) : null,
+    !s.loading && s.error === '' && s.filtered.length === 0
+      ? s.hasFilter
+        ? createElement(NoMatchesState, null)
+        : createElement(EmptyState, null)
+      : null,
+    s.showStats ? createElement(StatsPanel, { events: s.filtered }) : null,
+    createElement('div', { className: 'dsh-my-observability-timeline' }, s.rows),
+  )
+}
+
+    // ── 审计视图扩展：搜索 / 组合过滤 / 导出 / 统计 / 高亮（replay.js 拆出）────
+// 依赖 replay.js（REPLAY_POLL_MS 等常量与 loadReplayData/EventRow）与
+// audit-view.js 纯函数（applyAuditFilter 等）。始终以 function 声明提升。
+
+const REPLAY_POLL_MS = 5000
+const ALL_SESSIONS = '*'
+const EXPORT_LIMIT_ALL = 20000
+
+/** `datetime-local` 值 → 毫秒时间戳（空/非法返回 undefined）。 */
+function datetimeToMs(value) {
+  if (typeof value !== 'string' || value.trim() === '') return undefined
+  const ms = new Date(value).getTime()
+  return Number.isFinite(ms) ? ms : undefined
+}
+
+/** 是否有活动过滤条件（决定无匹配/空状态展示）。 */
+function hasActiveFilter(criteria) {
+  return (
+    criteria.keyword !== '' ||
+    criteria.result !== '' ||
+    criteria.timeStart !== undefined ||
+    criteria.timeEnd !== undefined ||
+    criteria.type !== ''
+  )
+}
+
+/** 命中关键词高亮（`mark` 包裹命中段；无关键词时原样文本）。 */
+function HighlightText({ text, keyword }) {
+  const segments = highlightSegments(text, keyword)
+  return createElement(
+    'span',
+    null,
+    segments.map((seg, index) =>
+      seg.hit ? createElement('mark', { key: index, className: 'dsh-my-observability-mark' }, seg.text) : seg.text,
+    ),
+  )
+}
+
+/** 搜索 / 组合过滤栏：关键词 + 时间范围 + 成功/失败。 */
+/** 搜索框行（含清除按钮）。 */
+function SearchInput({ keyword, onKeyword, onClear }) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-observability-search-row' },
+    createElement('input', {
+      className: 'dsh-my-observability-input',
+      type: 'search',
+      value: keyword,
+      placeholder: strings.searchPlaceholder(),
+      onChange: (e) => onKeyword(e.target.value),
+    }),
+    keyword !== ''
+      ? createElement(
+          'button',
+          {
+            type: 'button',
+            className: 'dsh-my-observability-iconbtn',
+            'aria-label': strings.clearFilters(),
+            title: strings.clearFilters(),
+            onClick: onClear,
+          },
+          icon.close(15),
+        )
+      : null,
+  )
+}
+
+/** 时间范围行（开始/结束，datetime-local）。 */
+function TimeRangeInput({ timeStart, onTimeStart, timeEnd, onTimeEnd }) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-observability-time-row' },
+    createElement('label', { className: 'dsh-my-observability-time-label' }, strings.timeStartLabel()),
+    createElement('input', {
+      className: 'dsh-my-observability-input dsh-my-observability-time-input',
+      type: 'datetime-local',
+      value: timeStart,
+      onChange: (e) => onTimeStart(e.target.value),
+    }),
+    createElement('label', { className: 'dsh-my-observability-time-label' }, strings.timeEndLabel()),
+    createElement('input', {
+      className: 'dsh-my-observability-input dsh-my-observability-time-input',
+      type: 'datetime-local',
+      value: timeEnd,
+      onChange: (e) => onTimeEnd(e.target.value),
+    }),
+  )
+}
+
+/** 成功/失败结果过滤组。 */
+function ResultFilter({ result, onResult }) {
+  const options = [
+    ['', strings.filterAllResult()],
+    ['success', strings.filterSuccess()],
+    ['fail', strings.filterFail()],
+  ]
+  return createElement(
+    'div',
+    { className: 'dsh-my-observability-filters' },
+    options.map(([value, label]) =>
+      createElement(
+        'button',
+        {
+          key: value,
+          type: 'button',
+          className: `dsh-my-observability-chip${result === value ? ' dsh-my-observability-chip-active' : ''}`,
+          'aria-pressed': result === value,
+          onClick: () => onResult(value),
+        },
+        label,
+      ),
+    ),
+  )
+}
+
+/** 搜索 / 组合过滤栏：关键词 + 时间范围 + 成功/失败。 */
+function SearchFilterBar({
+  keyword,
+  onKeyword,
+  timeStart,
+  onTimeStart,
+  timeEnd,
+  onTimeEnd,
+  result,
+  onResult,
+  onClear,
+}) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-observability-toolbar' },
+    createElement(SearchInput, { keyword, onKeyword, onClear }),
+    createElement(TimeRangeInput, { timeStart, onTimeStart, timeEnd, onTimeEnd }),
+    createElement(ResultFilter, { result, onResult }),
+  )
+}
+
+/** 导出栏：导出范围选择（当前会话/全部会话）+ JSON/CSV 按钮 + 统计开关。 */
+function ExportBar({ scope, onScope, onExportJson, onExportCsv, showStats, onToggleStats, disabled }) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-observability-export' },
+    createElement(
+      'div',
+      { className: 'dsh-my-observability-toolbar-row' },
+      createElement(
+        'select',
+        {
+          className: 'dsh-my-observability-select',
+          value: scope,
+          disabled,
+          onChange: (e) => onScope(e.target.value),
+        },
+        createElement('option', { value: 'session' }, strings.scopeSession()),
+        createElement('option', { value: 'all' }, strings.scopeAll()),
+      ),
+      createElement(
+        'button',
+        { type: 'button', className: 'dsh-my-observability-btn', disabled, onClick: onExportJson },
+        strings.exportJson(),
+      ),
+      createElement(
+        'button',
+        { type: 'button', className: 'dsh-my-observability-btn', disabled, onClick: onExportCsv },
+        strings.exportCsv(),
+      ),
+      createElement(
+        'button',
+        {
+          type: 'button',
+          className: 'dsh-my-observability-btn',
+          'aria-pressed': showStats,
+          onClick: onToggleStats,
+        },
+        strings.statsTitle(),
+      ),
+    ),
+  )
+}
+
+/** 工具调用统计视图（Top N 调用次数 + 失败率）。 */
+function StatsPanel({ events }) {
+  const stats = computeToolStats(events, 5)
+  if (stats.length === 0)
+    return createElement('div', { className: 'dsh-my-observability-stats-empty' }, strings.statsEmpty())
+  return createElement(
+    'div',
+    { className: 'dsh-my-observability-stats' },
+    createElement('div', { className: 'dsh-my-observability-stats-title' }, strings.statsTitle()),
+    createElement(
+      'table',
+      { className: 'dsh-my-observability-stats-table' },
+      createElement(
+        'thead',
+        null,
+        createElement(
+          'tr',
+          null,
+          createElement('th', null, strings.statsTool()),
+          createElement('th', null, strings.statsCalls()),
+          createElement('th', null, strings.statsFailRate()),
+        ),
+      ),
+      createElement(
+        'tbody',
+        null,
+        stats.map((s) =>
+          createElement(
+            'tr',
+            { key: s.tool },
+            createElement('td', null, s.tool),
+            createElement('td', null, String(s.calls)),
+            createElement('td', null, `${(s.failRate * 100).toFixed(1)}%`),
+          ),
+        ),
+      ),
+    ),
+  )
+}
+
+/** 无匹配状态（搜索/过滤条件命中 0 条）。 */
+function NoMatchesState() {
+  return createElement(
+    'div',
+    { className: 'dsh-my-observability-empty' },
+    createElement('span', { className: 'dsh-my-observability-empty-icon' }, icon.search(20)),
+    createElement('span', null, strings.noMatches()),
+  )
+}
+
+/** 触发浏览器下载（Blob + a[download]）。 */
+function downloadAudit(content, format) {
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')
+  const filename = `${strings.exportFileName()}-${stamp}.${format}`
+  const mime = format === 'json' ? 'application/json' : 'text/csv;charset=utf-8'
+  const blob = new Blob([content], { type: mime })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+/** 拉取全部会话事件（导出范围「全部会话」用），并应用当前过滤条件。 */
+async function allSessionEvents(criteria) {
+  const all = await apiJson(
+    `/observability/api/events?sessionId=${encodeURIComponent(ALL_SESSIONS)}&limit=${EXPORT_LIMIT_ALL}`,
+  )
+  return applyAuditFilter(all, criteria)
+}
+
+/** 导出：依据范围（当前会话=过滤后结果 / 全部会话=拉取后过滤）生成并下载。 */
+async function runExport(format, scope, filtered, criteria, onError) {
+  try {
+    const dataEvents = scope === 'session' ? filtered : await allSessionEvents(criteria)
+    downloadAudit(format === 'json' ? auditToJson(dataEvents) : auditToCsv(dataEvents), format)
+  } catch (err) {
+    onError(err instanceof Error ? err.message : String(err))
+  }
+}
+
+/** 轨迹回放面板的数据状态：会话列表 + 选中 + 事件 + 轮询 + 加载/错误。
+ *  隐藏时暂停轮询，可见时按 REPLAY_POLL_MS 拉取并自动选当前会话。 */
+function useReplayDataState(props) {
+  const currentSession = props?.scope?.sessionId || ''
+  const visible = props?.visible !== false
   const [sessions, setSessions] = useState([])
   const [selected, setSelected] = useState('')
-  const [filter, setFilter] = useState('')
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -714,25 +1322,84 @@ function ReplayPanel(props) {
     setReloadTick((tick) => tick + 1)
   }
 
-  const filtered = filterEvents(events, filter)
-  const rows = filtered.map((event, index) => createElement(EventRow, { key: event.id ?? index, event }))
+  return {
+    currentSession,
+    sessions,
+    selected,
+    events,
+    loading,
+    error,
+    setSessions,
+    setSelected,
+    setEvents,
+    setLoading,
+    setError,
+    retry,
+  }
+}
 
-  return createElement(
-    'div',
-    { className: 'dsh-my-observability-panel' },
-    createElement(ReplayToolbar, {
-      sessions,
-      selected,
-      onSelect: setSelected,
-      filter,
-      onFilter: setFilter,
-      onRefresh: retry,
-    }),
-    error !== '' ? createElement(ErrorState, { message: error, onRetry: retry }) : null,
-    loading && error === '' ? createElement(LoadingState, null) : null,
-    !loading && error === '' && filtered.length === 0 ? createElement(EmptyState, null) : null,
-    createElement('div', { className: 'dsh-my-observability-timeline' }, rows),
-  )
+/** 轨迹回放面板的视图状态：过滤条件（类型/关键词/时间/成功失败）+ 导出范围 +
+ *  统计开关，及派生值（过滤结果 / 高亮行 / 可导出）。 */
+function useReplayState(props) {
+  const data = useReplayDataState(props)
+  const [filter, setFilter] = useState('')
+  const [keyword, setKeyword] = useState('')
+  const [timeStart, setTimeStart] = useState('')
+  const [timeEnd, setTimeEnd] = useState('')
+  const [result, setResult] = useState('')
+  const [scope, setScope] = useState('session')
+  const [showStats, setShowStats] = useState(false)
+
+  const clearFilters = () => {
+    setKeyword('')
+    setTimeStart('')
+    setTimeEnd('')
+    setResult('')
+    setFilter('')
+  }
+
+  const criteria = {
+    type: filter,
+    keyword,
+    timeStart: datetimeToMs(timeStart),
+    timeEnd: datetimeToMs(timeEnd),
+    result,
+  }
+  const filtered = applyAuditFilter(data.events, criteria)
+  const hasFilter = hasActiveFilter(criteria)
+  const rows = filtered.map((event, index) => createElement(EventRow, { key: event.id ?? index, event, keyword }))
+  const canExport = !data.loading && data.events.length > 0
+  const onExport = (format) => void runExport(format, scope, filtered, criteria, data.setError)
+
+  return {
+    sessions: data.sessions,
+    selected: data.selected,
+    events: data.events,
+    loading: data.loading,
+    error: data.error,
+    filter,
+    keyword,
+    timeStart,
+    timeEnd,
+    result,
+    scope,
+    showStats,
+    setSelected: data.setSelected,
+    setFilter,
+    setKeyword,
+    setTimeStart,
+    setTimeEnd,
+    setResult,
+    setScope,
+    setShowStats,
+    retry: data.retry,
+    clearFilters,
+    filtered,
+    hasFilter,
+    rows,
+    canExport,
+    onExport,
+  }
 }
 
     // ── Git 工具 + 增量 diff 审查面板 ──────────────────────────────────
@@ -1108,6 +1775,23 @@ const STYLES = `
 .dsh-my-observability-error-text{flex:1;min-width:0}
 @keyframes dsh-my-observability-row-in{from{opacity:0;transform:translateY(1px)}to{opacity:1;transform:none}}
 @keyframes dsh-my-observability-spin{to{transform:rotate(360deg)}}
+/* ── 审计视图：搜索 / 组合过滤 / 导出 / 统计 / 高亮 ── */
+.dsh-my-observability-search-row{display:flex;align-items:center;gap:6px}
+.dsh-my-observability-search-row .dsh-my-observability-input{flex:1}
+.dsh-my-observability-time-row{display:flex;align-items:center;gap:6px}
+.dsh-my-observability-time-label{flex:none;font:var(--dsw-font-xxxs-11);color:var(--dsw-alias-label-tertiary)}
+.dsh-my-observability-time-input{flex:1;min-width:0}
+.dsh-my-observability-mark{background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 30%, transparent);
+  color:var(--dsw-alias-label-primary);border-radius:2px;padding:0 1px}
+.dsh-my-observability-export{display:flex;flex-direction:column;gap:6px}
+.dsh-my-observability-stats{display:flex;flex-direction:column;gap:6px;border:1px solid var(--dsw-alias-border-l2);
+  border-radius:6px;padding:8px}
+.dsh-my-observability-stats-title{font:var(--dsw-font-xs-strong-13);color:var(--dsw-alias-label-primary)}
+.dsh-my-observability-stats-table{width:100%;border-collapse:collapse;font:var(--dsw-font-xxs-12)}
+.dsh-my-observability-stats-table th,.dsh-my-observability-stats-table td{text-align:left;padding:3px 6px;
+  border-bottom:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary)}
+.dsh-my-observability-stats-table th{font:var(--dsw-font-xxxs-strong-11);color:var(--dsw-alias-label-tertiary)}
+.dsh-my-observability-stats-empty{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary);padding:6px 2px}
 /* ── Git 面板 ── */
 .dsh-my-observability-status{font:var(--dsw-font-xxs-strong-12);color:var(--dsw-alias-label-secondary)}
 .dsh-my-observability-actions{display:flex;gap:8px;flex-wrap:wrap}

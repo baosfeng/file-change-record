@@ -67,8 +67,24 @@ function record(handle, event) {
   return item
 }
 
-/** 查询某会话的事件（正序时间轴；type 可选过滤；limit 限制条数）。 */
+/** 全部会话事件：合并各会话并按时间正序（sessionId='*'）。 */
+function eventsAllOf(handle, type, limit) {
+  let all = []
+  for (const bucket of Object.values(handle.store.state.bySession)) {
+    if (Array.isArray(bucket.events)) all.push(...bucket.events)
+  }
+  all.sort((a, b) => a.time - b.time)
+  if (type !== undefined && type !== null && type !== '') {
+    all = all.filter((event) => event.type === type)
+  }
+  const capped = typeof limit === 'number' && limit > 0 ? all.slice(-limit) : all
+  return capped.map((event) => ({ ...event }))
+}
+
+/** 查询会话事件（正序时间轴；type 可选过滤；limit 限制条数）。
+ *  sessionId === '*' 表示全部会话；空字符串（''）保持既有语义返回空数组。 */
 function eventsOf(handle, sessionId, type, limit) {
+  if (sessionId === '*') return eventsAllOf(handle, type, limit)
   const bucket = handle.store.state.bySession[sessionId]?.events
   if (!Array.isArray(bucket)) return []
   let list = bucket

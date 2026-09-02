@@ -343,5 +343,23 @@ test('audit suite', async () => {
     assert.equal(res.writeHeadStatus, 404)
   }
 
+  // ── 18. sessionId='*'：全部会话合并（导出范围「全部会话」用）──────────
+  {
+    const { listeners, api } = boot({})
+    await settle()
+    await dispatchEvent(listeners, 'agent/status', { agent: topAgent('sa'), status: 'idle' })
+    await dispatchEvent(listeners, 'agent/status', { agent: topAgent('sb'), status: 'running' })
+    const all = await eventsOf(api, '?sessionId=*')
+    assert.equal(all.length, 2, 'all sessions merged')
+    assert.deepEqual(
+      new Set(all.map((e) => e.sessionId)),
+      new Set(['sa', 'sb']),
+      'both sessions present in all-session view',
+    )
+    assert.equal(all[0].time <= all[1].time, true, 'all-session events sorted by time asc')
+    const single = await eventsOf(api, '?sessionId=sa')
+    assert.equal(single.length, 1, 'single-session query unaffected by *')
+  }
+
   console.log('ALL AUDIT TESTS PASSED')
 })

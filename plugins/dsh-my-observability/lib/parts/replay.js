@@ -1,5 +1,6 @@
 // ── 轨迹回放面板（时间轴）──────────────────────────────────────────
-const REPLAY_POLL_MS = 5000
+// 拆分的审计视图组件（搜索/组合过滤/导出/统计/高亮/hook）位于
+// replay-ext.js 片段（见 client.src.js 占位符顺序）。
 
 /** 请求插件 API（非 2xx 抛错；返回响应 JSON 的 value 字段）。 */
 function apiJson(path, options) {
@@ -105,8 +106,9 @@ function eventMeta(event) {
   return ''
 }
 
-/** 单条事件行：节点圆点 + 类型图标 + 徽标/时间 + 摘要（hover/active 反馈）。 */
-function EventRow({ event }) {
+/** 单条事件行：节点圆点 + 类型图标 + 徽标/时间 + 摘要（hover/active 反馈）。
+ *  摘要命中关键词时以 mark 高亮。 */
+function EventRow({ event, keyword }) {
   const meta = eventMeta(event)
   const kind = typeKind(event)
   return createElement(
@@ -131,7 +133,13 @@ function EventRow({ event }) {
         ),
         createElement('span', { className: 'dsh-my-observability-time' }, timeText(event.time)),
       ),
-      meta !== '' ? createElement('span', { className: 'dsh-my-observability-event-meta' }, meta) : null,
+      meta !== ''
+        ? createElement(
+            'span',
+            { className: 'dsh-my-observability-event-meta' },
+            createElement(HighlightText, { text: meta, keyword }),
+          )
+        : null,
     ),
   )
 }
@@ -160,14 +168,6 @@ function TypeFilter({ filter, onFilter }) {
         label,
       ),
     ),
-  )
-}
-
-/** 按过滤条件筛选事件（tool = tool_call + tool_result）。 */
-function filterEvents(events, filter) {
-  if (filter === '') return events
-  return events.filter((event) =>
-    filter === 'tool' ? event.type === 'tool_call' || event.type === 'tool_result' : event.type === filter,
   )
 }
 
@@ -271,56 +271,50 @@ function ErrorState({ message, onRetry }) {
   )
 }
 
-/** 轨迹回放主面板：会话选择 + 类型过滤 + 时间轴（可见时轮询）。 */
+/** 轨迹回放主面板：会话选择 + 类型过滤 + 搜索/组合过滤 + 导出 + 统计 + 时间轴。
+ *  状态与派生值集中在 replay-ext.js 的 useReplayState；本组件只拼装视图。
+ *  面板可见时轮询、隐藏时暂停。 */
 function ReplayPanel(props) {
-  const currentSession = props.scope?.sessionId || ''
-  const visible = props.visible !== false
-  const [sessions, setSessions] = useState([])
-  const [selected, setSelected] = useState('')
-  const [filter, setFilter] = useState('')
-  const [events, setEvents] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [reloadTick, setReloadTick] = useState(0)
-
-  useEffect(() => {
-    if (!visible) return undefined
-    let alive = true
-    const setters = { setSessions, setSelected, setEvents, setError, setLoading }
-    const tick = () => {
-      if (alive) void loadReplayData(selected, currentSession, setters)
-    }
-    tick()
-    const timer = setInterval(tick, REPLAY_POLL_MS)
-    return () => {
-      alive = false
-      clearInterval(timer)
-    }
-  }, [visible, selected, currentSession, reloadTick])
-
-  const retry = () => {
-    setError('')
-    setLoading(true)
-    setReloadTick((tick) => tick + 1)
-  }
-
-  const filtered = filterEvents(events, filter)
-  const rows = filtered.map((event, index) => createElement(EventRow, { key: event.id ?? index, event }))
-
+  const s = useReplayState(props)
   return createElement(
     'div',
     { className: 'dsh-my-observability-panel' },
     createElement(ReplayToolbar, {
-      sessions,
-      selected,
-      onSelect: setSelected,
-      filter,
-      onFilter: setFilter,
-      onRefresh: retry,
+      sessions: s.sessions,
+      selected: s.selected,
+      onSelect: s.setSelected,
+      filter: s.filter,
+      onFilter: s.setFilter,
+      onRefresh: s.retry,
     }),
-    error !== '' ? createElement(ErrorState, { message: error, onRetry: retry }) : null,
-    loading && error === '' ? createElement(LoadingState, null) : null,
-    !loading && error === '' && filtered.length === 0 ? createElement(EmptyState, null) : null,
-    createElement('div', { className: 'dsh-my-observability-timeline' }, rows),
+    createElement(SearchFilterBar, {
+      keyword: s.keyword,
+      onKeyword: s.setKeyword,
+      timeStart: s.timeStart,
+      onTimeStart: s.setTimeStart,
+      timeEnd: s.timeEnd,
+      onTimeEnd: s.setTimeEnd,
+      result: s.result,
+      onResult: s.setResult,
+      onClear: s.clearFilters,
+    }),
+    createElement(ExportBar, {
+      scope: s.scope,
+      onScope: s.setScope,
+      onExportJson: () => void s.onExport('json'),
+      onExportCsv: () => void s.onExport('csv'),
+      showStats: s.showStats,
+      onToggleStats: () => s.setShowStats((value) => !value),
+      disabled: !s.canExport,
+    }),
+    s.error !== '' ? createElement(ErrorState, { message: s.error, onRetry: s.retry }) : null,
+    s.loading && s.error === '' ? createElement(LoadingState, null) : null,
+    !s.loading && s.error === '' && s.filtered.length === 0
+      ? s.hasFilter
+        ? createElement(NoMatchesState, null)
+        : createElement(EmptyState, null)
+      : null,
+    s.showStats ? createElement(StatsPanel, { events: s.filtered }) : null,
+    createElement('div', { className: 'dsh-my-observability-timeline' }, s.rows),
   )
 }

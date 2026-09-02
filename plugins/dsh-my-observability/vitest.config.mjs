@@ -11,6 +11,7 @@ export default defineConfig({
       include: [
         'lib/index.js',
         'lib/audit.js',
+        'lib/audit-view.js',
         'lib/store.js',
         'lib/git.js',
         'lib/diff.js',

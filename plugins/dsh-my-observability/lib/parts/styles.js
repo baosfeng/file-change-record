@@ -72,6 +72,23 @@ const STYLES = `
 .dsh-my-observability-error-text{flex:1;min-width:0}
 @keyframes dsh-my-observability-row-in{from{opacity:0;transform:translateY(1px)}to{opacity:1;transform:none}}
 @keyframes dsh-my-observability-spin{to{transform:rotate(360deg)}}
+/* ── 审计视图：搜索 / 组合过滤 / 导出 / 统计 / 高亮 ── */
+.dsh-my-observability-search-row{display:flex;align-items:center;gap:6px}
+.dsh-my-observability-search-row .dsh-my-observability-input{flex:1}
+.dsh-my-observability-time-row{display:flex;align-items:center;gap:6px}
+.dsh-my-observability-time-label{flex:none;font:var(--dsw-font-xxxs-11);color:var(--dsw-alias-label-tertiary)}
+.dsh-my-observability-time-input{flex:1;min-width:0}
+.dsh-my-observability-mark{background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 30%, transparent);
+  color:var(--dsw-alias-label-primary);border-radius:2px;padding:0 1px}
+.dsh-my-observability-export{display:flex;flex-direction:column;gap:6px}
+.dsh-my-observability-stats{display:flex;flex-direction:column;gap:6px;border:1px solid var(--dsw-alias-border-l2);
+  border-radius:6px;padding:8px}
+.dsh-my-observability-stats-title{font:var(--dsw-font-xs-strong-13);color:var(--dsw-alias-label-primary)}
+.dsh-my-observability-stats-table{width:100%;border-collapse:collapse;font:var(--dsw-font-xxs-12)}
+.dsh-my-observability-stats-table th,.dsh-my-observability-stats-table td{text-align:left;padding:3px 6px;
+  border-bottom:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary)}
+.dsh-my-observability-stats-table th{font:var(--dsw-font-xxxs-strong-11);color:var(--dsw-alias-label-tertiary)}
+.dsh-my-observability-stats-empty{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary);padding:6px 2px}
 /* ── Git 面板 ── */
 .dsh-my-observability-status{font:var(--dsw-font-xxs-strong-12);color:var(--dsw-alias-label-secondary)}
 .dsh-my-observability-actions{display:flex;gap:8px;flex-wrap:wrap}
