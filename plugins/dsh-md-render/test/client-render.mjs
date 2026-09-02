@@ -40,7 +40,28 @@ function makeElement(tag, attrs = {}) {
     style: {},
     dataset: {},
     parentNode: null,
+    _listeners: {},
+    addEventListener(type, fn) {
+      ;(this._listeners[type] ||= []).push(fn)
+    },
+    removeEventListener(type, fn) {
+      const arr = this._listeners[type] || []
+      const i = arr.indexOf(fn)
+      if (i >= 0) arr.splice(i, 1)
+    },
+    dispatchEvent(ev) {
+      ev.target = ev.target || this
+      let node = ev.target
+      while (node) {
+        for (const fn of node._listeners[ev.type] || []) fn.call(node, ev)
+        node = node.parentNode
+      }
+      return true
+    },
     appendChild(child) {
+      // 真实 DOM 语义：已存在的子节点先移除再追加（移动）
+      const i = this.children.indexOf(child)
+      if (i >= 0) this.children.splice(i, 1)
       this.children.push(child)
       child.parentNode = this
       return child
@@ -126,6 +147,23 @@ function makeElement(tag, attrs = {}) {
       return null
     },
   }
+  Object.defineProperty(el, 'classList', {
+    get() {
+      return {
+        add: (c) => {
+          const s = new Set(el.className.split(/\s+/).filter(Boolean))
+          s.add(c)
+          el.className = [...s].join(' ')
+        },
+        remove: (c) => {
+          const s = new Set(el.className.split(/\s+/).filter(Boolean))
+          s.delete(c)
+          el.className = [...s].join(' ')
+        },
+        contains: (c) => el.className.split(/\s+/).includes(c),
+      }
+    },
+  })
   Object.defineProperty(el, 'textContent', {
     get() {
       if (this.children.length === 0) return this._text

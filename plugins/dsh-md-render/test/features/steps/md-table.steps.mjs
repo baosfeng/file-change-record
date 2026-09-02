@@ -20,7 +20,28 @@ function makeElement(tag, attrs = {}) {
     style: {},
     dataset: {},
     parentNode: null,
+    _listeners: {},
+    addEventListener(type, fn) {
+      ;(this._listeners[type] ||= []).push(fn)
+    },
+    removeEventListener(type, fn) {
+      const arr = this._listeners[type] || []
+      const i = arr.indexOf(fn)
+      if (i >= 0) arr.splice(i, 1)
+    },
+    dispatchEvent(ev) {
+      ev.target = ev.target || this
+      let node = ev.target
+      while (node) {
+        for (const fn of node._listeners[ev.type] || []) fn.call(node, ev)
+        node = node.parentNode
+      }
+      return true
+    },
     appendChild(child) {
+      // 真实 DOM 语义：已存在的子节点先移除再追加（移动）
+      const i = this.children.indexOf(child)
+      if (i >= 0) this.children.splice(i, 1)
       this.children.push(child)
       child.parentNode = this
       return child
@@ -52,6 +73,9 @@ function makeElement(tag, attrs = {}) {
     getAttribute(k) {
       return this[k]
     },
+    removeAttribute(k) {
+      delete this[k]
+    },
     querySelector(sel) {
       const walk = (els) => {
         for (const e of els) {
@@ -75,6 +99,7 @@ function makeElement(tag, attrs = {}) {
       return out
     },
     matchesSel(sel) {
+      const hasClass = (c) => this.className.split(/\s+/).includes(c)
       if (sel === 'p.tzx-p') return this.tagName === 'P' && this.className === 'tzx-p'
       if (sel === 'div.tzx-md') return this.tagName === 'DIV' && this.className === 'tzx-md'
       if (sel === 'div.md-table-wide') return this.tagName === 'DIV' && this.className === 'md-table-wide'
@@ -88,12 +113,19 @@ function makeElement(tag, attrs = {}) {
       if (sel === '[data-streaming]') return this.dataset.streaming === '1'
       if (sel === 'table') return this.tagName === 'TABLE'
       if (sel === 'table.tzx-table') return this.tagName === 'TABLE' && this.className === 'tzx-table'
-      if (sel === 'table.dsh-md-render-table')
-        return this.tagName === 'TABLE' && this.className === 'dsh-md-render-table'
+      if (sel === 'table.dsh-md-render-table') return this.tagName === 'TABLE' && hasClass('dsh-md-render-table')
       if (sel === 'div.dsh-md-render-table-scroll')
-        return this.tagName === 'DIV' && this.className === 'dsh-md-render-table-scroll'
+        return this.tagName === 'DIV' && hasClass('dsh-md-render-table-scroll')
+      if (sel === '.dsh-md-render-table-scroll') return this.tagName === 'DIV' && hasClass('dsh-md-render-table-scroll')
       if (sel === 'div.dsh-md-render-scroll-hint')
-        return this.tagName === 'DIV' && this.className === 'dsh-md-render-scroll-hint'
+        return this.tagName === 'DIV' && hasClass('dsh-md-render-scroll-hint')
+      if (sel === 'button.dsh-md-render-table-fold')
+        return this.tagName === 'BUTTON' && hasClass('dsh-md-render-table-fold')
+      if (sel === '.dsh-md-render-table-fold') return this.tagName === 'BUTTON' && hasClass('dsh-md-render-table-fold')
+      if (sel === 'tr.dsh-md-render-folded-row') return this.tagName === 'TR' && hasClass('dsh-md-render-folded-row')
+      if (sel === '.dsh-md-render-sort-arrow') return this.tagName === 'SPAN' && hasClass('dsh-md-render-sort-arrow')
+      if (sel === 'th[data-sort-col]') return this.tagName === 'TH' && this['data-sort-col'] !== undefined
+      if (sel === 'th[data-sorted]') return this.tagName === 'TH' && this['data-sorted'] !== undefined
       if (/^[a-z]+$/.test(sel)) return this.tagName === sel.toUpperCase()
       return false
     },
@@ -106,6 +138,23 @@ function makeElement(tag, attrs = {}) {
       return null
     },
   }
+  Object.defineProperty(el, 'classList', {
+    get() {
+      return {
+        add: (c) => {
+          const s = new Set(el.className.split(/\s+/).filter(Boolean))
+          s.add(c)
+          el.className = [...s].join(' ')
+        },
+        remove: (c) => {
+          const s = new Set(el.className.split(/\s+/).filter(Boolean))
+          s.delete(c)
+          el.className = [...s].join(' ')
+        },
+        contains: (c) => el.className.split(/\s+/).includes(c),
+      }
+    },
+  })
   Object.defineProperty(el, 'textContent', {
     get() {
       if (this.children.length === 0) return this._text
@@ -257,6 +306,16 @@ class World {
     md4.appendChild(thinkTable)
     scrollEl.appendChild(md4)
     this.thinkTable = thinkTable
+
+    // 长表格段落（25 行，issue #83 折叠场景）
+    const md5 = makeElement('div', { className: 'tzx-md' })
+    const pLong = makeElement('p', { className: 'tzx-p' })
+    const longLines = ['名称 | 数值', '--- | ---']
+    for (let i = 0; i < 25; i += 1) longLines.push(`行${i} | ${((i * 7) % 25) + 1}`)
+    pLong.textContent = longLines.join('\n')
+    md5.appendChild(pLong)
+    scrollEl.appendChild(md5)
+    this.pLong = pLong
 
     const bodyEl = makeElement('body')
     bodyEl.appendChild(scrollEl)
@@ -471,4 +530,59 @@ Then('原始公式文本保留', async function () {
 Then('输出包含复制按钮', async function () {
   assert.ok(this.lastMarkdown.copyButtons >= 1, 'copy button rendered')
   assert.ok(this.lastMarkdown.texts.includes('复制'), 'button label 复制 rendered')
+})
+
+// ── issue #83：表头排序 + 长表格折叠 ─────────────────────────────────────
+Given('渲染插件已启动且对话含超过 20 行的表格段落', async function () {
+  const bodyEl = this.buildDom()
+  this.loadAndApply(bodyEl)
+})
+
+When('点击展开按钮', async function () {
+  const btn = this.scrollEl.querySelector('button.dsh-md-render-table-fold')
+  assert.ok(btn, 'fold button present')
+  btn.dispatchEvent({ type: 'click', target: btn })
+})
+
+When('点击表头', async function () {
+  // 长表格是 buildDom 中最后渲染的表格（md5，25 行）
+  const tables = this.scrollEl.querySelectorAll('table.dsh-md-render-table')
+  const table = tables[tables.length - 1]
+  assert.ok(table, 'long table present')
+  const th = table.querySelector('th[data-sort-col]')
+  assert.ok(th, 'sortable header present')
+  th.dispatchEvent({ type: 'click', target: th })
+})
+
+Then('表格默认只显示前 20 行', async function () {
+  const folded = this.scrollEl.querySelectorAll('tr.dsh-md-render-folded-row')
+  assert.equal(folded.length, 5, '5 rows folded beyond the 20-row limit')
+})
+
+Then('表格下方有展开按钮', async function () {
+  const btn = this.scrollEl.querySelector('button.dsh-md-render-table-fold')
+  assert.ok(btn, 'fold button present')
+  assert.ok(btn.textContent.includes('展开全部'), `button label: ${btn.textContent}`)
+})
+
+Then('表格显示全部行', async function () {
+  const folded = this.scrollEl.querySelectorAll('tr.dsh-md-render-folded-row')
+  assert.equal(folded.length, 0, 'no folded rows after expand')
+})
+
+Then('表格行按该列排序', async function () {
+  const tables = this.scrollEl.querySelectorAll('table.dsh-md-render-table')
+  const table = tables[tables.length - 1]
+  const tbody = table.querySelector('tbody')
+  const trs = tbody.querySelectorAll('tr')
+  const first = trs[0].querySelectorAll('td')[1].textContent
+  assert.equal(first, '1', 'ascending by numeric column')
+})
+
+Then('表头显示排序指示', async function () {
+  const th = this.scrollEl.querySelector('th[data-sorted]')
+  assert.ok(th, 'sorted header marked')
+  const arrow = th.querySelector('.dsh-md-render-sort-arrow')
+  assert.ok(arrow, 'sort arrow present')
+  assert.equal(arrow.textContent, '↑', 'asc arrow')
 })
