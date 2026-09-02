@@ -11,6 +11,13 @@ function fetchSearch(query) {
   return fetchJson(`${API_BASE}/search?q=${encodeURIComponent(query.trim())}`)
 }
 
+/** GET /detail?name=&version= → plugin detail (README/versions/deps). */
+function fetchDetail(name, version) {
+  let url = `${API_BASE}/detail?name=${encodeURIComponent(name)}`
+  if (version) url += `&version=${encodeURIComponent(version)}`
+  return fetchJson(url)
+}
+
 /** GET /updates → { outdated: [{ name, current, latest }], error? }. */
 function fetchUpdates() {
   return fetchJson(`${API_BASE}/updates`)

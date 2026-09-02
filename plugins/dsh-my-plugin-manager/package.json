@@ -39,13 +39,17 @@
       "platform": "web",
       "inject": [
         "@deepseek-ai/dsh-client-runtime"
+      ],
+      "external": [
+        "dsh-md-render"
       ]
     }
   },
   "peerDependencies": {
     "cordis": "^4.0.0-rc.8",
     "react": "^18.2.0 || ^19.2.0",
-    "dsh-shared": "^0.1.0"
+    "dsh-shared": "^0.1.0",
+    "dsh-md-render": "^0.1.2"
   },
   "peerDependenciesMeta": {
     "cordis": {

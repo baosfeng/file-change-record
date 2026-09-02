@@ -3,7 +3,11 @@
 // brand fill + contrast ink, same family as the FILE_BADGES chips.
 const NPM_BADGE = ['#CB3837', '#ffffff', 'npm']
 
-function createActions({ setInstalled, setUpdates, setNotice, setError, setInstalling, setUninstalling }) {
+function createActions(props) {
+  return { ...createListActions(props), ...createDetailActions(props) }
+}
+
+function createListActions({ setInstalled, setUpdates, setNotice, setError, setInstalling, setUninstalling }) {
   const reloadInstalled = () => {
     fetchInstalled()
       .then((value) => setInstalled(value.entries ?? []))
@@ -15,14 +19,15 @@ function createActions({ setInstalled, setUpdates, setNotice, setError, setInsta
       .then((value) => setUpdates(value.outdated ?? []))
       .catch(() => setError(true))
   }
+  const afterWrite = (message) => {
+    setNotice(message)
+    reloadInstalled()
+  }
   const install = (source) => {
     setError(false)
     setInstalling(source)
     postInstall(source)
-      .then(() => {
-        setNotice(strings.installDone())
-        reloadInstalled()
-      })
+      .then(() => afterWrite(strings.installDone()))
       .catch((error) => setError(error.message ?? true))
       .finally(() => setInstalling(null))
   }
@@ -30,14 +35,47 @@ function createActions({ setInstalled, setUpdates, setNotice, setError, setInsta
     setError(false)
     setUninstalling(name)
     postUninstall(name)
-      .then(() => {
-        setNotice(strings.uninstallDone())
-        reloadInstalled()
-      })
+      .then(() => afterWrite(strings.uninstallDone()))
       .catch((error) => setError(error.message ?? true))
       .finally(() => setUninstalling(null))
   }
   return { reloadInstalled, runUpdates, install, uninstall }
+}
+
+function createDetailActions({
+  setDetailName,
+  setDetail,
+  setDetailLoading,
+  setDetailError,
+  setDetailVersion,
+  detailName,
+}) {
+  const loadDetail = (name, version) => {
+    setDetailName(name)
+    setDetailVersion(version)
+    setDetailError(null)
+    setDetailLoading(true)
+    fetchDetail(name, version)
+      .then((value) => {
+        setDetail(value)
+        setDetailVersion(value.version)
+        setDetailLoading(false)
+      })
+      .catch((error) => {
+        setDetailError(error.message ?? true)
+        setDetailLoading(false)
+      })
+  }
+  const openDetail = (name) => loadDetail(name, '')
+  const closeDetail = () => {
+    setDetailName(null)
+    setDetail(null)
+    setDetailVersion(null)
+    setDetailError(null)
+    setDetailLoading(false)
+  }
+  const changeDetailVersion = (version) => loadDetail(detailName, version)
+  return { openDetail, closeDetail, changeDetailVersion }
 }
 
 function PluginManagerView() {
@@ -47,7 +85,25 @@ function PluginManagerView() {
   const [error, setError] = useState(false)
   const [installing, setInstalling] = useState(null)
   const [uninstalling, setUninstalling] = useState(null)
-  const actions = createActions({ setInstalled, setUpdates, setNotice, setError, setInstalling, setUninstalling })
+  const [detailName, setDetailName] = useState(null)
+  const [detail, setDetail] = useState(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState(null)
+  const [detailVersion, setDetailVersion] = useState(null)
+  const actions = createActions({
+    setInstalled,
+    setUpdates,
+    setNotice,
+    setError,
+    setInstalling,
+    setUninstalling,
+    setDetailName,
+    setDetail,
+    setDetailLoading,
+    setDetailError,
+    setDetailVersion,
+    detailName,
+  })
 
   useEffect(() => {
     actions.reloadInstalled()
@@ -76,6 +132,19 @@ function PluginManagerView() {
       : null,
     createElement(InstalledSection, { installed, updates, actions, uninstalling }),
     createElement(MarketSection, { actions, installing }),
+    detailName !== null
+      ? createElement(PluginDetailPanel, {
+          name: detailName,
+          detail,
+          loading: detailLoading,
+          error: detailError,
+          version: detailVersion,
+          onClose: actions.closeDetail,
+          onVersionChange: actions.changeDetailVersion,
+          install: actions.install,
+          installing,
+        })
+      : null,
   )
 }
 
@@ -97,6 +166,7 @@ function InstalledSection({ installed, updates, actions, uninstalling }) {
               key: entry.moduleName,
               entry,
               outdated: outdatedOf(updates, entry.moduleName),
+              onOpen: () => actions.openDetail(entry.moduleName),
               onUninstall: () => actions.uninstall(entry.moduleName),
               uninstalling: uninstalling === entry.moduleName,
             }),
@@ -137,7 +207,7 @@ function InstalledSection({ installed, updates, actions, uninstalling }) {
 }
 
 /** One installed plugin row: icon / name / state chip / version chip + uninstall. */
-function InstalledRow({ entry, outdated, onUninstall, uninstalling }) {
+function InstalledRow({ entry, outdated, onOpen, onUninstall, uninstalling }) {
   return createElement(
     'div',
     { className: 'dsh-my-plugin-manager-row' },
@@ -145,7 +215,11 @@ function InstalledRow({ entry, outdated, onUninstall, uninstalling }) {
       'div',
       { className: 'dsh-my-plugin-manager-row-head' },
       createElement('span', { className: 'dsh-my-plugin-manager-row-icon' }, icon.file(16)),
-      createElement('span', { className: 'dsh-my-plugin-manager-name' }, entry.moduleName),
+      createElement(
+        'button',
+        { className: 'dsh-my-plugin-manager-name dsh-my-plugin-manager-name-btn', onClick: onOpen },
+        entry.moduleName,
+      ),
       createElement(
         'span',
         {
@@ -173,6 +247,7 @@ function InstalledRow({ entry, outdated, onUninstall, uninstalling }) {
     createElement(
       'div',
       { className: 'dsh-my-plugin-manager-actions' },
+      createElement('button', { className: 'dsh-my-plugin-manager-btn', onClick: onOpen }, strings.details()),
       createElement(
         'button',
         {
@@ -241,12 +316,12 @@ function MarketSection({ actions, installing }) {
     searchError ? createElement('div', { className: 'dsh-my-plugin-manager-error' }, strings.searchFailed()) : null,
     searching
       ? createElement('div', { className: 'dsh-my-plugin-manager-status' }, strings.loading())
-      : marketRows(results, actions.install, installing),
+      : marketRows(results, actions.install, actions.openDetail, installing),
   )
 }
 
 /** Market rows: placeholder / empty / result list. */
-function marketRows(results, install, installing) {
+function marketRows(results, install, openDetail, installing) {
   if (results === null)
     return createElement(
       'div',
@@ -267,6 +342,7 @@ function marketRows(results, install, installing) {
     createElement(MarketRow, {
       key: item.name,
       item,
+      onOpen: () => openDetail(item.name),
       onInstall: () => install(item.name),
       installing: installing === item.name,
     }),
@@ -274,7 +350,7 @@ function marketRows(results, install, installing) {
 }
 
 /** One market search result row: npm badge / name / version chip + install. */
-function MarketRow({ item, onInstall, installing }) {
+function MarketRow({ item, onOpen, onInstall, installing }) {
   return createElement(
     'div',
     { className: 'dsh-my-plugin-manager-row' },
@@ -282,7 +358,11 @@ function MarketRow({ item, onInstall, installing }) {
       'div',
       { className: 'dsh-my-plugin-manager-row-head' },
       createElement('span', { className: 'dsh-my-plugin-manager-row-icon' }, badgeIcon(NPM_BADGE, 16)),
-      createElement('span', { className: 'dsh-my-plugin-manager-name' }, item.name),
+      createElement(
+        'button',
+        { className: 'dsh-my-plugin-manager-name dsh-my-plugin-manager-name-btn', onClick: onOpen },
+        item.name,
+      ),
       createElement('span', { className: 'dsh-my-plugin-manager-ver' }, `v${item.version}`),
       item.author !== '' ? createElement('span', { className: 'dsh-my-plugin-manager-author' }, item.author) : null,
     ),
@@ -290,6 +370,7 @@ function MarketRow({ item, onInstall, installing }) {
     createElement(
       'div',
       { className: 'dsh-my-plugin-manager-actions' },
+      createElement('button', { className: 'dsh-my-plugin-manager-btn', onClick: onOpen }, strings.details()),
       createElement(
         'button',
         {

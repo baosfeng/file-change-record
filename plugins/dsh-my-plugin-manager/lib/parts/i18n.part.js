@@ -43,4 +43,27 @@ const strings = {
   uninstallDone: () => (isZh() ? '已卸载（重启后移除）' : 'Uninstalled (removed on restart)'),
   actionFailed: () => (isZh() ? '操作失败' : 'Action failed'),
   noVersion: () => (isZh() ? '—' : '—'),
+  details: () => (isZh() ? '详情' : 'Details'),
+  close: () => (isZh() ? '关闭' : 'Close'),
+  detailFailed: () => (isZh() ? '详情加载失败' : 'Failed to load details'),
+  readme: () => (isZh() ? 'README' : 'README'),
+  noReadme: () => (isZh() ? '该包没有 README' : 'This package has no README'),
+  versionHistory: () => (isZh() ? '版本历史' : 'Version history'),
+  noVersions: () => (isZh() ? '暂无版本信息' : 'No version history'),
+  dependencies: () => (isZh() ? '依赖' : 'Dependencies'),
+  peerDependencies: () => (isZh() ? '对等依赖' : 'Peer dependencies'),
+  noDependencies: () => (isZh() ? '无依赖' : 'No dependencies'),
+  missingPeer: () => (isZh() ? '缺失' : 'missing'),
+  peerHint: () =>
+    isZh()
+      ? '对等依赖（peer）需由运行环境提供；缺失项已高亮。'
+      : 'Peer dependencies must be provided by the runtime; missing ones are highlighted.',
+  metadata: () => (isZh() ? '元数据' : 'Metadata'),
+  author: () => (isZh() ? '作者' : 'Author'),
+  license: () => (isZh() ? '许可证' : 'License'),
+  repository: () => (isZh() ? '仓库' : 'Repository'),
+  downloads: () => (isZh() ? '月下载量' : 'Downloads / month'),
+  installLatest: () => (isZh() ? '安装' : 'Install'),
+  installAt: (version) => (isZh() ? `安装 v${version}` : `Install v${version}`),
+  loadingDetail: () => (isZh() ? '加载插件详情…' : 'Loading plugin details…'),
 }

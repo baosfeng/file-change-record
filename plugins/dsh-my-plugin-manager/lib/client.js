@@ -28,6 +28,15 @@ window.__ModuleLoader__.load({
     var exports = module.exports
     Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' })
     const { createElement, useEffect, useState } = require('react')
+    // README Markdown 渲染复用 dsh-md-render 的统一 MarkdownView（issue #31
+    // 跨插件 require 模式，package.json dsh.client.external 声明）；该插件
+    // 不可用时回退纯文本 <pre>（issue #90 加载兜底）。
+    let MarkdownView = null
+    try {
+      MarkdownView = require('dsh-md-render').MarkdownView
+    } catch {
+      MarkdownView = null
+    }
 
     // ── parts (injected by scripts/build.mjs; keep this exact order — the
     //    const initializers below run in splice order) ─────────────────────
@@ -76,6 +85,29 @@ const strings = {
   uninstallDone: () => (isZh() ? '已卸载（重启后移除）' : 'Uninstalled (removed on restart)'),
   actionFailed: () => (isZh() ? '操作失败' : 'Action failed'),
   noVersion: () => (isZh() ? '—' : '—'),
+  details: () => (isZh() ? '详情' : 'Details'),
+  close: () => (isZh() ? '关闭' : 'Close'),
+  detailFailed: () => (isZh() ? '详情加载失败' : 'Failed to load details'),
+  readme: () => (isZh() ? 'README' : 'README'),
+  noReadme: () => (isZh() ? '该包没有 README' : 'This package has no README'),
+  versionHistory: () => (isZh() ? '版本历史' : 'Version history'),
+  noVersions: () => (isZh() ? '暂无版本信息' : 'No version history'),
+  dependencies: () => (isZh() ? '依赖' : 'Dependencies'),
+  peerDependencies: () => (isZh() ? '对等依赖' : 'Peer dependencies'),
+  noDependencies: () => (isZh() ? '无依赖' : 'No dependencies'),
+  missingPeer: () => (isZh() ? '缺失' : 'missing'),
+  peerHint: () =>
+    isZh()
+      ? '对等依赖（peer）需由运行环境提供；缺失项已高亮。'
+      : 'Peer dependencies must be provided by the runtime; missing ones are highlighted.',
+  metadata: () => (isZh() ? '元数据' : 'Metadata'),
+  author: () => (isZh() ? '作者' : 'Author'),
+  license: () => (isZh() ? '许可证' : 'License'),
+  repository: () => (isZh() ? '仓库' : 'Repository'),
+  downloads: () => (isZh() ? '月下载量' : 'Downloads / month'),
+  installLatest: () => (isZh() ? '安装' : 'Install'),
+  installAt: (version) => (isZh() ? `安装 v${version}` : `Install v${version}`),
+  loadingDetail: () => (isZh() ? '加载插件详情…' : 'Loading plugin details…'),
 }
 
     // ── shared icons (inline, stroke=currentColor, matching better-sidebar) ──
@@ -223,6 +255,27 @@ const icon = {
       [
         createElement('polyline', { points: '16 18 22 12 16 6' }),
         createElement('polyline', { points: '8 6 2 12 8 18' }),
+      ],
+      size,
+    ),
+  // 下载（issue #85 新增）：箭头入托盘，图表导出按钮（dsh-mermaid-render
+  // 卡片下载 PNG/SVG），stroke=currentColor 风格与其余图标一致。
+  download: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+        createElement('polyline', { points: '7 10 12 15 17 10' }),
+        createElement('line', { x1: 12, y1: 15, x2: 12, y2: 3 }),
+      ],
+      size,
+    ),
+  // 复制（issue #85 新增）：双层矩形，复制源码按钮（dsh-mermaid-render
+  // 卡片复制代码），stroke=currentColor 风格与其余图标一致。
+  copy: (size = 16) =>
+    iconSvg(
+      [
+        createElement('rect', { x: 9, y: 9, width: 13, height: 13, rx: 2 }),
+        createElement('path', { d: 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1' }),
       ],
       size,
     ),
@@ -454,6 +507,54 @@ const STYLES = `
   font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); line-height:1.7; text-align:center; }
 .dsh-my-plugin-manager-empty svg { color:var(--dsw-alias-label-dimmed); }
 .dsh-my-plugin-manager-empty-hint { color:var(--dsw-alias-label-dimmed); font:var(--dsw-font-xxxs-11); }
+.dsh-my-plugin-manager-name-btn { flex:1; min-width:0; padding:0; border:none; background:transparent; text-align:left; cursor:pointer;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:var(--dsw-font-s-strong-14); color:var(--dsw-alias-label-primary); }
+.dsh-my-plugin-manager-name-btn:hover { color:var(--dsw-alias-accent); text-decoration:underline; }
+.dsh-my-plugin-manager-btn-ghost { color:var(--dsw-alias-label-secondary); }
+.dsh-my-plugin-manager-detail { position:absolute; inset:0; z-index:10; display:flex; flex-direction:column; gap:2px;
+  padding:0 6px 8px; overflow-y:auto; border:1px solid var(--dsw-alias-border-l1); border-radius:8px;
+  background:var(--dsw-alias-bg-elevated); }
+.dsh-my-plugin-manager-detail-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 6px 2px;
+  position:sticky; top:0; background:var(--dsw-alias-bg-elevated); }
+.dsh-my-plugin-manager-detail-title { font:var(--dsw-font-m-strong-16); color:var(--dsw-alias-label-primary); min-width:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dsh-my-plugin-manager-detail-body { display:flex; flex-direction:column; gap:8px; padding:4px 6px; }
+.dsh-my-plugin-manager-detail-meta { display:flex; flex-direction:column; gap:4px; }
+.dsh-my-plugin-manager-detail-toolbar { display:flex; gap:8px; align-items:center; }
+.dsh-my-plugin-manager-detail-version { height:24px; padding:0 6px; border-radius:5px; flex:none; border:1px solid var(--dsw-alias-border-l2);
+  background:transparent; color:var(--dsw-alias-label-secondary); font:var(--dsw-font-xxs-12); }
+.dsh-my-plugin-manager-detail-desc { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-secondary); line-height:1.6; }
+.dsh-my-plugin-manager-detail-tags { display:flex; flex-wrap:wrap; gap:6px; }
+.dsh-my-plugin-manager-detail-tag { display:inline-flex; align-items:center; padding:2px 6px; border-radius:4px; font:var(--dsw-font-xxxs-11);
+  color:var(--dsw-alias-label-secondary); background:var(--dsw-alias-interactive-bg-hover); }
+.dsh-my-plugin-manager-detail-tag-link { color:var(--dsw-alias-accent); text-decoration:none; }
+.dsh-my-plugin-manager-detail-tag-link:hover { text-decoration:underline; }
+.dsh-my-plugin-manager-detail-section { display:flex; flex-direction:column; gap:4px; }
+.dsh-my-plugin-manager-detail-section-title { font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-label-tertiary);
+  text-transform:uppercase; letter-spacing:.04em; }
+.dsh-my-plugin-manager-readme-plain { margin:0; padding:8px 10px; border-radius:6px; border:1px solid var(--dsw-alias-border-l1);
+  max-height:320px; overflow-y:auto; font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-secondary);
+  white-space:pre-wrap; word-break:break-word; }
+.dsh-my-plugin-manager-timeline { display:flex; flex-direction:column; gap:0; }
+.dsh-my-plugin-manager-timeline-item { display:flex; align-items:center; gap:8px; padding:4px 0; position:relative; }
+.dsh-my-plugin-manager-timeline-dot { flex:none; width:8px; height:8px; border-radius:50%; background:var(--dsw-alias-accent); }
+.dsh-my-plugin-manager-timeline-version { flex:1; min-width:0; font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-primary);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dsh-my-plugin-manager-timeline-date { flex:none; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); white-space:nowrap; }
+.dsh-my-plugin-manager-deps { display:flex; flex-direction:column; gap:8px; }
+.dsh-my-plugin-manager-deps-group { display:flex; flex-direction:column; gap:4px; }
+.dsh-my-plugin-manager-deps-label { font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-label-secondary); }
+.dsh-my-plugin-manager-deps-hint { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); line-height:1.6; }
+.dsh-my-plugin-manager-dep-table { display:flex; flex-direction:column; gap:2px; }
+.dsh-my-plugin-manager-dep-row { display:flex; align-items:center; gap:8px; padding:3px 6px; border-radius:4px;
+  border:1px solid var(--dsw-alias-border-l1); font:var(--dsw-font-xxs-12); }
+.dsh-my-plugin-manager-dep-row.dsh-my-plugin-manager-dep-missing { border-color:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 45%, transparent);
+  background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 10%, transparent); }
+.dsh-my-plugin-manager-dep-name { flex:1; min-width:0; color:var(--dsw-alias-label-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dsh-my-plugin-manager-dep-spec { flex:none; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); white-space:nowrap; }
+.dsh-my-plugin-manager-dep-missing-badge { flex:none; padding:1px 6px; border-radius:4px; font:var(--dsw-font-xxxs-strong-11);
+  color:var(--dsw-alias-state-warn-primary); background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
+.dsh-my-plugin-manager-dep-empty { padding:4px 0; }
 @keyframes dsh-my-plugin-manager-row-in { from { opacity:0; transform:translateY(1px); } to { opacity:1; transform:none; } }
 `.trim()
 
@@ -470,6 +571,13 @@ function fetchInstalled() {
 /** GET /search?q= → { results: [{ name, version, description, author }] }. */
 function fetchSearch(query) {
   return fetchJson(`${API_BASE}/search?q=${encodeURIComponent(query.trim())}`)
+}
+
+/** GET /detail?name=&version= → plugin detail (README/versions/deps). */
+function fetchDetail(name, version) {
+  let url = `${API_BASE}/detail?name=${encodeURIComponent(name)}`
+  if (version) url += `&version=${encodeURIComponent(version)}`
+  return fetchJson(url)
 }
 
 /** GET /updates → { outdated: [{ name, current, latest }], error? }. */
@@ -509,7 +617,11 @@ function fetchJson(url, options) {
 // brand fill + contrast ink, same family as the FILE_BADGES chips.
 const NPM_BADGE = ['#CB3837', '#ffffff', 'npm']
 
-function createActions({ setInstalled, setUpdates, setNotice, setError, setInstalling, setUninstalling }) {
+function createActions(props) {
+  return { ...createListActions(props), ...createDetailActions(props) }
+}
+
+function createListActions({ setInstalled, setUpdates, setNotice, setError, setInstalling, setUninstalling }) {
   const reloadInstalled = () => {
     fetchInstalled()
       .then((value) => setInstalled(value.entries ?? []))
@@ -521,14 +633,15 @@ function createActions({ setInstalled, setUpdates, setNotice, setError, setInsta
       .then((value) => setUpdates(value.outdated ?? []))
       .catch(() => setError(true))
   }
+  const afterWrite = (message) => {
+    setNotice(message)
+    reloadInstalled()
+  }
   const install = (source) => {
     setError(false)
     setInstalling(source)
     postInstall(source)
-      .then(() => {
-        setNotice(strings.installDone())
-        reloadInstalled()
-      })
+      .then(() => afterWrite(strings.installDone()))
       .catch((error) => setError(error.message ?? true))
       .finally(() => setInstalling(null))
   }
@@ -536,14 +649,47 @@ function createActions({ setInstalled, setUpdates, setNotice, setError, setInsta
     setError(false)
     setUninstalling(name)
     postUninstall(name)
-      .then(() => {
-        setNotice(strings.uninstallDone())
-        reloadInstalled()
-      })
+      .then(() => afterWrite(strings.uninstallDone()))
       .catch((error) => setError(error.message ?? true))
       .finally(() => setUninstalling(null))
   }
   return { reloadInstalled, runUpdates, install, uninstall }
+}
+
+function createDetailActions({
+  setDetailName,
+  setDetail,
+  setDetailLoading,
+  setDetailError,
+  setDetailVersion,
+  detailName,
+}) {
+  const loadDetail = (name, version) => {
+    setDetailName(name)
+    setDetailVersion(version)
+    setDetailError(null)
+    setDetailLoading(true)
+    fetchDetail(name, version)
+      .then((value) => {
+        setDetail(value)
+        setDetailVersion(value.version)
+        setDetailLoading(false)
+      })
+      .catch((error) => {
+        setDetailError(error.message ?? true)
+        setDetailLoading(false)
+      })
+  }
+  const openDetail = (name) => loadDetail(name, '')
+  const closeDetail = () => {
+    setDetailName(null)
+    setDetail(null)
+    setDetailVersion(null)
+    setDetailError(null)
+    setDetailLoading(false)
+  }
+  const changeDetailVersion = (version) => loadDetail(detailName, version)
+  return { openDetail, closeDetail, changeDetailVersion }
 }
 
 function PluginManagerView() {
@@ -553,7 +699,25 @@ function PluginManagerView() {
   const [error, setError] = useState(false)
   const [installing, setInstalling] = useState(null)
   const [uninstalling, setUninstalling] = useState(null)
-  const actions = createActions({ setInstalled, setUpdates, setNotice, setError, setInstalling, setUninstalling })
+  const [detailName, setDetailName] = useState(null)
+  const [detail, setDetail] = useState(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState(null)
+  const [detailVersion, setDetailVersion] = useState(null)
+  const actions = createActions({
+    setInstalled,
+    setUpdates,
+    setNotice,
+    setError,
+    setInstalling,
+    setUninstalling,
+    setDetailName,
+    setDetail,
+    setDetailLoading,
+    setDetailError,
+    setDetailVersion,
+    detailName,
+  })
 
   useEffect(() => {
     actions.reloadInstalled()
@@ -582,6 +746,19 @@ function PluginManagerView() {
       : null,
     createElement(InstalledSection, { installed, updates, actions, uninstalling }),
     createElement(MarketSection, { actions, installing }),
+    detailName !== null
+      ? createElement(PluginDetailPanel, {
+          name: detailName,
+          detail,
+          loading: detailLoading,
+          error: detailError,
+          version: detailVersion,
+          onClose: actions.closeDetail,
+          onVersionChange: actions.changeDetailVersion,
+          install: actions.install,
+          installing,
+        })
+      : null,
   )
 }
 
@@ -603,6 +780,7 @@ function InstalledSection({ installed, updates, actions, uninstalling }) {
               key: entry.moduleName,
               entry,
               outdated: outdatedOf(updates, entry.moduleName),
+              onOpen: () => actions.openDetail(entry.moduleName),
               onUninstall: () => actions.uninstall(entry.moduleName),
               uninstalling: uninstalling === entry.moduleName,
             }),
@@ -643,7 +821,7 @@ function InstalledSection({ installed, updates, actions, uninstalling }) {
 }
 
 /** One installed plugin row: icon / name / state chip / version chip + uninstall. */
-function InstalledRow({ entry, outdated, onUninstall, uninstalling }) {
+function InstalledRow({ entry, outdated, onOpen, onUninstall, uninstalling }) {
   return createElement(
     'div',
     { className: 'dsh-my-plugin-manager-row' },
@@ -651,7 +829,11 @@ function InstalledRow({ entry, outdated, onUninstall, uninstalling }) {
       'div',
       { className: 'dsh-my-plugin-manager-row-head' },
       createElement('span', { className: 'dsh-my-plugin-manager-row-icon' }, icon.file(16)),
-      createElement('span', { className: 'dsh-my-plugin-manager-name' }, entry.moduleName),
+      createElement(
+        'button',
+        { className: 'dsh-my-plugin-manager-name dsh-my-plugin-manager-name-btn', onClick: onOpen },
+        entry.moduleName,
+      ),
       createElement(
         'span',
         {
@@ -679,6 +861,7 @@ function InstalledRow({ entry, outdated, onUninstall, uninstalling }) {
     createElement(
       'div',
       { className: 'dsh-my-plugin-manager-actions' },
+      createElement('button', { className: 'dsh-my-plugin-manager-btn', onClick: onOpen }, strings.details()),
       createElement(
         'button',
         {
@@ -747,12 +930,12 @@ function MarketSection({ actions, installing }) {
     searchError ? createElement('div', { className: 'dsh-my-plugin-manager-error' }, strings.searchFailed()) : null,
     searching
       ? createElement('div', { className: 'dsh-my-plugin-manager-status' }, strings.loading())
-      : marketRows(results, actions.install, installing),
+      : marketRows(results, actions.install, actions.openDetail, installing),
   )
 }
 
 /** Market rows: placeholder / empty / result list. */
-function marketRows(results, install, installing) {
+function marketRows(results, install, openDetail, installing) {
   if (results === null)
     return createElement(
       'div',
@@ -773,6 +956,7 @@ function marketRows(results, install, installing) {
     createElement(MarketRow, {
       key: item.name,
       item,
+      onOpen: () => openDetail(item.name),
       onInstall: () => install(item.name),
       installing: installing === item.name,
     }),
@@ -780,7 +964,7 @@ function marketRows(results, install, installing) {
 }
 
 /** One market search result row: npm badge / name / version chip + install. */
-function MarketRow({ item, onInstall, installing }) {
+function MarketRow({ item, onOpen, onInstall, installing }) {
   return createElement(
     'div',
     { className: 'dsh-my-plugin-manager-row' },
@@ -788,7 +972,11 @@ function MarketRow({ item, onInstall, installing }) {
       'div',
       { className: 'dsh-my-plugin-manager-row-head' },
       createElement('span', { className: 'dsh-my-plugin-manager-row-icon' }, badgeIcon(NPM_BADGE, 16)),
-      createElement('span', { className: 'dsh-my-plugin-manager-name' }, item.name),
+      createElement(
+        'button',
+        { className: 'dsh-my-plugin-manager-name dsh-my-plugin-manager-name-btn', onClick: onOpen },
+        item.name,
+      ),
       createElement('span', { className: 'dsh-my-plugin-manager-ver' }, `v${item.version}`),
       item.author !== '' ? createElement('span', { className: 'dsh-my-plugin-manager-author' }, item.author) : null,
     ),
@@ -796,6 +984,7 @@ function MarketRow({ item, onInstall, installing }) {
     createElement(
       'div',
       { className: 'dsh-my-plugin-manager-actions' },
+      createElement('button', { className: 'dsh-my-plugin-manager-btn', onClick: onOpen }, strings.details()),
       createElement(
         'button',
         {
@@ -815,6 +1004,229 @@ function outdatedOf(updates, moduleName) {
   if (!Array.isArray(updates)) return null
   const hit = updates.find((entry) => entry.name === moduleName)
   return hit === undefined ? null : hit
+}
+
+    // ── detail panel (issue #90): README / version history / deps / install ──
+function PluginDetailPanel({ name, detail, loading, error, version, onClose, onVersionChange, install, installing }) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-plugin-manager-detail' },
+    createElement(DetailHead, { name, onClose }),
+    renderDetail({ detail, loading, error, version, onVersionChange, install, installing }),
+  )
+}
+
+function DetailHead({ name, onClose }) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-plugin-manager-detail-head' },
+    createElement('span', { className: 'dsh-my-plugin-manager-detail-title' }, name ?? ''),
+    createElement(
+      'button',
+      { className: 'dsh-my-plugin-manager-btn dsh-my-plugin-manager-btn-ghost', onClick: onClose },
+      strings.close(),
+    ),
+  )
+}
+
+/** Loading → error → detail-body switch. */
+function renderDetail({ detail, loading, error, version, onVersionChange, install, installing }) {
+  if (loading) return createElement('div', { className: 'dsh-my-plugin-manager-status' }, strings.loadingDetail())
+  if (error !== null && error !== false) {
+    const message = typeof error === 'string' ? error : strings.loadError()
+    return createElement('div', { className: 'dsh-my-plugin-manager-error' }, `${strings.detailFailed()}：${message}`)
+  }
+  if (detail === null) return null
+  const readmeBody =
+    detail.readme === ''
+      ? createElement('div', { className: 'dsh-my-plugin-manager-empty' }, strings.noReadme())
+      : createElement(ReadmeView, { text: detail.readme })
+  return createElement(
+    'div',
+    { className: 'dsh-my-plugin-manager-detail-body' },
+    createElement(DetailMeta, { detail, version, onVersionChange, install, installing }),
+    createElement(DetailSection, { title: strings.readme(), body: readmeBody }),
+    createElement(DetailSection, {
+      title: strings.versionHistory(),
+      body: createElement(DetailTimeline, { versions: detail.versions }),
+    }),
+    createElement(DetailSection, {
+      title: strings.dependencies(),
+      body: createElement(DetailDeps, { dependencies: detail.dependencies, peerDependencies: detail.peerDependencies }),
+    }),
+  )
+}
+
+/** Metadata toolbar: version picker + install button + info tags. */
+function DetailMeta({ detail, version, onVersionChange, install, installing }) {
+  const source = installSource(detail.name, version, detail.latest)
+  const installingThis = installing === source
+  const versions = Array.isArray(detail.versions) ? detail.versions : []
+  const isLatest = version === '' || version === detail.latest
+  return createElement(
+    'div',
+    { className: 'dsh-my-plugin-manager-detail-meta' },
+    createElement(
+      'div',
+      { className: 'dsh-my-plugin-manager-detail-toolbar' },
+      createElement(
+        'select',
+        {
+          className: 'dsh-my-plugin-manager-detail-version',
+          value: version ?? '',
+          onChange: (event) => onVersionChange(event.target.value),
+        },
+        versions.map((v) => createElement('option', { key: v.version, value: v.version }, v.version)),
+      ),
+      createElement(
+        'button',
+        {
+          className: 'dsh-my-plugin-manager-btn dsh-my-plugin-manager-btn-primary',
+          onClick: () => install(source),
+          disabled: installingThis,
+        },
+        icon.plus(14),
+        installingThis ? strings.installing() : isLatest ? strings.installLatest() : strings.installAt(version),
+      ),
+    ),
+    detail.description !== ''
+      ? createElement('div', { className: 'dsh-my-plugin-manager-detail-desc' }, detail.description)
+      : null,
+    createElement(
+      'div',
+      { className: 'dsh-my-plugin-manager-detail-tags' },
+      metaTag(detail.author, strings.author()),
+      metaTag(detail.license, strings.license()),
+      metaTag(detail.downloads > 0 ? String(detail.downloads) : '', strings.downloads()),
+      detail.repository !== ''
+        ? createElement(
+            'a',
+            {
+              className: 'dsh-my-plugin-manager-detail-tag dsh-my-plugin-manager-detail-tag-link',
+              href: detail.repository,
+              target: '_blank',
+              rel: 'noreferrer',
+            },
+            strings.repository(),
+          )
+        : null,
+    ),
+  )
+}
+
+/** A single metadata chip; hidden when the value is empty. */
+function metaTag(value, label) {
+  if (value === '' || value === null || value === undefined) return null
+  return createElement('span', { className: 'dsh-my-plugin-manager-detail-tag' }, `${label}：${value}`)
+}
+
+function installSource(name, version, latest) {
+  return version !== '' && version !== latest ? `${name}@${version}` : name
+}
+
+function DetailSection({ title, body }) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-plugin-manager-detail-section' },
+    createElement('div', { className: 'dsh-my-plugin-manager-detail-section-title' }, title),
+    body,
+  )
+}
+
+/** README preview: dsh-md-render MarkdownView, falling back to plain <pre>. */
+function ReadmeView({ text }) {
+  if (MarkdownView) return createElement(MarkdownView, { text })
+  return createElement('pre', { className: 'dsh-my-plugin-manager-readme-plain' }, text)
+}
+
+function DetailTimeline({ versions }) {
+  if (!Array.isArray(versions) || versions.length === 0) {
+    return createElement('div', { className: 'dsh-my-plugin-manager-empty' }, strings.noVersions())
+  }
+  return createElement(
+    'div',
+    { className: 'dsh-my-plugin-manager-timeline' },
+    versions.map((entry, i) =>
+      createElement(
+        'div',
+        { key: `${entry.version}-${i}`, className: 'dsh-my-plugin-manager-timeline-item' },
+        createElement('span', { className: 'dsh-my-plugin-manager-timeline-dot' }),
+        createElement('span', { className: 'dsh-my-plugin-manager-timeline-version' }, entry.version),
+        createElement('span', { className: 'dsh-my-plugin-manager-timeline-date' }, entry.date),
+      ),
+    ),
+  )
+}
+
+/** dependencies + peerDependencies tables (peer missing highlighted). */
+function DetailDeps({ dependencies, peerDependencies }) {
+  const deps = Array.isArray(dependencies) ? dependencies : []
+  const peers = Array.isArray(peerDependencies) ? peerDependencies : []
+  return createElement(
+    'div',
+    { className: 'dsh-my-plugin-manager-deps' },
+    createElement(
+      'div',
+      { className: 'dsh-my-plugin-manager-deps-group' },
+      createElement('div', { className: 'dsh-my-plugin-manager-deps-label' }, strings.dependencies()),
+      deps.length === 0
+        ? createElement(
+            'div',
+            { className: 'dsh-my-plugin-manager-empty dsh-my-plugin-manager-dep-empty' },
+            strings.noDependencies(),
+          )
+        : depRows(deps),
+    ),
+    createElement(
+      'div',
+      { className: 'dsh-my-plugin-manager-deps-group dsh-my-plugin-manager-deps-peer' },
+      createElement('div', { className: 'dsh-my-plugin-manager-deps-label' }, strings.peerDependencies()),
+      createElement('div', { className: 'dsh-my-plugin-manager-deps-hint' }, strings.peerHint()),
+      peers.length === 0
+        ? createElement(
+            'div',
+            { className: 'dsh-my-plugin-manager-empty dsh-my-plugin-manager-dep-empty' },
+            strings.noDependencies(),
+          )
+        : peerRows(peers),
+    ),
+  )
+}
+
+function depRows(deps) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-plugin-manager-dep-table' },
+    deps.map((dep) =>
+      createElement(
+        'div',
+        { key: dep.name, className: 'dsh-my-plugin-manager-dep-row' },
+        createElement('span', { className: 'dsh-my-plugin-manager-dep-name' }, dep.name),
+        createElement('span', { className: 'dsh-my-plugin-manager-dep-spec' }, dep.spec),
+      ),
+    ),
+  )
+}
+
+function peerRows(peers) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-plugin-manager-dep-table' },
+    peers.map((peer) =>
+      createElement(
+        'div',
+        {
+          key: peer.name,
+          className: `dsh-my-plugin-manager-dep-row${peer.missing ? ' dsh-my-plugin-manager-dep-missing' : ''}`,
+        },
+        createElement('span', { className: 'dsh-my-plugin-manager-dep-name' }, peer.name),
+        createElement('span', { className: 'dsh-my-plugin-manager-dep-spec' }, peer.spec),
+        peer.missing
+          ? createElement('span', { className: 'dsh-my-plugin-manager-dep-missing-badge' }, strings.missingPeer())
+          : null,
+      ),
+    ),
+  )
 }
 
     // ── plugin body ───────────────────────────────────────────────────────
