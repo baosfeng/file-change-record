@@ -84,6 +84,38 @@ const strings = {
   modeObserve: () => (isZh() ? '观察（只告警）' : 'Observe'),
   modeAsk: () => (isZh() ? '确认（审批）' : 'Ask'),
   modeDeny: () => (isZh() ? '拦截' : 'Deny'),
+  // ── 自定义护栏规则 + 告警通知（issue #88）───────────────────────────
+  rulesTitle: () => (isZh() ? '自定义护栏规则' : 'Custom guard rules'),
+  rulesHint: () =>
+    isZh()
+      ? '添加自定义 bash 危险模式（正则），与内置规则合并生效；命中取最严格模式'
+      : 'Add custom bash danger patterns (regex); merged with built-in rules; most-restrictive mode wins',
+  addRule: () => (isZh() ? '添加规则' : 'Add rule'),
+  saveRules: () => (isZh() ? '保存规则' : 'Save rules'),
+  deleteRule: () => (isZh() ? '删除' : 'Delete'),
+  deleteRuleAria: () => (isZh() ? '删除此规则' : 'Delete this rule'),
+  patternPlaceholder: () => (isZh() ? '正则，如 touch /etc/evil' : 'regex, e.g. touch /etc/evil'),
+  descriptionPlaceholder: () => (isZh() ? '描述（可选）' : 'description (optional)'),
+  severityLabel: () => (isZh() ? '严重级' : 'Severity'),
+  notifyLabel: () => (isZh() ? '告警通知' : 'Alert notification'),
+  notifyHint: () => (isZh() ? '高严重级告警经 dsh-my-notify 推送' : 'High-severity alerts pushed via dsh-my-notify'),
+  cooldownLabel: () => (isZh() ? '冷却(秒)' : 'Cooldown (s)'),
+  saveRulesOk: () => (isZh() ? '规则已保存（已生效）' : 'Rules saved (active)'),
+  droppedRule: (count) =>
+    isZh()
+      ? `已保存 ${count} 条，丢弃 ${count} 条非法规则（正则无效/缺 pattern）`
+      : `Saved, ${count} invalid rule(s) dropped`,
+  loadRulesError: () => (isZh() ? '规则加载失败' : 'Failed to load rules'),
+  noCommand: () => (isZh() ? '请输入命令' : 'Enter a command'),
+  ruleTestTitle: () => (isZh() ? '规则测试' : 'Rule test'),
+  ruleTestPlaceholder: () => (isZh() ? '输入命令，预览命中哪些规则…' : 'type a command to preview matching rules…'),
+  ruleTest: () => (isZh() ? '测试' : 'Test'),
+  ruleTestResult: () => (isZh() ? '命中规则' : 'Matching rules'),
+  noRuleHit: () => (isZh() ? '未命中任何护栏规则' : 'No guard rule matched'),
+  ruleHitSource: (source) => (isZh() ? (source === 'builtin' ? '内置' : '自定义') : source),
+  effectiveDecision: () => (isZh() ? '合并决策' : 'Effective'),
+  emptyRules: () =>
+    isZh() ? '暂无自定义规则——点击「添加规则」创建' : 'No custom rules — click "Add rule" to create one',
 }
 
     // ── shared icons (inline, stroke=currentColor, matching better-sidebar) ──
@@ -231,6 +263,27 @@ const icon = {
       [
         createElement('polyline', { points: '16 18 22 12 16 6' }),
         createElement('polyline', { points: '8 6 2 12 8 18' }),
+      ],
+      size,
+    ),
+  // 下载（issue #85 新增）：箭头入托盘，图表导出按钮（dsh-mermaid-render
+  // 卡片下载 PNG/SVG），stroke=currentColor 风格与其余图标一致。
+  download: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+        createElement('polyline', { points: '7 10 12 15 17 10' }),
+        createElement('line', { x1: 12, y1: 15, x2: 12, y2: 3 }),
+      ],
+      size,
+    ),
+  // 复制（issue #85 新增）：双层矩形，复制源码按钮（dsh-mermaid-render
+  // 卡片复制代码），stroke=currentColor 风格与其余图标一致。
+  copy: (size = 16) =>
+    iconSvg(
+      [
+        createElement('rect', { x: 9, y: 9, width: 13, height: 13, rx: 2 }),
+        createElement('path', { d: 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1' }),
       ],
       size,
     ),
@@ -726,6 +779,8 @@ function GuardPanel(props) {
     createElement('div', { className: 'dsh-my-guard-timeline' }, rows),
     createElement(ScanTool, null),
     createElement(PromptTool, null),
+    createElement(RuleTest, null),
+    createElement(RuleSettings, null),
   )
 }
 
@@ -804,6 +859,309 @@ function ErrorState({ message, onRetry }) {
       },
       icon.refresh(15),
     ),
+  )
+}
+
+    // ── 自定义护栏规则 + 告警通知（issue #88）─────────────────────────
+// 依赖：strings（i18n）、icon（共享图标）、apiJson/severityLabel（panel.js）、
+// busyState/cleanFeedback/errorFeedback（states.js）；本片段在 STATES 之后拼接。
+
+/** 模式 → 中文标签。 */
+function modeLabel(mode) {
+  if (mode === 'ask') return strings.modeAsk()
+  if (mode === 'deny') return strings.modeDeny()
+  return strings.modeObserve()
+}
+
+/** 规则来源 → 中文标签。 */
+function ruleSourceLabel(source) {
+  return strings.ruleHitSource(source)
+}
+
+/** 单条自定义规则行（pattern + mode + severity + description + 删除）。 */
+function RuleEntry({ rule, index, onChange, onRemove }) {
+  const update = (patch) => onChange(index, patch)
+  return createElement(
+    'div',
+    { className: 'dsh-my-guard-rule-row' },
+    createElement('input', {
+      className: 'dsh-my-guard-input dsh-my-guard-rule-pattern',
+      value: rule.pattern || '',
+      placeholder: strings.patternPlaceholder(),
+      onChange: (e) => update({ pattern: e.target.value }),
+    }),
+    createElement(
+      'select',
+      {
+        className: 'dsh-my-guard-input dsh-my-guard-rule-select',
+        value: rule.mode,
+        'aria-label': strings.modeLabel(),
+        onChange: (e) => update({ mode: e.target.value }),
+      },
+      createElement('option', { value: 'observe' }, strings.modeObserve()),
+      createElement('option', { value: 'ask' }, strings.modeAsk()),
+      createElement('option', { value: 'deny' }, strings.modeDeny()),
+    ),
+    createElement(
+      'select',
+      {
+        className: 'dsh-my-guard-input dsh-my-guard-rule-select',
+        value: rule.severity,
+        'aria-label': strings.severityLabel(),
+        onChange: (e) => update({ severity: e.target.value }),
+      },
+      createElement('option', { value: 'low' }, strings.sevLow()),
+      createElement('option', { value: 'medium' }, strings.sevMedium()),
+      createElement('option', { value: 'high' }, strings.sevHigh()),
+    ),
+    createElement('input', {
+      className: 'dsh-my-guard-input dsh-my-guard-rule-desc',
+      value: rule.description || '',
+      placeholder: strings.descriptionPlaceholder(),
+      onChange: (e) => update({ description: e.target.value }),
+    }),
+    createElement(
+      'button',
+      {
+        type: 'button',
+        className: 'dsh-my-guard-iconbtn',
+        'aria-label': strings.deleteRuleAria(),
+        title: strings.deleteRule(),
+        onClick: () => onRemove(index),
+      },
+      icon.trash(14),
+    ),
+  )
+}
+
+/** 规则测试结果：命中列表（来源/模式/严重级）+ 合并决策。 */
+function RuleTestResult({ result }) {
+  const hits = result?.hits || []
+  const decision = result?.decision
+  return createElement(
+    'div',
+    { className: 'dsh-my-guard-feedback' },
+    hits.length === 0
+      ? cleanFeedback(strings.noRuleHit())
+      : createElement(
+          'div',
+          { className: 'dsh-my-guard-feedback' },
+          createElement('div', { className: 'dsh-my-guard-feedback-head' }, `${strings.ruleTestResult()}：`),
+          hits.map((h, index) =>
+            createElement(
+              'div',
+              { key: index, className: `dsh-my-guard-issue dsh-my-guard-issue-${h.severity}` },
+              createElement('div', { className: 'dsh-my-guard-issue-sev' }, severityLabel(h.severity)),
+              createElement('div', { className: 'dsh-my-guard-issue-msg' }, `${modeLabel(h.mode)} · ${h.message}`),
+              createElement('div', { className: 'dsh-my-guard-issue-rule' }, `${ruleSourceLabel(h.source)} · ${h.id}`),
+            ),
+          ),
+          decision
+            ? createElement(
+                'div',
+                { className: 'dsh-my-guard-issue-rule dsh-my-guard-effective' },
+                `${strings.effectiveDecision()}: ${modeLabel(decision.mode)} / ${severityLabel(decision.severity)}`,
+              )
+            : null,
+        ),
+  )
+}
+
+/** 规则测试：输入命令 → 实时预览命中规则 + 合并决策。 */
+function RuleTest() {
+  const [command, setCommand] = useState('')
+  const [result, setResult] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const run = async () => {
+    const value = command.trim()
+    if (value === '') {
+      setError(strings.noCommand())
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      setResult(
+        await apiJson('/guard/api/rules/test', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ command: value }),
+        }),
+      )
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+      setResult(null)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return createElement(
+    'div',
+    { className: 'dsh-my-guard-section' },
+    createElement('div', { className: 'dsh-my-guard-section-title' }, strings.ruleTestTitle()),
+    createElement(
+      'div',
+      { className: 'dsh-my-guard-tool-row' },
+      createElement('input', {
+        className: 'dsh-my-guard-input dsh-my-guard-tool-input',
+        value: command,
+        placeholder: strings.ruleTestPlaceholder(),
+        disabled: busy,
+        onChange: (e) => setCommand(e.target.value),
+        onKeyDown: (e) => {
+          if (e.key === 'Enter') void run()
+        },
+      }),
+      createElement(
+        'button',
+        {
+          type: 'button',
+          className: 'dsh-my-guard-btn dsh-my-guard-btn-primary',
+          disabled: busy,
+          onClick: () => void run(),
+        },
+        icon.search(14),
+        createElement('span', null, strings.ruleTest()),
+      ),
+    ),
+    busy ? busyState(strings.checking()) : null,
+    error !== '' ? errorFeedback(`${strings.loadError()}：${error}`) : null,
+    result !== null ? createElement(RuleTestResult, { result }) : null,
+  )
+}
+
+/** 自定义护栏规则设置：列表编辑 + 保存（持久化 profile patch）+ 通知开关。 */
+function RuleSettings() {
+  const [customRules, setCustomRules] = useState([])
+  const [notifyEnabled, setNotifyEnabled] = useState(false)
+  const [notifyCooldownSec, setNotifyCooldownSec] = useState(60)
+  const [busy, setBusy] = useState(false)
+  const [feedback, setFeedback] = useState('')
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let alive = true
+    void apiJson('/guard/api/rules')
+      .then((value) => {
+        if (!alive) return
+        setCustomRules(value.custom || [])
+        setNotifyEnabled(value.notifyEnabled === true)
+        if (typeof value.notifyCooldownMs === 'number') setNotifyCooldownSec(Math.round(value.notifyCooldownMs / 1000))
+      })
+      .catch((err) => {
+        if (alive) setError(err instanceof Error ? err.message : String(err))
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const changeRule = (index, patch) =>
+    setCustomRules((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)))
+  const addRule = () =>
+    setCustomRules((prev) => [...prev, { pattern: '', mode: 'observe', severity: 'medium', description: '' }])
+  const removeRule = (index) => setCustomRules((prev) => prev.filter((_, i) => i !== index))
+
+  const save = async () => {
+    setBusy(true)
+    setFeedback('')
+    setError('')
+    try {
+      const result = await apiJson('/guard/api/rules', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ customRules, notifyEnabled, notifyCooldownMs: notifyCooldownSec * 1000 }),
+      })
+      setCustomRules(result.customRules || [])
+      setNotifyEnabled(result.notifyEnabled === true)
+      if (typeof result.notifyCooldownMs === 'number') setNotifyCooldownSec(Math.round(result.notifyCooldownMs / 1000))
+      setFeedback(result.dropped > 0 ? strings.droppedRule(result.dropped) : strings.saveRulesOk())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return ruleSettingsView({
+    customRules,
+    notifyEnabled,
+    notifyCooldownSec,
+    busy,
+    feedback,
+    error,
+    changeRule,
+    addRule,
+    removeRule,
+    save,
+    setNotifyEnabled,
+    setNotifyCooldownSec,
+  })
+}
+
+function ruleSettingsView(view) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-guard-section dsh-my-guard-rules-section' },
+    createElement('div', { className: 'dsh-my-guard-section-title' }, strings.rulesTitle()),
+    createElement('div', { className: 'dsh-my-guard-rules-hint' }, strings.rulesHint()),
+    view.customRules.length === 0
+      ? createElement('div', { className: 'dsh-my-guard-empty-rules' }, strings.emptyRules())
+      : createElement(
+          'div',
+          { className: 'dsh-my-guard-rule-list' },
+          view.customRules.map((rule, index) =>
+            createElement(RuleEntry, { key: index, rule, index, onChange: view.changeRule, onRemove: view.removeRule }),
+          ),
+        ),
+    createElement(
+      'button',
+      { type: 'button', className: 'dsh-my-guard-btn', onClick: view.addRule },
+      createElement('span', null, strings.addRule()),
+    ),
+    createElement(
+      'div',
+      { className: 'dsh-my-guard-notify-row' },
+      createElement(
+        'label',
+        { className: 'dsh-my-guard-check' },
+        createElement('input', {
+          type: 'checkbox',
+          checked: view.notifyEnabled,
+          onChange: (e) => view.setNotifyEnabled(e.target.checked),
+        }),
+        createElement('span', null, strings.notifyLabel()),
+      ),
+      createElement(
+        'label',
+        { className: 'dsh-my-guard-cooldown' },
+        createElement('span', null, strings.cooldownLabel()),
+        createElement('input', {
+          className: 'dsh-my-guard-input dsh-my-guard-cooldown-input',
+          type: 'number',
+          min: '0',
+          value: view.notifyCooldownSec,
+          onChange: (e) => view.setNotifyCooldownSec(Number(e.target.value) || 0),
+        }),
+      ),
+    ),
+    createElement('div', { className: 'dsh-my-guard-notify-hint' }, strings.notifyHint()),
+    createElement(
+      'button',
+      {
+        type: 'button',
+        className: 'dsh-my-guard-btn dsh-my-guard-btn-primary',
+        disabled: view.busy,
+        onClick: () => void view.save(),
+      },
+      icon.check(14),
+      createElement('span', null, strings.saveRules()),
+    ),
+    view.busy ? busyState(strings.loading()) : null,
+    view.error !== '' ? errorFeedback(`${strings.loadRulesError()}：${view.error}`) : null,
+    view.feedback !== '' ? cleanFeedback(view.feedback) : null,
   )
 }
 
@@ -892,6 +1250,22 @@ const STYLES = `
 .dsh-my-guard-issue-low .dsh-my-guard-issue-sev{color:var(--dsw-alias-state-info-primary)}
 .dsh-my-guard-issue-rule{font:var(--dsw-font-mono-xxs);font-size:11px;color:var(--dsw-alias-label-secondary)}
 .dsh-my-guard-issue-msg{color:var(--dsw-alias-label-primary);line-height:1.5}
+/* ── 自定义护栏规则 + 告警通知（issue #88）── */
+.dsh-my-guard-rules-section{gap:8px}
+.dsh-my-guard-rules-hint{font:var(--dsw-font-xxxs-11);color:var(--dsw-alias-label-tertiary);line-height:1.6}
+.dsh-my-guard-empty-rules{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary);padding:4px 2px}
+.dsh-my-guard-rule-list{display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto}
+.dsh-my-guard-rule-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.dsh-my-guard-rule-row .dsh-my-guard-input{flex:1;min-width:120px}
+.dsh-my-guard-rule-select{flex:0 0 auto;width:86px}
+.dsh-my-guard-rule-desc{flex:2}
+.dsh-my-guard-notify-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.dsh-my-guard-check{display:inline-flex;align-items:center;gap:6px;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-primary);cursor:pointer}
+.dsh-my-guard-check input{accent-color:var(--dsw-alias-interactive-primary)}
+.dsh-my-guard-cooldown{display:inline-flex;align-items:center;gap:6px;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-primary)}
+.dsh-my-guard-cooldown-input{flex:0 0 auto;width:64px}
+.dsh-my-guard-notify-hint{font:var(--dsw-font-xxxs-11);color:var(--dsw-alias-label-tertiary)}
+.dsh-my-guard-effective{color:var(--dsw-alias-label-primary);font:var(--dsw-font-xxxs-strong-11)}
 `
 
 function injectStyles() {

@@ -11,9 +11,11 @@
 import { isTrustedApiRequest, readJsonBody, writeJson, writeError } from 'dsh-shared'
 import { resolveAndScan, localPathOf } from './poison.js'
 import { detectPromptInjection } from './injection.js'
+import { DESTRUCTIVE_PATTERNS } from './constants.js'
+import { decideDestructive, rawRulesOf } from './custom-rules.js'
 
 /** 注册 /guard/api 路由（effect 持有 disposer）。 */
-export function registerGuardRoutes(ctx, store, options) {
+export function registerGuardRoutes(ctx, store, options, control) {
   const webRuntime = ctx.get ? ctx.get('webRuntime') : undefined
   const trustedHosts =
     webRuntime !== undefined && webRuntime !== null && Array.isArray(webRuntime.trustedHosts)
@@ -26,14 +28,14 @@ export function registerGuardRoutes(ctx, store, options) {
       ctx.webServer.register({
         kind: 'prefix',
         path: '/guard/api',
-        handler: apiHandler(fence, store, options),
+        handler: apiHandler(fence, store, options, control),
       }),
     'dsh-my-guard: /guard/api routes',
   )
 }
 
 /** 统一 handler：fence → 方法分派 → 404/错误兜底。 */
-function apiHandler(fence, store, options) {
+function apiHandler(fence, store, options, control) {
   return async (request, response) => {
     if (!fence(request)) {
       writeJson(response, 403, { ok: false, error: { code: 'forbidden', message: 'forbidden' } })
@@ -43,7 +45,7 @@ function apiHandler(fence, store, options) {
     const pathname = url.pathname
     const method = pathname.startsWith('/guard/api/') ? pathname.slice('/guard/api/'.length) : undefined
     try {
-      const handled = await dispatchMethod(method, request, response, url, store, options)
+      const handled = await dispatchMethod(method, request, response, url, store, options, control)
       if (!handled) {
         writeJson(response, 404, {
           ok: false,
@@ -62,7 +64,7 @@ function isMethod(method, request, name, verb) {
 }
 
 /** 按 method 分派到具体 handler；未识别返回 false（调用方回 404）。 */
-async function dispatchMethod(method, request, response, url, store, options) {
+async function dispatchMethod(method, request, response, url, store, options, control) {
   if (isMethod(method, request, 'status', 'GET')) {
     writeJson(response, 200, { ok: true, value: statusValue(store, options) })
     return true
@@ -86,6 +88,18 @@ async function dispatchMethod(method, request, response, url, store, options) {
     await handleConfirm(request, response, store)
     return true
   }
+  if (isMethod(method, request, 'rules', 'GET')) {
+    writeJson(response, 200, { ok: true, value: rulesValue(options) })
+    return true
+  }
+  if (isMethod(method, request, 'rules/test', 'POST')) {
+    await handleRulesTest(request, response, options)
+    return true
+  }
+  if (isMethod(method, request, 'rules', 'POST')) {
+    await handleRulesSave(request, response, control)
+    return true
+  }
   return false
 }
 
@@ -98,7 +112,76 @@ function statusValue(store, options) {
     mode: options.mode,
     poisonScan: options.poisonScan,
     injection: options.injection,
+    customRulesCount: Array.isArray(options.customRules) ? options.customRules.length : 0,
+    notifyEnabled: options.notifyEnabled === true,
+    notifyCooldownMs: options.notifyCooldownMs,
   }
+}
+
+/** 规则列表：内置规则 + 用户自定义规则（设置页展示 + 测试）。 */
+function rulesValue(options) {
+  return {
+    builtin: DESTRUCTIVE_PATTERNS.map((pattern) => ({
+      id: pattern.id,
+      source: 'builtin',
+      message: pattern.message,
+    })),
+    custom: rawRulesOf(options.customRules),
+    notifyEnabled: options.notifyEnabled === true,
+    notifyCooldownMs: options.notifyCooldownMs,
+  }
+}
+
+/** 规则测试：输入命令 → 返回命中的内置/自定义规则 + 合并决策。 */
+async function handleRulesTest(request, response, options) {
+  const payload = await readJsonBody(request)
+  const command = typeof payload.command === 'string' ? payload.command : ''
+  if (command === '') {
+    writeJson(response, 400, { ok: false, error: { message: 'command required' } })
+    return
+  }
+  const hits = []
+  for (const pattern of DESTRUCTIVE_PATTERNS) {
+    if (pattern.re.test(command)) {
+      hits.push({ id: pattern.id, source: 'builtin', mode: options.mode, severity: 'high', message: pattern.message })
+    }
+  }
+  for (const rule of options.customRules) {
+    if (rule.regex.test(command)) {
+      hits.push({
+        id: rule.id,
+        source: 'custom',
+        mode: rule.mode !== '' ? rule.mode : options.mode,
+        severity: rule.severity,
+        message: rule.message,
+      })
+    }
+  }
+  const decision = decideDestructive(command, options)
+  writeJson(response, 200, {
+    ok: true,
+    value: {
+      command,
+      hits,
+      decision: decision === null ? null : { mode: decision.mode, severity: decision.severity },
+    },
+  })
+}
+
+/** 保存自定义规则 + 通知设置：校验 → 持久化 patch → 更新内存（saveConfig）。 */
+async function handleRulesSave(request, response, control) {
+  if (control === undefined || typeof control.saveConfig !== 'function') {
+    writeJson(response, 400, { ok: false, error: { message: 'config not available' } })
+    return
+  }
+  const payload = await readJsonBody(request)
+  const next = {
+    customRules: payload.customRules,
+    notifyEnabled: payload.notifyEnabled,
+    notifyCooldownMs: payload.notifyCooldownMs,
+  }
+  const result = await control.saveConfig(next)
+  writeJson(response, 200, { ok: true, value: result })
 }
 
 /** 投毒扫描：body { target }（包名或本地路径/tarball 路径）。 */

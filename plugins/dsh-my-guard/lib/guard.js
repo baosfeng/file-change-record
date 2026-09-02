@@ -2,18 +2,20 @@
  * dsh-my-guard — pre-execute guard（执行前护栏）。
  *
  * 监听 `tools/pre-execute`（waterfall）：
- *  - 破坏性命令检测：bash 工具 command 匹配 DESTRUCTIVE_PATTERNS →
- *    记录告警（high）；模式为 ask 时返回 `{ kind: 'ask', reason }` 触发
- *    DSH 原生审批确认，模式为 deny 时返回 `{ kind: 'deny', reason }`
- *    直接拦截；默认 observe 只读观察（透传 next()，不改变工具流程）。
+ *  - 破坏性命令检测：bash 工具 command 匹配内置破坏性模式 + 用户自定义
+ *    护栏规则（issue #88，合并生效）→ 记录告警（内置 high / 自定义按规
+ *    则严重级）；合并决策 mode（命中的全部规则中最严格者，见 custom-rules.js）
+ *    为 deny 时返回 `{ kind: 'deny', reason }` 直接拦截，为 ask 时返回
+ *    `{ kind: 'ask', reason }` 触发 DSH 原生审批确认；否则透传 next()。
  *  - 投毒扫描联动：命令含 `dsh plugin add <pkg>` 时异步扫描包内容
  *    （fire-and-forget，不阻塞 waterfall），发现可疑内容记录告警。
  *
  * ⚠️ waterfall 契约：监听器必须先 `await next()` 拿到下游决策再决定
- * 是否覆盖；observe 模式一律原样返回下游决策。绝不吞掉 next()。
+ * 是否覆盖；默认 observe/未命中时一律原样返回下游决策。绝不吞掉 next()。
  */
-import { DESTRUCTIVE_PATTERNS, GUARD_MODES } from './constants.js'
+import { GUARD_MODES } from './constants.js'
 import { scanPackageTarget } from './poison.js'
+import { decideDestructive, firstBuiltinMatch, matchCustomRules } from './custom-rules.js'
 
 /** 注册执行前护栏监听器；返回 disposer。 */
 export function attachGuardListener(ctx, options, recordAlert) {
@@ -26,23 +28,23 @@ export function attachGuardListener(ctx, options, recordAlert) {
     if (pkg !== '' && options.poisonScan !== false) {
       void scanPackageTarget(pkg, (alert) => recordAlert({ ...alert, sessionId }))
     }
-    const hit = detectDestructive(command)
+    const hit = decideDestructive(command, options)
     if (hit !== null) {
       recordAlert({
         type: 'destructive',
         sessionId,
-        severity: 'high',
-        message: hit.message,
-        detail: { command: truncateCommand(command), pattern: hit.id },
+        severity: hit.severity,
+        message: hit.primary.message,
+        detail: { command: truncateCommand(command), pattern: hit.primary.id },
       })
-      if (options.mode === 'ask') {
+      if (hit.mode === 'ask') {
         return {
           kind: 'ask',
-          reason: `安全护栏：检测到破坏性命令（${hit.message}），请确认是否执行`,
+          reason: `安全护栏：检测到破坏性命令（${hit.primary.message}），请确认是否执行`,
         }
       }
-      if (options.mode === 'deny') {
-        return { kind: 'deny', reason: `安全护栏：已拦截破坏性命令（${hit.message}）` }
+      if (hit.mode === 'deny') {
+        return { kind: 'deny', reason: `安全护栏：已拦截破坏性命令（${hit.primary.message}）` }
       }
     }
     return decision
@@ -64,12 +66,15 @@ export function sessionIdOf(exec) {
   return agent !== null && typeof agent === 'object' && typeof agent.id === 'string' ? agent.id : ''
 }
 
-/** 破坏性命令检测：返回首个命中模式（无命中返回 null）。 */
-export function detectDestructive(command) {
-  for (const pattern of DESTRUCTIVE_PATTERNS) {
-    if (pattern.re.test(command)) return pattern
-  }
-  return null
+/**
+ * 破坏性命令检测：返回首个命中规则对象（内置优先，其次自定义，兼容原契约）。
+ * customRules 为已编译的自定义规则列表（缺省 []）。
+ */
+export function detectDestructive(command, customRules = []) {
+  const builtinHit = firstBuiltinMatch(command)
+  if (builtinHit !== null) return builtinHit
+  const customHits = matchCustomRules(command, customRules)
+  return customHits.length > 0 ? customHits[0] : null
 }
 
 /** 从 bash 命令提取 `dsh plugin add <pkg>` 的包名（无命中返回空串）。 */

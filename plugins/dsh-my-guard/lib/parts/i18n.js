@@ -55,4 +55,36 @@ const strings = {
   modeObserve: () => (isZh() ? '观察（只告警）' : 'Observe'),
   modeAsk: () => (isZh() ? '确认（审批）' : 'Ask'),
   modeDeny: () => (isZh() ? '拦截' : 'Deny'),
+  // ── 自定义护栏规则 + 告警通知（issue #88）───────────────────────────
+  rulesTitle: () => (isZh() ? '自定义护栏规则' : 'Custom guard rules'),
+  rulesHint: () =>
+    isZh()
+      ? '添加自定义 bash 危险模式（正则），与内置规则合并生效；命中取最严格模式'
+      : 'Add custom bash danger patterns (regex); merged with built-in rules; most-restrictive mode wins',
+  addRule: () => (isZh() ? '添加规则' : 'Add rule'),
+  saveRules: () => (isZh() ? '保存规则' : 'Save rules'),
+  deleteRule: () => (isZh() ? '删除' : 'Delete'),
+  deleteRuleAria: () => (isZh() ? '删除此规则' : 'Delete this rule'),
+  patternPlaceholder: () => (isZh() ? '正则，如 touch /etc/evil' : 'regex, e.g. touch /etc/evil'),
+  descriptionPlaceholder: () => (isZh() ? '描述（可选）' : 'description (optional)'),
+  severityLabel: () => (isZh() ? '严重级' : 'Severity'),
+  notifyLabel: () => (isZh() ? '告警通知' : 'Alert notification'),
+  notifyHint: () => (isZh() ? '高严重级告警经 dsh-my-notify 推送' : 'High-severity alerts pushed via dsh-my-notify'),
+  cooldownLabel: () => (isZh() ? '冷却(秒)' : 'Cooldown (s)'),
+  saveRulesOk: () => (isZh() ? '规则已保存（已生效）' : 'Rules saved (active)'),
+  droppedRule: (count) =>
+    isZh()
+      ? `已保存 ${count} 条，丢弃 ${count} 条非法规则（正则无效/缺 pattern）`
+      : `Saved, ${count} invalid rule(s) dropped`,
+  loadRulesError: () => (isZh() ? '规则加载失败' : 'Failed to load rules'),
+  noCommand: () => (isZh() ? '请输入命令' : 'Enter a command'),
+  ruleTestTitle: () => (isZh() ? '规则测试' : 'Rule test'),
+  ruleTestPlaceholder: () => (isZh() ? '输入命令，预览命中哪些规则…' : 'type a command to preview matching rules…'),
+  ruleTest: () => (isZh() ? '测试' : 'Test'),
+  ruleTestResult: () => (isZh() ? '命中规则' : 'Matching rules'),
+  noRuleHit: () => (isZh() ? '未命中任何护栏规则' : 'No guard rule matched'),
+  ruleHitSource: (source) => (isZh() ? (source === 'builtin' ? '内置' : '自定义') : source),
+  effectiveDecision: () => (isZh() ? '合并决策' : 'Effective'),
+  emptyRules: () =>
+    isZh() ? '暂无自定义规则——点击「添加规则」创建' : 'No custom rules — click "Add rule" to create one',
 }

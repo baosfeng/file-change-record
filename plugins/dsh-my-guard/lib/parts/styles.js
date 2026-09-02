@@ -83,6 +83,22 @@ const STYLES = `
 .dsh-my-guard-issue-low .dsh-my-guard-issue-sev{color:var(--dsw-alias-state-info-primary)}
 .dsh-my-guard-issue-rule{font:var(--dsw-font-mono-xxs);font-size:11px;color:var(--dsw-alias-label-secondary)}
 .dsh-my-guard-issue-msg{color:var(--dsw-alias-label-primary);line-height:1.5}
+/* ── 自定义护栏规则 + 告警通知（issue #88）── */
+.dsh-my-guard-rules-section{gap:8px}
+.dsh-my-guard-rules-hint{font:var(--dsw-font-xxxs-11);color:var(--dsw-alias-label-tertiary);line-height:1.6}
+.dsh-my-guard-empty-rules{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary);padding:4px 2px}
+.dsh-my-guard-rule-list{display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto}
+.dsh-my-guard-rule-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.dsh-my-guard-rule-row .dsh-my-guard-input{flex:1;min-width:120px}
+.dsh-my-guard-rule-select{flex:0 0 auto;width:86px}
+.dsh-my-guard-rule-desc{flex:2}
+.dsh-my-guard-notify-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.dsh-my-guard-check{display:inline-flex;align-items:center;gap:6px;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-primary);cursor:pointer}
+.dsh-my-guard-check input{accent-color:var(--dsw-alias-interactive-primary)}
+.dsh-my-guard-cooldown{display:inline-flex;align-items:center;gap:6px;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-primary)}
+.dsh-my-guard-cooldown-input{flex:0 0 auto;width:64px}
+.dsh-my-guard-notify-hint{font:var(--dsw-font-xxxs-11);color:var(--dsw-alias-label-tertiary)}
+.dsh-my-guard-effective{color:var(--dsw-alias-label-primary);font:var(--dsw-font-xxxs-strong-11)}
 `
 
 function injectStyles() {

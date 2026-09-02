@@ -2,6 +2,14 @@
 
 本文件记录 dsh-my-guard 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 新增
+
+- feat(guard): 自定义护栏规则（正则 + 模式 + 严重级）与内置规则合并生效；配置持久化到 profile patch；设置页可视化编辑（issue #88）
+- feat(guard): 高严重级告警经 dsh-my-notify 推送通知（可选 `notifyEnabled` 开关）+ 同类型告警冷却（`notifyCooldownMs`）防刷屏（issue #88）
+- feat(guard): 面板「规则测试」入口——输入命令实时预览命中规则与合并决策（issue #88）
+
 ## [0.1.2] - 2026-09-01
 
 ### 变更

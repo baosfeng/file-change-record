@@ -32,6 +32,7 @@ const PARTS = [
   ['/*__PART_ICONS__*/', 'icons.part.js', { shared: true }],
   ['/*__PART_PANEL__*/', 'panel.js'],
   ['/*__PART_STATES__*/', 'states.js'],
+  ['/*__PART_RULES__*/', 'rules-panel.js'],
   ['/*__PART_STYLES__*/', 'styles.js'],
 ]
 

@@ -334,5 +334,7 @@ function GuardPanel(props) {
     createElement('div', { className: 'dsh-my-guard-timeline' }, rows),
     createElement(ScanTool, null),
     createElement(PromptTool, null),
+    createElement(RuleTest, null),
+    createElement(RuleSettings, null),
   )
 }

@@ -31,6 +31,7 @@ window.__ModuleLoader__.load({
     /*__PART_ICONS__*/
     /*__PART_PANEL__*/
     /*__PART_STATES__*/
+    /*__PART_RULES__*/
     /*__PART_STYLES__*/
 
     // ── 插件体：样式注入 + 页签注册 ─────────────────────────────────────
