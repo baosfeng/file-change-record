@@ -1,7 +1,7 @@
 # 发版前功能级验证清单 — dsh-my-notify@0.3.7
 
-验证时间：2026-09-02T02:17:24.728Z
-验证环境：隔离实例（端口 3081，复用生产 profile 配置组合，独立 DSH_HOME）
+验证时间：2026-09-02T03:01:54.531Z
+验证环境：隔离实例（端口 3087，复用生产 profile 配置组合，独立 DSH_HOME）
 
 ## 自动验证项（verify-real-profile.mjs 自动执行）
 
@@ -36,5 +36,5 @@
   修复后真实浏览器 console 无错误、通知链路完整可用。
 - **测试**：vitest 59 passed（含新增「多标签页并发 claim 只弹一次」回归用例）+
   cucumber 17 scenarios/99 steps 全绿；`node --check` 通过。
-- **真实浏览器**：隔离实例 3081 双标签页（共享 localStorage/Web Locks）并发触发
+- **真实浏览器**：隔离实例双标签页（共享 localStorage/Web Locks）并发触发
   远程通知 H1/H2：均只弹一次；本地窗口去重、窗口过期重弹、多标签页静默均符合预期。
