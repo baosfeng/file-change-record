@@ -1,6 +1,7 @@
 # language: zh-CN
 # 需求来源：docs/Skill管理/需求清单.md（R1-R8）+ issue #29（项目视图过滤 / 刷新 / 诊断）
-# 验收基准：test/host-api.mjs、test/client-render.mjs、test/diagnose.mjs 的 Gherkin 化表达
+# + issue #91（使用统计）
+# 验收基准：test/host-api.mjs、test/client-render.mjs、test/diagnose.mjs、test/usage.mjs 的 Gherkin 化表达
 
 功能: Skill 管理视图与扫描诊断
   作为使用 DSH 设置面板的用户
@@ -41,3 +42,10 @@
     当 查询全局 skill 列表
     那么 全局禁用名单为 '["web-search"]'
     并且 保存操作使 skill 目录缓存失效
+
+  场景: skill 使用统计（issue #91）
+    假如 skill "web-search" 被加载 2 次
+    当 查询全局 skill 列表
+    那么 列表附带使用统计
+    并且 "web-search" 的使用次数为 2
+    并且 "web-search" 的使用来源为 "user"

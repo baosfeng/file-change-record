@@ -10,12 +10,16 @@
  *    解析项目配置，因此禁用可按项目生效、也可在项目内禁用全局 skill。
  *  - 配置：全局 `$DSH_HOME/skills.enabled.json` + 项目
  *    `<projectRoot>/.dsh/skills.enabled.json`（随仓库版本化）。
+ *  - 使用统计（issue #91）：包装 `ctx.skills.get()`——skill 正文被加载
+ *    （模型 skill 工具 / 用户 /name 手势注入）即计数；`tools/pre-execute`
+ *    标记模型来源；持久化 `$DSH_HOME/skills.usage.json`（防抖 + 原子写）。
  *  - Client：官方 slots 注册「设置 → 插件」下的 Skill 管理页签（纯官方
  *    依赖，不依赖 dsh-better-sidebar）。
  */
 import { isTrustedApiRequest } from 'dsh-shared'
 import { createApiHandler } from './api-route.js'
 import { createDisablerProvider } from './provider.js'
+import { createUsageStore, recordUsage, usageFile } from './usage.js'
 
 export const name = 'dsh-my-skill-manager'
 
@@ -30,13 +34,54 @@ export function apply(ctx) {
   })
   ctx.effect(() => disposer, 'dsh-my-skill-manager: disabler provider')
 
+  // 使用统计（issue #91）：包装 ctx.skills.get——成功加载 skill 正文即计数。
+  // 来源判定：tools/pre-execute 标记最近一次模型 skill 工具调用；get 命中
+  // 该标记记 model，否则记 user（用户 /name 手势注入等）。
+  const usage = createUsageStore({ file: usageFile(), logger: ctx.logger })
+  let pendingModelSkill = null
+  const originalGet = ctx.skills?.get
+  if (typeof originalGet === 'function') {
+    const boundGet = originalGet.bind(ctx.skills)
+    ctx.skills.get = async (name, options) => {
+      const skill = await boundGet(name, options)
+      const source = pendingModelSkill === name ? 'model' : 'user'
+      if (pendingModelSkill === name) pendingModelSkill = null
+      if (skill !== undefined) recordUsage(usage, name, source)
+      return skill
+    }
+  }
+  const usageDisposers = [
+    ctx.on('tools/pre-execute', (exec, next) => {
+      if (
+        exec !== null &&
+        typeof exec === 'object' &&
+        exec.name === 'skill' &&
+        typeof exec.arguments?.name === 'string'
+      ) {
+        pendingModelSkill = exec.arguments.name
+      }
+      return next()
+    }),
+  ]
+  ctx.effect(
+    () => () => {
+      for (const dispose of usageDisposers) {
+        if (typeof dispose === 'function') dispose()
+      }
+      if (typeof originalGet === 'function' && ctx.skills !== null && ctx.skills !== undefined) {
+        ctx.skills.get = originalGet
+      }
+    },
+    'dsh-my-skill-manager: usage listeners',
+  )
+
   const fence = (request) => isTrustedApiRequest(request, ctx.webRuntime.trustedHosts)
   ctx.effect(
     () =>
       ctx.webServer.register({
         kind: 'prefix',
         path: '/my-skill-manager/api',
-        handler: createApiHandler({ ctx, invalidate, fence }),
+        handler: createApiHandler({ ctx, invalidate, fence, usage }),
       }),
     'dsh-my-skill-manager: /my-skill-manager/api routes',
   )

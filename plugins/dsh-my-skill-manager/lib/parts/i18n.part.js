@@ -51,4 +51,19 @@ const strings = {
           unparseable: 'frontmatter 解析失败或字段异常（官方扫描器未收录）',
         }[reason] ?? reason)
       : reason,
+  // ── usage statistics (issue #91) ──────────────────────────────────────
+  usageCount: (n) => (isZh() ? `使用 ${n} 次` : `Used ${n} times`),
+  usageNever: () => (isZh() ? '未使用' : 'Never used'),
+  usageLast: (t) => (isZh() ? `最近 ${t}` : `Last used ${t}`),
+  usageSourceModel: () => (isZh() ? '模型' : 'model'),
+  usageSourceUser: () => (isZh() ? '用户' : 'user'),
+  sortName: () => (isZh() ? '名称' : 'Name'),
+  sortCount: () => (isZh() ? '次数' : 'Uses'),
+  sortLastUsed: () => (isZh() ? '最近' : 'Recent'),
+  unusedOnly: () => (isZh() ? '未使用' : 'Unused'),
+  unusedOnlyHint: () => (isZh() ? '只看未使用的 skill' : 'Show only unused skills'),
+  usageHint: () =>
+    isZh()
+      ? '使用统计记录 skill 被加载/注入的次数与最近时间（模型 skill 工具 / 用户 /name 手势），持久化于 $DSH_HOME/skills.usage.json'
+      : 'Usage tracks how often a skill was loaded/injected (model skill tool / user /name gesture), persisted in $DSH_HOME/skills.usage.json',
 }

@@ -51,13 +51,13 @@ const stubbed = {
 const effectState = { ran: false }
 
 /**
- * SkillManagerView 的 useState 数量（data/view/sessionCwd/loading/error/saved）。
- * 辅助函数（walkText/collectByClass/collectButtons）展开函数组件时会消耗全局
- * hookIndex——若不重置，DiagnosticsBlock 的 useState 会被分配多个影子索引，
- * 点击的 setter 与渲染读取的索引错位（issue #69 测试实测）。展开时重置为
- * 真实渲染的继续位置，保证每次展开复用同一索引。
+ * SkillManagerView 的 useState 数量（data/view/sessionCwd/loading/error/saved/
+ * sortBy/unusedOnly）。辅助函数（walkText/collectByClass/collectButtons）展开
+ * 函数组件时会消耗全局 hookIndex——若不重置，DiagnosticsBlock 的 useState
+ * 会被分配多个影子索引，点击的 setter 与渲染读取的索引错位（issue #69 测试
+ * 实测）。展开时重置为真实渲染的继续位置，保证每次展开复用同一索引。
  */
-const VIEW_HOOK_COUNT = 6
+const VIEW_HOOK_COUNT = 8
 
 /** Render the tab component once (hooks restart at index 0 each render). */
 function renderView() {
@@ -124,6 +124,7 @@ assert.equal(capturedTab.options.id, 'my-skill-manager')
 assert.equal(typeof capturedTab.component, 'function')
 
 // ── render the view with a canned catalog response ─────────────────────────
+const USED_AT = new Date(2026, 8, 2, 10, 30).getTime()
 const catalog = {
   ok: true,
   value: {
@@ -140,6 +141,9 @@ const catalog = {
     ],
     global: { disabled: ['web-search'] },
     project: [],
+    usage: {
+      'web-search': { count: 3, lastUsedAt: USED_AT, lastSource: 'model' },
+    },
   },
 }
 cannedResponses.push(catalog)
@@ -187,6 +191,14 @@ assert.ok(joined.includes('已禁用'), 'disabled chip rendered for web-search')
 assert.ok(joined.includes('启用'), 'enabled chip rendered for codebase-memory')
 assert.ok(joined.includes('全局（user-dsh）'), 'source note rendered in meta line')
 assert.ok(joined.includes('项目（project-dsh）'), 'project source note rendered in meta line')
+
+// ── issue #91: usage statistics rendered in the meta line ─────────────────
+assert.ok(joined.includes('使用 3 次'), 'usage count rendered for the used skill')
+assert.ok(joined.includes('最近 09-02 10:30'), 'last used time rendered')
+assert.ok(joined.includes('模型'), 'model source rendered')
+assert.ok(joined.includes('未使用'), 'never-used skill marked in the meta line')
+assert.ok(joined.includes('次数'), 'count sort segment rendered')
+assert.ok(joined.includes('最近'), 'last-used sort segment rendered')
 
 const listCall = fetchCalls[0]
 assert.ok(listCall.url.startsWith('/my-skill-manager/api/list'), 'initial list fetch')
@@ -389,6 +401,58 @@ assert.ok(projPut, 'project toggle issues a PUT config call')
 const projPayload = JSON.parse(projPut.options.body)
 assert.equal(projPayload.scope, 'project', 'project scope saved')
 assert.equal(projPayload.cwd, '/work/proj', 'project save carries the session cwd')
+
+// ── issue #91: sort + unused filter interactions ───────────────────────────
+// 重置排序/过滤状态并重新挂载（全局视图，无会话）
+hookValues.set(6, ['name', hookValues.get(6)[1]])
+hookValues.set(7, [false, hookValues.get(7)[1]])
+storedSession = null
+effectState.ran = false
+cannedResponses.push(catalog) // initial list (global view, no session)
+renderView()
+await new Promise((resolve) => setTimeout(resolve, 0))
+
+const treeS = renderView()
+const sortSegs = []
+collectByClass(treeS, 'dsh-my-skill-manager-sortseg', sortSegs)
+assert.equal(sortSegs.length, 3, 'three sort segments (name/count/lastUsed)')
+assert.equal(sortSegs[0].props['aria-pressed'], true, 'name sort active by default')
+const rowNames = []
+collectByClass(treeS, 'dsh-my-skill-manager-name', rowNames)
+assert.deepEqual(
+  rowNames.map((n) => n.props.children),
+  ['codebase-memory', 'web-search'],
+  'name sort order (alphabetical)',
+)
+
+// 点击「次数」排序：使用过的 skill 排到前面
+sortSegs[1].props.onClick()
+const treeS2 = renderView()
+const rowNames2 = []
+collectByClass(treeS2, 'dsh-my-skill-manager-name', rowNames2)
+assert.deepEqual(
+  rowNames2.map((n) => n.props.children),
+  ['web-search', 'codebase-memory'],
+  'count sort puts the used skill first',
+)
+
+// 点击「未使用」过滤：只显示未使用的 skill
+const unusedBtn = []
+collectByClass(treeS2, 'dsh-my-skill-manager-unused', unusedBtn)
+assert.equal(unusedBtn.length, 1, 'unused filter button rendered')
+assert.equal(unusedBtn[0].props['aria-pressed'], false, 'unused filter off by default')
+unusedBtn[0].props.onClick()
+const treeS3 = renderView()
+const rowNames3 = []
+collectByClass(treeS3, 'dsh-my-skill-manager-name', rowNames3)
+assert.deepEqual(
+  rowNames3.map((n) => n.props.children),
+  ['codebase-memory'],
+  'unused filter shows only unused skills',
+)
+const unusedBtn2 = []
+collectByClass(treeS3, 'dsh-my-skill-manager-unused', unusedBtn2)
+assert.equal(unusedBtn2[0].props['aria-pressed'], true, 'unused filter on after click')
 
 console.log('ALL SKILL-MANAGER CLIENT RENDER-PATH TESTS PASSED')
 

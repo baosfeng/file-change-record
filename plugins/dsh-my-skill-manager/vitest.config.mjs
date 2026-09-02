@@ -16,6 +16,7 @@ export default defineConfig({
         'lib/fence.js',
         'lib/http.js',
         'lib/diagnose.js',
+        'lib/usage.js',
       ],
     },
   },
