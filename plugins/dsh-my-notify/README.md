@@ -6,7 +6,7 @@
   <img alt="远程触发通知：页面右下角 toast 卡片（通知权限未授予时的兜底呈现）" src="https://unpkg.com/dsh-my-notify/assets/notify-toast.png" width="640" />
 </div>
 
-**DSH 通知提醒插件**：在**会话（本轮对话）结束**、**agent 询问问题**（`ask_user_question`）、**等待你要批准**（审批请求）时，发出**浏览器系统通知 + 提示音（滴一声）**；点击通知直接**跳转到对应会话**。预留了**远程 hook 触发接口**——任意进程 / cron / CI / webhook 都能推送自定义通知。
+**DSH 通知提醒插件**：在**会话（本轮对话）结束**、**agent 询问问题**（`ask_user_question`）、**等待你要批准**（审批请求）时，发出**浏览器系统通知 + 提示音（滴一声）**；点击通知直接**跳转到对应会话**。预留了**远程 hook 触发接口**——任意进程 / cron / CI / webhook 都能推送自定义通知。支持**出站 webhook**——事件发生时自动推送到**企微 / 飞书 / 钉钉**群机器人，离开电脑手机也能收到。
 
 ## 功能
 
@@ -58,11 +58,29 @@ curl -X POST http://127.0.0.1:3080/notify/api/trigger \
   ```
 - 后续扩展（监听任意 DSH 事件、出站 webhook 等）都建议复用该接口 + 同一条 SSE 通道，互不干扰。
 
+### 4. 出站 Webhook（推送到企微 / 飞书 / 钉钉机器人）
+
+离开电脑也能收到通知：配置**出站 webhook** 后，`end` / `ask` / `approval` / `remote` 事件发生时自动推送到**企业微信 / 飞书 / 钉钉**群机器人（或自建通用中转），手机即可收到。
+
+- **多 webhook 配置**：每个包含名称、渠道（`wecom` / `feishu` / `dingtalk` / `generic`）、webhook URL、可选签名密钥、触发事件多选（end / ask / approval / remote）、启用开关；
+- **渠道适配**（消息格式 + 签名自动处理）：
+
+| 渠道     | 消息类型        | 签名方式                                                                          |
+| -------- | --------------- | --------------------------------------------------------------------------------- |
+| 企业微信 | text / markdown | 可选加签：`sha256(timestamp + '\n' + secret)`，URL 参数 `timestamp`+`sign`        |
+| 飞书     | text / post     | 签名校验：`base64(hmac_sha256(key=secret, timestamp + '\n' + secret))`，body 字段 |
+| 钉钉     | text / markdown | 加签：`base64(hmac_sha256(key=secret, timestamp + '\n' + secret))`，URL 参数      |
+| 通用     | 原始通知帧 JSON | 无签名（自建中转）                                                                |
+
+- **失败处理**：推送失败自动重试 3 次（指数退避 1s/2s/4s），全部失败记录到**失败记录**（设置页可见，最多保留 50 条）；
+- **配置持久化**：webhooks 保存到 `$DSH_HOME/profiles/<profile>/notify-webhooks.json`（原子写），保存即生效、重启不丢。
+
 ## 工作原理
 
 - **Server 端**（`lib/index.js`）：
   - 监听 `agent/status`（idle → `end`）、`tools/pre-execute`（`ask_user_question` → `ask`，透传 `next()` 不影响工具执行）、`approval/request`（→ `approval`，透传 `next()` 不影响审批流程）；
-  - 通过 `webServer.register` 提供 `/notify/api` 前缀路由：`GET /stream`（SSE 长连接，EventSource 消费，25s 心跳）、`POST /trigger`（远程触发）、`GET /info`（开关状态）；
+  - 通过 `webServer.register` 提供 `/notify/api` 前缀路由：`GET /stream`（SSE 长连接，EventSource 消费，25s 心跳）、`POST /trigger`（远程触发）、`GET /info`（开关状态）、`GET/PUT /config`（配置读写，含 webhooks）、`GET /webhooks`（出站 webhook 列表 + 失败记录）；
+  - 通知出口（`emitNotice`）广播 SSE 的同时按配置分发到出站 webhook（`lib/webhook/`：`adapters.js` 渠道适配 + `pusher.js` 推送调度，5s 超时 + 3 次指数退避重试 + 失败记录）；
   - 所有请求先过 **loopback 信任围栏**（与 DSH `/api` 网关一致契约）；配置 `apiToken` 后 trigger 再校验 `x-notify-token`；
   - 可选服务（`webRuntime` / `sessionTitle`）经 `ctx.get` 读取——`sessionTitle` 提供真实会话标题，缺失时回退工作目录名 / 会话短 id。
 - **Client 端**（`lib/client.js`）：`EventSource('/notify/api/stream')` 实时接收帧 → 系统通知 / 提示音 / toast → 点击跳转；样式走 DSH 语义 token，随 fiber 卸载（无残留）。
@@ -102,8 +120,11 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-my-notify
 所有配置项也可在 **设置 → 插件 → 通知提醒** 页签中可视化查看和编辑（官方 slots 扩展点，无需手动编辑配置文件）：
 
 - **触发开关**：会话结束 / 询问 / 审批 / 子代理完成 四个开关；
+- **出站 Webhook**：webhook 列表（名称/渠道/事件/启用开关）+ 添加/编辑/删除（名称、渠道、URL、签名密钥、触发事件多选、消息类型）+ **推送失败记录**；
 - **高级**：远程触发 Token（文本）、去重窗口（毫秒，数字）；
-- 点击「保存」即生效（写入 `$DSH_HOME/profiles/<profile>/cordis.patch.yml`，DSH 热重载 + 内存即时更新），重启不丢。
+- 点击「保存」即生效（标量配置写入 `$DSH_HOME/profiles/<profile>/cordis.patch.yml`，DSH 热重载 + 内存即时更新；webhooks 对象数组单独写入 `notify-webhooks.json`），重启不丢。
+
+> 💡 **webhooks 也可在 `cordis.patch.yml` 的 `config.webhooks` 直接配置**（应用层配置优先于设置页保存值），字段：`name`（必填）、`channel`（`wecom`/`feishu`/`dingtalk`/`generic`）、`url`（必填）、`secret`（可选）、`events`（`end`/`ask`/`approval`/`remote` 数组，空 = 全部）、`enabled`（默认 true）、`msgType`（`text`/`markdown`/`post`，默认 text）。
 
 ## 依赖
 

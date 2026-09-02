@@ -31,6 +31,7 @@ const PARTS = [
   ['/*__PART_NOTIFY_RENDER__*/', 'render.js'],
   ['/*__PART_STREAM__*/', 'stream.js'],
   ['/*__PART_SETTINGS__*/', 'settings.js'],
+  ['/*__PART_WEBHOOK_SETTINGS__*/', 'webhook-settings.js'],
 ]
 
 let src = readFileSync(join(root, 'lib/client.src.js'), 'utf8')

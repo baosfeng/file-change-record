@@ -16,8 +16,9 @@ import fs from 'node:fs'
 
 /** Eval the settings part source in a factory scope and return SETTINGS_STYLES. */
 function loadSettingsStyles() {
+  const webhookSrc = fs.readFileSync(new URL('../lib/parts/webhook-settings.js', import.meta.url), 'utf8')
   const src = fs.readFileSync(new URL('../lib/parts/settings.js', import.meta.url), 'utf8')
-  const factory = new Function(`${src}\nreturn { SETTINGS_STYLES }`)
+  const factory = new Function(`${webhookSrc}\n${src}\nreturn { SETTINGS_STYLES }`)
   return factory().SETTINGS_STYLES
 }
 

@@ -48,6 +48,9 @@ window.__ModuleLoader__.load({
     // ── 设置页视图：配置可视化（issue #27，官方 slots 扩展点）───────────
     /*__PART_SETTINGS__*/
 
+    // ── 设置页：出站 webhook 可视化编辑（issue #92）────────────────────
+    /*__PART_WEBHOOK_SETTINGS__*/
+
     return module.exports
   },
 })
