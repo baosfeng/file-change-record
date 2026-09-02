@@ -2,6 +2,15 @@
 
 本文件记录 dsh-file-activity 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.5.5] - 2026-09-02
+
+### 变更
+
+- fix(scripts): #72 插件依赖未随安装自动安装（dsh-shared 未发布 npm） (#96)
+- fix(file-activity): 浮窗预览失焦自动关闭（issue #76） (#95)
+- fix(file-activity): #72 补充 dsh-better-sidebar 级联安装——dependencies 声明 + 缺失提示
+- style: prettier 全量格式修复（CI 格式门禁）
+
 ## [Unreleased]
 
 ### 变更
