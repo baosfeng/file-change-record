@@ -53,9 +53,28 @@ div.dsh-md-render-math-error{margin:0;text-align:center;justify-content:center;p
    半截内容。 */
 .md-code-block{position:relative}
 .tzx-md{position:relative}
-.md-code-block>.dsh-md-render-copy,.tzx-md>.dsh-md-render-copy{position:absolute;right:8px;bottom:8px;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font:var(--dsw-font-xxxs-11);line-height:20px;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:6px;cursor:pointer;opacity:0;transition:opacity var(--ds-transition-duration-slow) var(--ds-ease-in-out),color var(--ds-transition-duration-slow) var(--ds-ease-in-out),border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
-.md-code-block:hover>.dsh-md-render-copy,.tzx-md:hover>.dsh-md-render-copy{opacity:1}
+.dsh-md-render-copy{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font:var(--dsw-font-xxxs-11);line-height:20px;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:6px;cursor:pointer;opacity:0;transition:opacity var(--ds-transition-duration-slow) var(--ds-ease-in-out),color var(--ds-transition-duration-slow) var(--ds-ease-in-out),border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+.dsh-md-render-code-head>.dsh-md-render-copy{margin-left:auto}
+.tzx-md>.dsh-md-render-copy{position:absolute;right:8px;bottom:8px}
+.md-code-block:hover .dsh-md-render-copy,.tzx-md:hover>.dsh-md-render-copy{opacity:1}
 .dsh-md-render-copy:hover{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l2)}
 .dsh-md-render-copy-done{color:var(--dsw-alias-state-success-primary);border-color:var(--dsw-alias-state-success-primary)}
 [data-streaming] .dsh-md-render-copy{display:none}
+/* ── 代码块增强（issue #80）：头部语言标签 + 行号 + 语法高亮 ──
+   header 行与复制按钮（#74）同排；行号用 CSS counter 伪元素（不污染
+   pre/code 文本内容，mermaid/复制读取原文本不受影响）；token 类走
+   固定色板 + prefers-color-scheme 深浅两套，随 activation 注入/卸载。 */
+.dsh-md-render-code-head{display:flex;align-items:center;gap:8px;padding:4px 8px;font:var(--dsw-font-xxxs-11);line-height:20px;color:var(--dsw-alias-label-secondary);background:color-mix(in srgb,var(--dsw-alias-bg-layer-2) 55%,transparent);border:1px solid var(--dsw-alias-border-l1);border-bottom:none;border-radius:8px 8px 0 0}
+.dsh-md-render-code-lang{text-transform:lowercase;letter-spacing:.02em;user-select:none}
+.md-code-block .tzx-pre{border-top:none;border-radius:0 0 8px 8px}
+.tzx-md .tzx-pre code{display:block;white-space:normal;counter-reset:dsh-md-render-line}
+.dsh-md-render-code-line{display:block;white-space:pre;position:relative;padding-left:3.5em;counter-increment:dsh-md-render-line}
+.dsh-md-render-code-line::before{content:counter(dsh-md-render-line);position:absolute;left:0;width:3em;text-align:right;color:var(--dsw-alias-label-tertiary);user-select:none}
+.md-code-block{--dsh-md-render-c-kw:#7c3aed;--dsh-md-render-c-str:#16a34a;--dsh-md-render-c-com:#94a3b8;--dsh-md-render-c-num:#dc2626;--dsh-md-render-c-fn:#2563eb}
+.dsh-md-render-tok-keyword{color:var(--dsh-md-render-c-kw)}
+.dsh-md-render-tok-string{color:var(--dsh-md-render-c-str)}
+.dsh-md-render-tok-comment{color:var(--dsh-md-render-c-com);font-style:italic}
+.dsh-md-render-tok-number{color:var(--dsh-md-render-c-num)}
+.dsh-md-render-tok-function{color:var(--dsh-md-render-c-fn)}
+@media (prefers-color-scheme:dark){.md-code-block{--dsh-md-render-c-kw:#c4b5fd;--dsh-md-render-c-str:#86efac;--dsh-md-render-c-com:#64748b;--dsh-md-render-c-num:#f87171;--dsh-md-render-c-fn:#93c5fd}}
 `

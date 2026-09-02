@@ -42,6 +42,12 @@ window.__ModuleLoader__.load({
     // ── 复制按钮（issue #74）：CopyButton + 复制工具函数 ──────────
     /*__PART_COPY__*/
 
+    // ── 代码块增强（issue #80）：tokenizer（语法高亮）────────────────
+    /*__PART_HIGHLIGHT__*/
+
+    // ── 代码块增强（issue #80）：语言标签 + 复制按钮头部 + 行号 ─────
+    /*__PART_CODEBLOCK__*/
+
     // ── 统一 MarkdownView：行内 + 块级渲染（导出供 think-zh-expand）──
     /*__PART_MARKDOWN__*/
 

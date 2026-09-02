@@ -152,18 +152,8 @@ function tryFence(lines, i, out) {
     i += 1
   }
   i += 1
-  out.push(
-    createElement(
-      'div',
-      { key: 'b' + out.length, className: 'md-code-block' },
-      createElement(
-        'pre',
-        { className: 'tzx-pre' },
-        createElement('code', { className: fence[1] ? 'language-' + fence[1] : '' }, buf.join('\n')),
-      ),
-      createElement(CopyButton, { kind: 'code' }),
-    ),
-  )
+  // 语法高亮 / 语言标签 / 行号（issue #80）：结构见 highlight.part.js。
+  out.push(renderCodeBlock({ key: 'b' + out.length, lang: fence[1], code: buf.join('\n') }))
   return i
 }
 

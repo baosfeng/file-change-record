@@ -43,7 +43,8 @@ function collectCopyText(node, out) {
     return
   }
   if (node.nodeType !== 1) return
-  if (node.matches && node.matches('.dsh-md-render-copy')) return
+  // 跳过复制按钮与代码块头部（语言标签，issue #80），避免文案混入复制内容。
+  if (node.matches && (node.matches('.dsh-md-render-copy') || node.matches('.dsh-md-render-code-head'))) return
   const kids = node.childNodes || []
   for (let i = 0; i < kids.length; i += 1) collectCopyText(kids[i], out)
 }
