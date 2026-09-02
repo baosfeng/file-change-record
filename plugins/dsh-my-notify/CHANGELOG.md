@@ -2,6 +2,14 @@
 
 本文件记录 dsh-notify 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.3.6] - 2026-09-02
+
+### 变更
+
+- feat(notify): #92 出站 webhook——企微/飞书/钉钉机器人事件推送 (#101)
+- fix(notify): #70 客户端去重 + 多标签页协调，消除重复通知 (#94)
+- fix(scripts): #72 插件依赖未随安装自动安装（dsh-shared 未发布 npm） (#96)
+
 ## [0.3.5] - 2026-09-01
 
 ### 变更
