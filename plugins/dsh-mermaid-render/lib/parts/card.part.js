@@ -1,11 +1,15 @@
 // ── diagram card (React) ─────────────────────────────────────────────
 // 样式前缀 dsh-mermaid-render-（issue #54：与 dsh-md-render 的旧缩写前缀
 // 分离，消除跨插件类名冲突）；图标走共享图标系统（dsh-shared/client-parts）。
+// 导出（issue #85）：工具栏下载 PNG / 下载 SVG / 复制代码，逻辑见 export.part.js。
+let noticeTimer = null
+
 function MermaidCard({ entryId, source }) {
   const [status, setStatus] = useState('loading')
   const [svg, setSvg] = useState(null)
   const [error, setError] = useState(null)
   const [mode, setMode] = useState('preview')
+  const [notice, setNotice] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -28,6 +32,15 @@ function MermaidCard({ entryId, source }) {
     }
   }, [entryId, source])
 
+  /** 短暂提示（成功/失败），2.5s 后自动消失。 */
+  function flashNotice(type, text) {
+    setNotice({ type, text })
+    if (noticeTimer) clearTimeout(noticeTimer)
+    noticeTimer = setTimeout(() => setNotice(null), 2500)
+  }
+
+  const exportActions = makeExportHandlers(entryId, source, flashNotice)
+
   return createElement(
     'div',
     { className: 'dsh-mermaid-render-card', 'data-dsh-mermaid-render-entry': entryId },
@@ -40,9 +53,77 @@ function MermaidCard({ entryId, source }) {
         icon.file(12),
         createElement('span', null, 'Mermaid 图表'),
       ),
-      createElement(ViewToggle, { mode, setMode }),
+      createElement(
+        'div',
+        { className: 'dsh-mermaid-render-card-actions' },
+        createElement(ExportButtons, {
+          status,
+          onPng: exportActions.onPng,
+          onSvg: exportActions.onSvg,
+          onCopy: exportActions.onCopy,
+        }),
+        createElement(ViewToggle, { mode, setMode }),
+      ),
     ),
+    notice ? renderNotice(notice) : null,
     createElement(CardBody, { status, mode, error, source, svg }),
+  )
+}
+
+/** 导出结果提示条（成功/失败），无提示时返回 null。 */
+function renderNotice(notice) {
+  if (!notice) return null
+  return createElement(
+    'div',
+    { className: 'dsh-mermaid-render-notice dsh-mermaid-render-notice-' + notice.type },
+    notice.text,
+  )
+}
+
+/** 导出按钮组：下载 PNG / 下载 SVG / 复制代码（issue #85）。 */
+function ExportButtons({ status, onPng, onSvg, onCopy }) {
+  const ready = status === 'ok'
+  return createElement(
+    'div',
+    { className: 'dsh-mermaid-render-export', role: 'group', 'aria-label': 'export' },
+    createElement(
+      'button',
+      {
+        type: 'button',
+        className: 'dsh-mermaid-render-eb',
+        onClick: onPng,
+        disabled: !ready,
+        title: '下载 PNG',
+        'aria-label': '下载 PNG',
+      },
+      icon.download(14),
+      createElement('span', null, '下载 PNG'),
+    ),
+    createElement(
+      'button',
+      {
+        type: 'button',
+        className: 'dsh-mermaid-render-eb',
+        onClick: onSvg,
+        disabled: !ready,
+        title: '下载 SVG',
+        'aria-label': '下载 SVG',
+      },
+      icon.download(14),
+      createElement('span', null, '下载 SVG'),
+    ),
+    createElement(
+      'button',
+      {
+        type: 'button',
+        className: 'dsh-mermaid-render-eb',
+        onClick: onCopy,
+        title: '复制代码',
+        'aria-label': '复制代码',
+      },
+      icon.copy(14),
+      createElement('span', null, '复制代码'),
+    ),
   )
 }
 

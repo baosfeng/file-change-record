@@ -33,6 +33,7 @@ const src = readFileSync(join(root, 'lib/client.src.js'), 'utf8')
 const pieces = [
   ['__PART_ENGINE__', 'engine.part.js'],
   ['__PART_ICONS__', 'icons.part.js', { shared: true }],
+  ['__PART_EXPORT__', 'export.part.js'],
   ['__PART_CARD__', 'card.part.js'],
   ['__PART_SCANNER__', 'scanner.part.js'],
   ['__PART_STYLES__', 'styles.part.js'],

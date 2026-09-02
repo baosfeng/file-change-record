@@ -100,9 +100,12 @@ function makeElement(tag, attrs = {}) {
     matchesSel(sel) {
       if (sel === 'pre') return this.tagName === 'PRE'
       if (sel === 'code') return this.tagName === 'CODE'
+      if (sel === 'svg') return this.tagName === 'SVG'
       if (sel === '[data-conversation-scroll]') return this.dataset.conversationScroll === '1'
       if (sel === '[data-streaming]') return this.dataset.streaming === '1'
       if (sel === 'div.md-code-block') return this.tagName === 'DIV' && this.className === 'md-code-block'
+      const entryMatch = /^\[data-dsh-mermaid-render-entry="([^"]+)"\]$/.exec(sel)
+      if (entryMatch) return this.dataset.dshMermaidRenderEntry === entryMatch[1]
       return false
     },
     closest(sel) {
@@ -168,6 +171,15 @@ global.document = {
   },
   createElement(tag) {
     return makeElement(tag)
+  },
+  querySelector(sel) {
+    return bodyEl.querySelector(sel)
+  },
+  querySelectorAll(sel) {
+    return bodyEl.querySelectorAll(sel)
+  },
+  execCommand() {
+    return true
   },
 }
 global.Element = function Element() {}
@@ -306,6 +318,182 @@ try {
     'error shows alert icon',
   )
 
+  // ── 导出功能（issue #85）：按钮存在 + 序列化/文件名/复制/PNG 行为 ──
+  // 模拟渲染完成的卡片 DOM（带 entryId 的容器 + svg 元素），供 findCardSvg 定位
+  const exportHost = makeElement('div')
+  exportHost.dataset.dshMermaidRenderEntry = 'dsh-mermaid-1'
+  const exportSvgWrap = makeElement('div', { className: 'dsh-mermaid-render-svg' })
+  const exportSvgEl = makeElement('svg')
+  exportSvgEl.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+  exportSvgEl.setAttribute('width', '100')
+  exportSvgEl.setAttribute('height', '50')
+  exportSvgWrap.appendChild(exportSvgEl)
+  exportHost.appendChild(exportSvgWrap)
+  scrollEl.appendChild(exportHost)
+
+  // 浏览器导出 API mock
+  const serializerCalls = []
+  global.XMLSerializer = class {
+    serializeToString(el) {
+      serializerCalls.push(el)
+      return '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"></svg>'
+    }
+  }
+  const createdUrls = []
+  const revokedUrls = []
+  global.URL = {
+    createObjectURL: (blob) => {
+      createdUrls.push(blob)
+      return 'blob:mock-' + createdUrls.length
+    },
+    revokeObjectURL: (u) => revokedUrls.push(u),
+  }
+  let lastImage = null
+  global.Image = class {
+    constructor() {
+      this.onload = null
+      this.onerror = null
+      this.src = ''
+      this.width = 100
+      this.height = 50
+      lastImage = this
+    }
+  }
+  const createdAnchors = []
+  const canvasDraws = []
+  const canvasToBlobs = []
+  const baseCreateElement = global.document.createElement
+  global.document.createElement = (tag) => {
+    const el = baseCreateElement(tag)
+    if (tag === 'a') createdAnchors.push(el)
+    if (tag === 'canvas') {
+      el.getContext = () => ({
+        drawImage: (...args) => canvasDraws.push(args),
+      })
+      el.toBlob = (cb) => {
+        canvasToBlobs.push(el)
+        cb(new Blob(['png'], { type: 'image/png' }))
+      }
+    }
+    return el
+  }
+  const clipboardWrites = []
+  Object.defineProperty(global, 'navigator', {
+    value: {
+      clipboard: {
+        writeText: async (text) => {
+          clipboardWrites.push(text)
+        },
+      },
+    },
+    configurable: true,
+  })
+
+  // 恢复渲染成功 → 卡片 status ok（下载按钮可用）
+  hookCall = 0
+  global.window.mermaid.render = async (id, _src) => ({ svg: `<svg id="${id}" width="100%" height="50"></svg>` })
+  cardEl.type(cardEl.props)
+  await new Promise((r) => setTimeout(r, 0))
+  hookCall = 0
+  const exportTree = cardEl.type(cardEl.props)
+  const exportButtons = []
+  function walkButtons(node) {
+    if (node === null || node === undefined || typeof node === 'boolean') return
+    if (typeof node === 'string' || typeof node === 'number') return
+    if (Array.isArray(node)) {
+      for (const c of node) walkButtons(c)
+      return
+    }
+    const props = node.props ?? {}
+    if (typeof node.type === 'function') {
+      walkButtons(node.type(props))
+      return
+    }
+    if (node.type === 'button') exportButtons.push(node)
+    walkButtons(props.children)
+  }
+  walkButtons(exportTree)
+  const btnByLabel = (label) => exportButtons.find((b) => (b.props['aria-label'] || '') === label)
+  const pngBtn = btnByLabel('下载 PNG')
+  const svgBtn = btnByLabel('下载 SVG')
+  const copyBtn = btnByLabel('复制代码')
+  assert.ok(pngBtn && svgBtn && copyBtn, '导出按钮组存在（下载 PNG / 下载 SVG / 复制代码）')
+  assert.equal(pngBtn.props.disabled, false, '渲染成功后下载按钮可用')
+  assert.equal(copyBtn.props.disabled, undefined, '复制按钮始终可用')
+
+  // 下载 SVG：序列化 + 文件名 + Blob 下载
+  svgBtn.props.onClick()
+  assert.ok(serializerCalls.length >= 1, 'XMLSerializer 序列化 SVG DOM')
+  assert.equal(serializerCalls[serializerCalls.length - 1], exportSvgEl, '序列化的是卡片内 SVG 元素')
+  assert.ok(createdUrls.length >= 1, 'URL.createObjectURL 被调用')
+  assert.equal(createdUrls[createdUrls.length - 1].type, 'image/svg+xml;charset=utf-8', 'SVG blob MIME 正确')
+  assert.equal(createdAnchors[createdAnchors.length - 1].download, 'mermaid-1.svg', 'SVG 文件名 mermaid-<序号>.svg')
+
+  // 复制代码：clipboard.writeText 收到 mermaid 源码
+  copyBtn.props.onClick()
+  await new Promise((r) => setTimeout(r, 0))
+  assert.ok(clipboardWrites.length === 1, 'clipboard.writeText 被调用')
+  assert.equal(clipboardWrites[0], 'flowchart TD\n  A --> B', '复制内容为 mermaid 源码')
+
+  // 下载 PNG：Image 加载 → canvas 2x 绘制 → toBlob → 下载
+  pngBtn.props.onClick()
+  assert.ok(lastImage, 'Image 实例创建（SVG → PNG 转换）')
+  lastImage.onload()
+  assert.ok(canvasDraws.length >= 1, 'canvas drawImage 被调用')
+  const pngCanvas = canvasToBlobs[canvasToBlobs.length - 1]
+  assert.equal(pngCanvas.width, 200, 'canvas 宽度 = SVG 宽度 × 2')
+  assert.equal(pngCanvas.height, 100, 'canvas 高度 = SVG 高度 × 2')
+  assert.equal(createdAnchors[createdAnchors.length - 1].download, 'mermaid-1.png', 'PNG 文件名 mermaid-<序号>.png')
+
+  // 失败路径：无 SVG 可导出 → 错误提示（不静默）
+  scrollEl.removeChild(exportHost)
+  hookCall = 0
+  const failTree = cardEl.type(cardEl.props)
+  const failButtons = []
+  function walkFailButtons(node) {
+    if (node === null || node === undefined || typeof node === 'boolean') return
+    if (typeof node === 'string' || typeof node === 'number') return
+    if (Array.isArray(node)) {
+      for (const c of node) walkFailButtons(c)
+      return
+    }
+    const props = node.props ?? {}
+    if (typeof node.type === 'function') {
+      walkFailButtons(node.type(props))
+      return
+    }
+    if (node.type === 'button') failButtons.push(node)
+    walkFailButtons(props.children)
+  }
+  walkFailButtons(failTree)
+  const failPngBtn = failButtons.find((b) => (b.props['aria-label'] || '') === '下载 PNG')
+  failPngBtn.props.onClick()
+  hookCall = 0
+  const noticeTree = cardEl.type(cardEl.props)
+  const noticeTexts = []
+  function walkTexts(node) {
+    if (node === null || node === undefined || typeof node === 'boolean') return
+    if (typeof node === 'string' || typeof node === 'number') {
+      noticeTexts.push(String(node))
+      return
+    }
+    if (Array.isArray(node)) {
+      for (const c of node) walkTexts(c)
+      return
+    }
+    const props = node.props ?? {}
+    if (typeof node.type === 'function') {
+      walkTexts(node.type(props))
+      return
+    }
+    walkTexts(props.children)
+  }
+  walkTexts(noticeTree)
+  assert.ok(
+    noticeTexts.some((t) => t.includes('无法导出 PNG')),
+    '无 SVG 时点击下载 PNG 显示错误提示（不静默）',
+  )
+
   console.log('ALL CLIENT RENDER-PATH TESTS PASSED')
 } finally {
   delete global.window
@@ -313,6 +501,10 @@ try {
   delete global.Element
   delete global.MutationObserver
   delete global.Node
+  delete global.XMLSerializer
+  delete global.URL
+  delete global.Image
+  delete global.navigator
 }
 
 test('script-style suite (assertions ran at module load)', () => {})

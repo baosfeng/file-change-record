@@ -5,7 +5,7 @@
  * mirroring client-render.mjs: card mount, loading state, toggle, non-mermaid
  * ignore and stylesheet injection.
  */
-import { Given, Then, After, setWorldConstructor } from '@cucumber/cucumber'
+import { Given, When, Then, After, setWorldConstructor } from '@cucumber/cucumber'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 
@@ -146,6 +146,18 @@ class World {
         return makeElement(tag)
       },
     }
+    // 剪贴板 mock（issue #85 复制源码场景）
+    this.clipboardWrites = []
+    Object.defineProperty(global, 'navigator', {
+      value: {
+        clipboard: {
+          writeText: async (text) => {
+            this.clipboardWrites.push(text)
+          },
+        },
+      },
+      configurable: true,
+    })
     global.Element = function Element() {}
     global.MutationObserver = class {
       constructor() {}
@@ -190,6 +202,37 @@ class World {
     walk(cardEl.type(cardEl.props))
     return texts
   }
+
+  /** 卡片内全部 button 元素（含导出按钮组，issue #85）。 */
+  cardButtons() {
+    const cardEl = this.capturedRender
+    assert.ok(cardEl, 'card captured')
+    const buttons = []
+    function walk(node) {
+      if (node === null || node === undefined || typeof node === 'boolean') return
+      if (typeof node === 'string' || typeof node === 'number') return
+      if (Array.isArray(node)) {
+        for (const c of node) walk(c)
+        return
+      }
+      const props = node.props ?? {}
+      if (typeof node.type === 'function') {
+        walk(node.type(props))
+        return
+      }
+      if (node.type === 'button') buttons.push(node)
+      walk(props.children)
+    }
+    walk(cardEl.type(cardEl.props))
+    return buttons
+  }
+
+  /** 按 aria-label 点击卡片内按钮（导出场景用）。 */
+  clickExportButton(label) {
+    const btn = this.cardButtons().find((b) => (b.props['aria-label'] || '') === label)
+    assert.ok(btn, 'export button found: ' + label)
+    btn.props.onClick()
+  }
 }
 
 setWorldConstructor(World)
@@ -200,6 +243,7 @@ After(async function () {
   delete global.Element
   delete global.MutationObserver
   delete global.Node
+  delete global.navigator
 })
 
 // ── Given ─────────────────────────────────────────────────────────────────
@@ -239,4 +283,26 @@ Then('不生成任何图表卡片', async function () {
 Then('页面注入包含卡片规则的样式', async function () {
   assert.ok(this.styleTags.length === 1, 'stylesheet injected')
   assert.ok(this.styleTags[0].textContent.includes('.dsh-mermaid-render-card'), 'stylesheet has card rules')
+})
+
+// ── 导出（issue #85）──────────────────────────────────────────────────────
+Then('卡片提供下载 PNG 与下载 SVG 按钮', async function () {
+  const labels = this.cardButtons().map((b) => b.props['aria-label'] || '')
+  assert.ok(labels.includes('下载 PNG'), 'download PNG button present')
+  assert.ok(labels.includes('下载 SVG'), 'download SVG button present')
+})
+
+Then('卡片提供复制代码按钮', async function () {
+  const labels = this.cardButtons().map((b) => b.props['aria-label'] || '')
+  assert.ok(labels.includes('复制代码'), 'copy source button present')
+})
+
+When('用户点击复制代码按钮', async function () {
+  this.clickExportButton('复制代码')
+  await new Promise((r) => setTimeout(r, 0))
+})
+
+Then('剪贴板写入 mermaid 源码', async function () {
+  assert.ok(this.clipboardWrites.length === 1, 'clipboard.writeText called')
+  assert.equal(this.clipboardWrites[0], 'flowchart TD\n  A --> B', 'copied mermaid source')
 })
