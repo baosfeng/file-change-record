@@ -34,6 +34,8 @@ window.__ModuleLoader__.load({
     __PART_STYLES__
     __PART_API__
     __PART_ICONS__
+    __PART_UTILS__
+    __PART_VIEW_ROWS__
     __PART_VIEW__
     __PART_APPLY__
 

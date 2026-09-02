@@ -28,32 +28,59 @@ const STYLES = `
 .dsh-my-memory-iconbtn-danger:hover:not(:disabled) { color:var(--dsw-alias-state-error-primary); }
 .dsh-my-memory-status { display:flex; align-items:center; gap:5px; font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); }
 .dsh-my-memory-status svg { display:block; flex:none; }
+.dsh-my-memory-loading { padding:4px 2px; }
+.dsh-my-memory-spinner { display:inline-block; width:12px; height:12px; border-radius:50%; flex:none;
+  border:2px solid color-mix(in srgb, var(--dsw-alias-accent) 30%, transparent); border-top-color:var(--dsw-alias-accent);
+  animation:dsh-my-memory-spin 800ms linear infinite; }
 .dsh-my-memory-saved { color:var(--dsw-alias-state-success-primary); }
 .dsh-my-memory-error { display:flex; align-items:center; gap:6px; font:var(--dsw-font-xxs-12);
   color:var(--dsw-alias-state-error-primary); white-space:pre-wrap; }
 .dsh-my-memory-sections { display:flex; flex-direction:column; gap:8px; }
 .dsh-my-memory-section { display:flex; flex-direction:column; gap:6px; padding:8px; border-radius:8px;
-  border:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-layer-2); }
+  border:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-layer-1); }
 /* The project scope gets the brand accent so the two scopes never blur. */
 .dsh-my-memory-section-project { border-color:color-mix(in srgb, var(--dsw-alias-accent) 45%, transparent);
-  background:color-mix(in srgb, var(--dsw-alias-accent) 5%, transparent); }
+  background:color-mix(in srgb, var(--dsw-alias-accent) 6%, var(--dsw-alias-bg-layer-1)); }
 .dsh-my-memory-section-head { display:flex; align-items:center; gap:8px; }
 .dsh-my-memory-section-title { font:var(--dsw-font-s-strong-14); color:var(--dsw-alias-label-primary); }
 .dsh-my-memory-badge { flex:none; display:inline-flex; align-items:center; height:17px; padding:0 5px; border-radius:4px;
   font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-accent);
   background:color-mix(in srgb, var(--dsw-alias-accent) 12%, transparent); }
+.dsh-my-memory-sort { display:inline-flex; align-items:center; gap:4px; flex:none; height:20px; padding:0 6px; border-radius:4px;
+  margin-left:auto; cursor:pointer; border:none; background:transparent; color:var(--dsw-alias-label-tertiary);
+  font:var(--dsw-font-xxxs-11);
+  transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out), color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-memory-sort svg { display:block; flex:none; }
+.dsh-my-memory-sort:hover { background:var(--dsw-alias-interactive-bg-hover); color:var(--dsw-alias-label-primary); }
 .dsh-my-memory-note { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); line-height:1.7; }
-.dsh-my-memory-empty { padding:8px 6px; font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); line-height:1.7; }
-.dsh-my-memory-empty-icon { display:inline-flex; vertical-align:-3px; margin-right:6px; color:var(--dsw-alias-label-dimmed); }
-.dsh-my-memory-empty-hint { display:block; margin-top:2px; color:var(--dsw-alias-label-dimmed); font:var(--dsw-font-xxxs-11); }
-.dsh-my-memory-row { display:flex; flex-direction:column; gap:2px; box-sizing:border-box; width:100%; min-height:26px;
-  margin:0; padding:4px 8px; border:none; background:transparent; border-radius:8px;
-  animation:dsh-my-memory-row-in 150ms var(--ds-ease-in-out); }
-.dsh-my-memory-row:hover { background:var(--dsw-alias-interactive-bg-hover); }
+.dsh-my-memory-empty { display:flex; align-items:flex-start; gap:8px; padding:12px 10px;
+  font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); }
+.dsh-my-memory-empty-body { display:flex; flex-direction:column; gap:2px; }
+.dsh-my-memory-empty-main { font:var(--dsw-font-s-strong-14); color:var(--dsw-alias-label-primary); }
+.dsh-my-memory-empty-icon { display:inline-flex; margin-top:1px; color:var(--dsw-alias-label-dimmed); }
+.dsh-my-memory-empty-hint { color:var(--dsw-alias-label-dimmed); font:var(--dsw-font-xxxs-11); line-height:1.7; }
+/* 条目卡片化：背景 + 边框 + 圆角，与内容视觉分离；hover 高亮边框（issue #110）。 */
+.dsh-my-memory-row { display:flex; flex-direction:column; gap:4px; box-sizing:border-box; width:100%; min-height:26px;
+  margin:0; padding:8px 10px; border:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-layer-2);
+  border-radius:6px;
+  transition:border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out), background var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-memory-row:hover { border-color:color-mix(in srgb, var(--dsw-alias-accent) 40%, transparent);
+  background:var(--dsw-alias-interactive-bg-hover); }
+.dsh-my-memory-row-editing { border-color:var(--dsw-alias-accent); }
 .dsh-my-memory-row-head { display:flex; align-items:center; gap:8px; }
+.dsh-my-memory-row-desc-wrap { display:flex; align-items:center; gap:4px; flex:1; min-width:0; }
 .dsh-my-memory-desc { flex:1; min-width:0; font:var(--dsw-font-s-14); color:var(--dsw-alias-label-primary); word-break:break-word; }
-.dsh-my-memory-meta { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
-.dsh-my-memory-actions { display:flex; align-items:center; gap:2px; flex:none; }
+.dsh-my-memory-expand { display:inline-flex; align-items:center; gap:3px; flex:none; height:20px; padding:0 6px; border-radius:4px;
+  cursor:pointer; border:none; background:transparent; color:var(--dsw-alias-accent); font:var(--dsw-font-xxxs-11);
+  transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-memory-expand svg { display:block; flex:none; transition:transform var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-memory-expand-open svg { transform:rotate(180deg); }
+.dsh-my-memory-expand:hover { background:var(--dsw-alias-interactive-bg-hover); }
+/* 操作区：统一右侧图标组，与内容用分隔线分离；删除 hover 保持红色警示。 */
+.dsh-my-memory-actions { display:flex; align-items:center; gap:2px; flex:none; padding-left:8px;
+  border-left:1px solid var(--dsw-alias-border-l2); }
+.dsh-my-memory-meta { display:flex; align-items:center; gap:4px; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
+.dsh-my-memory-meta-icon { display:inline-flex; color:var(--dsw-alias-label-dimmed); }
 .dsh-my-memory-addbar { display:flex; gap:6px; align-items:center; }
 .dsh-my-memory-add-input { flex:1; min-width:0; height:28px; padding:0 8px; border-radius:6px;
   border:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-layer-2);
@@ -94,6 +121,7 @@ const STYLES = `
 .dsh-my-memory-confirm-cancel svg { display:block; flex:none; }
 .dsh-my-memory-confirm-cancel:hover { background:var(--dsw-alias-interactive-bg-hover); color:var(--dsw-alias-label-primary); }
 @keyframes dsh-my-memory-row-in { from { opacity:0; transform:translateY(1px); } to { opacity:1; transform:none; } }
+@keyframes dsh-my-memory-spin { to { transform:rotate(360deg); } }
 `.trim()
 
 const STYLE_TAG = 'data-dsh-my-memory'
