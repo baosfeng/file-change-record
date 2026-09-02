@@ -110,10 +110,15 @@ function summaryToDuration(summary) {
   return Number.isFinite(seconds) && seconds >= 0 ? seconds : null
 }
 
-/** 会话链接：配置了 webBaseUrl 时拼 `/sessions/<id>`，否则空串（模板变量可回退）。 */
+/**
+ * 会话链接：配置了 webBaseUrl 时拼 `/sessions/<id>`，否则空串（模板变量可回退）。
+ * 去尾斜杠用一次遍历定位（无正则回溯，CodeQL js/polynomial-redos，issue 修复）。
+ */
 function sessionUrlOf(sessionId, webBaseUrl) {
   if (typeof webBaseUrl !== 'string' || webBaseUrl === '') return ''
-  const base = webBaseUrl.replace(/\/+$/, '')
+  let end = webBaseUrl.length
+  while (end > 0 && webBaseUrl[end - 1] === '/') end--
+  const base = end === webBaseUrl.length ? webBaseUrl : webBaseUrl.slice(0, end)
   return `${base}/sessions/${sessionId}`
 }
 

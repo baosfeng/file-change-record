@@ -290,6 +290,46 @@ test('webhook integration suite', async () => {
       }
     }
 
+    // ── 3b2. webBaseUrl 尾斜杠边界 → sessionUrl 语义不变（修复 CodeQL js/polynomial-redos，告警 #12） ──
+    {
+      const cases = [
+        // 无尾斜杠：原串返回
+        { webBaseUrl: 'https://dsh.local', expected: 'https://dsh.local/sessions/s1' },
+        // 单尾斜杠：去掉
+        { webBaseUrl: 'https://dsh.local/', expected: 'https://dsh.local/sessions/s1' },
+        // 多尾斜杠：全部去掉
+        { webBaseUrl: 'https://dsh.local///', expected: 'https://dsh.local/sessions/s1' },
+        // 纯斜杠串：base 为空 → 相对路径会话链接
+        { webBaseUrl: '///', expected: '/sessions/s1' },
+        // 只含查询串（无尾斜杠）：原串返回
+        { webBaseUrl: '?x=1', expected: '?x=1/sessions/s1' },
+        // 空串：不产出会话链接（模板变量可回退）
+        { webBaseUrl: '', expected: '' },
+      ]
+      for (const { webBaseUrl, expected } of cases) {
+        const webhooks = [
+          {
+            name: 'generic-边界',
+            channel: 'generic',
+            url: 'https://g.example/hook',
+            events: ['end'],
+            enabled: true,
+          },
+        ]
+        const { listeners } = boot({ webhooks, webBaseUrl })
+        const mock = installFetch(() => ({ ok: true }))
+        try {
+          await dispatchEvent(listeners, 'agent/status', { agent: topAgent('s1'), status: 'idle' })
+          await flush()
+          assert.equal(mock.calls.length, 1, `webBaseUrl=${JSON.stringify(webBaseUrl)} pushes end webhook`)
+          const body = JSON.parse(mock.calls[0].options.body)
+          assert.equal(body.sessionUrl, expected, `webBaseUrl=${JSON.stringify(webBaseUrl)} produces sessionUrl`)
+        } finally {
+          mock.restore()
+        }
+      }
+    }
+
     // ── 3c. 模板变量渲染推送到 webhook（issue #109） ────────────────────
     {
       const webhooks = [
