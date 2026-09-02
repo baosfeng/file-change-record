@@ -86,6 +86,34 @@ When('通过接口更新预算为每轮 {int} 且模式为拦截', async functio
   })
 })
 
+When('会话 {string} 的上下文窗口为 {int}', async function (sessionId, window) {
+  const { session, event } = sessionEvent(sessionId, 'request/context', { contextWindow: window })
+  await this.dispatch('session/event', session, event)
+  await settle()
+})
+
+When('会话 {string} 的模型返回 {int} 输入 token 的回复', async function (sessionId, input) {
+  this.lastSessionId = sessionId
+  const { session, event } = sessionEvent(sessionId, 'assistant/message', {
+    turn: 1,
+    step: 1,
+    message: {
+      content: [{ type: 'text', text: '回复内容' }],
+      source: { provider: 'deepseek', model: 'deepseek-v4' },
+    },
+    usage: { inputTokens: input, outputTokens: 0 },
+  })
+  await this.dispatch('session/event', session, event)
+  await settle()
+})
+
+When('通过接口把溢出预警阈值设为预警 {int} 告警 {int}', async function (warn, alert) {
+  await this.invoke('/context/api/overflow', {
+    method: 'POST',
+    body: JSON.stringify({ warnThreshold: warn / 100, alertThreshold: alert / 100 }),
+  })
+})
+
 // ── Then ──────────────────────────────────────────────────────────────────
 Then('会话 {string} 的系统构成大于 0', async function (sessionId) {
   const stats = await this.sessionStats(sessionId)
@@ -139,6 +167,16 @@ Then('状态接口返回的预算配置为每轮 {int} 且模式为拦截', asyn
   await this.invoke('/context/api/status')
   assert.equal(this.lastValue.budget.perTurn, perTurn)
   assert.equal(this.lastValue.budget.mode, 'deny')
+})
+
+Then('产生 {int} 条溢出预警', async function (count) {
+  const stats = await this.sessionStats(this.lastSessionId)
+  assert.equal(stats.overflows.length, count)
+})
+
+Then('溢出预警级别为 {string}', async function (level) {
+  const stats = await this.sessionStats(this.lastSessionId)
+  assert.equal(stats.overflows[0].level, level)
 })
 
 /** 等待 store 异步加载/落盘 settle。 */

@@ -13,7 +13,7 @@
  */
 import { join } from 'node:path'
 import { homedir } from 'node:os'
-import { MAX_REQUESTS_PER_SESSION, MAX_ALERTS_PER_SESSION } from './constants.js'
+import { MAX_REQUESTS_PER_SESSION, MAX_ALERTS_PER_SESSION, MAX_OVERFLOWS_PER_SESSION } from './constants.js'
 import { createState, createSession, zeroUsage } from './state.js'
 import { attachPersistence } from './persist.js'
 
@@ -57,6 +57,13 @@ export function createStore(ctx) {
       s.alerts.push({ id: nextId(handle), time: Date.now(), ...alert })
       if (s.alerts.length > MAX_ALERTS_PER_SESSION) {
         s.alerts.splice(0, s.alerts.length - MAX_ALERTS_PER_SESSION)
+      }
+    })
+  store.recordOverflow = (sessionId, overflow) =>
+    mutate(handle, sessionId, (s) => {
+      s.overflows.push({ id: nextId(handle), time: Date.now(), ...overflow })
+      if (s.overflows.length > MAX_OVERFLOWS_PER_SESSION) {
+        s.overflows.splice(0, s.overflows.length - MAX_OVERFLOWS_PER_SESSION)
       }
     })
   store.session = (sessionId) => sessionOf(handle, sessionId)

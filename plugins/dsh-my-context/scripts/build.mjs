@@ -24,6 +24,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const PARTS = [
   ['/*__PART_I18N__*/', 'lib/parts/i18n.js'],
   ['/*__PART_PANEL__*/', 'lib/parts/panel.js'],
+  ['/*__PART_OVERFLOW__*/', 'lib/parts/overflow.js'],
   ['/*__PART_STYLES__*/', 'lib/parts/styles.js'],
 ]
 

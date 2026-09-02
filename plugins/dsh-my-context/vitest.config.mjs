@@ -17,6 +17,7 @@ export default defineConfig({
         'lib/store.js',
         'lib/persist.js',
         'lib/budget.js',
+        'lib/overflow.js',
         'lib/events.js',
         'lib/routes.js',
       ],

@@ -1,0 +1,57 @@
+/**
+ * dsh-my-context — context overflow warnings (pure functions).
+ *
+ * 上下文溢出预警：把会话累计用量（usage 桶还原为完整 token 总量）与
+ * contextWindow 比对，得到用量比例与分级（normal / warn / alert / critical）。
+ *    - warnThreshold（默认 0.8）  → level 'warn'     （进度条变色，面板可见）
+ *    - alertThreshold（默认 0.9） → level 'alert'    （面板告警 + 可选推送）
+ *    - CRITICAL_THRESHOLD（固定 0.95） → level 'critical'（建议开启新会话）
+ * 命中阈值时由 events.js 记录溢出预警事件（时间/用量/阈值），面板可查。
+ *
+ * 纯函数、无副作用、可单测。
+ */
+import { usageTotal } from './budget.js'
+
+/** 固定临界阈值：≥95% 建议开启新会话（不可配置）。 */
+export const CRITICAL_THRESHOLD = 0.95
+
+/** 阈值配置校验：非法值回退默认（0.8/0.9），夹到 [0,1]。 */
+export function normalizeOverflowConfig(config) {
+  const source = config !== null && typeof config === 'object' ? config : {}
+  return {
+    warnThreshold: ratioOf(source.warnThreshold, 0.8),
+    alertThreshold: ratioOf(source.alertThreshold, 0.9),
+  }
+}
+
+/**
+ * 溢出分级：返回 { ratio, used, window, level, threshold }。
+ *  - used = 会话累计用量；window = contextWindow（<=0 时 ratio=0、level normal）；
+ *  - level 为 'normal'|'warn'|'alert'|'critical'；threshold 为命中的阈值
+ *    （warn→warnThreshold / alert→alertThreshold / critical→CRITICAL_THRESHOLD）。
+ */
+export function overflowLevel(usage, contextWindow, config) {
+  const overflow = normalizeOverflowConfig(config)
+  const used = usageTotal(usage)
+  const window = typeof contextWindow === 'number' && contextWindow > 0 ? contextWindow : 0
+  if (window <= 0) return { ratio: 0, used, window: 0, level: 'normal', threshold: 0 }
+  const ratio = used / window
+  if (ratio >= CRITICAL_THRESHOLD) return { ratio, used, window, level: 'critical', threshold: CRITICAL_THRESHOLD }
+  if (ratio >= overflow.alertThreshold)
+    return { ratio, used, window, level: 'alert', threshold: overflow.alertThreshold }
+  if (ratio >= overflow.warnThreshold) return { ratio, used, window, level: 'warn', threshold: overflow.warnThreshold }
+  return { ratio, used, window, level: 'normal', threshold: 0 }
+}
+
+/** 是否达到预警级别（warn/alert/critical，非 normal）。 */
+export function isOverflowing(level) {
+  return level === 'warn' || level === 'alert' || level === 'critical'
+}
+
+/** 非负有限比例，夹到 [0,1]。 */
+function ratioOf(value, fallback) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
+  if (value < 0) return 0
+  if (value > 1) return 1
+  return value
+}

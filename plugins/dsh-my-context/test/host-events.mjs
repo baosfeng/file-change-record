@@ -255,6 +255,105 @@ test('agent/pre-step: alert cooldown suppresses duplicate alerts', async () => {
   handle.disposeAll()
 })
 
+test('agent/pre-step: records overflow warning when usage crosses warn threshold', async () => {
+  const handle = boot({ warnThreshold: 0.8, alertThreshold: 0.9 })
+  await settle()
+  const { session, event } = sessionEvent('s-1', 'request/context', { contextWindow: 100 })
+  await dispatchEvent(handle.listeners, 'session/event', session, event)
+  const { session: s2, event: e2 } = sessionEvent('s-1', 'assistant/message', {
+    turn: 1,
+    step: 1,
+    message: { content: [{ type: 'text', text: 'x' }] },
+    usage: { inputTokens: 80, outputTokens: 0 },
+  })
+  await dispatchEvent(handle.listeners, 'session/event', s2, e2)
+  await settle()
+  const decision = await dispatchEvent(handle.listeners, 'agent/pre-step', preStepPayload('s-1'), async () => ({
+    kind: 'enter',
+    messages: [],
+  }))
+  assert.equal(decision.kind, 'enter', 'overflow warning never blocks the step')
+  const stats = await sessionStats(handle, 's-1')
+  assert.equal(stats.overflows.length, 1)
+  assert.equal(stats.overflows[0].kind, 'overflow')
+  assert.equal(stats.overflows[0].level, 'warn')
+  assert.equal(stats.overflows[0].threshold, 0.8)
+  assert.ok(stats.overflows[0].time > 0)
+  handle.disposeAll()
+})
+
+test('agent/pre-step: critical overflow recorded at 95%+ usage', async () => {
+  const handle = boot({ warnThreshold: 0.8, alertThreshold: 0.9 })
+  await settle()
+  const { session, event } = sessionEvent('s-1', 'request/context', { contextWindow: 100 })
+  await dispatchEvent(handle.listeners, 'session/event', session, event)
+  const { session: s2, event: e2 } = sessionEvent('s-1', 'assistant/message', {
+    turn: 1,
+    step: 1,
+    message: { content: [{ type: 'text', text: 'x' }] },
+    usage: { inputTokens: 95, outputTokens: 0 },
+  })
+  await dispatchEvent(handle.listeners, 'session/event', s2, e2)
+  await settle()
+  await dispatchEvent(handle.listeners, 'agent/pre-step', preStepPayload('s-1'), async () => ({
+    kind: 'enter',
+    messages: [],
+  }))
+  await settle()
+  const stats = await sessionStats(handle, 's-1')
+  assert.equal(stats.overflows.length, 1)
+  assert.equal(stats.overflows[0].level, 'critical')
+  handle.disposeAll()
+})
+
+test('agent/pre-step: overflow cooldown suppresses same-level duplicate', async () => {
+  const handle = boot({ warnThreshold: 0.8, alertThreshold: 0.9 })
+  await settle()
+  const { session, event } = sessionEvent('s-1', 'request/context', { contextWindow: 100 })
+  await dispatchEvent(handle.listeners, 'session/event', session, event)
+  const { session: s2, event: e2 } = sessionEvent('s-1', 'assistant/message', {
+    turn: 1,
+    step: 1,
+    message: { content: [{ type: 'text', text: 'x' }] },
+    usage: { inputTokens: 80, outputTokens: 0 },
+  })
+  await dispatchEvent(handle.listeners, 'session/event', s2, e2)
+  await settle()
+  await dispatchEvent(handle.listeners, 'agent/pre-step', preStepPayload('s-1'), async () => ({
+    kind: 'enter',
+    messages: [],
+  }))
+  await dispatchEvent(handle.listeners, 'agent/pre-step', preStepPayload('s-1'), async () => ({
+    kind: 'enter',
+    messages: [],
+  }))
+  await settle()
+  const stats = await sessionStats(handle, 's-1')
+  assert.equal(stats.overflows.length, 1, 'same-level overflow within cooldown suppressed')
+  handle.disposeAll()
+})
+
+test('agent/pre-step: no overflow recorded when context window unknown', async () => {
+  const handle = boot({ warnThreshold: 0.8, alertThreshold: 0.9 })
+  await settle()
+  const { session, event } = sessionEvent('s-1', 'assistant/message', {
+    turn: 1,
+    step: 1,
+    message: { content: [{ type: 'text', text: 'x' }] },
+    usage: { inputTokens: 1000, outputTokens: 0 },
+  })
+  await dispatchEvent(handle.listeners, 'session/event', session, event)
+  await settle()
+  await dispatchEvent(handle.listeners, 'agent/pre-step', preStepPayload('s-1'), async () => ({
+    kind: 'enter',
+    messages: [],
+  }))
+  await settle()
+  const stats = await sessionStats(handle, 's-1')
+  assert.equal(stats.overflows.length, 0)
+  handle.disposeAll()
+})
+
 test('isInjection: source classification', () => {
   assert.equal(isInjection(null), false)
   assert.equal(isInjection({ kind: 'user' }), false)

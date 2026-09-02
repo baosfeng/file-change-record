@@ -285,6 +285,7 @@ async function loadContextData(sessionId, setters) {
   if (sessionId === '' && list.length > 0) setters.setSessionId(list[0].sessionId)
   const status = await apiJson('/context/api/status')
   setters.setBudget(status.budget)
+  setters.setOverflow(status.overflow || { warnThreshold: 0.8, alertThreshold: 0.9 })
   if (sessionId !== '') {
     const stats = await apiJson(`/context/api/session?sessionId=${encodeURIComponent(sessionId)}`)
     setters.setSession(stats)
@@ -331,13 +332,14 @@ function ContextPanel(props) {
   const [sessionId, setSessionId] = useState('')
   const [session, setSession] = useState(null)
   const [budget, setBudget] = useState({ perTurn: 0, perSession: 0, mode: 'warn' })
+  const [overflow, setOverflow] = useState({ warnThreshold: 0.8, alertThreshold: 0.9 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!visible) return undefined
     let alive = true
-    const setters = { setSessions, setSessionId, setSession, setBudget, setError, setLoading }
+    const setters = { setSessions, setSessionId, setSession, setBudget, setOverflow, setError, setLoading }
     const tick = () => {
       loadContextData(sessionId, setters)
         .catch((err) => {
@@ -375,7 +377,10 @@ function ContextPanel(props) {
     ),
     statusNote(error, loading, session),
     session !== null ? createElement(OverviewCard, { session }) : null,
+    session !== null ? createElement(ContextUsageCard, { session, overflow }) : null,
     sessionSections(session),
+    session !== null ? createElement(OverflowSection, { overflows: session.overflows }) : null,
+    createElement(OverflowSettings, { overflow, onSaved: () => {} }),
     createElement(BudgetSettings, { budget, onSaved: () => {} }),
   )
 }

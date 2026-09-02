@@ -22,14 +22,15 @@ import { createStore } from './store.js'
 import { attachContextListeners } from './events.js'
 import { registerContextRoutes } from './routes.js'
 import { normalizeBudgetConfig } from './budget.js'
+import { normalizeOverflowConfig } from './overflow.js'
 
 export const name = 'dsh-my-context'
 
 export const inject = ['webServer']
 
 export function apply(ctx, config) {
-  // ── 配置（应用层 config 覆盖，默认全部关闭；POST /budget 可动态更新）──
-  const options = { current: normalizeBudgetConfig(config) }
+  // ── 配置（应用层 config 覆盖，默认全部关闭；POST /budget / /overflow 可动态更新）──
+  const options = { current: normalizeBudgetConfig(config), overflow: normalizeOverflowConfig(config) }
 
   // ── 上下文统计存储：会话隔离 + 持久化 + 重启恢复 ──────────────────────
   const store = createStore(ctx)

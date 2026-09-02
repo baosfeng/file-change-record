@@ -53,6 +53,22 @@ const STYLES = `
 .dso-alert-warn{border-color:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 40%, transparent)}
 .dso-alert-head{display:flex;align-items:center;gap:8px;justify-content:space-between}
 .dso-alert-msg{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-primary);line-height:1.5;margin-top:2px}
+.dso-usage{display:flex;flex-direction:column;gap:4px}
+.dso-usage-track{height:10px;background:var(--dsw-alias-bg-layer-1);border-radius:5px;overflow:hidden}
+.dso-usage-fill{height:100%;border-radius:5px;transition:width .3s ease}
+.dso-usage-normal{background:var(--dsw-alias-interactive-primary)}
+.dso-usage-warn{background:var(--dsw-alias-state-warn-primary)}
+.dso-usage-alert{background:var(--dsw-alias-state-error-primary)}
+.dso-usage-critical{background:var(--dsw-alias-state-error-primary)}
+.dso-usage-meta{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary)}
+.dso-overflow-normal{color:var(--dsw-alias-state-success-primary);background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 14%, transparent)}
+.dso-overflow-warn{color:var(--dsw-alias-state-warn-primary);background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 14%, transparent)}
+.dso-overflow-alert{color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent)}
+.dso-overflow-critical{color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent)}
+.dso-suggest{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 10px;background:var(--dsw-alias-bg-layer-1)}
+.dso-suggest-title{font:var(--dsw-font-xxs-strong-12);color:var(--dsw-alias-label-primary);margin-bottom:4px}
+.dso-suggest-list{margin:0;padding-left:18px;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary);line-height:1.6}
+.dso-badge-overflow{color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent)}
 `
 
 function injectStyles() {

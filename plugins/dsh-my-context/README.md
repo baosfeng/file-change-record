@@ -49,6 +49,16 @@ Server 端监听 `session/event` 统计每次请求的上下文：
 
 面板可见时 5s 轮询、隐藏时暂停（省请求）。
 
+### 4. 上下文溢出预警（issue #87）
+
+侧边栏概览卡新增「上下文占用」进度条，把会话累计用量与上下文窗口（contextWindow）比对：
+
+- **分级预警**：`warnThreshold`（默认 0.8）→ 预警（进度条变色）/ `alertThreshold`（默认 0.9）→ 告警 / 固定 0.95 → 严重；
+- **压缩建议卡**：达到预警级别时，给出「开启新会话 / 总结压缩历史 / 查看构成占比」建议；
+- **预警记录**：命中等级时记录（时间 / 用量 / 阈值），面板「溢出预警」列表可查（最新在前）；
+- **阈值可配置**：`warnThreshold` / `alertThreshold` 可经配置或 `POST /context/api/overflow` 动态更新（非法值回退默认）；
+- **可选推送**：dsh-my-notify 推送集成因缺稳定跨插件服务契约，降级为「面板内提示 + 记录」。
+
 ## 工作原理
 
 - **Server 端**（`lib/index.js`）：`events.js` 监听 `session/event`（统计）+ `agent/pre-step`（预算拦截）；`meter.js` token 估算纯函数；`budget.js` 预算检查纯函数；`store.js` + `persist.js` 会话统计持久化；`routes.js` 提供 `/context/api` 路由（全部经 loopback 信任围栏）。
@@ -74,13 +84,15 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-my-context
 
 插件配置（`cordis.yml` 中 `my-context` 行的 `config:` 块，均可省略）：
 
-| 配置项       | 默认值   | 说明                                |
-| ------------ | -------- | ----------------------------------- |
-| `perTurn`    | `0`      | 每轮 token 上限（0 = 不限制）       |
-| `perSession` | `0`      | 每会话 token 上限（0 = 不限制）     |
-| `mode`       | `'warn'` | 超限行为：`warn` 提醒 / `deny` 拦截 |
+| 配置项           | 默认值   | 说明                                          |
+| ---------------- | -------- | --------------------------------------------- |
+| `perTurn`        | `0`      | 每轮 token 上限（0 = 不限制）                 |
+| `perSession`     | `0`      | 每会话 token 上限（0 = 不限制）               |
+| `mode`           | `'warn'` | 超限行为：`warn` 提醒 / `deny` 拦截           |
+| `warnThreshold`  | `0.8`    | 溢出预警阈值（80%，进度条变色）               |
+| `alertThreshold` | `0.9`    | 溢出告警阈值（90%，面板告警；95% 固定为严重） |
 
-也可在侧边栏面板「预算设置」中动态修改（`POST /context/api/budget`）。
+也可在侧边栏面板「预算设置」「溢出阈值」中动态修改（`POST /context/api/budget`、`POST /context/api/overflow`）。
 
 ## 与现有插件的关系
 
