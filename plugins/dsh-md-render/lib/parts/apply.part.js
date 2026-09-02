@@ -1,6 +1,13 @@
 exports.inject = []
 
 exports.apply = function apply(ctx) {
+  // 行号开关（issue #80）：从插件配置读取 lineNumbers（默认开）；缺省
+  // 或非法值保持默认，不覆盖 renderOptions。
+  const cfg = ctx && ctx.config
+  if (cfg && typeof cfg.lineNumbers === 'boolean') {
+    setRenderOptions({ lineNumbers: cfg.lineNumbers })
+  }
+
   // Stylesheet first, unconditionally (see dsh-file-activity pitfall:
   // injecting styles behind a service early-return loses them on HMR).
   ctx.effect(() => {

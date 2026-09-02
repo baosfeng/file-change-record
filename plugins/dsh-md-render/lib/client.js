@@ -185,6 +185,27 @@ const icon = {
       ],
       size,
     ),
+  // 下载（issue #85 新增）：箭头入托盘，图表导出按钮（dsh-mermaid-render
+  // 卡片下载 PNG/SVG），stroke=currentColor 风格与其余图标一致。
+  download: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+        createElement('polyline', { points: '7 10 12 15 17 10' }),
+        createElement('line', { x1: 12, y1: 15, x2: 12, y2: 3 }),
+      ],
+      size,
+    ),
+  // 复制（issue #85 新增）：双层矩形，复制源码按钮（dsh-mermaid-render
+  // 卡片复制代码），stroke=currentColor 风格与其余图标一致。
+  copy: (size = 16) =>
+    iconSvg(
+      [
+        createElement('rect', { x: 9, y: 9, width: 13, height: 13, rx: 2 }),
+        createElement('path', { d: 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1' }),
+      ],
+      size,
+    ),
 }
 
 // Common-language / file-type badges (issue #24): brand fill + contrast
@@ -388,7 +409,8 @@ function collectCopyText(node, out) {
     return
   }
   if (node.nodeType !== 1) return
-  if (node.matches && node.matches('.dsh-md-render-copy')) return
+  // 跳过复制按钮与代码块头部（语言标签，issue #80），避免文案混入复制内容。
+  if (node.matches && (node.matches('.dsh-md-render-copy') || node.matches('.dsh-md-render-code-head'))) return
   const kids = node.childNodes || []
   for (let i = 0; i < kids.length; i += 1) collectCopyText(kids[i], out)
 }
@@ -433,6 +455,466 @@ function CopyButton({ kind }) {
     copied ? '已复制' : '复制',
   )
 }
+
+
+    // ── 代码块增强（issue #80）：tokenizer（语法高亮）────────────────
+    // ── 代码块增强（issue #80）：语法高亮 / 语言标签 / 行号 ──────────────
+// 零运行时依赖（R10）：自实现轻量单遍 tokenizer（纯函数），按语言拆分
+// token 输出 <span class="dsh-md-render-tok-*">；未知语言 / 超长代码块
+// （>MAX_CODE_LINES 行）回退纯文本，防卡顿。行号用 CSS counter 伪元素渲
+// 染，不进入 code/pre 文本内容，mermaid 扫描与复制按钮读取的原文本
+// 不受污染。样式见 styles.part.js（随 activation 注入/卸载），语言标
+// 签 + 复制按钮共存于代码块头部（header 行）。渲染（语言标签 / 行号 /
+// 高亮 token 输出）见 codeblock.part.js。
+
+// ── 语言别名 → 规范名（标签用）；未知语言回退纯文本 ──────────────────
+const LANG_ALIAS = {
+  js: 'javascript',
+  jsx: 'javascript',
+  mjs: 'javascript',
+  cjs: 'javascript',
+  ts: 'typescript',
+  tsx: 'typescript',
+  py: 'python',
+  sh: 'bash',
+  shell: 'bash',
+  zsh: 'bash',
+  yml: 'yaml',
+  md: 'markdown',
+  text: 'plain',
+  txt: 'plain',
+}
+function canoLang(lang) {
+  const l = String(lang || '').toLowerCase()
+  return LANG_ALIAS[l] || l
+}
+function langLabel(lang) {
+  const cfg = langConfig(lang)
+  if (cfg) return cfg.label
+  const l = String(lang || '')
+    .toLowerCase()
+    .trim()
+  return l === '' || l === 'text' ? 'text' : l
+}
+
+// ── 关键字表（常见语言子集）────────────────────────────────────────
+const JS_KEYWORDS = [
+  'async',
+  'await',
+  'break',
+  'case',
+  'catch',
+  'class',
+  'const',
+  'continue',
+  'debugger',
+  'default',
+  'delete',
+  'do',
+  'else',
+  'export',
+  'extends',
+  'false',
+  'finally',
+  'for',
+  'from',
+  'function',
+  'get',
+  'if',
+  'import',
+  'in',
+  'instanceof',
+  'let',
+  'new',
+  'null',
+  'of',
+  'return',
+  'set',
+  'static',
+  'super',
+  'switch',
+  'this',
+  'throw',
+  'true',
+  'try',
+  'typeof',
+  'undefined',
+  'var',
+  'void',
+  'while',
+  'with',
+  'yield',
+]
+const TS_KEYWORDS = [
+  ...JS_KEYWORDS,
+  'abstract',
+  'any',
+  'as',
+  'asserts',
+  'bigint',
+  'boolean',
+  'declare',
+  'enum',
+  'implements',
+  'infer',
+  'interface',
+  'is',
+  'keyof',
+  'never',
+  'number',
+  'object',
+  'override',
+  'private',
+  'protected',
+  'public',
+  'readonly',
+  'satisfies',
+  'string',
+  'symbol',
+  'type',
+  'unknown',
+  'namespace',
+  'module',
+]
+const PY_KEYWORDS = [
+  'and',
+  'as',
+  'assert',
+  'async',
+  'await',
+  'break',
+  'class',
+  'continue',
+  'def',
+  'del',
+  'elif',
+  'else',
+  'except',
+  'False',
+  'finally',
+  'for',
+  'from',
+  'global',
+  'if',
+  'import',
+  'in',
+  'is',
+  'lambda',
+  'match',
+  'None',
+  'nonlocal',
+  'not',
+  'or',
+  'pass',
+  'raise',
+  'return',
+  'self',
+  'True',
+  'try',
+  'type',
+  'while',
+  'with',
+  'yield',
+  'case',
+]
+const SH_KEYWORDS = [
+  'alias',
+  'break',
+  'case',
+  'cd',
+  'chmod',
+  'chown',
+  'continue',
+  'cp',
+  'curl',
+  'do',
+  'done',
+  'echo',
+  'elif',
+  'else',
+  'esac',
+  'exit',
+  'export',
+  'fi',
+  'for',
+  'function',
+  'grep',
+  'if',
+  'local',
+  'ls',
+  'mkdir',
+  'mv',
+  'printf',
+  'pwd',
+  'readonly',
+  'return',
+  'rm',
+  'sed',
+  'select',
+  'set',
+  'shift',
+  'source',
+  'then',
+  'touch',
+  'trap',
+  'unset',
+  'until',
+  'wait',
+  'while',
+]
+
+// ── 语言配置（keywords 关键字表；lineComment 行注释；block 块注释
+//    [start,end]；quotes 字符串成对引号；triple 三引号字符串；label 标
+//    签显示名）────────────────────────────────────────────────────
+const LANG_CONFIGS = {
+  javascript: {
+    label: 'javascript',
+    keywords: JS_KEYWORDS,
+    lineComment: '//',
+    block: ['/*', '*/'],
+    quotes: ['"', "'", '`'],
+  },
+  typescript: {
+    label: 'typescript',
+    keywords: TS_KEYWORDS,
+    lineComment: '//',
+    block: ['/*', '*/'],
+    quotes: ['"', "'", '`'],
+  },
+  python: {
+    label: 'python',
+    keywords: PY_KEYWORDS,
+    lineComment: '#',
+    block: [],
+    quotes: ['"', "'"],
+    triple: ['"""', "'''"],
+  },
+  json: { label: 'json', keywords: [], lineComment: null, block: null, quotes: ['"'] },
+  bash: { label: 'bash', keywords: SH_KEYWORDS, lineComment: '#', block: null, quotes: ['"', "'"] },
+  yaml: { label: 'yaml', keywords: [], lineComment: '#', block: null, quotes: ['"', "'"] },
+  markdown: { label: 'markdown', keywords: [], lineComment: null, block: null, quotes: ['`'], markdown: true },
+}
+const langConfigCache = new Map()
+function langConfig(lang) {
+  const name = canoLang(lang)
+  if (langConfigCache.has(name)) return langConfigCache.get(name)
+  const base = LANG_CONFIGS[name]
+  if (!base) return null
+  const cfg = { ...base, kwSet: new Set(base.keywords), label: base.label }
+  langConfigCache.set(name, cfg)
+  return cfg
+}
+
+// ── tokenizer（纯函数，单次遍历；输出每行 token 数组）───────────────
+const MAX_CODE_LINES = 500
+const IDENT_RE = /^[A-Za-z_$][A-Za-z0-9_$]*/
+function tokenize(code, lang) {
+  const cfg = langConfig(lang)
+  if (!cfg)
+    return String(code)
+      .split('\n')
+      .map((line) => [{ type: 'plain', text: line }])
+  if (cfg.markdown) return tokenizeMarkdown(code)
+  const state = { block: null }
+  return String(code)
+    .split('\n')
+    .map((line) => tokenizeLine(line, cfg, state))
+}
+
+/** markdown 轻量高亮：行首 # 标题（keyword）+ 行内代码/加粗（string）。 */
+function tokenizeMarkdown(code) {
+  return String(code)
+    .split('\n')
+    .map((line) => {
+      const m = /^(#{1,6})(\s+)(.*)$/.exec(line)
+      if (m) {
+        return [
+          { type: 'keyword', text: m[1] },
+          { type: 'plain', text: m[2] },
+          ...tokenizeLine(m[3], null, { block: null }),
+        ]
+      }
+      return tokenizeLine(line, null, { block: null })
+    })
+}
+
+function tokenizeLine(line, cfg, state) {
+  const out = []
+  let rest = line
+  while (rest.length > 0) {
+    if (state.block) {
+      rest = scanBlock(rest, state, out)
+      continue
+    }
+    const t = firstToken(rest, cfg)
+    out.push({ type: t.type, text: t.text })
+    if (t.blockEnd) state.block = { end: t.blockEnd, type: t.type }
+    rest = rest.slice(t.text.length)
+  }
+  return out
+}
+
+/** 消费处于块注释/三引号字符串中的剩余行文本，输出对应 token。 */
+function scanBlock(rest, state, out) {
+  const end = state.block.end
+  const close = rest.indexOf(end)
+  if (close === -1) {
+    out.push({ type: state.block.type, text: rest })
+    return ''
+  }
+  out.push({ type: state.block.type, text: rest.slice(0, close + end.length) })
+  state.block = null
+  return rest.slice(close + end.length)
+}
+
+function firstToken(rest, cfg) {
+  return (
+    matchBlock(rest, cfg) ||
+    matchLineComment(rest, cfg) ||
+    matchString(rest, cfg) ||
+    matchNumber(rest) ||
+    matchIdent(rest, cfg) || { type: 'plain', text: rest[0] }
+  )
+}
+
+function matchBlock(rest, cfg) {
+  if (!cfg || !cfg.block || cfg.block.length !== 2) return null
+  const start = cfg.block[0]
+  const end = cfg.block[1]
+  if (!rest.startsWith(start)) return null
+  const close = rest.indexOf(end, start.length)
+  if (close === -1) return { type: 'comment', text: rest, blockEnd: end }
+  return { type: 'comment', text: rest.slice(0, close + end.length) }
+}
+
+function matchLineComment(rest, cfg) {
+  const lc = cfg && cfg.lineComment
+  if (!lc || !rest.startsWith(lc)) return null
+  return { type: 'comment', text: rest }
+}
+
+function matchString(rest, cfg) {
+  const quotes = cfg ? cfg.quotes : ['"', "'", '`']
+  const ch = rest[0]
+  if (!quotes.includes(ch)) return null
+  if (cfg && cfg.triple && rest.startsWith(ch + ch + ch)) return matchTriple(rest, ch + ch + ch)
+  let j = 1
+  while (j < rest.length) {
+    if (rest[j] === '\\') {
+      j += 2
+      continue
+    }
+    if (rest[j] === ch) return { type: 'string', text: rest.slice(0, j + 1) }
+    j += 1
+  }
+  return { type: 'string', text: rest }
+}
+
+function matchTriple(rest, triple) {
+  const close = rest.indexOf(triple, triple.length)
+  if (close === -1) return { type: 'string', text: rest, blockEnd: triple }
+  return { type: 'string', text: rest.slice(0, close + triple.length) }
+}
+
+function matchNumber(rest) {
+  const m = /^(?:0[xX][0-9a-fA-F]+|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|\.\d+)/.exec(rest)
+  return m ? { type: 'number', text: m[0] } : null
+}
+
+function matchIdent(rest, cfg) {
+  const m = IDENT_RE.exec(rest)
+  if (!m) return null
+  const word = m[0]
+  const kw = cfg && cfg.kwSet
+  if (kw && kw.has(word)) return { type: 'keyword', text: word }
+  if (/^\s*\(/.test(rest.slice(word.length))) return { type: 'function', text: word }
+  return { type: 'identifier', text: word }
+}
+
+exports.tokenizeCode = tokenize
+exports.langLabel = langLabel
+
+
+    // ── 代码块增强（issue #80）：语言标签 + 复制按钮头部 + 行号 ─────
+    // ── 代码块渲染（issue #80）：语言标签 + 复制按钮头部 + 行号 + 高亮 ──
+// 结构：div.md-code-block > div.dsh-md-render-code-head（语言名 + 复制
+// 按钮，同排）+ pre.tzx-pre > code.language-xxx（token 高亮 / 行号）。
+// 行号用 CSS counter 伪元素渲染，不进入 code/pre 文本内容，mermaid 扫
+// 描与复制按钮读取的原文本不受污染。语法高亮 tokenizer 见
+// highlight.part.js。
+
+// 渲染选项（行号开关，默认开）；apply(ctx) 从 ctx.config.lineNumbers
+// 读取，测试可用 setRenderOptions 切换。模块级变量，MarkdownView 渲染
+// 代码块时读取。
+let renderOptions = { lineNumbers: true }
+function setRenderOptions(next) {
+  renderOptions = { ...renderOptions, ...(next || {}) }
+}
+
+// token 类型 → 高亮类名（其余类型渲染为纯文本）。
+const TOKEN_CLASS = {
+  keyword: 'dsh-md-render-tok-keyword',
+  string: 'dsh-md-render-tok-string',
+  comment: 'dsh-md-render-tok-comment',
+  number: 'dsh-md-render-tok-number',
+  function: 'dsh-md-render-tok-function',
+}
+
+function renderTokens(tokens) {
+  const out = []
+  for (let i = 0; i < tokens.length; i += 1) {
+    const t = tokens[i]
+    const cls = TOKEN_CLASS[t.type]
+    out.push(cls ? createElement('span', { key: i, className: cls }, t.text) : t.text)
+  }
+  return out
+}
+
+function shouldHighlight(lang, lines) {
+  return !!langConfig(lang) && lines.length <= MAX_CODE_LINES
+}
+
+/** 渲染代码块主体（code 内细胞）：按行输出 token / 行号 div。 */
+function renderCodeCells(code, lang, lines, highlight, lineNumbers) {
+  const tokens = highlight ? tokenize(code, lang) : null
+  const nodes = []
+  for (let i = 0; i < lines.length; i += 1) {
+    const toks = tokens ? tokens[i] : [{ type: 'plain', text: lines[i] }]
+    const cells = renderTokens(toks)
+    if (!lineNumbers) {
+      nodes.push(...cells)
+    } else {
+      nodes.push(createElement('div', { key: 'l' + i, className: 'dsh-md-render-code-line' }, ...cells))
+    }
+    if (i < lines.length - 1) nodes.push('\n')
+  }
+  return nodes
+}
+
+/** 渲染完整代码块：头部（语言名 + 复制按钮）+ pre > code（高亮/行号）。 */
+function renderCodeBlock({ key, lang, code }) {
+  const lines = String(code).split('\n')
+  const highlight = shouldHighlight(lang, lines)
+  const head = createElement(
+    'div',
+    { className: 'dsh-md-render-code-head' },
+    createElement('span', { className: 'dsh-md-render-code-lang' }, langLabel(lang)),
+    createElement(CopyButton, { kind: 'code' }),
+  )
+  const body = renderCodeCells(code, lang, lines, highlight, renderOptions.lineNumbers)
+  return createElement(
+    'div',
+    { key, className: 'md-code-block' },
+    head,
+    createElement(
+      'pre',
+      { className: 'tzx-pre' },
+      createElement('code', { className: lang ? 'language-' + lang : '' }, ...body),
+    ),
+  )
+}
+
+exports.setRenderOptions = setRenderOptions
 
 
     // ── 统一 MarkdownView：行内 + 块级渲染（导出供 think-zh-expand）──
@@ -590,18 +1072,8 @@ function tryFence(lines, i, out) {
     i += 1
   }
   i += 1
-  out.push(
-    createElement(
-      'div',
-      { key: 'b' + out.length, className: 'md-code-block' },
-      createElement(
-        'pre',
-        { className: 'tzx-pre' },
-        createElement('code', { className: fence[1] ? 'language-' + fence[1] : '' }, buf.join('\n')),
-      ),
-      createElement(CopyButton, { kind: 'code' }),
-    ),
-  )
+  // 语法高亮 / 语言标签 / 行号（issue #80）：结构见 highlight.part.js。
+  out.push(renderCodeBlock({ key: 'b' + out.length, lang: fence[1], code: buf.join('\n') }))
   return i
 }
 
@@ -1303,11 +1775,30 @@ div.dsh-md-render-math-error{margin:0;text-align:center;justify-content:center;p
    半截内容。 */
 .md-code-block{position:relative}
 .tzx-md{position:relative}
-.md-code-block>.dsh-md-render-copy,.tzx-md>.dsh-md-render-copy{position:absolute;right:8px;bottom:8px;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font:var(--dsw-font-xxxs-11);line-height:20px;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:6px;cursor:pointer;opacity:0;transition:opacity var(--ds-transition-duration-slow) var(--ds-ease-in-out),color var(--ds-transition-duration-slow) var(--ds-ease-in-out),border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
-.md-code-block:hover>.dsh-md-render-copy,.tzx-md:hover>.dsh-md-render-copy{opacity:1}
+.dsh-md-render-copy{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font:var(--dsw-font-xxxs-11);line-height:20px;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:6px;cursor:pointer;opacity:0;transition:opacity var(--ds-transition-duration-slow) var(--ds-ease-in-out),color var(--ds-transition-duration-slow) var(--ds-ease-in-out),border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+.dsh-md-render-code-head>.dsh-md-render-copy{margin-left:auto}
+.tzx-md>.dsh-md-render-copy{position:absolute;right:8px;bottom:8px}
+.md-code-block:hover .dsh-md-render-copy,.tzx-md:hover>.dsh-md-render-copy{opacity:1}
 .dsh-md-render-copy:hover{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l2)}
 .dsh-md-render-copy-done{color:var(--dsw-alias-state-success-primary);border-color:var(--dsw-alias-state-success-primary)}
 [data-streaming] .dsh-md-render-copy{display:none}
+/* ── 代码块增强（issue #80）：头部语言标签 + 行号 + 语法高亮 ──
+   header 行与复制按钮（#74）同排；行号用 CSS counter 伪元素（不污染
+   pre/code 文本内容，mermaid/复制读取原文本不受影响）；token 类走
+   固定色板 + prefers-color-scheme 深浅两套，随 activation 注入/卸载。 */
+.dsh-md-render-code-head{display:flex;align-items:center;gap:8px;padding:4px 8px;font:var(--dsw-font-xxxs-11);line-height:20px;color:var(--dsw-alias-label-secondary);background:color-mix(in srgb,var(--dsw-alias-bg-layer-2) 55%,transparent);border:1px solid var(--dsw-alias-border-l1);border-bottom:none;border-radius:8px 8px 0 0}
+.dsh-md-render-code-lang{text-transform:lowercase;letter-spacing:.02em;user-select:none}
+.md-code-block .tzx-pre{border-top:none;border-radius:0 0 8px 8px}
+.tzx-md .tzx-pre code{display:block;white-space:normal;counter-reset:dsh-md-render-line}
+.dsh-md-render-code-line{display:block;white-space:pre;position:relative;padding-left:3.5em;counter-increment:dsh-md-render-line}
+.dsh-md-render-code-line::before{content:counter(dsh-md-render-line);position:absolute;left:0;width:3em;text-align:right;color:var(--dsw-alias-label-tertiary);user-select:none}
+.md-code-block{--dsh-md-render-c-kw:#7c3aed;--dsh-md-render-c-str:#16a34a;--dsh-md-render-c-com:#94a3b8;--dsh-md-render-c-num:#dc2626;--dsh-md-render-c-fn:#2563eb}
+.dsh-md-render-tok-keyword{color:var(--dsh-md-render-c-kw)}
+.dsh-md-render-tok-string{color:var(--dsh-md-render-c-str)}
+.dsh-md-render-tok-comment{color:var(--dsh-md-render-c-com);font-style:italic}
+.dsh-md-render-tok-number{color:var(--dsh-md-render-c-num)}
+.dsh-md-render-tok-function{color:var(--dsh-md-render-c-fn)}
+@media (prefers-color-scheme:dark){.md-code-block{--dsh-md-render-c-kw:#c4b5fd;--dsh-md-render-c-str:#86efac;--dsh-md-render-c-com:#64748b;--dsh-md-render-c-num:#f87171;--dsh-md-render-c-fn:#93c5fd}}
 `
 
 
@@ -1315,6 +1806,13 @@ div.dsh-md-render-math-error{margin:0;text-align:center;justify-content:center;p
     exports.inject = []
 
 exports.apply = function apply(ctx) {
+  // 行号开关（issue #80）：从插件配置读取 lineNumbers（默认开）；缺省
+  // 或非法值保持默认，不覆盖 renderOptions。
+  const cfg = ctx && ctx.config
+  if (cfg && typeof cfg.lineNumbers === 'boolean') {
+    setRenderOptions({ lineNumbers: cfg.lineNumbers })
+  }
+
   // Stylesheet first, unconditionally (see dsh-file-activity pitfall:
   // injecting styles behind a service early-return loses them on HMR).
   ctx.effect(() => {
