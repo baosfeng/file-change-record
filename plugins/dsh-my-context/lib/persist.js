@@ -9,7 +9,7 @@
 import { readFile } from 'node:fs/promises'
 import { atomicWriteJson } from 'dsh-shared'
 import { createState, createSession, zeroUsage, zeroComposition } from './state.js'
-import { MAX_REQUESTS_PER_SESSION, MAX_ALERTS_PER_SESSION } from './constants.js'
+import { MAX_REQUESTS_PER_SESSION, MAX_ALERTS_PER_SESSION, MAX_OVERFLOWS_PER_SESSION } from './constants.js'
 
 /** 防抖间隔（ms）。 */
 const PERSIST_DEBOUNCE_MS = 500
@@ -75,6 +75,7 @@ function normalizeSession(sessionId, raw) {
   copyObject(session, raw, 'header', session.header)
   if (Array.isArray(raw.requests)) session.requests = raw.requests.slice(-MAX_REQUESTS_PER_SESSION)
   if (Array.isArray(raw.alerts)) session.alerts = raw.alerts.slice(-MAX_ALERTS_PER_SESSION)
+  if (Array.isArray(raw.overflows)) session.overflows = raw.overflows.slice(-MAX_OVERFLOWS_PER_SESSION)
   return session
 }
 

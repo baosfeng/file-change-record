@@ -30,6 +30,7 @@ window.__ModuleLoader__.load({
     // ── parts（scripts/build.mjs 拼接；顺序固定）───────────────────────
     /*__PART_I18N__*/
     /*__PART_PANEL__*/
+    /*__PART_OVERFLOW__*/
     /*__PART_STYLES__*/
 
     // ── 插件体：样式注入 + 页签注册 ─────────────────────────────────────

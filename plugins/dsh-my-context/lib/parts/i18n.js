@@ -53,6 +53,35 @@ const strings = {
   alertSession: () => (isZh() ? '每会话超限' : 'Session limit exceeded'),
   alertBlocked: () => (isZh() ? '已拦截' : 'Blocked'),
   alertWarned: () => (isZh() ? '已提醒' : 'Warned'),
+  // ── 上下文溢出预警（issue #87）──────────────────────────────────
+  contextUsage: () => (isZh() ? '上下文占用' : 'Context usage'),
+  contextUsageUnknown: () => (isZh() ? '上下文窗口未知' : 'Context window unknown'),
+  levelNormal: () => (isZh() ? '正常' : 'Normal'),
+  levelWarn: () => (isZh() ? '预警' : 'Warning'),
+  levelAlert: () => (isZh() ? '告警' : 'Alert'),
+  levelCritical: () => (isZh() ? '严重' : 'Critical'),
+  overflowSection: () => (isZh() ? '溢出预警' : 'Overflow alerts'),
+  noOverflows: () => (isZh() ? '暂无溢出预警' : 'No overflow alerts'),
+  overflowRatio: () => (isZh() ? '已用占比' : 'Usage'),
+  overflowThreshold: (n) => (isZh() ? `阈值 ${(n * 100).toFixed(0)}%` : `threshold ${(n * 100).toFixed(0)}%`),
+  suggestTitle: (level) => {
+    if (isZh()) {
+      if (level === 'critical') return '建议：上下文接近上限，开启新会话'
+      if (level === 'alert') return '建议：尽快压缩或开启新会话'
+      return '建议：留意上下文占用'
+    }
+    if (level === 'critical') return 'Suggestion: context near limit, start a new session'
+    if (level === 'alert') return 'Suggestion: compact soon or start a new session'
+    return 'Suggestion: watch context usage'
+  },
+  suggestNewSession: () => (isZh() ? '开启新会话，归档当前上下文' : 'Start a new session and archive this context'),
+  suggestCompact: () =>
+    isZh() ? '总结/压缩历史对话后再继续' : 'Summarize/compact the conversation history before continuing',
+  suggestComposition: (list) =>
+    isZh() ? `查看上下文构成占比（${list} 占比最高）` : `Review composition shares (${list} dominate)`,
+  warnThresholdLabel: () => (isZh() ? '预警阈值' : 'Warn threshold'),
+  alertThresholdLabel: () => (isZh() ? '告警阈值' : 'Alert threshold'),
+  overflowConfig: () => (isZh() ? '溢出阈值' : 'Overflow thresholds'),
   tokens: (n) => (isZh() ? `${n.toLocaleString()} tokens` : `${n.toLocaleString()} tokens`),
   percent: (n) => `${(n * 100).toFixed(1)}%`,
   empty: () => (isZh() ? '（空）' : '(empty)'),

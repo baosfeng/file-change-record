@@ -90,6 +90,77 @@ test('routes: POST /budget with invalid values falls back to defaults', async ()
   handle.disposeAll()
 })
 
+test('routes: status exposes overflow thresholds, POST /overflow updates them', async () => {
+  const handle = boot({})
+  await settle()
+  const status = mockResponse()
+  await invoke(handle.api, mockRequest({ url: '/context/api/status' }), status)
+  assert.deepEqual(jsonOf(status).value.overflow, { warnThreshold: 0.8, alertThreshold: 0.9 })
+  const res = mockResponse()
+  await invoke(
+    handle.api,
+    mockRequest({
+      url: '/context/api/overflow',
+      method: 'POST',
+      body: JSON.stringify({ warnThreshold: 0.6, alertThreshold: 0.7 }),
+    }),
+    res,
+  )
+  assert.equal(res.writeHeadStatus, 200)
+  assert.deepEqual(jsonOf(res).value.overflow, { warnThreshold: 0.6, alertThreshold: 0.7 })
+  const status2 = mockResponse()
+  await invoke(handle.api, mockRequest({ url: '/context/api/status' }), status2)
+  assert.deepEqual(jsonOf(status2).value.overflow, { warnThreshold: 0.6, alertThreshold: 0.7 })
+  handle.disposeAll()
+})
+
+test('routes: POST /overflow with invalid values falls back to defaults', async () => {
+  const handle = boot({})
+  await settle()
+  const res = mockResponse()
+  await invoke(
+    handle.api,
+    mockRequest({
+      url: '/context/api/overflow',
+      method: 'POST',
+      body: JSON.stringify({ warnThreshold: -1, alertThreshold: 1.5 }),
+    }),
+    res,
+  )
+  assert.equal(res.writeHeadStatus, 200)
+  assert.deepEqual(jsonOf(res).value.overflow, { warnThreshold: 0, alertThreshold: 1 })
+  handle.disposeAll()
+})
+
+test('routes: GET /overflows returns overflow warnings newest first', async () => {
+  const handle = boot({ warnThreshold: 0.8, alertThreshold: 0.9 })
+  await settle()
+  const { sessionEvent, dispatchEvent, preStepPayload } = await import('./lib/helpers.mjs')
+  const { session, event } = sessionEvent('s-1', 'request/context', { contextWindow: 100 })
+  await dispatchEvent(handle.listeners, 'session/event', session, event)
+  const { session: s2, event: e2 } = sessionEvent('s-1', 'assistant/message', {
+    turn: 1,
+    step: 1,
+    message: { content: [{ type: 'text', text: 'x' }] },
+    usage: { inputTokens: 90, outputTokens: 0 },
+  })
+  await dispatchEvent(handle.listeners, 'session/event', s2, e2)
+  await settle()
+  await dispatchEvent(handle.listeners, 'agent/pre-step', preStepPayload('s-1'), async () => ({
+    kind: 'enter',
+    messages: [],
+  }))
+  await settle()
+  const res = mockResponse()
+  await invoke(handle.api, mockRequest({ url: '/context/api/overflows?sessionId=s-1' }), res)
+  assert.equal(res.writeHeadStatus, 200)
+  const overflows = jsonOf(res).value
+  assert.equal(overflows.length, 1)
+  assert.equal(overflows[0].kind, 'overflow')
+  assert.equal(overflows[0].level, 'alert')
+  handle.disposeAll()
+})
+
 test('routes: GET /alerts returns alerts newest first', async () => {
   const handle = boot({ perTurn: 10, mode: 'warn' })
   await settle()

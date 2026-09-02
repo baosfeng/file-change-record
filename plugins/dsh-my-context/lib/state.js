@@ -39,6 +39,7 @@ export function createSession(sessionId) {
     requests: [],
     header: { system: '', tools: [], systemTokens: 0, toolsTokens: 0 },
     alerts: [],
+    overflows: [],
     updatedAt: 0,
   }
 }

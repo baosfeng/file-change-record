@@ -2,14 +2,17 @@
  * dsh-my-context — /context/api routes.
  *
  * 所有请求先做 loopback 信任围栏（与 /api 网关一致的契约）。方法分派：
- *  - GET  /status                  — 状态 + 预算配置
+ *  - GET  /status                  — 状态 + 预算配置 + 溢出阈值配置
  *  - GET  /sessions                — 有统计的会话列表
- *  - GET  /session?sessionId=      — 会话统计详情（构成/请求/告警）
+ *  - GET  /session?sessionId=      — 会话统计详情（构成/请求/告警/溢出预警）
  *  - GET  /alerts?sessionId=       — 预算告警列表（最新在前）
+ *  - GET  /overflows?sessionId=    — 上下文溢出预警列表（最新在前）
  *  - POST /budget                  — 更新预算配置（body { perTurn, perSession, mode }）
+ *  - POST /overflow                — 更新溢出阈值（body { warnThreshold, alertThreshold }）
  */
 import { isTrustedApiRequest, readJsonBody, writeError, writeJson } from 'dsh-shared'
 import { normalizeBudgetConfig } from './budget.js'
+import { normalizeOverflowConfig } from './overflow.js'
 
 /** 注册 /context/api 路由（effect 持有 disposer）。 */
 export function registerContextRoutes(ctx, store, options) {
@@ -78,8 +81,16 @@ async function dispatchMethod(method, request, response, url, store, options) {
     writeJson(response, 200, { ok: true, value: alertsOf(store, queryOf(url, 'sessionId')) })
     return true
   }
+  if (isMethod(method, request, 'overflows', 'GET')) {
+    writeJson(response, 200, { ok: true, value: overflowsOf(store, queryOf(url, 'sessionId')) })
+    return true
+  }
   if (isMethod(method, request, 'budget', 'POST')) {
     await handleBudget(request, response, options)
+    return true
+  }
+  if (isMethod(method, request, 'overflow', 'POST')) {
+    await handleOverflow(request, response, options)
     return true
   }
   return false
@@ -87,11 +98,12 @@ async function dispatchMethod(method, request, response, url, store, options) {
 
 // ── handlers ───────────────────────────────────────────────────────────────
 
-/** 状态：会话数 + 预算配置。 */
+/** 状态：会话数 + 预算配置 + 溢出阈值配置。 */
 function statusValue(store, options) {
   return {
     sessions: store.sessions().length,
     budget: { ...options.current },
+    overflow: { ...options.overflow },
   }
 }
 
@@ -115,11 +127,24 @@ function alertsOf(store, sessionId) {
   return [...list].reverse()
 }
 
+/** 溢出预警列表（最新在前）。 */
+function overflowsOf(store, sessionId) {
+  const list = store.session(sessionId)?.overflows ?? []
+  return [...list].reverse()
+}
+
 /** 更新预算配置：body { perTurn, perSession, mode }（非法值回退默认）。 */
 async function handleBudget(request, response, options) {
   const payload = await readJsonBody(request)
   options.current = normalizeBudgetConfig(payload)
   writeJson(response, 200, { ok: true, value: { budget: { ...options.current } } })
+}
+
+/** 更新溢出阈值：body { warnThreshold, alertThreshold }（非法值回退默认）。 */
+async function handleOverflow(request, response, options) {
+  const payload = await readJsonBody(request)
+  options.overflow = normalizeOverflowConfig(payload)
+  writeJson(response, 200, { ok: true, value: { overflow: { ...options.overflow } } })
 }
 
 // ── HTTP helpers ───────────────────────────────────────────────────────────

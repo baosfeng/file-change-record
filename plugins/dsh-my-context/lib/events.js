@@ -14,6 +14,7 @@
  */
 import { estimateMessage, estimateSystem, estimateTools, isEmptyMessage } from './meter.js'
 import { checkBudget } from './budget.js'
+import { overflowLevel, isOverflowing } from './overflow.js'
 
 /** 告警冷却（同一会话同一 scope 的重复告警间隔，防刷屏）。 */
 const ALERT_COOLDOWN_MS = 60000
@@ -21,9 +22,12 @@ const ALERT_COOLDOWN_MS = 60000
 /** 注册全部上下文监听；返回 disposer 数组（全部经 ctx.on 注册）。 */
 export function attachContextListeners(ctx, store, options) {
   const cooldown = new Map()
+  const overflowCooldown = new Map()
   return [
     ctx.on('session/event', (session, event) => handleSessionEvent(session, event, store)),
-    ctx.on('agent/pre-step', (payload, next) => handlePreStep(payload, next, store, options, cooldown)),
+    ctx.on('agent/pre-step', (payload, next) =>
+      handlePreStep(payload, next, store, options, cooldown, overflowCooldown),
+    ),
   ]
 }
 
@@ -76,12 +80,13 @@ function handleAssistant(store, sessionId, data) {
   }
 }
 
-/** agent/pre-step：预算检查 → warn 告警 / deny 拦截。 */
-async function handlePreStep(payload, next, store, options, cooldown) {
+/** agent/pre-step：预算检查 → warn 告警 / deny 拦截；溢出预警（不阻塞）。 */
+async function handlePreStep(payload, next, store, options, cooldown, overflowCooldown) {
   const sessionId = payload?.agent?.id
   if (typeof sessionId !== 'string' || sessionId === '') return next()
   const session = store.session(sessionId)
   if (session === undefined) return next()
+  recordOverflowIfNeeded(store, session, options, overflowCooldown)
   const decision = checkBudget(session.usage, session.turnUsage, options.current)
   if (decision.ok) return next()
   const blocked = options.current.mode === 'deny'
@@ -98,6 +103,23 @@ async function handlePreStep(payload, next, store, options, cooldown) {
     blocked,
   })
   return blocked ? { kind: 'reject' } : next()
+}
+
+/** 溢出分级命中预警级别时记录预警事件（同一会话同一级别 60s 冷却）。 */
+function recordOverflowIfNeeded(store, session, options, cooldown) {
+  const outcome = overflowLevel(session.usage, session.contextWindow, options.overflow)
+  if (!isOverflowing(outcome.level)) return
+  const scope = `overflow:${outcome.level}`
+  if (withinCooldown(cooldown, session.sessionId, scope)) return
+  cooldown.set(`${session.sessionId}:${scope}`, Date.now())
+  store.recordOverflow(session.sessionId, {
+    kind: 'overflow',
+    level: outcome.level,
+    ratio: outcome.ratio,
+    used: outcome.used,
+    window: outcome.window,
+    threshold: outcome.threshold,
+  })
 }
 
 /** 告警冷却判定：冷却期内返回 true（不重复记录）。 */

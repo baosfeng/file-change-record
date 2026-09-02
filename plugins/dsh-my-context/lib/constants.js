@@ -10,3 +10,6 @@ export const MAX_REQUESTS_PER_SESSION = 500
 
 /** 每会话预算告警上限（FIFO 淘汰）。 */
 export const MAX_ALERTS_PER_SESSION = 50
+
+/** 每会话上下文溢出预警上限（FIFO 淘汰）。 */
+export const MAX_OVERFLOWS_PER_SESSION = 50

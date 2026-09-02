@@ -83,6 +83,35 @@ const strings = {
   alertSession: () => (isZh() ? '每会话超限' : 'Session limit exceeded'),
   alertBlocked: () => (isZh() ? '已拦截' : 'Blocked'),
   alertWarned: () => (isZh() ? '已提醒' : 'Warned'),
+  // ── 上下文溢出预警（issue #87）──────────────────────────────────
+  contextUsage: () => (isZh() ? '上下文占用' : 'Context usage'),
+  contextUsageUnknown: () => (isZh() ? '上下文窗口未知' : 'Context window unknown'),
+  levelNormal: () => (isZh() ? '正常' : 'Normal'),
+  levelWarn: () => (isZh() ? '预警' : 'Warning'),
+  levelAlert: () => (isZh() ? '告警' : 'Alert'),
+  levelCritical: () => (isZh() ? '严重' : 'Critical'),
+  overflowSection: () => (isZh() ? '溢出预警' : 'Overflow alerts'),
+  noOverflows: () => (isZh() ? '暂无溢出预警' : 'No overflow alerts'),
+  overflowRatio: () => (isZh() ? '已用占比' : 'Usage'),
+  overflowThreshold: (n) => (isZh() ? `阈值 ${(n * 100).toFixed(0)}%` : `threshold ${(n * 100).toFixed(0)}%`),
+  suggestTitle: (level) => {
+    if (isZh()) {
+      if (level === 'critical') return '建议：上下文接近上限，开启新会话'
+      if (level === 'alert') return '建议：尽快压缩或开启新会话'
+      return '建议：留意上下文占用'
+    }
+    if (level === 'critical') return 'Suggestion: context near limit, start a new session'
+    if (level === 'alert') return 'Suggestion: compact soon or start a new session'
+    return 'Suggestion: watch context usage'
+  },
+  suggestNewSession: () => (isZh() ? '开启新会话，归档当前上下文' : 'Start a new session and archive this context'),
+  suggestCompact: () =>
+    isZh() ? '总结/压缩历史对话后再继续' : 'Summarize/compact the conversation history before continuing',
+  suggestComposition: (list) =>
+    isZh() ? `查看上下文构成占比（${list} 占比最高）` : `Review composition shares (${list} dominate)`,
+  warnThresholdLabel: () => (isZh() ? '预警阈值' : 'Warn threshold'),
+  alertThresholdLabel: () => (isZh() ? '告警阈值' : 'Alert threshold'),
+  overflowConfig: () => (isZh() ? '溢出阈值' : 'Overflow thresholds'),
   tokens: (n) => (isZh() ? `${n.toLocaleString()} tokens` : `${n.toLocaleString()} tokens`),
   percent: (n) => `${(n * 100).toFixed(1)}%`,
   empty: () => (isZh() ? '（空）' : '(empty)'),
@@ -375,6 +404,7 @@ async function loadContextData(sessionId, setters) {
   if (sessionId === '' && list.length > 0) setters.setSessionId(list[0].sessionId)
   const status = await apiJson('/context/api/status')
   setters.setBudget(status.budget)
+  setters.setOverflow(status.overflow || { warnThreshold: 0.8, alertThreshold: 0.9 })
   if (sessionId !== '') {
     const stats = await apiJson(`/context/api/session?sessionId=${encodeURIComponent(sessionId)}`)
     setters.setSession(stats)
@@ -421,13 +451,14 @@ function ContextPanel(props) {
   const [sessionId, setSessionId] = useState('')
   const [session, setSession] = useState(null)
   const [budget, setBudget] = useState({ perTurn: 0, perSession: 0, mode: 'warn' })
+  const [overflow, setOverflow] = useState({ warnThreshold: 0.8, alertThreshold: 0.9 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!visible) return undefined
     let alive = true
-    const setters = { setSessions, setSessionId, setSession, setBudget, setError, setLoading }
+    const setters = { setSessions, setSessionId, setSession, setBudget, setOverflow, setError, setLoading }
     const tick = () => {
       loadContextData(sessionId, setters)
         .catch((err) => {
@@ -465,8 +496,218 @@ function ContextPanel(props) {
     ),
     statusNote(error, loading, session),
     session !== null ? createElement(OverviewCard, { session }) : null,
+    session !== null ? createElement(ContextUsageCard, { session, overflow }) : null,
     sessionSections(session),
+    session !== null ? createElement(OverflowSection, { overflows: session.overflows }) : null,
+    createElement(OverflowSettings, { overflow, onSaved: () => {} }),
     createElement(BudgetSettings, { budget, onSaved: () => {} }),
+  )
+}
+
+    // ── 上下文溢出预警（issue #87）────────────────────────────────────
+// 用量比例 + 分级预警（80/90/95%）进度条、压缩建议卡、预警记录列表、
+// 阈值配置。与 server lib/overflow.js 语义一致（比值口径 = usageTotal/
+// contextWindow）；client 无相对 import，分级逻辑在此本地复刻。
+
+/** 会话累计用量（usage 桶还原为完整 token 总量，与 server 一致）。 */
+function contextUsage(session) {
+  const usage = session.usage || {}
+  return (
+    (usage.inputTokens || 0) + (usage.outputTokens || 0) + (usage.cacheReadTokens || 0) + (usage.cacheWriteTokens || 0)
+  )
+}
+
+/** 非负有限比例，夹到 [0,1]。 */
+function ratioTo(value, fallback) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback
+  if (value < 0) return 0
+  if (value > 1) return 1
+  return value
+}
+
+/** 用量比例分级：normal / warn / alert / critical。 */
+function overflowLevelOf(ratio, overflow) {
+  const warn = ratioTo(overflow?.warnThreshold, 0.8)
+  const alert = ratioTo(overflow?.alertThreshold, 0.9)
+  if (ratio >= 0.95) return 'critical'
+  if (ratio >= alert) return 'alert'
+  if (ratio >= warn) return 'warn'
+  return 'normal'
+}
+
+/** 当前会话用量表：{ used, window, ratio, level }。 */
+function usageMeter(session, overflow) {
+  const window = session.contextWindow || 0
+  const used = contextUsage(session)
+  const ratio = window > 0 ? used / window : 0
+  return { used, window, ratio, level: overflowLevelOf(ratio, overflow) }
+}
+
+/** 级别 → 标签。 */
+function overflowLevelLabel(level) {
+  const labels = {
+    normal: strings.levelNormal(),
+    warn: strings.levelWarn(),
+    alert: strings.levelAlert(),
+    critical: strings.levelCritical(),
+  }
+  return labels[level] || strings.levelNormal()
+}
+
+/** 前 N 个占比最高的构成分类（[{label, percent}]）。 */
+function topComposition(composition, count) {
+  const keys = ['system', 'tools', 'user', 'inject', 'assistant', 'tool']
+  const items = keys
+    .filter((key) => (composition[key] || 0) > 0)
+    .map((key) => ({ key, label: compositionLabel(key), value: composition[key] || 0 }))
+    .sort((a, b) => b.value - a.value)
+  const total = items.reduce((sum, it) => sum + it.value, 0)
+  if (total <= 0) return []
+  return items.slice(0, count).map((it) => ({ label: it.label, percent: strings.percent(it.value / total) }))
+}
+
+/** 上下文占用卡：进度条（级别色）+ 级别徽标 + 压缩建议。 */
+function ContextUsageCard({ session, overflow }) {
+  const meter = usageMeter(session, overflow)
+  const width = `${Math.min(100, meter.ratio * 100)}%`
+  const bar =
+    meter.window > 0
+      ? [
+          createElement(
+            'div',
+            { className: 'dso-usage-track' },
+            createElement('div', { className: `dso-usage-fill dso-usage-${meter.level}`, style: { width } }),
+          ),
+          createElement(
+            'div',
+            { className: 'dso-usage-meta' },
+            `${strings.tokens(meter.used)} / ${strings.tokens(meter.window)} · ${strings.overflowRatio()} ${strings.percent(meter.ratio)}`,
+          ),
+        ]
+      : createElement('div', { className: 'dso-empty' }, strings.contextUsageUnknown())
+  return createElement(
+    'div',
+    { className: 'dso-card' },
+    createElement(
+      'div',
+      { className: 'dso-card-head' },
+      createElement('span', { className: 'dso-card-title' }, strings.contextUsage()),
+      createElement('span', { className: `dso-badge dso-overflow-${meter.level}` }, overflowLevelLabel(meter.level)),
+    ),
+    bar,
+    createElement(CompressSuggestions, { meter, session }),
+  )
+}
+
+/** 压缩建议卡（非 normal 级别展示）。 */
+function CompressSuggestions({ meter, session }) {
+  if (meter.level === 'normal') return null
+  const top = topComposition(session.composition, 2)
+  const items = [strings.suggestNewSession(), strings.suggestCompact()]
+  if (top.length > 0) items.push(strings.suggestComposition(top.map((t) => t.label).join('、')))
+  return createElement(
+    'div',
+    { className: 'dso-suggest' },
+    createElement('div', { className: 'dso-suggest-title' }, strings.suggestTitle(meter.level)),
+    createElement(
+      'ul',
+      { className: 'dso-suggest-list' },
+      items.map((text) => createElement('li', { key: text }, text)),
+    ),
+  )
+}
+
+/** 溢出预警记录列表（最新在前）。 */
+function OverflowList({ overflows }) {
+  if (overflows.length === 0) return createElement('div', { className: 'dso-empty' }, strings.noOverflows())
+  const rows = [...overflows].reverse().map((item) => {
+    const meta = `${strings.tokens(item.used)} / ${strings.tokens(item.window)} · ${strings.overflowRatio()} ${strings.percent(item.ratio)} · ${strings.overflowThreshold(item.threshold)}`
+    return createElement(
+      'div',
+      { key: item.id, className: `dso-alert dso-alert-${item.level === 'critical' ? 'danger' : 'warn'}` },
+      createElement(
+        'div',
+        { className: 'dso-alert-head' },
+        createElement('span', { className: 'dso-badge dso-badge-overflow' }, overflowLevelLabel(item.level)),
+        createElement('span', { className: 'dso-time' }, timeText(item.time)),
+      ),
+      createElement('div', { className: 'dso-alert-msg' }, meta),
+    )
+  })
+  return createElement('div', { className: 'dso-timeline' }, rows)
+}
+
+/** 溢出预警区块（标题 + 记录列表）。 */
+function OverflowSection({ overflows }) {
+  return createElement(
+    'div',
+    { className: 'dso-section' },
+    createElement('div', { className: 'dso-section-title' }, strings.overflowSection()),
+    createElement(OverflowList, { overflows }),
+  )
+}
+
+/** 阈值输入行（百分比数字 + 标签）。 */
+function ThresholdField({ label, value, onChange }) {
+  return createElement(
+    'div',
+    { className: 'dso-repo-row' },
+    createElement('input', {
+      className: 'dso-input dso-budget-input',
+      type: 'number',
+      min: 0,
+      max: 100,
+      value,
+      onChange: (e) => onChange(e.target.value),
+    }),
+    createElement('span', { className: 'dso-time' }, label),
+  )
+}
+
+/** 保存溢出阈值配置。 */
+async function saveOverflow(payload, setBusy, setFeedback, onSaved) {
+  setBusy(true)
+  setFeedback('')
+  try {
+    await apiJson('/context/api/overflow', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    setFeedback(strings.saved())
+    onSaved()
+  } catch (err) {
+    setFeedback(`${strings.saveError()}：${err instanceof Error ? err.message : String(err)}`)
+  } finally {
+    setBusy(false)
+  }
+}
+
+/** 溢出阈值配置：预警/告警阈值输入 + 保存。 */
+function OverflowSettings({ overflow, onSaved }) {
+  const [warn, setWarn] = useState(String((overflow.warnThreshold || 0.8) * 100))
+  const [alert, setAlert] = useState(String((overflow.alertThreshold || 0.9) * 100))
+  const [busy, setBusy] = useState(false)
+  const [feedback, setFeedback] = useState('')
+  const save = () =>
+    void saveOverflow(
+      { warnThreshold: Number(warn) / 100, alertThreshold: Number(alert) / 100 },
+      setBusy,
+      setFeedback,
+      onSaved,
+    )
+  return createElement(
+    'div',
+    { className: 'dso-section' },
+    createElement('div', { className: 'dso-section-title' }, strings.overflowConfig()),
+    createElement(ThresholdField, { label: strings.warnThresholdLabel(), value: warn, onChange: setWarn }),
+    createElement(ThresholdField, { label: strings.alertThresholdLabel(), value: alert, onChange: setAlert }),
+    createElement(
+      'div',
+      { className: 'dso-repo-row' },
+      createElement('button', { className: 'dso-btn dso-btn-primary', disabled: busy, onClick: save }, strings.save()),
+    ),
+    feedback !== '' ? createElement('div', { className: 'dso-feedback' }, feedback) : null,
   )
 }
 
@@ -525,6 +766,22 @@ const STYLES = `
 .dso-alert-warn{border-color:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 40%, transparent)}
 .dso-alert-head{display:flex;align-items:center;gap:8px;justify-content:space-between}
 .dso-alert-msg{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-primary);line-height:1.5;margin-top:2px}
+.dso-usage{display:flex;flex-direction:column;gap:4px}
+.dso-usage-track{height:10px;background:var(--dsw-alias-bg-layer-1);border-radius:5px;overflow:hidden}
+.dso-usage-fill{height:100%;border-radius:5px;transition:width .3s ease}
+.dso-usage-normal{background:var(--dsw-alias-interactive-primary)}
+.dso-usage-warn{background:var(--dsw-alias-state-warn-primary)}
+.dso-usage-alert{background:var(--dsw-alias-state-error-primary)}
+.dso-usage-critical{background:var(--dsw-alias-state-error-primary)}
+.dso-usage-meta{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary)}
+.dso-overflow-normal{color:var(--dsw-alias-state-success-primary);background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 14%, transparent)}
+.dso-overflow-warn{color:var(--dsw-alias-state-warn-primary);background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 14%, transparent)}
+.dso-overflow-alert{color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent)}
+.dso-overflow-critical{color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent)}
+.dso-suggest{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 10px;background:var(--dsw-alias-bg-layer-1)}
+.dso-suggest-title{font:var(--dsw-font-xxs-strong-12);color:var(--dsw-alias-label-primary);margin-bottom:4px}
+.dso-suggest-list{margin:0;padding-left:18px;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary);line-height:1.6}
+.dso-badge-overflow{color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent)}
 `
 
 function injectStyles() {
