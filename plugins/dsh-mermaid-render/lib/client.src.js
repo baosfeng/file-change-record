@@ -38,6 +38,7 @@ window.__ModuleLoader__.load({
     //    initializers and function declarations run in splice order) ─────
     __PART_ENGINE__
     __PART_ICONS__
+    __PART_EXPORT__
     __PART_CARD__
     __PART_SCANNER__
     __PART_STYLES__

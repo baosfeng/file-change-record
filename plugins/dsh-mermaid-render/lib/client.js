@@ -254,6 +254,27 @@ const icon = {
       ],
       size,
     ),
+  // 下载（issue #85 新增）：箭头入托盘，图表导出按钮（dsh-mermaid-render
+  // 卡片下载 PNG/SVG），stroke=currentColor 风格与其余图标一致。
+  download: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+        createElement('polyline', { points: '7 10 12 15 17 10' }),
+        createElement('line', { x1: 12, y1: 15, x2: 12, y2: 3 }),
+      ],
+      size,
+    ),
+  // 复制（issue #85 新增）：双层矩形，复制源码按钮（dsh-mermaid-render
+  // 卡片复制代码），stroke=currentColor 风格与其余图标一致。
+  copy: (size = 16) =>
+    iconSvg(
+      [
+        createElement('rect', { x: 9, y: 9, width: 13, height: 13, rx: 2 }),
+        createElement('path', { d: 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1' }),
+      ],
+      size,
+    ),
 }
 
 // Common-language / file-type badges (issue #24): brand fill + contrast
@@ -410,14 +431,165 @@ const fileIconByExt = (ext, size = 14) => {
   return spec === undefined ? icon.file(size) : badgeIcon(spec, size)
 }
 
+    // ── export helpers: PNG/SVG download + copy source (issue #85) ────────
+// 纯函数 + 浏览器 API（XMLSerializer / Blob / URL / Image / canvas /
+// navigator.clipboard），由卡片工具栏按钮调用；失败一律抛错/拒绝，
+// 由调用方（卡片组件）转成可见提示，绝不静默。
+
+/** 默认文件名：mermaid-<序号>.<ext>（序号取自 entryId，如 dsh-mermaid-3 → 3）。 */
+function buildExportFileName(entryId, ext) {
+  const m = /(\d+)/.exec(String(entryId || ''))
+  return 'mermaid-' + (m ? m[1] : '1') + '.' + ext
+}
+
+/** 序列化 SVG DOM 为字符串；缺 xmlns 时补上（Image 加载 SVG 必需）。 */
+function serializeSvg(svgEl) {
+  const xml = new XMLSerializer().serializeToString(svgEl)
+  return xml.includes('xmlns') ? xml : xml.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"')
+}
+
+/** 触发浏览器下载：Blob → 临时 a[download] → click → 延迟 revoke URL。 */
+function downloadBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = fileName
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+/** 下载 SVG：序列化 → Blob(image/svg+xml) → 下载。 */
+function downloadSvgFile(svgEl, fileName) {
+  const blob = new Blob([serializeSvg(svgEl)], { type: 'image/svg+xml;charset=utf-8' })
+  downloadBlob(blob, fileName)
+}
+
+/** 下载 PNG：SVG → Image → canvas(2x) → toBlob → 下载；失败 reject。 */
+function downloadPngFile(svgEl, fileName) {
+  return new Promise((resolve, reject) => {
+    let url = ''
+    try {
+      const blob = new Blob([serializeSvg(svgEl)], { type: 'image/svg+xml;charset=utf-8' })
+      url = URL.createObjectURL(blob)
+      const img = new Image()
+      img.onload = () => {
+        try {
+          const scale = 2
+          const canvas = document.createElement('canvas')
+          canvas.width = Math.max(1, Math.round(img.width * scale))
+          canvas.height = Math.max(1, Math.round(img.height * scale))
+          const ctx = canvas.getContext('2d')
+          if (!ctx) throw new Error('canvas 2d 上下文不可用')
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          canvas.toBlob((pngBlob) => {
+            URL.revokeObjectURL(url)
+            if (!pngBlob) {
+              reject(new Error('PNG 编码失败'))
+              return
+            }
+            downloadBlob(pngBlob, fileName)
+            resolve()
+          }, 'image/png')
+        } catch (err) {
+          URL.revokeObjectURL(url)
+          reject(err instanceof Error ? err : new Error(String(err)))
+        }
+      }
+      img.onerror = () => {
+        URL.revokeObjectURL(url)
+        reject(new Error('SVG 图片加载失败'))
+      }
+      img.src = url
+    } catch (err) {
+      URL.revokeObjectURL(url)
+      reject(err instanceof Error ? err : new Error(String(err)))
+    }
+  })
+}
+
+/** 复制文本：clipboard API 优先，失败回退 execCommand；失败 reject。 */
+function copyText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(text).catch(() => fallbackCopy(text))
+  }
+  return Promise.resolve(fallbackCopy(text))
+}
+
+/** execCommand 回退复制（clipboard API 不可用/被拒时）。 */
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea')
+  ta.value = text
+  ta.style.position = 'fixed'
+  ta.style.opacity = '0'
+  document.body.appendChild(ta)
+  ta.select()
+  const ok = document.execCommand('copy')
+  ta.remove()
+  if (!ok) throw new Error('复制失败')
+}
+
+/** 从卡片 DOM 取渲染出的 SVG 元素（按 entryId 定位，避免多卡片串扰）。 */
+function findCardSvg(entryId) {
+  if (typeof document === 'undefined' || document === null) return null
+  const host = document.querySelector('[data-dsh-mermaid-render-entry="' + entryId + '"]')
+  if (!host || !host.querySelector) return null
+  return host.querySelector('svg')
+}
+
+/** 错误对象转可读文本（提示条用）。 */
+function errMsg(err) {
+  return err instanceof Error && err.message ? err.message : String(err)
+}
+
+/** 组装卡片导出 handler（issue #85）：返回 { onPng, onSvg, onCopy }，
+ *  失败一律经 flashNotice 转可见提示，绝不静默。 */
+function makeExportHandlers(entryId, source, flashNotice) {
+  return {
+    onPng: () => {
+      const svgEl = findCardSvg(entryId)
+      if (!svgEl) {
+        flashNotice('error', '图表尚未渲染完成，无法导出 PNG')
+        return
+      }
+      downloadPngFile(svgEl, buildExportFileName(entryId, 'png'))
+        .then(() => flashNotice('ok', 'PNG 已下载'))
+        .catch((err) => flashNotice('error', 'PNG 导出失败：' + errMsg(err)))
+    },
+    onSvg: () => {
+      const svgEl = findCardSvg(entryId)
+      if (!svgEl) {
+        flashNotice('error', '图表尚未渲染完成，无法导出 SVG')
+        return
+      }
+      try {
+        downloadSvgFile(svgEl, buildExportFileName(entryId, 'svg'))
+        flashNotice('ok', 'SVG 已下载')
+      } catch (err) {
+        flashNotice('error', 'SVG 导出失败：' + errMsg(err))
+      }
+    },
+    onCopy: () => {
+      copyText(source)
+        .then(() => flashNotice('ok', '源码已复制'))
+        .catch((err) => flashNotice('error', '复制失败：' + errMsg(err)))
+    },
+  }
+}
+
     // ── diagram card (React) ─────────────────────────────────────────────
 // 样式前缀 dsh-mermaid-render-（issue #54：与 dsh-md-render 的旧缩写前缀
 // 分离，消除跨插件类名冲突）；图标走共享图标系统（dsh-shared/client-parts）。
+// 导出（issue #85）：工具栏下载 PNG / 下载 SVG / 复制代码，逻辑见 export.part.js。
+let noticeTimer = null
+
 function MermaidCard({ entryId, source }) {
   const [status, setStatus] = useState('loading')
   const [svg, setSvg] = useState(null)
   const [error, setError] = useState(null)
   const [mode, setMode] = useState('preview')
+  const [notice, setNotice] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -440,6 +612,15 @@ function MermaidCard({ entryId, source }) {
     }
   }, [entryId, source])
 
+  /** 短暂提示（成功/失败），2.5s 后自动消失。 */
+  function flashNotice(type, text) {
+    setNotice({ type, text })
+    if (noticeTimer) clearTimeout(noticeTimer)
+    noticeTimer = setTimeout(() => setNotice(null), 2500)
+  }
+
+  const exportActions = makeExportHandlers(entryId, source, flashNotice)
+
   return createElement(
     'div',
     { className: 'dsh-mermaid-render-card', 'data-dsh-mermaid-render-entry': entryId },
@@ -452,9 +633,77 @@ function MermaidCard({ entryId, source }) {
         icon.file(12),
         createElement('span', null, 'Mermaid 图表'),
       ),
-      createElement(ViewToggle, { mode, setMode }),
+      createElement(
+        'div',
+        { className: 'dsh-mermaid-render-card-actions' },
+        createElement(ExportButtons, {
+          status,
+          onPng: exportActions.onPng,
+          onSvg: exportActions.onSvg,
+          onCopy: exportActions.onCopy,
+        }),
+        createElement(ViewToggle, { mode, setMode }),
+      ),
     ),
+    notice ? renderNotice(notice) : null,
     createElement(CardBody, { status, mode, error, source, svg }),
+  )
+}
+
+/** 导出结果提示条（成功/失败），无提示时返回 null。 */
+function renderNotice(notice) {
+  if (!notice) return null
+  return createElement(
+    'div',
+    { className: 'dsh-mermaid-render-notice dsh-mermaid-render-notice-' + notice.type },
+    notice.text,
+  )
+}
+
+/** 导出按钮组：下载 PNG / 下载 SVG / 复制代码（issue #85）。 */
+function ExportButtons({ status, onPng, onSvg, onCopy }) {
+  const ready = status === 'ok'
+  return createElement(
+    'div',
+    { className: 'dsh-mermaid-render-export', role: 'group', 'aria-label': 'export' },
+    createElement(
+      'button',
+      {
+        type: 'button',
+        className: 'dsh-mermaid-render-eb',
+        onClick: onPng,
+        disabled: !ready,
+        title: '下载 PNG',
+        'aria-label': '下载 PNG',
+      },
+      icon.download(14),
+      createElement('span', null, '下载 PNG'),
+    ),
+    createElement(
+      'button',
+      {
+        type: 'button',
+        className: 'dsh-mermaid-render-eb',
+        onClick: onSvg,
+        disabled: !ready,
+        title: '下载 SVG',
+        'aria-label': '下载 SVG',
+      },
+      icon.download(14),
+      createElement('span', null, '下载 SVG'),
+    ),
+    createElement(
+      'button',
+      {
+        type: 'button',
+        className: 'dsh-mermaid-render-eb',
+        onClick: onCopy,
+        title: '复制代码',
+        'aria-label': '复制代码',
+      },
+      icon.copy(14),
+      createElement('span', null, '复制代码'),
+    ),
   )
 }
 
@@ -603,6 +852,15 @@ function installScanner() {
 const STYLES = `
 .dsh-mermaid-render-card{display:flex;flex-direction:column;gap:8px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;padding:8px 12px;background:var(--dsw-alias-bg-layer-1);box-shadow:var(--dsw-shadow-lv2);font:var(--dsw-font-s-14);line-height:22px;color:var(--dsw-alias-label-primary);animation:dsh-mermaid-render-card-in 150ms var(--ds-ease-in-out)}
 .dsh-mermaid-render-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.dsh-mermaid-render-card-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.dsh-mermaid-render-export{display:inline-flex;gap:2px;flex:none}
+.dsh-mermaid-render-eb{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--dsw-alias-border-l1);background:transparent;border-radius:6px;padding:2px 8px;cursor:pointer;font:var(--dsw-font-xxs-12);line-height:20px;color:var(--dsw-alias-label-secondary);transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out), color var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+.dsh-mermaid-render-eb svg{display:block;flex:none}
+.dsh-mermaid-render-eb:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+.dsh-mermaid-render-eb:disabled{opacity:.45;cursor:not-allowed}
+.dsh-mermaid-render-notice{border-radius:6px;padding:4px 10px;font:var(--dsw-font-xxs-12);line-height:20px}
+.dsh-mermaid-render-notice-ok{background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);color:var(--dsw-alias-state-success-primary)}
+.dsh-mermaid-render-notice-error{background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);color:var(--dsw-alias-state-error-primary)}
 .dsh-mermaid-render-card-title{display:flex;align-items:center;gap:5px;font:var(--dsw-font-xxxs-strong-11);color:var(--dsw-alias-label-tertiary);text-transform:uppercase;letter-spacing:.04em}
 .dsh-mermaid-render-card-title svg{display:block;flex:none}
 .dsh-mermaid-render-view-toggle{display:inline-flex;gap:2px;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;padding:2px;flex:none}
