@@ -59,6 +59,8 @@ function SkillManagerView() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [sortBy, setSortBy] = useState('name')
+  const [unusedOnly, setUnusedOnly] = useState(false)
   const actions = createActions({ setData, setLoading, setError, setSaved })
 
   useEffect(() => {
@@ -96,6 +98,10 @@ function SkillManagerView() {
               data,
               view,
               saved,
+              sortBy,
+              unusedOnly,
+              onSort: setSortBy,
+              onToggleUnused: () => setUnusedOnly(!unusedOnly),
               onToggle: (scope, name, isDisabled) => actions.toggle(data, scope, name, isDisabled, cwdOf(scope)),
             }),
   )
@@ -149,7 +155,7 @@ function ViewSwitch({ view, hasProject, onSwitch }) {
 }
 
 /** The toggle section for the current view + diagnostics (collapsible). */
-function Sections({ data, view, onToggle }) {
+function Sections({ data, view, onToggle, sortBy, unusedOnly, onSort, onToggleUnused }) {
   const projectMode = view === 'project'
   return createElement(
     'div',
@@ -159,6 +165,11 @@ function Sections({ data, view, onToggle }) {
       hint: strings.disabledHint(),
       skills: data.skills,
       disabledNames: projectMode ? data.projectDisabled : data.globalDisabled,
+      usage: data.usage,
+      sortBy,
+      unusedOnly,
+      onSort,
+      onToggleUnused,
       onToggle: (name, isDisabled) => onToggle(projectMode ? 'project' : 'global', name, isDisabled),
     }),
     createElement(DiagnosticsBlock, { diagnostics: data.diagnostics }),
@@ -210,11 +221,25 @@ function projectTitleOf(data) {
     : `${strings.projectSection()} · ${strings.projectRoot()}${data.projectRoot}`
 }
 
-function SectionBlock({ title, hint, skills, disabledNames, onToggle }) {
-  const rows = skills.map((skill) =>
+function SectionBlock({
+  title,
+  hint,
+  skills,
+  disabledNames,
+  usage,
+  sortBy,
+  unusedOnly,
+  onSort,
+  onToggleUnused,
+  onToggle,
+}) {
+  const usageOf = (name) => usage?.[name]
+  const visible = unusedOnly ? skills.filter((skill) => (usageOf(skill.name)?.count ?? 0) === 0) : skills
+  const rows = sortSkills(visible, sortBy, usageOf).map((skill) =>
     createElement(SkillRow, {
       key: skill.name,
       skill,
+      usage: usageOf(skill.name),
       disabled: disabledNames.includes(skill.name),
       onToggle: () => onToggle(skill.name, disabledNames.includes(skill.name)),
     }),
@@ -226,6 +251,7 @@ function SectionBlock({ title, hint, skills, disabledNames, onToggle }) {
       'div',
       { className: 'dsh-my-skill-manager-section-head' },
       createElement('span', { className: 'dsh-my-skill-manager-section-title' }, title),
+      createElement(SortControls, { sortBy, unusedOnly, onSort, onToggleUnused }),
     ),
     rows.length === 0
       ? createElement(
@@ -236,16 +262,80 @@ function SectionBlock({ title, hint, skills, disabledNames, onToggle }) {
           createElement('span', { className: 'dsh-my-skill-manager-empty-hint' }, strings.emptyHint()),
         )
       : rows,
-    createElement('div', { className: 'dsh-my-skill-manager-hint' }, hint),
+    createElement('div', { className: 'dsh-my-skill-manager-hint' }, `${hint} ${strings.usageHint()}`),
   )
 }
 
+/** 排序 + 未使用过滤控件（issue #91）：名称 / 次数 / 最近 + 只看未使用。 */
+function SortControls({ sortBy, unusedOnly, onSort, onToggleUnused }) {
+  const seg = (key, label) =>
+    createElement(
+      'button',
+      {
+        type: 'button',
+        className: `dsh-my-skill-manager-sortseg${sortBy === key ? ' dsh-my-skill-manager-sortseg-on' : ''}`,
+        'aria-pressed': sortBy === key,
+        onClick: () => onSort(key),
+      },
+      label,
+    )
+  return createElement('div', { className: 'dsh-my-skill-manager-sortbar' }, [
+    createElement(
+      'button',
+      {
+        type: 'button',
+        className: `dsh-my-skill-manager-unused${unusedOnly ? ' dsh-my-skill-manager-unused-on' : ''}`,
+        'aria-pressed': unusedOnly,
+        title: strings.unusedOnlyHint(),
+        onClick: onToggleUnused,
+      },
+      strings.unusedOnly(),
+    ),
+    seg('name', strings.sortName()),
+    seg('count', strings.sortCount()),
+    seg('lastUsed', strings.sortLastUsed()),
+  ])
+}
+
+/** 按 sortBy 排序：count/lastUsed 降序（未使用排最后），name 字母序；同值按名称。 */
+function sortSkills(skills, sortBy, usageOf) {
+  const list = [...skills]
+  if (sortBy === 'count') {
+    list.sort((a, b) => (usageOf(b.name)?.count ?? 0) - (usageOf(a.name)?.count ?? 0) || a.name.localeCompare(b.name))
+  } else if (sortBy === 'lastUsed') {
+    list.sort(
+      (a, b) => (usageOf(b.name)?.lastUsedAt ?? 0) - (usageOf(a.name)?.lastUsedAt ?? 0) || a.name.localeCompare(b.name),
+    )
+  } else {
+    list.sort((a, b) => a.name.localeCompare(b.name))
+  }
+  return list
+}
+
+/** 时间戳 → "MM-DD HH:mm"（无效时间返回空串）。 */
+function formatTime(ts) {
+  if (typeof ts !== 'number' || !Number.isFinite(ts) || ts <= 0) return ''
+  const d = new Date(ts)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 /** Card row: name + state chip on the main line, description (with source /
- *  not-cataloged note in small text) below — issue #69 information hierarchy. */
-function SkillRow({ skill, disabled, onToggle }) {
+ *  not-cataloged note and usage statistics in small text) below — issue #69
+ *  information hierarchy + issue #91 usage columns. */
+function SkillRow({ skill, disabled, onToggle, usage }) {
+  const usageMeta =
+    usage === undefined
+      ? strings.usageNever()
+      : [
+          strings.usageCount(usage.count),
+          strings.usageLast(formatTime(usage.lastUsedAt)),
+          usage.lastSource === 'model' ? strings.usageSourceModel() : strings.usageSourceUser(),
+        ].join(' · ')
   const meta = [
     isProjectSource(skill.source) ? strings.sourceProject(skill.source) : strings.sourceGlobal(skill.source),
     skill.cataloged === false ? strings.notCataloged() : null,
+    usageMeta,
   ]
     .filter((item) => item !== null)
     .join(' · ')

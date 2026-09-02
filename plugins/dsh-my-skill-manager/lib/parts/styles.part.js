@@ -37,6 +37,15 @@ const STYLES = `
   font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-label-tertiary); text-transform:uppercase; letter-spacing:.04em; }
 .dsh-my-skill-manager-section-title { font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-label-tertiary);
   text-transform:uppercase; letter-spacing:.04em; }
+/* ── sort + unused filter bar (issue #91) ───────────────────────────────── */
+.dsh-my-skill-manager-sortbar { display:inline-flex; align-items:center; gap:2px; }
+.dsh-my-skill-manager-sortseg, .dsh-my-skill-manager-unused { height:18px; padding:0 6px; border:none; border-radius:4px;
+  background:transparent; font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-label-tertiary); cursor:pointer;
+  transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out), color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-skill-manager-sortseg:hover, .dsh-my-skill-manager-unused:hover { color:var(--dsw-alias-label-primary); }
+.dsh-my-skill-manager-sortseg-on { background:var(--dsw-alias-interactive-bg-hover); color:var(--dsw-alias-label-primary); }
+.dsh-my-skill-manager-unused-on { color:var(--dsw-alias-state-warn-primary);
+  background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
 .dsh-my-skill-manager-hint { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); padding:0 6px 4px; line-height:1.7; }
 .dsh-my-skill-manager-empty { display:flex; flex-direction:column; align-items:center; gap:4px; padding:12px 6px;
   font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); line-height:1.7; }

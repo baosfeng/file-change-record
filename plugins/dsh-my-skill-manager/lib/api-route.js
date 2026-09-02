@@ -14,26 +14,28 @@
  *    { scope: 'global'|'project', disabled: string[], cwd }), then invalidate
  *    the skill catalog so the change takes effect immediately.
  * Every request passes the trust fence first; responses are JSON with
- * cache-control: no-cache.
+ * cache-control: no-cache. The list payload also carries the usage statistics
+ * (issue #91): { name: { count, lastUsedAt, lastSource } }.
  */
 import { readJsonBody, writeError, writeJson } from 'dsh-shared'
 import { findProjectRoot } from 'dsh-shared'
 import { readConfigFile, readProjectConfig, globalConfigFile, projectConfigFileOf, writeConfigFile } from './config.js'
 import { scanSkillRoots, viewRootsOf } from './diagnose.js'
+import { usageSnapshot } from './usage.js'
 
 /** 项目来源判定：官方 source 值中 project 前缀只有 project-dsh / project-agents。 */
 function isProjectSource(source) {
   return typeof source === 'string' && source.startsWith('project-')
 }
 
-export function createApiHandler({ ctx, invalidate, fence }) {
+export function createApiHandler({ ctx, invalidate, fence, usage }) {
   return async (request, response) => {
     if (!fence(request)) {
       writeJson(response, 403, { ok: false, error: { code: 'forbidden', message: 'forbidden' } })
       return
     }
     try {
-      await dispatch(request, response, ctx, invalidate)
+      await dispatch(request, response, ctx, invalidate, usage)
     } catch (error) {
       writeError(response, error)
     }
@@ -41,18 +43,18 @@ export function createApiHandler({ ctx, invalidate, fence }) {
 }
 
 /** Route dispatch: /session, /list, /rescan, /config (GET/PUT). */
-async function dispatch(request, response, ctx, invalidate) {
+async function dispatch(request, response, ctx, invalidate, usage) {
   const url = new URL(request.url ?? '/', 'http://dsh.internal')
   if (url.pathname.endsWith('/session') && request.method === 'GET') {
     await handleSession(ctx, url, response)
     return
   }
   if (url.pathname.endsWith('/list') && request.method === 'GET') {
-    await handleList(ctx, url, response)
+    await handleList(ctx, url, response, usage)
     return
   }
   if (url.pathname.endsWith('/rescan') && request.method === 'GET') {
-    await handleRescan(ctx, url, response, invalidate)
+    await handleRescan(ctx, url, response, invalidate, usage)
     return
   }
   if (url.pathname.endsWith('/config') && request.method === 'PUT') {
@@ -65,10 +67,10 @@ async function dispatch(request, response, ctx, invalidate) {
   })
 }
 
-/** GET /list — grouped catalog + configs for the cwd. */
-async function handleList(ctx, url, response) {
+/** GET /list — grouped catalog + configs + usage for the cwd. */
+async function handleList(ctx, url, response, usage) {
   const safeCwd = cwdOf(url)
-  const data = await resolveListData(ctx, safeCwd)
+  const data = await resolveListData(ctx, safeCwd, usage)
   writeJson(response, 200, { ok: true, value: data })
 }
 
@@ -82,10 +84,10 @@ async function handleSession(ctx, url, response) {
 }
 
 /** GET /rescan — invalidate the official catalog, then return a fresh list. */
-async function handleRescan(ctx, url, response, invalidate) {
+async function handleRescan(ctx, url, response, invalidate, usage) {
   const safeCwd = cwdOf(url)
   invalidate()
-  const data = await resolveListData(ctx, safeCwd)
+  const data = await resolveListData(ctx, safeCwd, usage)
   writeJson(response, 200, { ok: true, value: data })
 }
 
@@ -95,8 +97,8 @@ function cwdOf(url) {
   return cwd !== '' ? cwd : undefined
 }
 
-/** Fetch the merged catalog + configs for one cwd (''/undefined = global view). */
-async function resolveListData(ctx, safeCwd) {
+/** Fetch the merged catalog + configs + usage for one cwd (''/undefined = global view). */
+async function resolveListData(ctx, safeCwd, usage) {
   const catalog = await ctx.skills.list({ cwd: safeCwd })
   const global = await readConfigFile(globalConfigFile())
   const project = safeCwd === undefined ? undefined : await readProjectConfig(safeCwd)
@@ -113,6 +115,7 @@ async function resolveListData(ctx, safeCwd) {
     global: { disabled: global.global.disabled },
     project: projectDisabled(project),
     diagnostics: { missing: scanned.issues },
+    usage: usage === undefined ? {} : usageSnapshot(usage),
   }
 }
 

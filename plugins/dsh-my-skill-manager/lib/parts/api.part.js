@@ -1,7 +1,7 @@
 // ── api: fetch helpers for the Skill Manager views ─────────────────────
 const API_BASE = '/my-skill-manager/api'
 
-/** One GET list payload into { skills, globalDisabled, projectDisabled, cwd, projectRoot, diagnostics }. */
+/** One GET list payload into { skills, globalDisabled, projectDisabled, cwd, projectRoot, diagnostics, usage }. */
 function normalizeList(value) {
   return {
     skills: Array.isArray(value.skills) ? value.skills : [],
@@ -10,6 +10,7 @@ function normalizeList(value) {
     cwd: value.cwd ?? '',
     projectRoot: value.projectRoot ?? '',
     diagnostics: value.diagnostics ?? { missing: [] },
+    usage: value.usage ?? {},
   }
 }
 

@@ -65,6 +65,10 @@ class World {
           const merged = new Map(this.catalog)
           return [...merged.values()]
         },
+        get: async (name) => {
+          const entry = this.catalog.get(name)
+          return entry === undefined ? undefined : { ...entry, content: 'body' }
+        },
       },
     }
     this.ctx = ctx
@@ -247,4 +251,28 @@ Then('全局禁用名单为 {string}', function (jsonList) {
 
 Then('保存操作使 skill 目录缓存失效', function () {
   assert.ok(this.invalidated >= 1, 'config save invalidates the skill catalog')
+})
+
+// ── issue #91: usage statistics ────────────────────────────────────────────
+
+Given('skill {string} 被加载 {int} 次', async function (name, times) {
+  for (let i = 0; i < times; i += 1) {
+    const loaded = await this.ctx.skills.get(name)
+    assert.ok(loaded, `skill ${name} loads`)
+  }
+})
+
+Then('列表附带使用统计', function () {
+  const usage = this.lastResponse.json.value.usage
+  assert.ok(usage !== null && typeof usage === 'object', 'usage statistics present in the list payload')
+})
+
+Then('{string} 的使用次数为 {int}', function (name, count) {
+  const usage = this.lastResponse.json.value.usage
+  assert.equal(usage[name]?.count, count, `usage count of ${name}`)
+})
+
+Then('{string} 的使用来源为 {string}', function (name, source) {
+  const usage = this.lastResponse.json.value.usage
+  assert.equal(usage[name]?.lastSource, source, `usage source of ${name}`)
 })

@@ -66,7 +66,8 @@ function captureRoute(prefix) {
 }
 
 /** A fake ctx.skills catalog: the disabler provider is registered through
- *  apply(), so skills.list merges its placeholder candidates in. */
+ *  apply(), so skills.list merges its placeholder candidates in. get()
+ *  mirrors the official service: a placeholder (disabled) entry never loads. */
 function fakeSkills() {
   const catalog = new Map([
     ['web-search', { name: 'web-search', description: '搜索', source: 'user-dsh', provider: 'filesystem' }],
@@ -95,6 +96,15 @@ function fakeSkills() {
         for (const candidate of await provider.list(options)) merged.set(candidate.name, candidate)
       }
       return [...merged.values()]
+    },
+    async get(name) {
+      const merged = new Map(catalog)
+      for (const provider of providers) {
+        for (const candidate of await provider.list({})) merged.set(candidate.name, candidate)
+      }
+      const entry = merged.get(name)
+      if (entry === undefined || entry.provider === 'my-skill-manager') return undefined
+      return { ...entry, content: 'body' }
     },
   }
 }
@@ -500,4 +510,80 @@ test('project view diagnostics only scan the project roots', async () => {
   const names = r.json.value.diagnostics.missing.map((m) => m.name)
   assert.ok(names.includes('proj-no-frontmatter'), 'project-root issue reported in project view')
   assert.ok(!names.includes('global-broken'), 'global-root issue not reported in project view')
+})
+
+// ── issue #91: usage statistics ────────────────────────────────────────────
+
+test('skill loads are counted with model/user sources (issue #91)', async () => {
+  const { ctx, getRoute } = await boot()
+  // 直接加载（无 skill 工具调用）→ user 来源
+  const loaded = await ctx.skills.get('web-search')
+  assert.ok(loaded, 'fake catalog get returns the skill')
+  // 模型 skill 工具调用：pre-execute 标记 → model 来源
+  const preExecute = ctx.events.find((e) => e.name === 'tools/pre-execute')
+  assert.ok(preExecute, 'tools/pre-execute listener registered')
+  const next = () => ({ kind: 'enter', messages: [] })
+  const decision = await preExecute.listener({ name: 'skill', arguments: { name: 'web-search' } }, next)
+  assert.equal(decision.kind, 'enter', 'pre-execute passes through next()')
+  await ctx.skills.get('web-search')
+  await ctx.skills.get('codebase-memory')
+
+  const r = await callRoute(getRoute, 'GET', '/my-skill-manager/api/list?cwd=')
+  assert.equal(r.status, 200)
+  const usage = r.json.value.usage
+  assert.equal(usage['web-search'].count, 2, 'two loads counted')
+  assert.equal(usage['web-search'].lastSource, 'model', 'last load was a model skill-tool call')
+  assert.equal(usage['codebase-memory'].count, 1)
+  assert.equal(usage['codebase-memory'].lastSource, 'user', 'plain get is a user-source load')
+  assert.ok(usage['web-search'].lastUsedAt > 0, 'last used time present')
+  assert.equal(usage['teach'], undefined, 'never-loaded skill absent from usage')
+})
+
+test('disabled skills are not counted (get returns undefined)', async () => {
+  const { ctx, getRoute } = await boot()
+  await callRoute(getRoute, 'PUT', '/my-skill-manager/api/config', {
+    scope: 'global',
+    disabled: ['web-search'],
+  })
+  const loaded = await ctx.skills.get('web-search')
+  assert.equal(loaded, undefined, 'disabled skill body must not load')
+  const r = await callRoute(getRoute, 'GET', '/my-skill-manager/api/list?cwd=')
+  assert.equal(r.json.value.usage['web-search'], undefined, 'failed load is not counted')
+})
+
+test('usage listeners dispose restores the original get (issue #91)', async () => {
+  const { ctx } = await boot()
+  const wrappedGet = ctx.skills.get
+  const usageEffect = ctx.effectCallbacks.find((e) => e.label === 'dsh-my-skill-manager: usage listeners')
+  assert.ok(usageEffect, 'usage listeners effect registered')
+  const disposer =
+    usageEffect.disposer ??
+    ctx.effectCallbacks.find((e) => e.label === 'dsh-my-skill-manager: usage listeners:disposer')?.disposer
+  assert.equal(typeof disposer, 'function', 'usage listeners effect returns a disposer')
+  disposer()
+  assert.notEqual(ctx.skills.get, wrappedGet, 'get unwrapped after dispose')
+  // teach 未被前一个测试禁用，加载应成功
+  const loaded = await ctx.skills.get('teach')
+  assert.ok(loaded, 'restored get still loads skills')
+})
+
+test('usage persists to $DSH_HOME/skills.usage.json (issue #91)', async () => {
+  // 独立 DSH_HOME：避免其他测试的 usage store 防抖定时器写入同一文件造成
+  // 竞态，也避免前一个测试留下的全局禁用名单影响加载计数。
+  const usageDir = join(dir, 'usage-isolated')
+  const prevHome = process.env.DSH_HOME
+  process.env.DSH_HOME = usageDir
+  try {
+    const { ctx, getRoute } = await boot()
+    await ctx.skills.get('web-search')
+    const r = await callRoute(getRoute, 'GET', '/my-skill-manager/api/list?cwd=')
+    assert.equal(r.json.value.usage['web-search'].count, 1)
+    // 防抖窗口后落盘
+    await new Promise((resolve) => setTimeout(resolve, 700))
+    const { readFileSync } = await import('node:fs')
+    const raw = JSON.parse(readFileSync(join(usageDir, 'skills.usage.json'), 'utf8'))
+    assert.equal(raw.skills['web-search'].count, 1, 'usage file written under DSH_HOME')
+  } finally {
+    process.env.DSH_HOME = prevHome
+  }
 })
