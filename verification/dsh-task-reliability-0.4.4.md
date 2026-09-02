@@ -1,7 +1,7 @@
 # 发版前功能级验证清单 — dsh-task-reliability@0.4.4
 
-验证时间：2026-09-02T07:41:58.390Z
-验证环境：隔离实例（端口 3083，复用生产 profile 配置组合，独立 DSH_HOME）
+验证时间：2026-09-02T11:38:34.697Z
+验证环境：隔离实例（端口 3087，复用生产 profile 配置组合，独立 DSH_HOME）
 
 ## 自动验证项（verify-real-profile.mjs 自动执行）
 
@@ -32,6 +32,3 @@
     （test/features/task-reliability.feature 等）覆盖
 - **#72 依赖声明**：dsh-shared 移入 dependencies；实例启动无错误、API 冒烟 200。
 - **测试**：vitest 205 passed + cucumber 35 scenarios/190 steps 全绿；node --check 通过。
-
-> 说明：功能级项由验证者（人工或 agent）在真实浏览器中逐项验证后，将 [ ] 改为 [x]。
-> release.mjs 发版门禁会校验本清单功能级项全部勾选，未全勾选将阻断发版（issue #67）。
