@@ -7,7 +7,16 @@
 export default {
   testRunner: 'vitest',
   vitest: { configFile: 'vitest.config.mjs' },
-  mutate: ['lib/index.js', 'lib/state.js', 'lib/fence.js', 'lib/events.js', 'lib/mount.js', 'lib/api.js'],
+  mutate: [
+    'lib/index.js',
+    'lib/state.js',
+    'lib/fence.js',
+    'lib/events.js',
+    'lib/mount.js',
+    'lib/api.js',
+    'lib/dep-version.js',
+    'lib/dep-precheck.js',
+  ],
   mutator: {
     excludedMutations: ['StringLiteral', 'TemplateLiteral'],
   },

@@ -9,6 +9,7 @@
 import { dirname } from 'node:path'
 import { FREEZE_LIMIT, errorSnip, loadState, readStagedFile, writeStagedFile } from './state.js'
 import { logEvent } from './events.js'
+import { checkPeerDependencies, buildDependencyMessage, classifyFailure } from './dep-precheck.js'
 
 /**
  * Find the root Include tree of the profile. The loader tree's entries carry
@@ -91,14 +92,38 @@ async function mountWithState(shared, kind, id, entry) {
   const record = shared.state[recordKey][id] ?? {}
   if (record.frozen) return 'skipped'
   const name = typeof entry?.name === 'string' ? entry.name : id
+  // Dependency pre-check (issue #86): a plugin whose peer deps are missing or
+  // out of range must not enter the runtime load path with a hole in its
+  // dependency graph. A failed pre-check is recorded as a 'dependency' failure
+  // with the missing deps + an install suggestion, and the mount is skipped.
+  const precheck = precheckEntry(shared, name)
+  if (precheck !== null) {
+    recordFailure(shared, recordKey, id, name, entry, record, {
+      failureType: 'dependency',
+      message: buildDependencyMessage(precheck),
+      missingDeps: [...precheck.missing, ...precheck.mismatched.map((item) => item.name)],
+      installHint: precheck.suggestions[0] ?? null,
+    })
+    return 'failed'
+  }
   try {
     await mount(shared, id, entry)
     await promote(shared, recordKey, id, name, entry, record)
     return 'mounted'
   } catch (error) {
-    recordFailure(shared, recordKey, id, name, entry, record, error)
+    recordFailure(shared, recordKey, id, name, entry, record, {
+      failureType: classifyFailure(error),
+      message: error instanceof Error ? error.message : String(error),
+    })
     return 'failed'
   }
+}
+
+/** Run the dependency pre-check; null means it passed (or was skipped). */
+function precheckEntry(shared, name) {
+  if (typeof name !== 'string' || name === '') return null
+  const result = checkPeerDependencies({ profileDir: shared.profileDir, pluginName: name })
+  return result.ok ? null : result
 }
 
 /** Success path: staged moves into the persisted promoted list (R2). */
@@ -111,6 +136,9 @@ async function promote(shared, recordKey, id, name, entry, record) {
       lastError: null,
       lastFailedAt: null,
       frozen: false,
+      failureType: null,
+      missingDeps: [],
+      installHint: null,
       promotedAt: Date.now(),
     }
     delete shared.state.staged[id]
@@ -125,6 +153,9 @@ async function promote(shared, recordKey, id, name, entry, record) {
       lastError: null,
       lastFailedAt: null,
       frozen: false,
+      failureType: null,
+      missingDeps: [],
+      installHint: null,
     }
   }
   logEvent(shared, 'promote', `mounted ${name} (${id})`)
@@ -132,19 +163,23 @@ async function promote(shared, recordKey, id, name, entry, record) {
 }
 
 /** Failure path: attempts counter + error recorded; freeze at the limit. */
-function recordFailure(shared, recordKey, id, name, entry, record, error) {
+function recordFailure(shared, recordKey, id, name, entry, record, info) {
   const attempts = (record.attempts ?? 0) + 1
   const frozen = attempts >= FREEZE_LIMIT
+  const message = typeof info.message === 'string' ? info.message : String(info.message ?? info)
   shared.state[recordKey][id] = {
     name,
     config: entry.config ?? undefined,
     attempts,
-    lastError: errorSnip(error),
+    lastError: errorSnip(message),
     lastFailedAt: Date.now(),
     frozen,
+    failureType: info.failureType ?? 'code',
+    missingDeps: info.missingDeps ?? [],
+    installHint: info.installHint ?? null,
     ...(recordKey === 'promoted' ? { promotedAt: record.promotedAt } : {}),
   }
-  logEvent(shared, frozen ? 'freeze' : 'quarantine', `${name} (${id}) failed ${attempts}x: ${error.message ?? error}`)
+  logEvent(shared, frozen ? 'freeze' : 'quarantine', `${name} (${id}) failed ${attempts}x: ${message}`)
   shared.persistSoon()
 }
 
@@ -211,6 +246,9 @@ async function retryEntry(shared, id) {
       lastError: null,
       lastFailedAt: null,
       frozen: false,
+      failureType: null,
+      missingDeps: [],
+      installHint: null,
     }
     shared.persistSoon()
     if (shared.state.safeMode) return 'safe'
