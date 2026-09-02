@@ -30,3 +30,13 @@
   - CI run #33577584912 success
 - 自动验证（verify-real-profile）：配置组合唯一（153 id 无重复）、实例启动就绪、启动日志无 error/duplicate、API 冒烟 200
 - 备注：真实浏览器 GUI 目测（设置页 webhook 编辑交互）未做——配置 API/持久化/失败记录已由 host-webhook 测试断言覆盖
+
+## 验证记录（0.3.6 = 0.3.5 + #92 出站 webhook）
+
+- 本版本内容为 PR #101（#92 出站 webhook：企微/飞书/钉钉机器人事件推送）合并后的代码，功能级验证基于 PR #101 的完整验证结果：
+  - 本地测试：12 测试文件 / 58 测试全过，覆盖率 94.67% stmts / 86.23% branch（门禁 85/75），cucumber 17 场景 / 99 步全过
+  - 新增测试：webhook-adapters（四渠道消息格式 + 签名样例断言）、webhook-pusher（事件匹配/重试退避/失败记录/超时）、host-webhook（事件触发推送/配置 API/JSON 持久化重启恢复/失败记录可见/非法输入 400）
+  - verify-local.mjs：9 通过 / 0 失败
+  - CI run #33577584912 success
+- 自动验证（verify-real-profile）：配置组合唯一（153 id 无重复）、实例启动就绪、启动日志无 error/duplicate、API 冒烟 200
+- 备注：真实浏览器 GUI 目测（设置页 webhook 编辑交互）未做——配置 API/持久化/失败记录已由 host-webhook 测试断言覆盖
