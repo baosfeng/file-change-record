@@ -487,6 +487,19 @@ assert.ok(dataStore.getSnapshot().preview !== null, 'visible tab keeps the previ
 internals.closePreviewOnHidden(false, dataStore)
 assert.equal(dataStore.getSnapshot().preview, null, 'hidden tab closes the floating preview')
 
+// ── floating preview body fills the window (issue #111) ──────────────────
+// The better-sidebar viewer (html iframe / code / markdown / image) sizes
+// its root with `flex:1`, which only works when the mounted viewer sits in a
+// FLEX parent. .dfa-fp-body must therefore stay a flex column — otherwise the
+// HTML iframe, which has a fixed browser-default height, renders as a thin
+// top strip with the rest of the window dark. Rebuild client.js regenerates
+// STYLES from lib/parts/styles.part.js; this guards the fill container.
+const fpBodyRule = (internals.STYLES.match(/\.dfa-fp-body\s*{[^}]*}/) ?? [])[0] ?? ''
+assert.ok(fpBodyRule.includes('display:flex'), 'floating preview body is a flex container (issue #111)')
+assert.ok(fpBodyRule.includes('flex-direction:column'), 'floating preview body is a column (issue #111)')
+assert.ok(fpBodyRule.includes('flex:1'), 'floating preview body keeps its window-fill flex:1')
+assert.ok(fpBodyRule.includes('min-height:0'), 'floating preview body allows shrink so viewer content fits')
+
 console.log('ALL CLIENT RENDER-PATH TESTS PASSED')
 console.log('sample output tree (clickable rows):')
 for (const row of rows) console.log('  '.repeat(row.depth) + row.title)

@@ -64,7 +64,16 @@ const STYLES = `
 .dfa-fp-title { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:var(--dsw-font-s-strong-14); color:var(--dsw-alias-label-primary); }
 .dfa-fp-hint { flex:none; font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); opacity:0.8; }
 .dfa-fp-actions { display:flex; align-items:center; gap:2px; flex:none; }
-.dfa-fp-body { flex:1; overflow:auto; padding:10px 12px; min-height:0; }
+/* issue #111: the preview body is a FLEX COLUMN so the mounted viewer
+   component (better-sidebar's TextEditor for html/code/markdown, the image
+   wrap, and the pdf frame) actually fills the window. Their roots size via
+   flex:1 (html iframe .editorHtml, .editorCm, .editorMd, .editorImageWrap,
+   .dfa-pdf), which is IGNORED in a block context — so the HTML iframe, which
+   otherwise has a fixed browser-default height, rendered as a thin top strip
+   with the rest of the window dark. Making the body a flex column lets every
+   viewer's flex:1 child stretch to the full .dfa-fp-body height and scroll
+   internally, so content fills the window and follows window resizes. */
+.dfa-fp-body { flex:1; display:flex; flex-direction:column; overflow:auto; padding:10px 12px; min-height:0; }
 .dfa-fp-note { color:var(--dsw-alias-label-tertiary); font:var(--dsw-font-xxs-12); }
 .dfa-fp-err { color:var(--dsw-alias-state-error-primary); font:var(--dsw-font-xxs-12); white-space:pre-wrap; word-break:break-all; }
 /* PDF preview: a native browser PDF frame filled from the plugin's own media

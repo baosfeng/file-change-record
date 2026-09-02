@@ -107,4 +107,7 @@ exports.__test = {
   isInsideFloating,
   closePreviewOnHidden,
   AUTO_CLOSE_MS,
+  // Static stylesheet text, so the render-path suite can assert the floating
+  // preview body keeps its flex-fill container (issue #111).
+  STYLES,
 }
