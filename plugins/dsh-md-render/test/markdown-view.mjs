@@ -73,6 +73,7 @@ function render(text) {
   let mathBlocks = 0
   let mathErrorSpans = 0
   let mathErrorBlocks = 0
+  let copyButtons = 0
   const mathErrorTitles = []
   function walk(node) {
     if (node === null || node === undefined || typeof node === 'boolean') return
@@ -102,6 +103,13 @@ function render(text) {
         mathErrorBlocks += 1
         if (typeof props.title === 'string') mathErrorTitles.push(props.title)
       }
+      if (
+        node.type === 'button' &&
+        typeof props.className === 'string' &&
+        props.className.includes('dsh-md-render-copy')
+      ) {
+        copyButtons += 1
+      }
     } else if (typeof node.type === 'function') {
       walk(node.type(node.props))
       return
@@ -120,6 +128,7 @@ function render(text) {
     mathErrorSpans,
     mathErrorBlocks,
     mathErrorTitles,
+    copyButtons,
   }
 }
 
@@ -274,4 +283,23 @@ test('CommonMark 多反引号行内代码仍正常（迁移回归）', () => {
   }
   collect(exportsObj.MarkdownView({ text: '`` `agent/status` `` 与 `mdInline`' }))
   assert.deepEqual(codeTexts, ['`agent/status`', 'mdInline'], 'multi-backtick span renders whole token as code')
+})
+
+// ── 复制按钮（issue #74）：代码块 / 整段内容一键复制 ────────────────
+test('代码块右下角渲染复制按钮（每个 md-code-block 一个）', () => {
+  const r = render('```js\nconst x = 1\n```\n\n```python\nprint(1)\n```')
+  assert.equal(r.mdCodeBlockWrappers, 2, 'two code blocks')
+  assert.equal(r.copyButtons, 3, '2 code-block buttons + 1 content button')
+  assert.ok(r.texts.includes('复制'), 'button label 复制 rendered')
+})
+
+test('整段内容右下角渲染复制按钮（tzx-md 容器内）', () => {
+  const r = render('普通段落文本')
+  assert.equal(r.copyButtons, 1, 'content copy button rendered')
+  assert.ok(r.texts.includes('复制'), 'button label 复制 rendered')
+})
+
+test('无代码块时仅内容复制按钮', () => {
+  const r = render('# 标题\n\n- 甲\n- 乙')
+  assert.equal(r.copyButtons, 1, 'only the content copy button')
 })

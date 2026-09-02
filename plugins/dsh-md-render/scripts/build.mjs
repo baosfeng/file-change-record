@@ -26,6 +26,7 @@ const sharedPartsDir = join(root, '..', 'dsh-shared', 'client-parts')
  *  opts.shared: true 表示从 dsh-shared 的 client-parts 目录读取。 */
 const PARTS = [
   ['/*__PART_ICONS__*/', 'icons.part.js', { shared: true }],
+  ['/*__PART_COPY__*/', 'copy.part.js'],
   ['/*__PART_MARKDOWN__*/', 'markdown.part.js'],
   ['/*__PART_DETECT__*/', 'detect.part.js'],
   ['/*__PART_INLINE__*/', 'inline.part.js'],

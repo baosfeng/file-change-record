@@ -41,4 +41,15 @@ div.dsh-md-render-math-error{margin:0;text-align:center;justify-content:center;p
 .dsh-md-render-scroll-hint{display:flex;align-items:center;gap:4px;padding:2px 8px;font:var(--dsw-font-xxxs-11);color:var(--dsw-alias-label-tertiary)}
 .dsh-md-render-scroll-hint svg{display:block;flex:none}
 .dsh-md-render-prefix,.dsh-md-render-suffix{margin:0}
+/* ── 复制按钮（issue #74）：代码块 / 整段内容右下角一键复制 ──
+   绝对定位右下角、hover 才显示（不干扰阅读）；DSH 语义 token 深浅
+   主题自适应；流式渲染中（[data-streaming] 祖先）隐藏，避免复制到
+   半截内容。 */
+.md-code-block{position:relative}
+.tzx-md{position:relative}
+.md-code-block>.dsh-md-render-copy,.tzx-md>.dsh-md-render-copy{position:absolute;right:8px;bottom:8px;display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font:var(--dsw-font-xxxs-11);line-height:20px;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l1);border-radius:6px;cursor:pointer;opacity:0;transition:opacity var(--ds-transition-duration-slow) var(--ds-ease-in-out),color var(--ds-transition-duration-slow) var(--ds-ease-in-out),border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+.md-code-block:hover>.dsh-md-render-copy,.tzx-md:hover>.dsh-md-render-copy{opacity:1}
+.dsh-md-render-copy:hover{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l2)}
+.dsh-md-render-copy-done{color:var(--dsw-alias-state-success-primary);border-color:var(--dsw-alias-state-success-primary)}
+[data-streaming] .dsh-md-render-copy{display:none}
 `

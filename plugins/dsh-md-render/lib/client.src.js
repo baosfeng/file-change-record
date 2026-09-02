@@ -32,11 +32,15 @@ window.__ModuleLoader__.load({
     var module = { exports: {} }
     var exports = module.exports
     Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' })
-    // MarkdownView（markdown.part.js 片段）使用 createElement。
-    const { createElement } = require('react')
+    // MarkdownView（markdown.part.js 片段）使用 createElement；
+    // CopyButton（issue #74 复制按钮）使用 useState。
+    const { createElement, useState } = require('react')
 
     // ── 共享图标（dsh-shared/client-parts，issue #54 阶段 0）────────
     /*__PART_ICONS__*/
+
+    // ── 复制按钮（issue #74）：CopyButton + 复制工具函数 ──────────
+    /*__PART_COPY__*/
 
     // ── 统一 MarkdownView：行内 + 块级渲染（导出供 think-zh-expand）──
     /*__PART_MARKDOWN__*/
