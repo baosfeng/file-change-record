@@ -7,14 +7,17 @@
  */
 
 /**
- * 顶层会话判定（白名单化）：只有明确无任何子代理标记的会话才视为顶层。
+ * 顶层会话判定（黑名单化）：只有明确无任何子代理标记的会话才视为顶层。
  *
- * 子代理标记分两层：
+ * 子代理标记分三层（任一命中即子代理，避免被误判为顶层绕过 `subagentEnd`）：
  *  - 持久化 header：`origin === 'subagent'`、`delegationDepth > 0`；
  *  - 运行时 `agent.options.subagentDepth > 0`：DSH 官方所有子代理形态
  *    （subagent / subagent_fork / workflow worker / ralph worker）创建时都
  *    经 dsh-subagent 服务设置该字段，即使 header 未持久化 origin /
- *    delegationDepth（fork 继承、工作流 worker 等漏网形态）也能识别。
+ *    delegationDepth（fork 继承、工作流 worker 等漏网形态）也能识别；
+ *  - 持久化 header `parentSession`（父会话派生标记）：workflow/ralph worker
+ *    等经 fork-in-process 派生的子会话即使漏写 origin/delegationDepth 也
+ *    携带父会话 id，据其识别为派生会话而非顶层（issue #112）。
  *
  * 结构不完整（无 session/header）无法确认 → 保守视为子代理，不通知。
  */
@@ -25,11 +28,12 @@ export function isTopLevelAgent(agent) {
   return !hasSubagentMarker(header, agent.options)
 }
 
-/** 任一子代理标记命中即子代理（header 持久化标记 + 运行时深度）。 */
+/** 任一子代理标记命中即子代理（header 持久化标记 + 运行时深度 + 派生父会话）。 */
 function hasSubagentMarker(header, options) {
   if (header.origin === 'subagent') return true
   if (typeof header.delegationDepth === 'number' && header.delegationDepth > 0) return true
-  return typeof options?.subagentDepth === 'number' && options.subagentDepth > 0
+  if (typeof options?.subagentDepth === 'number' && options.subagentDepth > 0) return true
+  return typeof header.parentSession === 'string' && header.parentSession !== ''
 }
 
 /** 子代理通知标题：前缀「子代理」+ 会话标题/短 id（尽力而为，绝不空串）。 */

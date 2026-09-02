@@ -67,7 +67,13 @@ export function apply(ctx, config) {
 
   // 通知出口：广播 SSE 的同时按配置分发到出站 webhook（异步推送，
   // 不阻塞事件路径；失败记录进 store，设置页可见）。
+  //
+  // 子代理通知统一过滤（issue #112）：`agentType: 'subagent'` 的通知帧仅在
+  // `subagentEnd` 开启时才广播。过滤集中在这个出口做，SSE（bus.emitNotice）
+  // 与 webhook（dispatchWebhooks）两条通道行为一致，都继承全局开关——即使
+  // 上游误判把子代理当顶层产生子代理标记帧，也无法绕过开关双通道轰炸。
   const emitNotice = (notice) => {
+    if (notice?.agentType === 'subagent' && !options.subagentEnd) return
     bus.emitNotice(notice)
     dispatchWebhooks(options.webhooks, notice, {
       onFailure: (failure) => webhookStore.failures.add(failure),
