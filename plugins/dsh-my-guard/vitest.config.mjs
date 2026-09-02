@@ -17,6 +17,8 @@ export default defineConfig({
         'lib/routes.js',
         'lib/fence.js',
         'lib/constants.js',
+        'lib/custom-rules.js',
+        'lib/notify.js',
       ],
     },
   },

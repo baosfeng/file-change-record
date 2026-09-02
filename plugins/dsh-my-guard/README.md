@@ -66,7 +66,24 @@ Server 端监听 `tools/pre-execute`，bash 命令匹配破坏性模式时记录
 
 监听 `session/event` 的 `user/message`（过滤插件注入消息，避免误报）自动检测，命中 → 记录 injection 告警；也可在面板或 `POST /guard/api/scan-prompt` 手动检测。
 
-### 4. 告警记录 + 用户确认机制
+### 4. 自定义护栏规则（自定义 bash 危险模式）
+
+用户可添加**自定义 bash 危险模式（正则）**，与内置破坏性命令规则**合并生效**（issue #88）：
+
+- 每条自定义规则含：`pattern`（正则）、`mode`（observe / ask / deny）、`severity`（low / medium / high）、`description`（可选）；
+- **合并语义**：命中取最严格模式（deny > ask > observe）、最严重级（high > medium > low）；自定义规则**只升不降**——内置 deny 不会被自定义 observe 降级，自定义 deny 可在全局 observe 上升级拦截；
+- 配置持久化到 profile patch（`customRules` 以 JSON 字符串写入 `id: guard` 行的 `config`），**设置页可视化编辑**：侧边栏「安全护栏」页签底部的「自定义护栏规则」区可增删改规则并保存；
+- 面板「规则测试」输入命令 → 实时预览命中哪些规则（内置/自定义）+ 合并决策。
+
+### 5. 高严重级告警通知（可选集成）
+
+高严重级告警（deny 拦截 / 密钥泄露 / 提示注入 high 等）经 **dsh-my-notify** 触发接口 `POST /notify/api/trigger` 推送通知（可选集成）：
+
+- 配置 `notifyEnabled: true` 开启（默认关闭）；
+- 同类型告警**冷却**（`notifyCooldownMs`，默认 60000ms）防刷屏；
+- 通知异步 fire-and-forget，失败静默，不阻塞告警记录。
+
+### 6. 告警记录 + 用户确认机制
 
 - 三类告警（破坏性命令 / 投毒扫描 / 提示注入）统一记录，持久化 `$DSH_HOME/guard/alerts.json`（防抖 + 原子写），**重启后恢复**；
 - 上限 500 条（FIFO 淘汰）防膨胀；
@@ -102,6 +119,10 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-my-guard
         mode: 'observe' # 护栏模式：observe（默认，只告警）/ ask（审批确认）/ deny（直接拦截）
         poisonScan: true # 投毒扫描自动联动（默认 true）
         injection: true # 提示注入检测（默认 true）
+        notifyEnabled: false # 高严重级告警经 dsh-my-notify 推送（默认关闭，issue #88）
+        notifyCooldownMs: 60000 # 同类型告警通知冷却（ms，默认 60000）
+        # customRules: '[{"pattern":"touch /etc/evil","mode":"deny","severity":"high","description":"写 /etc"}]'
+        #   ↑ 自定义护栏规则（JSON 字符串；设置页保存后自动写入，无需手动编辑）
 ```
 
 ## 依赖

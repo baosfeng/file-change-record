@@ -15,6 +15,12 @@ export const MAX_ALERTS = 500
 /** 护栏模式：observe=只读观察+告警（默认）；ask=触发审批确认；deny=直接拦截。 */
 export const GUARD_MODES = ['observe', 'ask', 'deny']
 
+/** 告警严重级别（由低到高）。 */
+export const SEVERITY_LEVELS = ['low', 'medium', 'high']
+
+/** 同类型告警通知冷却默认值（毫秒，issue #88 防刷屏）。 */
+export const DEFAULT_NOTIFY_COOLDOWN_MS = 60000
+
 /**
  * 破坏性命令模式（对 bash 工具 command 参数匹配）。
  * 每个模式：id + 正则 + 消息模板（{cmd} 会被替换为截断的命令）。
