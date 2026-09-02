@@ -439,6 +439,111 @@ const texts14 = []
 walkText(tree14, texts14)
 assert.ok(texts14.join('|').includes('项目根：/work/other'), 'project root badge updated after load')
 
+// ── issue #110 视觉重设计断言：排序 / 相对时间 / 截断展开 ─────────────────
+assert.equal(typeof exportsObj.sortMemories, 'function', 'sortMemories helper exported')
+assert.equal(typeof exportsObj.relativeTime, 'function', 'relativeTime helper exported')
+assert.equal(typeof exportsObj.truncateText, 'function', 'truncateText helper exported')
+
+// 排序：desc 最新在顶、asc 最旧在顶，且不修改原数组
+const sortInput = [
+  { id: 'a', desc: 'A', updatedAt: 200 },
+  { id: 'b', desc: 'B', updatedAt: 100 },
+]
+const descItems = exportsObj.sortMemories(sortInput, 'desc')
+assert.deepEqual(
+  descItems.map((i) => i.id),
+  ['a', 'b'],
+  'desc orders updated-desc first',
+)
+const ascItems = exportsObj.sortMemories(sortInput, 'asc')
+assert.deepEqual(
+  ascItems.map((i) => i.id),
+  ['b', 'a'],
+  'asc orders updated-asc first',
+)
+assert.equal(sortInput[0].id, 'a', 'sortMemories does not mutate the input array')
+
+// 截断：超过上限截断 + 「…」收尾，未超限原样返回
+const longCut = exportsObj.truncateText('A'.repeat(64), 60)
+assert.equal(longCut.truncated, true, 'long text flags truncated')
+assert.equal(longCut.text, `${'A'.repeat(60)}…`, 'long text truncated with ellipsis')
+const shortCut = exportsObj.truncateText('短内容', 60)
+assert.equal(shortCut.truncated, false, 'short text not truncated')
+assert.equal(shortCut.text, '短内容', 'short text returned unchanged')
+
+// 相对时间：一分钟内「刚刚」、数分钟「n 分钟前」
+assert.equal(exportsObj.relativeTime(Date.now() - 30 * 1000), '刚刚', 'under a minute is 刚刚')
+assert.equal(exportsObj.relativeTime(Date.now() - 5 * 60 * 1000), '5 分钟前', 'five minutes shows 5 分钟前')
+
+// 渲染态：重新加载含长条目的全局数据，验证排序 + 截断展开
+const freshGlobal = {
+  ok: true,
+  value: {
+    scope: 'global',
+    cwd: '',
+    projectRoot: '',
+    items: [
+      { id: 'long', desc: 'A'.repeat(64), createdAt: 200, updatedAt: 200 },
+      { id: 'short', desc: 'OLDER-ITEM', createdAt: 100, updatedAt: 100 },
+    ],
+  },
+}
+const reloadInputs = []
+collectInputs(renderView(), reloadInputs)
+const reloadInput = reloadInputs.find((i) => i.className === 'dsh-my-memory-path-input')
+reloadInput.onChange({ target: { value: '' } })
+const reloadTree = renderView()
+const reloadButtons = []
+collectButtons(reloadTree, reloadButtons)
+const refreshBtn = reloadButtons.find((b) => b.label.includes('刷新'))
+assert.ok(refreshBtn, 'refresh button found for reload')
+cannedResponses.push(freshGlobal)
+refreshBtn.onClick()
+await new Promise((resolve) => setTimeout(resolve, 0))
+
+const sortedTree = renderView()
+const sortedTexts = []
+walkText(sortedTree, sortedTexts)
+const sortedJoined = sortedTexts.join('|')
+const truncatedLong = `${'A'.repeat(60)}…`
+assert.ok(sortedJoined.includes(truncatedLong), 'long item renders truncated')
+assert.ok(!sortedJoined.includes('A'.repeat(64)), 'long item is not expanded before the user opens it')
+assert.ok(sortedJoined.indexOf(truncatedLong) < sortedJoined.indexOf('OLDER-ITEM'), 'newest-updated item sorts first')
+
+const sortedBtns = []
+collectButtons(sortedTree, sortedBtns)
+const expandBtn = sortedBtns.find((b) => b.label.includes('展开'))
+assert.ok(expandBtn, 'expand button renders for a truncated item')
+expandBtn.onClick()
+const expandedTree = renderView()
+const expandedTexts = []
+walkText(expandedTree, expandedTexts)
+assert.ok(expandedTexts.join('|').includes('A'.repeat(64)), 'expand reveals the full text')
+const collapseBtns = []
+collectButtons(expandedTree, collapseBtns)
+const collapseBtn = collapseBtns.find((b) => b.label.includes('收起'))
+assert.ok(collapseBtn, 'collapse button renders while expanded')
+collapseBtn.onClick()
+const collapsedTree = renderView()
+const collapsedTexts = []
+walkText(collapsedTree, collapsedTexts)
+assert.ok(collapsedTexts.join('|').includes(truncatedLong), 'collapse truncates the text again')
+
+// 排序开关：点击后切到最旧优先，顺序反转
+const flipBtns = []
+collectButtons(collapsedTree, flipBtns)
+const flipBtn = flipBtns.find((b) => b.label.includes('按更新时间排序'))
+assert.ok(flipBtn, 'sort toggle button renders')
+flipBtn.onClick()
+const flippedTree = renderView()
+const flippedTexts = []
+walkText(flippedTree, flippedTexts)
+const flippedJoined = flippedTexts.join('|')
+assert.ok(
+  flippedJoined.indexOf('OLDER-ITEM') < flippedJoined.indexOf(truncatedLong),
+  'toggling sort flips to oldest-updated first',
+)
+
 console.log('ALL MY-MEMORY CLIENT RENDER-PATH TESTS PASSED')
 
 // ── helpers for button collection (no aria-label on some buttons) ─────────

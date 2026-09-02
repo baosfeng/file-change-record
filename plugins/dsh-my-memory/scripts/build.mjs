@@ -32,6 +32,8 @@ const pieces = [
   ['__PART_STYLES__', 'styles.part.js'],
   ['__PART_API__', 'api.part.js'],
   ['__PART_ICONS__', 'icons.part.js', { shared: true }],
+  ['__PART_UTILS__', 'utils.part.js'],
+  ['__PART_VIEW_ROWS__', 'view-rows.part.js'],
   ['__PART_VIEW__', 'view.part.js'],
   ['__PART_APPLY__', 'apply.part.js'],
 ]

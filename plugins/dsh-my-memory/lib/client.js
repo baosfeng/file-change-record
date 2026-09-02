@@ -85,6 +85,20 @@ const strings = {
   confirmHint: () =>
     isZh() ? '所有新增 / 修改 / 删除都需要你确认' : 'Every add / edit / delete needs your confirmation',
   updatedAt: (ts) => (isZh() ? `更新于 ${new Date(ts).toLocaleString()}` : `Updated ${new Date(ts).toLocaleString()}`),
+  // ── issue #110 视觉重设计：徽标分类/数量、相对时间、排序、截断展开 ──
+  globalScope: () => (isZh() ? '全局' : 'Global'),
+  projectScope: () => (isZh() ? '项目' : 'Project'),
+  countBadge: (label, n) => (isZh() ? `${label} · ${n} 条` : `${label} · ${n}`),
+  projectBadge: (root, n) => (isZh() ? `项目根：${root} · ${n} 条` : `Project root: ${root} · ${n}`),
+  justNow: () => (isZh() ? '刚刚' : 'just now'),
+  minutesAgo: (n) => (isZh() ? `${n} 分钟前` : `${n} min ago`),
+  hoursAgo: (n) => (isZh() ? `${n} 小时前` : `${n} hr ago`),
+  daysAgo: (n) => (isZh() ? `${n} 天前` : `${n} d ago`),
+  sortLabel: () => (isZh() ? '按更新时间排序' : 'Sort by updated'),
+  sortNewest: () => (isZh() ? '最新优先' : 'Newest first'),
+  sortOldest: () => (isZh() ? '最旧优先' : 'Oldest first'),
+  expand: () => (isZh() ? '展开' : 'Expand'),
+  collapse: () => (isZh() ? '收起' : 'Collapse'),
 }
 
     // ── styles (DSH semantic tokens, injected on activate, removed on teardown) ──
@@ -117,32 +131,59 @@ const STYLES = `
 .dsh-my-memory-iconbtn-danger:hover:not(:disabled) { color:var(--dsw-alias-state-error-primary); }
 .dsh-my-memory-status { display:flex; align-items:center; gap:5px; font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); }
 .dsh-my-memory-status svg { display:block; flex:none; }
+.dsh-my-memory-loading { padding:4px 2px; }
+.dsh-my-memory-spinner { display:inline-block; width:12px; height:12px; border-radius:50%; flex:none;
+  border:2px solid color-mix(in srgb, var(--dsw-alias-accent) 30%, transparent); border-top-color:var(--dsw-alias-accent);
+  animation:dsh-my-memory-spin 800ms linear infinite; }
 .dsh-my-memory-saved { color:var(--dsw-alias-state-success-primary); }
 .dsh-my-memory-error { display:flex; align-items:center; gap:6px; font:var(--dsw-font-xxs-12);
   color:var(--dsw-alias-state-error-primary); white-space:pre-wrap; }
 .dsh-my-memory-sections { display:flex; flex-direction:column; gap:8px; }
 .dsh-my-memory-section { display:flex; flex-direction:column; gap:6px; padding:8px; border-radius:8px;
-  border:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-layer-2); }
+  border:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-layer-1); }
 /* The project scope gets the brand accent so the two scopes never blur. */
 .dsh-my-memory-section-project { border-color:color-mix(in srgb, var(--dsw-alias-accent) 45%, transparent);
-  background:color-mix(in srgb, var(--dsw-alias-accent) 5%, transparent); }
+  background:color-mix(in srgb, var(--dsw-alias-accent) 6%, var(--dsw-alias-bg-layer-1)); }
 .dsh-my-memory-section-head { display:flex; align-items:center; gap:8px; }
 .dsh-my-memory-section-title { font:var(--dsw-font-s-strong-14); color:var(--dsw-alias-label-primary); }
 .dsh-my-memory-badge { flex:none; display:inline-flex; align-items:center; height:17px; padding:0 5px; border-radius:4px;
   font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-accent);
   background:color-mix(in srgb, var(--dsw-alias-accent) 12%, transparent); }
+.dsh-my-memory-sort { display:inline-flex; align-items:center; gap:4px; flex:none; height:20px; padding:0 6px; border-radius:4px;
+  margin-left:auto; cursor:pointer; border:none; background:transparent; color:var(--dsw-alias-label-tertiary);
+  font:var(--dsw-font-xxxs-11);
+  transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out), color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-memory-sort svg { display:block; flex:none; }
+.dsh-my-memory-sort:hover { background:var(--dsw-alias-interactive-bg-hover); color:var(--dsw-alias-label-primary); }
 .dsh-my-memory-note { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); line-height:1.7; }
-.dsh-my-memory-empty { padding:8px 6px; font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); line-height:1.7; }
-.dsh-my-memory-empty-icon { display:inline-flex; vertical-align:-3px; margin-right:6px; color:var(--dsw-alias-label-dimmed); }
-.dsh-my-memory-empty-hint { display:block; margin-top:2px; color:var(--dsw-alias-label-dimmed); font:var(--dsw-font-xxxs-11); }
-.dsh-my-memory-row { display:flex; flex-direction:column; gap:2px; box-sizing:border-box; width:100%; min-height:26px;
-  margin:0; padding:4px 8px; border:none; background:transparent; border-radius:8px;
-  animation:dsh-my-memory-row-in 150ms var(--ds-ease-in-out); }
-.dsh-my-memory-row:hover { background:var(--dsw-alias-interactive-bg-hover); }
+.dsh-my-memory-empty { display:flex; align-items:flex-start; gap:8px; padding:12px 10px;
+  font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-tertiary); }
+.dsh-my-memory-empty-body { display:flex; flex-direction:column; gap:2px; }
+.dsh-my-memory-empty-main { font:var(--dsw-font-s-strong-14); color:var(--dsw-alias-label-primary); }
+.dsh-my-memory-empty-icon { display:inline-flex; margin-top:1px; color:var(--dsw-alias-label-dimmed); }
+.dsh-my-memory-empty-hint { color:var(--dsw-alias-label-dimmed); font:var(--dsw-font-xxxs-11); line-height:1.7; }
+/* 条目卡片化：背景 + 边框 + 圆角，与内容视觉分离；hover 高亮边框（issue #110）。 */
+.dsh-my-memory-row { display:flex; flex-direction:column; gap:4px; box-sizing:border-box; width:100%; min-height:26px;
+  margin:0; padding:8px 10px; border:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-layer-2);
+  border-radius:6px;
+  transition:border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out), background var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-memory-row:hover { border-color:color-mix(in srgb, var(--dsw-alias-accent) 40%, transparent);
+  background:var(--dsw-alias-interactive-bg-hover); }
+.dsh-my-memory-row-editing { border-color:var(--dsw-alias-accent); }
 .dsh-my-memory-row-head { display:flex; align-items:center; gap:8px; }
+.dsh-my-memory-row-desc-wrap { display:flex; align-items:center; gap:4px; flex:1; min-width:0; }
 .dsh-my-memory-desc { flex:1; min-width:0; font:var(--dsw-font-s-14); color:var(--dsw-alias-label-primary); word-break:break-word; }
-.dsh-my-memory-meta { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
-.dsh-my-memory-actions { display:flex; align-items:center; gap:2px; flex:none; }
+.dsh-my-memory-expand { display:inline-flex; align-items:center; gap:3px; flex:none; height:20px; padding:0 6px; border-radius:4px;
+  cursor:pointer; border:none; background:transparent; color:var(--dsw-alias-accent); font:var(--dsw-font-xxxs-11);
+  transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-memory-expand svg { display:block; flex:none; transition:transform var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
+.dsh-my-memory-expand-open svg { transform:rotate(180deg); }
+.dsh-my-memory-expand:hover { background:var(--dsw-alias-interactive-bg-hover); }
+/* 操作区：统一右侧图标组，与内容用分隔线分离；删除 hover 保持红色警示。 */
+.dsh-my-memory-actions { display:flex; align-items:center; gap:2px; flex:none; padding-left:8px;
+  border-left:1px solid var(--dsw-alias-border-l2); }
+.dsh-my-memory-meta { display:flex; align-items:center; gap:4px; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
+.dsh-my-memory-meta-icon { display:inline-flex; color:var(--dsw-alias-label-dimmed); }
 .dsh-my-memory-addbar { display:flex; gap:6px; align-items:center; }
 .dsh-my-memory-add-input { flex:1; min-width:0; height:28px; padding:0 8px; border-radius:6px;
   border:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-layer-2);
@@ -183,6 +224,7 @@ const STYLES = `
 .dsh-my-memory-confirm-cancel svg { display:block; flex:none; }
 .dsh-my-memory-confirm-cancel:hover { background:var(--dsw-alias-interactive-bg-hover); color:var(--dsw-alias-label-primary); }
 @keyframes dsh-my-memory-row-in { from { opacity:0; transform:translateY(1px); } to { opacity:1; transform:none; } }
+@keyframes dsh-my-memory-spin { to { transform:rotate(360deg); } }
 `.trim()
 
 const STYLE_TAG = 'data-dsh-my-memory'
@@ -574,6 +616,263 @@ const fileIconByExt = (ext, size = 14) => {
   return spec === undefined ? icon.file(size) : badgeIcon(spec, size)
 }
 
+    // ── utils: pure display helpers (truncation / relative time / sort) ──────
+// 纯展示层辅助函数：不触碰服务端状态，供客户端视图使用并可被单测直接调用。
+// 长条目截断 + 展开为纯展示层（issue #110 视觉设计）——不依赖 #105 的服务端逻辑。
+const TRUNCATE_LEN = 60
+
+/** 按字符截断长条目：返回截断后的文本与是否被截断（截断时用「…」收尾）。 */
+function truncateText(text, max = TRUNCATE_LEN) {
+  const value = String(text ?? '').trim()
+  if (value.length <= max) return { text: value, truncated: false }
+  return { text: `${value.slice(0, max)}…`, truncated: true }
+}
+
+/** 更新时间相对化：「刚刚」「n 分钟前」「n 小时前」「n 天前」，超过 30 天回退绝对时间。 */
+function relativeTime(ts) {
+  const time = Number(ts)
+  if (!Number.isFinite(time)) return ''
+  const diff = Date.now() - time
+  if (diff < 0) return strings.updatedAt(time) // 未来时间（时钟偏移）回退绝对时间
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 1) return strings.justNow()
+  if (minutes < 60) return strings.minutesAgo(minutes)
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return strings.hoursAgo(hours)
+  const days = Math.floor(hours / 24)
+  if (days < 30) return strings.daysAgo(days)
+  return strings.updatedAt(time)
+}
+
+/** 按更新时间排序（dir: 'desc' 最新在顶 / 'asc' 最旧在顶）；返回新数组，不改原列表。 */
+function sortMemories(items, dir = 'desc') {
+  const copy = items.slice()
+  copy.sort((a, b) => (dir === 'asc' ? a.updatedAt - b.updatedAt : b.updatedAt - a.updatedAt))
+  return copy
+}
+
+// 导出纯函数供单测直接断言（插件只消费 apply，多余导出在 client 端无副作用）。
+exports.truncateText = truncateText
+exports.relativeTime = relativeTime
+exports.sortMemories = sortMemories
+
+    // ── view-rows: row/entry widgets for the Memory tab ─────────────────────
+// 拆分自 view.part.js（issue #110 视觉重设计）：条目卡片、空状态、排序开关、
+// 新增栏与确认面板。纯渲染组件，共用 view 工厂作用域内的 strings/icon/utils。
+/** 排序开关：按更新时间切换最新/最旧优先（每分区独立）。 */
+function SortToggle({ scope, order, onSort }) {
+  return createElement(
+    'button',
+    {
+      className: 'dsh-my-memory-sort',
+      'aria-label': `${strings.sortLabel()} ${scope}`,
+      onClick: () => onSort(scope),
+    },
+    icon.clock(12),
+    order === 'desc' ? strings.sortNewest() : strings.sortOldest(),
+  )
+}
+
+/** 空状态：无条目时的引导（hint 优先，如无会话项目提示输入项目根路径）。 */
+function EmptyState({ hint }) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-memory-empty' },
+    createElement('span', { className: 'dsh-my-memory-empty-icon' }, icon.file(16)),
+    createElement(
+      'div',
+      { className: 'dsh-my-memory-empty-body' },
+      createElement('span', { className: 'dsh-my-memory-empty-main' }, strings.empty()),
+      createElement('span', { className: 'dsh-my-memory-empty-hint' }, hint ?? strings.emptyHint()),
+    ),
+  )
+}
+
+/** 新增条目的输入 + 保存按钮。 */
+function AddBar({ scope, value, onChange, onAdd }) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-memory-addbar' },
+    createElement('input', {
+      className: 'dsh-my-memory-add-input',
+      placeholder: strings.addPlaceholder(),
+      value,
+      onChange: (event) => onChange(event.target.value),
+    }),
+    createElement(
+      'button',
+      {
+        className: 'dsh-my-memory-btn-save',
+        'aria-label': `${strings.add()} ${scope}`,
+        onClick: onAdd,
+      },
+      icon.plus(14),
+      strings.add(),
+    ),
+  )
+}
+
+function buildRows(items, scope, editing, onEdit, onEditDesc, onCancelEdit, onConfirm, expanded, onToggle) {
+  return items.map((item) => {
+    const isEditing = editing !== null && editing.scope === scope && editing.id === item.id
+    const key = `${scope}/${item.id}`
+    return createElement(MemoryRow, {
+      key,
+      item,
+      isEditing,
+      isExpanded: expanded.has(key),
+      editingDesc: isEditing ? editing.desc : '',
+      onEdit: () => onEdit(scope, item.id, item.desc),
+      onEditDesc,
+      onCancelEdit,
+      onSaveEdit: () => onConfirm({ kind: 'update', scope, id: item.id, desc: editing.desc }),
+      onDelete: () => onConfirm({ kind: 'delete', scope, id: item.id, desc: item.desc }),
+      onToggle: () => onToggle(key),
+    })
+  })
+}
+
+function IconButton({ className, label, onClick, children }) {
+  return createElement('button', { className, 'aria-label': label, onClick }, children)
+}
+
+/** 编辑态：输入 + 保存/取消，保留卡片底与操作/内容分离。 */
+function MemoryRowEdit({ editingDesc, onEditDesc, onSaveEdit, onCancelEdit }) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-memory-row dsh-my-memory-row-editing' },
+    createElement('input', {
+      className: 'dsh-my-memory-add-input',
+      value: editingDesc,
+      onChange: (event) => onEditDesc(event.target.value),
+    }),
+    createElement(
+      'div',
+      { className: 'dsh-my-memory-actions' },
+      createElement(
+        'button',
+        { className: 'dsh-my-memory-btn-save', onClick: onSaveEdit },
+        icon.check(14),
+        strings.save(),
+      ),
+      createElement(
+        'button',
+        { className: 'dsh-my-memory-btn', onClick: onCancelEdit },
+        icon.close(14),
+        strings.cancel(),
+      ),
+    ),
+  )
+}
+
+/** 一条记忆卡片：描述（+截断/展开）+ 操作图标组 + 相对更新时间。 */
+function MemoryRow({
+  item,
+  isEditing,
+  isExpanded,
+  editingDesc,
+  onEdit,
+  onEditDesc,
+  onCancelEdit,
+  onSaveEdit,
+  onDelete,
+  onToggle,
+}) {
+  if (isEditing) return createElement(MemoryRowEdit, { editingDesc, onEditDesc, onSaveEdit, onCancelEdit })
+  const cut = truncateText(item.desc)
+  const shown = isExpanded ? item.desc : cut.text
+  return createElement(
+    'div',
+    { className: 'dsh-my-memory-row' },
+    createElement(
+      'div',
+      { className: 'dsh-my-memory-row-head' },
+      createElement(
+        'div',
+        { className: 'dsh-my-memory-row-desc-wrap' },
+        createElement('span', { className: 'dsh-my-memory-desc' }, shown),
+        cut.truncated
+          ? createElement(
+              'button',
+              {
+                className: `dsh-my-memory-expand${isExpanded ? ' dsh-my-memory-expand-open' : ''}`,
+                'aria-label': isExpanded ? strings.collapse() : strings.expand(),
+                onClick: onToggle,
+              },
+              icon.chevronDown(14),
+              isExpanded ? strings.collapse() : strings.expand(),
+            )
+          : null,
+      ),
+      createElement(
+        'div',
+        { className: 'dsh-my-memory-actions' },
+        createElement(
+          IconButton,
+          { className: 'dsh-my-memory-iconbtn', label: `${strings.edit()} ${item.id}`, onClick: onEdit },
+          icon.pencil(14),
+        ),
+        createElement(
+          IconButton,
+          {
+            className: 'dsh-my-memory-iconbtn dsh-my-memory-iconbtn-danger',
+            label: `${strings.delete()} ${item.id}`,
+            onClick: onDelete,
+          },
+          icon.trash(14),
+        ),
+      ),
+    ),
+    createElement(
+      'div',
+      { className: 'dsh-my-memory-meta' },
+      createElement('span', { className: 'dsh-my-memory-meta-icon' }, icon.clock(11)),
+      relativeTime(item.updatedAt),
+    ),
+  )
+}
+
+/** 自定义确认面板（ask 模式，非原生 confirm）：删除红、保存绿。 */
+function ConfirmPanel({ confirm, onCancel, onOk }) {
+  const isDelete = confirm.kind === 'delete'
+  const text =
+    confirm.kind === 'add'
+      ? strings.confirmAdd()
+      : confirm.kind === 'update'
+        ? strings.confirmUpdate()
+        : strings.confirmDelete()
+  return createElement(
+    'div',
+    { className: `dsh-my-memory-confirm dsh-my-memory-confirm-${isDelete ? 'delete' : 'save'}` },
+    createElement(
+      'div',
+      { className: 'dsh-my-memory-confirm-head' },
+      isDelete ? icon.trash(15) : icon.check(15),
+      createElement('div', { className: 'dsh-my-memory-confirm-text' }, text),
+    ),
+    createElement('div', { className: 'dsh-my-memory-confirm-desc' }, confirm.desc),
+    createElement(
+      'div',
+      { className: 'dsh-my-memory-confirm-actions' },
+      createElement(
+        'button',
+        {
+          className: `dsh-my-memory-confirm-ok dsh-my-memory-confirm-ok-${isDelete ? 'delete' : 'save'}`,
+          onClick: onOk,
+        },
+        isDelete ? icon.trash(14) : icon.check(14),
+        isDelete ? strings.confirmDeleteBtn() : strings.confirmSave(),
+      ),
+      createElement(
+        'button',
+        { className: 'dsh-my-memory-confirm-cancel', onClick: onCancel },
+        icon.close(14),
+        strings.cancel(),
+      ),
+    ),
+  )
+}
+
     // ── view: Memory settings tab ─────────────────────────────────────────
 /** Load both scopes: global always; project only when a cwd is given. */
 function fetchAll(cwd) {
@@ -620,6 +919,8 @@ function MemoryView() {
   const [drafts, setDrafts] = useState({ global: '', project: '' })
   const [editing, setEditing] = useState(null)
   const [confirming, setConfirming] = useState(null)
+  const [expanded, setExpanded] = useState(() => new Set())
+  const [sortOrder, setSortOrder] = useState({ global: 'desc', project: 'desc' })
   const actions = createActions({ setData, setLoading, setError, setSaved })
 
   useEffect(() => {
@@ -634,7 +935,12 @@ function MemoryView() {
     createElement(Toolbar, { pathInput, onInput: setPathInput, onLoad: actions.load, onRefresh: actions.refresh }),
     error === null ? null : createElement(ErrorBanner, { kind: error, onRetry: () => actions.load(pathInput) }),
     loading
-      ? createElement('div', { className: 'dsh-my-memory-status' }, strings.loading())
+      ? createElement(
+          'div',
+          { className: 'dsh-my-memory-status dsh-my-memory-loading' },
+          createElement('span', { className: 'dsh-my-memory-spinner' }),
+          strings.loading(),
+        )
       : data === null
         ? null
         : createElement(Sections, {
@@ -643,12 +949,22 @@ function MemoryView() {
             drafts,
             editing,
             confirming,
+            expanded,
+            sortOrder,
             onDraft: (scope, value) => setDrafts({ ...drafts, [scope]: value }),
             onEdit: (scope, id, desc) => setEditing({ scope, id, desc }),
             onEditDesc: (value) => setEditing({ ...editing, desc: value }),
             onCancelEdit: () => setEditing(null),
             onConfirm: (confirm) => setConfirming(confirm),
             onCancelConfirm: () => setConfirming(null),
+            onToggle: (key) =>
+              setExpanded((prev) => {
+                const next = new Set(prev)
+                if (next.has(key)) next.delete(key)
+                else next.add(key)
+                return next
+              }),
+            onSort: (scope) => setSortOrder((prev) => ({ ...prev, [scope]: prev[scope] === 'desc' ? 'asc' : 'desc' })),
             onCommit: commit,
           }),
   )
@@ -736,24 +1052,32 @@ function Sections({
   drafts,
   editing,
   confirming,
+  expanded,
+  sortOrder,
   onDraft,
   onEdit,
   onEditDesc,
   onCancelEdit,
   onConfirm,
   onCancelConfirm,
+  onToggle,
+  onSort,
   onCommit,
 }) {
   const blockProps = {
     drafts,
     editing,
     confirming,
+    expanded,
+    sortOrder,
     onDraft,
     onEdit,
     onEditDesc,
     onCancelEdit,
     onConfirm,
     onCancelConfirm,
+    onToggle,
+    onSort,
     onCommit,
   }
   return createElement(
@@ -762,7 +1086,6 @@ function Sections({
     createElement(SectionBlock, {
       scope: 'global',
       title: strings.globalSection(),
-      badge: strings.globalSection(),
       note: strings.globalNote(),
       data: data.global,
       ...blockProps,
@@ -770,7 +1093,6 @@ function Sections({
     createElement(SectionBlock, {
       scope: 'project',
       title: strings.projectSection(),
-      badge: data.project.cwd !== '' ? strings.projectRoot() + data.project.projectRoot : strings.projectSection(),
       note: strings.projectNote(),
       data: data.project,
       ...blockProps,
@@ -781,27 +1103,40 @@ function Sections({
   )
 }
 
-/** One scope's section: rows + add bar + inline confirmation panel. */
+/** One scope's section: 区块标题 / 徽标 / 排序开关 / 列表 / 新增栏 / 确认面板。 */
 function SectionBlock({
   scope,
   title,
-  badge,
   note,
   data,
   drafts,
   editing,
   confirming,
+  expanded,
+  sortOrder,
   onDraft,
   onEdit,
   onEditDesc,
   onCancelEdit,
   onConfirm,
   onCancelConfirm,
+  onToggle,
+  onSort,
   onCommit,
 }) {
   const isProject = scope === 'project'
+  // 徽标：分类 + 数量（不再重复标题文字；项目加载后附带项目根路径）。
+  const badge =
+    scope === 'global'
+      ? strings.countBadge(strings.globalScope(), data.items.length)
+      : data.cwd !== ''
+        ? strings.projectBadge(data.projectRoot, data.items.length)
+        : strings.countBadge(strings.projectScope(), data.items.length)
+  const order = sortOrder[scope]
+  const items = sortMemories(data.items, order)
+  const rows = buildRows(items, scope, editing, onEdit, onEditDesc, onCancelEdit, onConfirm, expanded, onToggle)
+  // 空状态：无会话项目时提示输入项目根路径（issue #104），否则提示新增（issue #110 视觉统一）。
   const emptyHint = isProject && data.cwd === '' ? strings.projectEmptyHint() : undefined
-  const rows = buildRows(data.items, scope, editing, onEdit, onEditDesc, onCancelEdit, onConfirm)
   return createElement(
     'div',
     { className: `dsh-my-memory-section${isProject ? ' dsh-my-memory-section-project' : ''}` },
@@ -810,29 +1145,16 @@ function SectionBlock({
       { className: 'dsh-my-memory-section-head' },
       createElement('span', { className: 'dsh-my-memory-section-title' }, title),
       createElement('span', { className: 'dsh-my-memory-badge' }, badge),
+      createElement(SortToggle, { scope, order, onSort }),
     ),
     createElement('div', { className: 'dsh-my-memory-note' }, note),
     rows.length === 0 ? createElement(EmptyState, { hint: emptyHint }) : rows,
-    createElement(
-      'div',
-      { className: 'dsh-my-memory-addbar' },
-      createElement('input', {
-        className: 'dsh-my-memory-add-input',
-        placeholder: strings.addPlaceholder(),
-        value: drafts[scope],
-        onChange: (event) => onDraft(scope, event.target.value),
-      }),
-      createElement(
-        'button',
-        {
-          className: 'dsh-my-memory-btn-save',
-          'aria-label': `${strings.add()} ${scope}`,
-          onClick: () => onConfirm({ kind: 'add', scope, desc: drafts[scope] }),
-        },
-        icon.plus(14),
-        strings.add(),
-      ),
-    ),
+    createElement(AddBar, {
+      scope,
+      value: drafts[scope],
+      onChange: (value) => onDraft(scope, value),
+      onAdd: () => onConfirm({ kind: 'add', scope, desc: drafts[scope] }),
+    }),
     confirming !== null && confirming.scope === scope
       ? createElement(ConfirmPanel, {
           confirm: confirming,
@@ -840,137 +1162,6 @@ function SectionBlock({
           onOk: () => onCommit(confirming),
         })
       : null,
-  )
-}
-
-function EmptyState({ hint }) {
-  return createElement(
-    'div',
-    { className: 'dsh-my-memory-empty' },
-    createElement('span', { className: 'dsh-my-memory-empty-icon' }, icon.file(16)),
-    strings.empty(),
-    createElement('span', { className: 'dsh-my-memory-empty-hint' }, hint ?? strings.emptyHint()),
-  )
-}
-
-function buildRows(items, scope, editing, onEdit, onEditDesc, onCancelEdit, onConfirm) {
-  return items.map((item) => {
-    const isEditing = editing !== null && editing.scope === scope && editing.id === item.id
-    return createElement(MemoryRow, {
-      key: item.id,
-      item,
-      isEditing,
-      editingDesc: isEditing ? editing.desc : '',
-      onEdit: () => onEdit(scope, item.id, item.desc),
-      onEditDesc,
-      onCancelEdit,
-      onSaveEdit: () => onConfirm({ kind: 'update', scope, id: item.id, desc: editing.desc }),
-      onDelete: () => onConfirm({ kind: 'delete', scope, id: item.id, desc: item.desc }),
-    })
-  })
-}
-
-function IconButton({ className, label, onClick, children }) {
-  return createElement('button', { className, 'aria-label': label, onClick }, children)
-}
-
-/** One memory row: desc + meta + icon edit/delete; edit mode swaps in an input. */
-function MemoryRow({ item, isEditing, editingDesc, onEdit, onEditDesc, onCancelEdit, onSaveEdit, onDelete }) {
-  if (isEditing) {
-    return createElement(
-      'div',
-      { className: 'dsh-my-memory-row' },
-      createElement('input', {
-        className: 'dsh-my-memory-add-input',
-        value: editingDesc,
-        onChange: (event) => onEditDesc(event.target.value),
-      }),
-      createElement(
-        'div',
-        { className: 'dsh-my-memory-actions' },
-        createElement(
-          'button',
-          { className: 'dsh-my-memory-btn-save', onClick: onSaveEdit },
-          icon.check(14),
-          strings.save(),
-        ),
-        createElement(
-          'button',
-          { className: 'dsh-my-memory-btn', onClick: onCancelEdit },
-          icon.close(14),
-          strings.cancel(),
-        ),
-      ),
-    )
-  }
-  return createElement(
-    'div',
-    { className: 'dsh-my-memory-row' },
-    createElement(
-      'div',
-      { className: 'dsh-my-memory-row-head' },
-      createElement('span', { className: 'dsh-my-memory-desc' }, item.desc),
-      createElement(
-        'div',
-        { className: 'dsh-my-memory-actions' },
-        createElement(
-          IconButton,
-          { className: 'dsh-my-memory-iconbtn', label: `${strings.edit()} ${item.id}`, onClick: onEdit },
-          icon.pencil(14),
-        ),
-        createElement(
-          IconButton,
-          {
-            className: 'dsh-my-memory-iconbtn dsh-my-memory-iconbtn-danger',
-            label: `${strings.delete()} ${item.id}`,
-            onClick: onDelete,
-          },
-          icon.trash(14),
-        ),
-      ),
-    ),
-    createElement('div', { className: 'dsh-my-memory-meta' }, strings.updatedAt(item.updatedAt)),
-  )
-}
-
-/** Custom confirmation panel (ask-style, not the native confirm): delete is red, save is green. */
-function ConfirmPanel({ confirm, onCancel, onOk }) {
-  const isDelete = confirm.kind === 'delete'
-  const text =
-    confirm.kind === 'add'
-      ? strings.confirmAdd()
-      : confirm.kind === 'update'
-        ? strings.confirmUpdate()
-        : strings.confirmDelete()
-  return createElement(
-    'div',
-    { className: `dsh-my-memory-confirm dsh-my-memory-confirm-${isDelete ? 'delete' : 'save'}` },
-    createElement(
-      'div',
-      { className: 'dsh-my-memory-confirm-head' },
-      isDelete ? icon.trash(15) : icon.check(15),
-      createElement('div', { className: 'dsh-my-memory-confirm-text' }, text),
-    ),
-    createElement('div', { className: 'dsh-my-memory-confirm-desc' }, confirm.desc),
-    createElement(
-      'div',
-      { className: 'dsh-my-memory-confirm-actions' },
-      createElement(
-        'button',
-        {
-          className: `dsh-my-memory-confirm-ok dsh-my-memory-confirm-ok-${isDelete ? 'delete' : 'save'}`,
-          onClick: onOk,
-        },
-        isDelete ? icon.trash(14) : icon.check(14),
-        isDelete ? strings.confirmDeleteBtn() : strings.confirmSave(),
-      ),
-      createElement(
-        'button',
-        { className: 'dsh-my-memory-confirm-cancel', onClick: onCancel },
-        icon.close(14),
-        strings.cancel(),
-      ),
-    ),
   )
 }
 

@@ -53,4 +53,18 @@ const strings = {
   confirmHint: () =>
     isZh() ? '所有新增 / 修改 / 删除都需要你确认' : 'Every add / edit / delete needs your confirmation',
   updatedAt: (ts) => (isZh() ? `更新于 ${new Date(ts).toLocaleString()}` : `Updated ${new Date(ts).toLocaleString()}`),
+  // ── issue #110 视觉重设计：徽标分类/数量、相对时间、排序、截断展开 ──
+  globalScope: () => (isZh() ? '全局' : 'Global'),
+  projectScope: () => (isZh() ? '项目' : 'Project'),
+  countBadge: (label, n) => (isZh() ? `${label} · ${n} 条` : `${label} · ${n}`),
+  projectBadge: (root, n) => (isZh() ? `项目根：${root} · ${n} 条` : `Project root: ${root} · ${n}`),
+  justNow: () => (isZh() ? '刚刚' : 'just now'),
+  minutesAgo: (n) => (isZh() ? `${n} 分钟前` : `${n} min ago`),
+  hoursAgo: (n) => (isZh() ? `${n} 小时前` : `${n} hr ago`),
+  daysAgo: (n) => (isZh() ? `${n} 天前` : `${n} d ago`),
+  sortLabel: () => (isZh() ? '按更新时间排序' : 'Sort by updated'),
+  sortNewest: () => (isZh() ? '最新优先' : 'Newest first'),
+  sortOldest: () => (isZh() ? '最旧优先' : 'Oldest first'),
+  expand: () => (isZh() ? '展开' : 'Expand'),
+  collapse: () => (isZh() ? '收起' : 'Collapse'),
 }

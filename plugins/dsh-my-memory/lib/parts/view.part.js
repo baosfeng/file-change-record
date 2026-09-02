@@ -44,6 +44,8 @@ function MemoryView() {
   const [drafts, setDrafts] = useState({ global: '', project: '' })
   const [editing, setEditing] = useState(null)
   const [confirming, setConfirming] = useState(null)
+  const [expanded, setExpanded] = useState(() => new Set())
+  const [sortOrder, setSortOrder] = useState({ global: 'desc', project: 'desc' })
   const actions = createActions({ setData, setLoading, setError, setSaved })
 
   useEffect(() => {
@@ -58,7 +60,12 @@ function MemoryView() {
     createElement(Toolbar, { pathInput, onInput: setPathInput, onLoad: actions.load, onRefresh: actions.refresh }),
     error === null ? null : createElement(ErrorBanner, { kind: error, onRetry: () => actions.load(pathInput) }),
     loading
-      ? createElement('div', { className: 'dsh-my-memory-status' }, strings.loading())
+      ? createElement(
+          'div',
+          { className: 'dsh-my-memory-status dsh-my-memory-loading' },
+          createElement('span', { className: 'dsh-my-memory-spinner' }),
+          strings.loading(),
+        )
       : data === null
         ? null
         : createElement(Sections, {
@@ -67,12 +74,22 @@ function MemoryView() {
             drafts,
             editing,
             confirming,
+            expanded,
+            sortOrder,
             onDraft: (scope, value) => setDrafts({ ...drafts, [scope]: value }),
             onEdit: (scope, id, desc) => setEditing({ scope, id, desc }),
             onEditDesc: (value) => setEditing({ ...editing, desc: value }),
             onCancelEdit: () => setEditing(null),
             onConfirm: (confirm) => setConfirming(confirm),
             onCancelConfirm: () => setConfirming(null),
+            onToggle: (key) =>
+              setExpanded((prev) => {
+                const next = new Set(prev)
+                if (next.has(key)) next.delete(key)
+                else next.add(key)
+                return next
+              }),
+            onSort: (scope) => setSortOrder((prev) => ({ ...prev, [scope]: prev[scope] === 'desc' ? 'asc' : 'desc' })),
             onCommit: commit,
           }),
   )
@@ -160,24 +177,32 @@ function Sections({
   drafts,
   editing,
   confirming,
+  expanded,
+  sortOrder,
   onDraft,
   onEdit,
   onEditDesc,
   onCancelEdit,
   onConfirm,
   onCancelConfirm,
+  onToggle,
+  onSort,
   onCommit,
 }) {
   const blockProps = {
     drafts,
     editing,
     confirming,
+    expanded,
+    sortOrder,
     onDraft,
     onEdit,
     onEditDesc,
     onCancelEdit,
     onConfirm,
     onCancelConfirm,
+    onToggle,
+    onSort,
     onCommit,
   }
   return createElement(
@@ -186,7 +211,6 @@ function Sections({
     createElement(SectionBlock, {
       scope: 'global',
       title: strings.globalSection(),
-      badge: strings.globalSection(),
       note: strings.globalNote(),
       data: data.global,
       ...blockProps,
@@ -194,7 +218,6 @@ function Sections({
     createElement(SectionBlock, {
       scope: 'project',
       title: strings.projectSection(),
-      badge: data.project.cwd !== '' ? strings.projectRoot() + data.project.projectRoot : strings.projectSection(),
       note: strings.projectNote(),
       data: data.project,
       ...blockProps,
@@ -205,27 +228,40 @@ function Sections({
   )
 }
 
-/** One scope's section: rows + add bar + inline confirmation panel. */
+/** One scope's section: 区块标题 / 徽标 / 排序开关 / 列表 / 新增栏 / 确认面板。 */
 function SectionBlock({
   scope,
   title,
-  badge,
   note,
   data,
   drafts,
   editing,
   confirming,
+  expanded,
+  sortOrder,
   onDraft,
   onEdit,
   onEditDesc,
   onCancelEdit,
   onConfirm,
   onCancelConfirm,
+  onToggle,
+  onSort,
   onCommit,
 }) {
   const isProject = scope === 'project'
+  // 徽标：分类 + 数量（不再重复标题文字；项目加载后附带项目根路径）。
+  const badge =
+    scope === 'global'
+      ? strings.countBadge(strings.globalScope(), data.items.length)
+      : data.cwd !== ''
+        ? strings.projectBadge(data.projectRoot, data.items.length)
+        : strings.countBadge(strings.projectScope(), data.items.length)
+  const order = sortOrder[scope]
+  const items = sortMemories(data.items, order)
+  const rows = buildRows(items, scope, editing, onEdit, onEditDesc, onCancelEdit, onConfirm, expanded, onToggle)
+  // 空状态：无会话项目时提示输入项目根路径（issue #104），否则提示新增（issue #110 视觉统一）。
   const emptyHint = isProject && data.cwd === '' ? strings.projectEmptyHint() : undefined
-  const rows = buildRows(data.items, scope, editing, onEdit, onEditDesc, onCancelEdit, onConfirm)
   return createElement(
     'div',
     { className: `dsh-my-memory-section${isProject ? ' dsh-my-memory-section-project' : ''}` },
@@ -234,29 +270,16 @@ function SectionBlock({
       { className: 'dsh-my-memory-section-head' },
       createElement('span', { className: 'dsh-my-memory-section-title' }, title),
       createElement('span', { className: 'dsh-my-memory-badge' }, badge),
+      createElement(SortToggle, { scope, order, onSort }),
     ),
     createElement('div', { className: 'dsh-my-memory-note' }, note),
     rows.length === 0 ? createElement(EmptyState, { hint: emptyHint }) : rows,
-    createElement(
-      'div',
-      { className: 'dsh-my-memory-addbar' },
-      createElement('input', {
-        className: 'dsh-my-memory-add-input',
-        placeholder: strings.addPlaceholder(),
-        value: drafts[scope],
-        onChange: (event) => onDraft(scope, event.target.value),
-      }),
-      createElement(
-        'button',
-        {
-          className: 'dsh-my-memory-btn-save',
-          'aria-label': `${strings.add()} ${scope}`,
-          onClick: () => onConfirm({ kind: 'add', scope, desc: drafts[scope] }),
-        },
-        icon.plus(14),
-        strings.add(),
-      ),
-    ),
+    createElement(AddBar, {
+      scope,
+      value: drafts[scope],
+      onChange: (value) => onDraft(scope, value),
+      onAdd: () => onConfirm({ kind: 'add', scope, desc: drafts[scope] }),
+    }),
     confirming !== null && confirming.scope === scope
       ? createElement(ConfirmPanel, {
           confirm: confirming,
@@ -264,136 +287,5 @@ function SectionBlock({
           onOk: () => onCommit(confirming),
         })
       : null,
-  )
-}
-
-function EmptyState({ hint }) {
-  return createElement(
-    'div',
-    { className: 'dsh-my-memory-empty' },
-    createElement('span', { className: 'dsh-my-memory-empty-icon' }, icon.file(16)),
-    strings.empty(),
-    createElement('span', { className: 'dsh-my-memory-empty-hint' }, hint ?? strings.emptyHint()),
-  )
-}
-
-function buildRows(items, scope, editing, onEdit, onEditDesc, onCancelEdit, onConfirm) {
-  return items.map((item) => {
-    const isEditing = editing !== null && editing.scope === scope && editing.id === item.id
-    return createElement(MemoryRow, {
-      key: item.id,
-      item,
-      isEditing,
-      editingDesc: isEditing ? editing.desc : '',
-      onEdit: () => onEdit(scope, item.id, item.desc),
-      onEditDesc,
-      onCancelEdit,
-      onSaveEdit: () => onConfirm({ kind: 'update', scope, id: item.id, desc: editing.desc }),
-      onDelete: () => onConfirm({ kind: 'delete', scope, id: item.id, desc: item.desc }),
-    })
-  })
-}
-
-function IconButton({ className, label, onClick, children }) {
-  return createElement('button', { className, 'aria-label': label, onClick }, children)
-}
-
-/** One memory row: desc + meta + icon edit/delete; edit mode swaps in an input. */
-function MemoryRow({ item, isEditing, editingDesc, onEdit, onEditDesc, onCancelEdit, onSaveEdit, onDelete }) {
-  if (isEditing) {
-    return createElement(
-      'div',
-      { className: 'dsh-my-memory-row' },
-      createElement('input', {
-        className: 'dsh-my-memory-add-input',
-        value: editingDesc,
-        onChange: (event) => onEditDesc(event.target.value),
-      }),
-      createElement(
-        'div',
-        { className: 'dsh-my-memory-actions' },
-        createElement(
-          'button',
-          { className: 'dsh-my-memory-btn-save', onClick: onSaveEdit },
-          icon.check(14),
-          strings.save(),
-        ),
-        createElement(
-          'button',
-          { className: 'dsh-my-memory-btn', onClick: onCancelEdit },
-          icon.close(14),
-          strings.cancel(),
-        ),
-      ),
-    )
-  }
-  return createElement(
-    'div',
-    { className: 'dsh-my-memory-row' },
-    createElement(
-      'div',
-      { className: 'dsh-my-memory-row-head' },
-      createElement('span', { className: 'dsh-my-memory-desc' }, item.desc),
-      createElement(
-        'div',
-        { className: 'dsh-my-memory-actions' },
-        createElement(
-          IconButton,
-          { className: 'dsh-my-memory-iconbtn', label: `${strings.edit()} ${item.id}`, onClick: onEdit },
-          icon.pencil(14),
-        ),
-        createElement(
-          IconButton,
-          {
-            className: 'dsh-my-memory-iconbtn dsh-my-memory-iconbtn-danger',
-            label: `${strings.delete()} ${item.id}`,
-            onClick: onDelete,
-          },
-          icon.trash(14),
-        ),
-      ),
-    ),
-    createElement('div', { className: 'dsh-my-memory-meta' }, strings.updatedAt(item.updatedAt)),
-  )
-}
-
-/** Custom confirmation panel (ask-style, not the native confirm): delete is red, save is green. */
-function ConfirmPanel({ confirm, onCancel, onOk }) {
-  const isDelete = confirm.kind === 'delete'
-  const text =
-    confirm.kind === 'add'
-      ? strings.confirmAdd()
-      : confirm.kind === 'update'
-        ? strings.confirmUpdate()
-        : strings.confirmDelete()
-  return createElement(
-    'div',
-    { className: `dsh-my-memory-confirm dsh-my-memory-confirm-${isDelete ? 'delete' : 'save'}` },
-    createElement(
-      'div',
-      { className: 'dsh-my-memory-confirm-head' },
-      isDelete ? icon.trash(15) : icon.check(15),
-      createElement('div', { className: 'dsh-my-memory-confirm-text' }, text),
-    ),
-    createElement('div', { className: 'dsh-my-memory-confirm-desc' }, confirm.desc),
-    createElement(
-      'div',
-      { className: 'dsh-my-memory-confirm-actions' },
-      createElement(
-        'button',
-        {
-          className: `dsh-my-memory-confirm-ok dsh-my-memory-confirm-ok-${isDelete ? 'delete' : 'save'}`,
-          onClick: onOk,
-        },
-        isDelete ? icon.trash(14) : icon.check(14),
-        isDelete ? strings.confirmDeleteBtn() : strings.confirmSave(),
-      ),
-      createElement(
-        'button',
-        { className: 'dsh-my-memory-confirm-cancel', onClick: onCancel },
-        icon.close(14),
-        strings.cancel(),
-      ),
-    ),
   )
 }
