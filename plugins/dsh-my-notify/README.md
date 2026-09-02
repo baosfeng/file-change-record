@@ -87,7 +87,7 @@ curl -X POST http://127.0.0.1:3080/notify/api/trigger \
 
 ## 安装
 
-> 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-my-notify`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。依赖 `dsh-shared`（server 端共享工具包）随 npm 自动安装，无需手动处理。
+> 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-my-notify --trust-lockfile`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。依赖 `dsh-shared`（server 端共享工具包）随 npm 自动安装，无需手动处理。
 
 ```bash
 # 1) 克隆本仓库（任意目录）

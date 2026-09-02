@@ -27,7 +27,7 @@
 
 ```bash
 # 方式一：npm（GitHub Release 发布后可用）
-dsh plugin --profile web add dsh-ts-example
+dsh plugin --profile web add dsh-ts-example --trust-lockfile
 
 # 方式二：本地 link（开发调试）
 git clone https://github.com/baosfeng/my-dsh-plugins.git

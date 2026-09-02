@@ -34,7 +34,7 @@
 
 ## 安装
 
-> 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-md-render`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。
+> 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-md-render --trust-lockfile`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。
 
 ```sh
 # 1) 克隆本仓库（任意目录）
