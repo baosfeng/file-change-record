@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4] - 2026-09-02
+
+### 变更
+
+- fix(scripts): #72 插件依赖未随安装自动安装（dsh-shared 未发布 npm） (#96)
+
 ## [0.3.3] - 2026-09-01
 
 ### 变更
