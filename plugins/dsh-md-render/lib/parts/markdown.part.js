@@ -1,13 +1,10 @@
-// ── 统一 MarkdownView：行内 + 块级渲染（issue #31 从
-//    dsh-think-zh-expand 迁移，行为等价 + 新增公式渲染）────────────
-// 由 scripts/build.mjs 拼入 lib/client.js 的 factory 作用域（纯函数
-// 声明文本，依赖 factory 内 createElement）；输出结构保持迁移前约定
-// （div.tzx-md / p.tzx-p / table.tzx-table / div.md-code-block）。
+// ── 统一 MarkdownView：行内 + 块级渲染（issue #31 自 dsh-think-zh-expand
+//    迁移，行为等价 + 公式渲染）。由 scripts/build.mjs 拼入 client.js 的
+//    factory 作用域（纯函数声明文本，依赖 factory 内 createElement）；输出
+//    结构保持迁移前约定（div.tzx-md / p.tzx-p / table.tzx-table /
+//    div.md-code-block）。零运行时依赖（issue #81 语法补全见 syntax.part.js）。
 
-// ── 轻量行内 Markdown：行内代码 / 粗体 / 斜体 / 链接 / 公式 ──────
-// 行内代码按 CommonMark 语义：N 个反引号开闭配对（\1 回声闭合串），
-// 内容允许含单个反引号（`` `agent/status` `` → <code>`agent/status`</code>）；
-// 闭合串后不能紧跟反引号（(?!`)。行内公式 $...$：内容非空且不以空白开头/结尾，开 $ 前与闭 $ 后不得是字母数字或 $（货币/变量/块级保护）。
+// ── 行内 code（CommonMark 多反引号语义）────────────────────────────
 function trimCode(raw) {
   if (raw.length > 1 && raw[0] === ' ' && raw[raw.length - 1] === ' ' && raw.trim() !== '') {
     return raw.slice(1, -1)
@@ -15,9 +12,9 @@ function trimCode(raw) {
   return raw
 }
 
-/** 行内公式候选验证（货币/变量/块级保护），通过才渲染为公式。 */
+// ── 行内公式候选验证（货币/变量/块级保护，通过才渲染为公式）──────
 function isMathSpan(text, m) {
-  const content = m[5].slice(1, -1)
+  const content = m[7].slice(1, -1)
   if (content === '' || content.trim() !== content) return false
   const before = text[m.index - 1]
   const after = text[m.index + m[0].length]
@@ -36,7 +33,7 @@ const MATH_ERROR_TITLES = {
 }
 
 function isMathError(m) {
-  const content = m[5].slice(1, -1)
+  const content = m[7].slice(1, -1)
   return content[0] === ' ' || content[0] === '\t'
 }
 
@@ -93,44 +90,19 @@ function scanMathErrors(text, start, end, key, k, out) {
   return k
 }
 
+// ── 轻量行内 Markdown：行内代码 / 粗体 / 图片 / 链接 / 公式 / 删除线 / 斜体 ──
+// 图片须先于链接（`![alt](url)` 内含 `[alt](url)` 链式子结构）；行内公式
+// $...$ 保护货币/变量/块级 `$$`。元素构造见 syntax.part.js 的 inlineMatch。
 function mdInline(text, key) {
   const out = []
-  const re = /(`+)([^`\n][^\n]*?)\1(?!`)|(\*\*[^*]+\*\*)|(\[[^\]]+\]\([^)]+\))|(\$[^$\n]+?\$)|(\*[^*]+\*)/g
+  const re =
+    /(`+)([^`\n][^\n]*?)\1(?!`)|(\*\*[^*]+\*\*)|!\[([^\]]*)\]\(([^)]+)\)|(\[[^\]]+\]\([^)]+\))|(\$[^$\n]+?\$)|~~([^~]+)~~|(\*[^*]+\*)/g
   let last = 0
   let m,
     k = 0
   while ((m = re.exec(text)) !== null) {
     k = scanMathErrors(text, last, m.index, key, k, out)
-    const kk = key + '-i' + k
-    if (m[1] !== undefined) {
-      out.push(createElement('code', { key: kk }, trimCode(m[2])))
-    } else if (m[3] !== undefined) {
-      out.push(createElement('strong', { key: kk }, m[3].slice(2, -2)))
-    } else if (m[4] !== undefined) {
-      const lm = m[4].match(/^\[([^\]]+)\]\(([^)]+)\)$/)
-      if (lm) {
-        out.push(createElement('a', { key: kk, href: lm[2], target: '_blank', rel: 'noreferrer' }, lm[1]))
-      } else {
-        out.push(m[4])
-      }
-    } else if (m[5] !== undefined) {
-      if (isMathSpan(text, m)) {
-        out.push(createElement('span', { key: kk, className: 'dsh-md-render-math' }, m[5].slice(1, -1)))
-      } else if (isMathError(m)) {
-        out.push(
-          createElement(
-            'span',
-            { key: kk, className: 'dsh-md-render-math-error', title: MATH_ERROR_TITLES.malformed },
-            icon.alert(12),
-            m[5],
-          ),
-        )
-      } else {
-        out.push(m[5])
-      }
-    } else {
-      out.push(createElement('em', { key: kk }, m[6].slice(1, -1)))
-    }
+    out.push(inlineMatch(m, text, key + '-i' + k))
     k += 1
     last = m.index + m[0].length
   }
@@ -139,9 +111,8 @@ function mdInline(text, key) {
 }
 
 // ── 轻量块级 Markdown：代码块 / 标题 / 列表 / 引用 / 表格 / 公式 ──
-// 每个 tryXxx 尝试从 lines[i] 消费一类块：成功则 push 元素（key 与迁移
-// 前一致：'b' + out.length）并返回下一行下标，失败返回 0（不消费）。
-// 复制按钮（CopyButton 见 copy.part.js，issue #74）：代码块/整段右下角。
+// 每个 tryXxx 尝试从 lines[i] 消费一类块：成功则 push 元素并返回下一行下标，
+// 失败返回 0（不消费）。复制按钮（CopyButton，issue #74）代码块/整段右下角。
 function tryFence(lines, i, out) {
   const fence = lines[i].match(/^```(\w*)\s*$/)
   if (!fence) return 0
@@ -152,7 +123,7 @@ function tryFence(lines, i, out) {
     i += 1
   }
   i += 1
-  // 语法高亮 / 语言标签 / 行号（issue #80）：结构见 highlight.part.js。
+  // 语法高亮 / 语言标签 / 行号（issue #80）：结构见 highlight/codeblock.part.js。
   out.push(renderCodeBlock({ key: 'b' + out.length, lang: fence[1], code: buf.join('\n') }))
   return i
 }
@@ -169,48 +140,6 @@ function tryHeading(lines, i, out) {
     ),
   )
   return i + 1
-}
-
-function tryBullet(lines, i, out) {
-  const bullet = lines[i].match(/^\s*[-*+]\s+(.*)$/)
-  if (!bullet) return 0
-  const items = [bullet[1]]
-  i += 1
-  while (i < lines.length) {
-    const b2 = lines[i].match(/^\s*[-*+]\s+(.*)$/)
-    if (!b2) break
-    items.push(b2[1])
-    i += 1
-  }
-  out.push(
-    createElement(
-      'ul',
-      { key: 'b' + out.length, className: 'tzx-ul' },
-      items.map((it, j) => createElement('li', { key: j }, ...mdInline(it, 'ul' + out.length + '-' + j))),
-    ),
-  )
-  return i
-}
-
-function tryNumList(lines, i, out) {
-  const num = lines[i].match(/^\s*\d+[.)]\s+(.*)$/)
-  if (!num) return 0
-  const items = [num[1]]
-  i += 1
-  while (i < lines.length) {
-    const n2 = lines[i].match(/^\s*\d+[.)]\s+(.*)$/)
-    if (!n2) break
-    items.push(n2[1])
-    i += 1
-  }
-  out.push(
-    createElement(
-      'ol',
-      { key: 'b' + out.length, className: 'tzx-ol' },
-      ...items.map((it, j) => createElement('li', { key: j }, ...mdInline(it, 'ol' + out.length + '-' + j))),
-    ),
-  )
-  return i
 }
 
 function tryQuote(lines, i, out) {
@@ -301,7 +230,6 @@ function tryTable(lines, i, out) {
 }
 
 // ── 块级公式：$$...$$ 单行或 $$ 开闭块；异常（未闭合/空）→ 错误标记 ──
-// 错误标记带共享 alert 图标（issue #54 阶段 1：错误状态视觉统一）。
 function mathErrorEl(out, title, content) {
   return createElement(
     'div',
@@ -357,7 +285,8 @@ function tryParagraph(lines, i, out) {
 }
 
 // 块级渲染顺序（与迁移前逐分支判断的顺序一致，公式块追加在末尾）。
-const MD_RENDERERS = [tryFence, tryHeading, tryBullet, tryNumList, tryQuote, tryTable, tryMath]
+// 列表（内联 task/嵌套）与行内元素构造见 syntax.part.js。
+const MD_RENDERERS = [tryFence, tryHeading, tryList, tryQuote, tryTable, tryMath]
 
 function MarkdownView({ text }) {
   const lines = String(text).split('\n')

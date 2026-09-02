@@ -48,6 +48,9 @@ window.__ModuleLoader__.load({
     // ── 代码块增强（issue #80）：语言标签 + 复制按钮头部 + 行号 ─────
     /*__PART_CODEBLOCK__*/
 
+    // ── 语法补全（issue #81）：图片 / 任务列表 / 行内元素构造 / 列表解析 ──
+    /*__PART_SYNTAX__*/
+
     // ── 统一 MarkdownView：行内 + 块级渲染（导出供 think-zh-expand）──
     /*__PART_MARKDOWN__*/
 
