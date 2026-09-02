@@ -113,6 +113,8 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-my-notify
         subagentEnd: false # 子代理完成也提醒（默认 false；开启后标题带「子代理」前缀）
         apiToken: '' # 远程触发 token；非空时 trigger 需 x-notify-token 头
         dedupeMs: 3000 # 同类去重窗口（毫秒，默认 3000）
+        askMode: 'full' # ask 推送完整问题 'full'（默认）/ 摘要 'summary'
+        webBaseUrl: '' # DSH Web 地址；配置后 end 推送携带会话链接 /sessions/<id>
 ```
 
 ### 设置页可视化（推荐）
@@ -124,7 +126,9 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-my-notify
 - **高级**：远程触发 Token（文本）、去重窗口（毫秒，数字）；
 - 点击「保存」即生效（标量配置写入 `$DSH_HOME/profiles/<profile>/cordis.patch.yml`，DSH 热重载 + 内存即时更新；webhooks 对象数组单独写入 `notify-webhooks.json`），重启不丢。
 
-> 💡 **webhooks 也可在 `cordis.patch.yml` 的 `config.webhooks` 直接配置**（应用层配置优先于设置页保存值），字段：`name`（必填）、`channel`（`wecom`/`feishu`/`dingtalk`/`generic`）、`url`（必填）、`secret`（可选）、`events`（`end`/`ask`/`approval`/`remote` 数组，空 = 全部）、`enabled`（默认 true）、`msgType`（`text`/`markdown`/`post`，默认 text）。
+> 💡 **webhooks 也可在 `cordis.patch.yml` 的 `config.webhooks` 直接配置**（应用层配置优先于设置页保存值），字段：`name`（必填）、`channel`（`wecom`/`feishu`/`dingtalk`/`generic`）、`url`（必填）、`secret`（可选）、`events`（`end`/`ask`/`approval`/`remote` 数组，空 = 全部）、`enabled`（默认 true）、`msgType`（`text`/`markdown`/`post`，默认 text）、`template`（可选自定义模板，变量 `{title}`/`{kind}`/`{note}`/`{tokens}`/`{question}`/`{sessionUrl}`/`{time}`，未配置走默认富格式）。
+
+> 💡 **推送内容增强（issue #109）**：`end` 默认携带 **token 消耗**（输入/输出/总计）+ **会话耗时** + **会话链接**（需配 `webBaseUrl`）；`ask` 默认携带**完整问题**（多问题全部列出，`askMode: 'summary'` 切回摘要）；`approval` 携带**工具名 + 完整原因**；各 webhook 可配 `template` 自定义推送格式。
 
 ## 依赖
 

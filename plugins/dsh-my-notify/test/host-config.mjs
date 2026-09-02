@@ -162,6 +162,8 @@ test('config API suite', async () => {
           subagentEnd: false,
           apiToken: '',
           dedupeMs: 3000,
+          askMode: 'full',
+          webBaseUrl: '',
           webhooks: [],
         },
         'defaults reported',
@@ -183,6 +185,8 @@ test('config API suite', async () => {
           subagentEnd: false,
           apiToken: '',
           dedupeMs: 5000,
+          askMode: 'full',
+          webBaseUrl: '',
           webhooks: [],
         },
         'app-level config reflected',
@@ -222,6 +226,8 @@ test('config API suite', async () => {
           subagentEnd: true,
           apiToken: 'tok-1',
           dedupeMs: 7000,
+          askMode: 'full',
+          webBaseUrl: '',
           webhooks: [],
         },
         'saved config read back',
@@ -306,6 +312,8 @@ test('config API suite', async () => {
         subagentEnd: true,
         apiToken: 'persist-tok',
         dedupeMs: 9000,
+        askMode: 'full',
+        webBaseUrl: '',
       }
       const put = mockResponse()
       await invoke(api, mockRequest({ url: '/notify/api/config', method: 'PUT', body: JSON.stringify(saved) }), put)

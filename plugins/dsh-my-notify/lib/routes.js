@@ -153,6 +153,7 @@ function infoValue(options) {
     remoteEnabled: true,
     apiToken: options.apiToken !== '',
     dedupeMs: options.dedupeMs,
+    askMode: options.askMode,
   }
 }
 
@@ -165,6 +166,8 @@ function configValue(options) {
     subagentEnd: options.subagentEnd,
     apiToken: options.apiToken,
     dedupeMs: options.dedupeMs,
+    askMode: options.askMode,
+    webBaseUrl: options.webBaseUrl,
     webhooks: options.webhooks,
   }
 }
@@ -198,6 +201,12 @@ function normalizeConfig(payload) {
   const apiToken = normalizeStringField(payload, 'apiToken')
   if (apiToken === undefined) return undefined
   Object.assign(result, apiToken)
+  const webBaseUrl = normalizeStringField(payload, 'webBaseUrl')
+  if (webBaseUrl === undefined) return undefined
+  Object.assign(result, webBaseUrl)
+  const askMode = normalizeAskMode(payload)
+  if (askMode === undefined) return undefined
+  Object.assign(result, askMode)
   const dedupeMs = normalizeDedupeMs(payload)
   if (dedupeMs === undefined) return undefined
   Object.assign(result, dedupeMs)
@@ -205,6 +214,13 @@ function normalizeConfig(payload) {
   if (webhooks === undefined) return undefined
   Object.assign(result, webhooks)
   return result
+}
+
+/** 规整 askMode（full/summary）；缺失跳过；非法返回 undefined。 */
+function normalizeAskMode(payload) {
+  if (payload.askMode === undefined) return {}
+  if (payload.askMode !== 'full' && payload.askMode !== 'summary') return undefined
+  return { askMode: payload.askMode }
 }
 
 /** 规整布尔字段组（缺失跳过；任一非法返回 undefined）。 */
@@ -269,7 +285,13 @@ function normalizeWebhook(item) {
     events,
     enabled: item.enabled !== false,
     msgType: ['markdown', 'post'].includes(item.msgType) ? item.msgType : 'text',
+    template: strOrEmpty(item.template),
   }
+}
+
+/** 字符串字段规整：缺失/非字符串回退空串。 */
+function strOrEmpty(value) {
+  return typeof value === 'string' ? value : ''
 }
 
 /** 校验事件选择（end/ask/approval/remote 子集，去重）；缺省空数组 = 全部。 */

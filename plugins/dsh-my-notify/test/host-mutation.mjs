@@ -322,6 +322,7 @@ test('apply with an undefined config keeps every default', async () => {
       remoteEnabled: true,
       apiToken: false,
       dedupeMs: 3000,
+      askMode: 'full',
     },
     'defaults mirrored in info',
   )

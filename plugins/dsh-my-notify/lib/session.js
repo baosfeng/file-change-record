@@ -103,3 +103,26 @@ function noteOfFirstQuestion(first) {
   }
   return ''
 }
+
+/** 完整问题列表：每个问题用 header 优先，否则完整 question（不截断，多问题全部）。 */
+export function askQuestionsOf(argumentsValue) {
+  const questions = argumentsValue?.questions
+  if (!Array.isArray(questions) || questions.length === 0) return []
+  return questions.map(fullQuestionOf).filter((q) => q !== '')
+}
+
+/** 完整问题文本：多问题用「问题 N：…」序号连接（空列表返回空串）。 */
+export function askFullNoteOf(argumentsValue) {
+  const list = askQuestionsOf(argumentsValue)
+  if (list.length === 0) return ''
+  const numbered = list.map((q, idx) => `问题 ${idx + 1}：${q}`)
+  return numbered.join('\n')
+}
+
+/** 单个问题的完整文本：header 优先，回退完整 question（不做任何截断）。 */
+function fullQuestionOf(question) {
+  if (question === null || typeof question !== 'object') return ''
+  if (typeof question.header === 'string' && question.header !== '') return question.header
+  if (typeof question.question === 'string' && question.question !== '') return question.question
+  return ''
+}

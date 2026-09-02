@@ -281,6 +281,7 @@ test('host smoke suite', async () => {
           remoteEnabled: true,
           apiToken: false,
           dedupeMs: 3000,
+          askMode: 'full',
         },
         'info mirrors config',
       )

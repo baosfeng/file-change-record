@@ -61,13 +61,43 @@ function noticeFrame(notice, now) {
   return {
     type: 'notice',
     kind: notice.kind,
-    sessionId: typeof notice.sessionId === 'string' ? notice.sessionId : '',
-    title: typeof notice.title === 'string' ? notice.title : '',
-    note: typeof notice.note === 'string' ? notice.note : '',
-    toolName: typeof notice.toolName === 'string' ? notice.toolName : '',
+    sessionId: str(notice.sessionId),
+    title: str(notice.title),
+    note: str(notice.note),
+    toolName: str(notice.toolName),
     agentType: notice.agentType === 'subagent' ? 'subagent' : 'top',
     time: now,
+    tokens: normalizeTokens(notice.tokens),
+    duration: numOrNull(notice.duration),
+    sessionUrl: str(notice.sessionUrl),
+    question: str(notice.question),
+    questions: Array.isArray(notice.questions) ? notice.questions : [],
   }
+}
+
+/** 字符串字段规整：缺失/非字符串回退空串。 */
+function str(value) {
+  return typeof value === 'string' ? value : ''
+}
+
+/** 数值字段规整：非数字/非有限回退 null。 */
+function numOrNull(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+/** token 计量规整：{ input, output, total } 均为非负数字；缺失/非法 → null。 */
+function normalizeTokens(tokens) {
+  if (tokens === null || typeof tokens !== 'object') return null
+  const input = numberOrZero(tokens.input)
+  const output = numberOrZero(tokens.output)
+  const total = numberOrZero(tokens.total)
+  if (input === 0 && output === 0 && total === 0) return null
+  return { input, output, total }
+}
+
+/** 非负数值，非法回退 0。 */
+function numberOrZero(value) {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0
 }
 
 /** 启动 SSE 心跳（空闲连接保活；仅首次启动，幂等）。 */
