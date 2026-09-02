@@ -73,6 +73,19 @@ const STYLES = `
 .dsh-my-guardian-badge-pending { color:var(--dsw-alias-accent); background:color-mix(in srgb, var(--dsw-alias-accent) 12%, transparent); }
 .dsh-my-guardian-badge-failed { color:var(--dsw-alias-state-error-primary); background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent); }
 .dsh-my-guardian-badge-frozen { color:var(--dsw-alias-state-warn-primary); background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
+/* failure-classification badge chips (issue #86): dependency / code / other */
+.dsh-my-guardian-category { flex:none; display:inline-flex; align-items:center; justify-content:center; height:17px; padding:0 5px; border-radius:4px;
+  font:var(--dsw-font-xxxs-strong-11); }
+.dsh-my-guardian-category-dependency { color:var(--dsw-alias-state-warn-primary); background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
+.dsh-my-guardian-category-code { color:var(--dsw-alias-state-error-primary); background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 12%, transparent); }
+.dsh-my-guardian-category-other { color:var(--dsw-alias-label-tertiary); background:var(--dsw-alias-interactive-bg-hover); }
+/* install-suggestion line for dependency failures */
+.dsh-my-guardian-install-hint { display:flex; align-items:center; gap:5px; padding:3px 6px; border-radius:6px;
+  background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 6%, transparent);
+  font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
+.dsh-my-guardian-install-hint-label { flex:none; color:var(--dsw-alias-label-tertiary); }
+.dsh-my-guardian-install-hint code { font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:var(--dsw-font-xxxs-11);
+  color:var(--dsw-alias-state-success-primary); word-break:break-all; }
 .dsh-my-guardian-row-meta { display:flex; align-items:center; gap:6px; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
 .dsh-my-guardian-attempts { color:var(--dsw-alias-state-error-primary); }
 .dsh-my-guardian-link { display:inline-flex; align-items:center; gap:3px; padding:0; border:none; background:transparent; cursor:pointer;

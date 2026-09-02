@@ -155,45 +155,37 @@ async function handleSafemodePost(ctx, shared, request, response) {
   writeJson(response, 200, { ok: true, value: shared.snapshot() })
 }
 
+/** One row for the panel: status + failure-classification fields (issue #86). */
+function entrySnapshot(shared, id, record, isStaged) {
+  const status = shared.mounted.has(id)
+    ? 'running'
+    : record.frozen
+      ? 'frozen'
+      : record.attempts > 0
+        ? 'failed'
+        : 'pending'
+  const item = {
+    id,
+    name: record.name,
+    attempts: record.attempts,
+    frozen: record.frozen,
+    lastError: record.lastError,
+    lastFailedAt: record.lastFailedAt,
+    failureType: record.failureType ?? null,
+    missingDeps: record.missingDeps ?? [],
+    installHint: record.installHint ?? null,
+    status,
+  }
+  if (!isStaged) item.promotedAt = record.promotedAt
+  return item
+}
+
 /** Snapshot for the panel (leaf values only). */
 function snapshot(shared) {
-  const stagedList = []
-  for (const [id, record] of Object.entries(shared.state.staged)) {
-    stagedList.push({
-      id,
-      name: record.name,
-      attempts: record.attempts,
-      frozen: record.frozen,
-      lastError: record.lastError,
-      lastFailedAt: record.lastFailedAt,
-      status: shared.mounted.has(id)
-        ? 'running'
-        : record.frozen
-          ? 'frozen'
-          : record.attempts > 0
-            ? 'failed'
-            : 'pending',
-    })
-  }
-  const promotedList = []
-  for (const [id, record] of Object.entries(shared.state.promoted)) {
-    promotedList.push({
-      id,
-      name: record.name,
-      attempts: record.attempts,
-      frozen: record.frozen,
-      lastError: record.lastError,
-      lastFailedAt: record.lastFailedAt,
-      promotedAt: record.promotedAt,
-      status: shared.mounted.has(id)
-        ? 'running'
-        : record.frozen
-          ? 'frozen'
-          : record.attempts > 0
-            ? 'failed'
-            : 'pending',
-    })
-  }
+  const stagedList = Object.entries(shared.state.staged).map(([id, record]) => entrySnapshot(shared, id, record, true))
+  const promotedList = Object.entries(shared.state.promoted).map(([id, record]) =>
+    entrySnapshot(shared, id, record, false),
+  )
   return {
     safeMode: shared.state.safeMode,
     staged: stagedList,

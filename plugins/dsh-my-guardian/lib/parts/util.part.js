@@ -41,6 +41,10 @@ const strings = {
   loading: () => (isZh() ? '加载中…' : 'Loading…'),
   events: () => (isZh() ? '最近事件' : 'Recent events'),
   attempts: (n) => (isZh() ? `失败 ${n} 次` : `failed ×${n}`),
+  failureDependency: () => (isZh() ? '依赖缺失' : 'Dependency'),
+  failureCode: () => (isZh() ? '代码错误' : 'Code error'),
+  failureOther: () => (isZh() ? '其他' : 'Other'),
+  installHint: () => (isZh() ? '安装建议' : 'Install'),
 }
 
 // ── api ───────────────────────────────────────────────────────────────
@@ -79,6 +83,20 @@ function statusLabel(status) {
       return strings.frozen()
     default:
       return status
+  }
+}
+
+/** Failure-classification badge label (issue #86): dependency / code / other. */
+function failureTypeLabel(type) {
+  switch (type) {
+    case 'dependency':
+      return strings.failureDependency()
+    case 'code':
+      return strings.failureCode()
+    case 'other':
+      return strings.failureOther()
+    default:
+      return type
   }
 }
 

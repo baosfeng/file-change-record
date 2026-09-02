@@ -107,6 +107,19 @@ const STYLES = `
 .dsh-my-guardian-badge-pending { color:var(--dsw-alias-accent); background:color-mix(in srgb, var(--dsw-alias-accent) 12%, transparent); }
 .dsh-my-guardian-badge-failed { color:var(--dsw-alias-state-error-primary); background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent); }
 .dsh-my-guardian-badge-frozen { color:var(--dsw-alias-state-warn-primary); background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
+/* failure-classification badge chips (issue #86): dependency / code / other */
+.dsh-my-guardian-category { flex:none; display:inline-flex; align-items:center; justify-content:center; height:17px; padding:0 5px; border-radius:4px;
+  font:var(--dsw-font-xxxs-strong-11); }
+.dsh-my-guardian-category-dependency { color:var(--dsw-alias-state-warn-primary); background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
+.dsh-my-guardian-category-code { color:var(--dsw-alias-state-error-primary); background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 12%, transparent); }
+.dsh-my-guardian-category-other { color:var(--dsw-alias-label-tertiary); background:var(--dsw-alias-interactive-bg-hover); }
+/* install-suggestion line for dependency failures */
+.dsh-my-guardian-install-hint { display:flex; align-items:center; gap:5px; padding:3px 6px; border-radius:6px;
+  background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 6%, transparent);
+  font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
+.dsh-my-guardian-install-hint-label { flex:none; color:var(--dsw-alias-label-tertiary); }
+.dsh-my-guardian-install-hint code { font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:var(--dsw-font-xxxs-11);
+  color:var(--dsw-alias-state-success-primary); word-break:break-all; }
 .dsh-my-guardian-row-meta { display:flex; align-items:center; gap:6px; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
 .dsh-my-guardian-attempts { color:var(--dsw-alias-state-error-primary); }
 .dsh-my-guardian-link { display:inline-flex; align-items:center; gap:3px; padding:0; border:none; background:transparent; cursor:pointer;
@@ -215,6 +228,10 @@ const strings = {
   loading: () => (isZh() ? '加载中…' : 'Loading…'),
   events: () => (isZh() ? '最近事件' : 'Recent events'),
   attempts: (n) => (isZh() ? `失败 ${n} 次` : `failed ×${n}`),
+  failureDependency: () => (isZh() ? '依赖缺失' : 'Dependency'),
+  failureCode: () => (isZh() ? '代码错误' : 'Code error'),
+  failureOther: () => (isZh() ? '其他' : 'Other'),
+  installHint: () => (isZh() ? '安装建议' : 'Install'),
 }
 
 // ── api ───────────────────────────────────────────────────────────────
@@ -253,6 +270,20 @@ function statusLabel(status) {
       return strings.frozen()
     default:
       return status
+  }
+}
+
+/** Failure-classification badge label (issue #86): dependency / code / other. */
+function failureTypeLabel(type) {
+  switch (type) {
+    case 'dependency':
+      return strings.failureDependency()
+    case 'code':
+      return strings.failureCode()
+    case 'other':
+      return strings.failureOther()
+    default:
+      return type
   }
 }
 
@@ -442,6 +473,27 @@ const icon = {
       ],
       size,
     ),
+  // 下载（issue #85 新增）：箭头入托盘，图表导出按钮（dsh-mermaid-render
+  // 卡片下载 PNG/SVG），stroke=currentColor 风格与其余图标一致。
+  download: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+        createElement('polyline', { points: '7 10 12 15 17 10' }),
+        createElement('line', { x1: 12, y1: 15, x2: 12, y2: 3 }),
+      ],
+      size,
+    ),
+  // 复制（issue #85 新增）：双层矩形，复制源码按钮（dsh-mermaid-render
+  // 卡片复制代码），stroke=currentColor 风格与其余图标一致。
+  copy: (size = 16) =>
+    iconSvg(
+      [
+        createElement('rect', { x: 9, y: 9, width: 13, height: 13, rx: 2 }),
+        createElement('path', { d: 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1' }),
+      ],
+      size,
+    ),
 }
 
 // Common-language / file-type badges (issue #24): brand fill + contrast
@@ -599,7 +651,7 @@ const fileIconByExt = (ext, size = 14) => {
 }
 
     // ── row ────────────────────────────────────────────────────────────────
-/** Row head: source chip + name + status badge. */
+/** Row head: source chip + name + status badge + failure-category badge. */
 function RowHead({ entry, source }) {
   return createElement(
     'div',
@@ -615,6 +667,16 @@ function RowHead({ entry, source }) {
       { className: `dsh-my-guardian-badge dsh-my-guardian-badge-${entry.status}` },
       statusLabel(entry.status),
     ),
+    typeof entry.failureType === 'string' && entry.failureType !== ''
+      ? createElement(
+          'span',
+          {
+            className: `dsh-my-guardian-category dsh-my-guardian-category-${entry.failureType}`,
+            title: entry.failureType,
+          },
+          failureTypeLabel(entry.failureType),
+        )
+      : null,
   )
 }
 
@@ -727,6 +789,9 @@ function EntryRow({ entry, source, onAction }) {
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const hasError = typeof entry.lastError === 'string' && entry.lastError !== ''
+  const isDepFailure = entry.failureType === 'dependency'
+  const installHint =
+    isDepFailure && typeof entry.installHint === 'string' && entry.installHint !== '' ? entry.installHint : null
 
   const run = (kind) => {
     setBusy(true)
@@ -738,6 +803,14 @@ function EntryRow({ entry, source, onAction }) {
     { className: 'dsh-my-guardian-row' },
     createElement(RowHead, { entry, source }),
     createElement(RowMeta, { entry }),
+    installHint
+      ? createElement(
+          'div',
+          { className: 'dsh-my-guardian-install-hint' },
+          createElement('span', { className: 'dsh-my-guardian-install-hint-label' }, strings.installHint()),
+          createElement('code', null, installHint),
+        )
+      : null,
     hasError ? createElement(ErrorToggle, { expanded, onToggle: () => setExpanded(!expanded) }) : null,
     expanded && hasError ? createElement('pre', { className: 'dsh-my-guardian-error-detail' }, entry.lastError) : null,
     confirming

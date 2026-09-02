@@ -171,6 +171,21 @@ Given('loader 已有条目 {string}', async function (id) {
   this.fake.store[id] = { options: {} }
 })
 
+Given('候选插件 {string} 声明缺失的 peer 依赖 {string}', async function (name, dep) {
+  const pkgDir = join(this.dir, 'node_modules', name)
+  mkdirSync(pkgDir, { recursive: true })
+  writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ name, peerDependencies: { [dep]: '^0.1.0' } }), 'utf8')
+})
+
+Given('候选插件 {string} 的 peer 依赖 {string} 已安装版本 {string}', async function (name, dep, version) {
+  const pkgDir = join(this.dir, 'node_modules', name)
+  const depDir = join(this.dir, 'node_modules', dep)
+  mkdirSync(pkgDir, { recursive: true })
+  mkdirSync(depDir, { recursive: true })
+  writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ name, peerDependencies: { [dep]: '^18.2.0' } }), 'utf8')
+  writeFileSync(join(depDir, 'package.json'), JSON.stringify({ name: dep, version }), 'utf8')
+})
+
 Given('安全模式已开启', async function () {
   mkdirSync(join(this.dir, 'guardian'), { recursive: true })
   writeFileSync(
@@ -263,6 +278,23 @@ Then('状态记录包含失败原因', async function () {
   const state = this.readState()
   const record = state.staged['bad-plugin']
   assert.ok(record?.lastError?.includes('apply exploded'), `failure reason recorded: ${record?.lastError}`)
+})
+
+Then('条目 {string} 处于依赖缺失失败', async function (id) {
+  const state = this.readState()
+  assert.equal(state.staged[id]?.failureType, 'dependency')
+})
+
+Then('条目 {string} 处于代码错误失败', async function (id) {
+  const state = this.readState()
+  assert.equal(state.staged[id]?.failureType, 'code')
+})
+
+Then('状态记录包含依赖安装建议', async function () {
+  const state = this.readState()
+  const record = state.staged['dep-miss']
+  assert.ok(record?.installHint?.includes('dsh plugin add'), `install hint recorded: ${record?.installHint}`)
+  assert.ok(record?.lastError?.includes('缺少依赖'), `dependency message recorded: ${record?.lastError}`)
 })
 
 Then('条目 {string} 处于冻结状态', async function (id) {

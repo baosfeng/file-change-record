@@ -1,5 +1,5 @@
 // ── row ────────────────────────────────────────────────────────────────
-/** Row head: source chip + name + status badge. */
+/** Row head: source chip + name + status badge + failure-category badge. */
 function RowHead({ entry, source }) {
   return createElement(
     'div',
@@ -15,6 +15,16 @@ function RowHead({ entry, source }) {
       { className: `dsh-my-guardian-badge dsh-my-guardian-badge-${entry.status}` },
       statusLabel(entry.status),
     ),
+    typeof entry.failureType === 'string' && entry.failureType !== ''
+      ? createElement(
+          'span',
+          {
+            className: `dsh-my-guardian-category dsh-my-guardian-category-${entry.failureType}`,
+            title: entry.failureType,
+          },
+          failureTypeLabel(entry.failureType),
+        )
+      : null,
   )
 }
 
@@ -127,6 +137,9 @@ function EntryRow({ entry, source, onAction }) {
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const hasError = typeof entry.lastError === 'string' && entry.lastError !== ''
+  const isDepFailure = entry.failureType === 'dependency'
+  const installHint =
+    isDepFailure && typeof entry.installHint === 'string' && entry.installHint !== '' ? entry.installHint : null
 
   const run = (kind) => {
     setBusy(true)
@@ -138,6 +151,14 @@ function EntryRow({ entry, source, onAction }) {
     { className: 'dsh-my-guardian-row' },
     createElement(RowHead, { entry, source }),
     createElement(RowMeta, { entry }),
+    installHint
+      ? createElement(
+          'div',
+          { className: 'dsh-my-guardian-install-hint' },
+          createElement('span', { className: 'dsh-my-guardian-install-hint-label' }, strings.installHint()),
+          createElement('code', null, installHint),
+        )
+      : null,
     hasError ? createElement(ErrorToggle, { expanded, onToggle: () => setExpanded(!expanded) }) : null,
     expanded && hasError ? createElement('pre', { className: 'dsh-my-guardian-error-detail' }, entry.lastError) : null,
     confirming
