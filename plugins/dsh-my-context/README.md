@@ -58,7 +58,7 @@ Server 端监听 `session/event` 统计每次请求的上下文：
 
 ## 安装
 
-> 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-my-context`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。
+> 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-my-context --trust-lockfile`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。
 
 ```bash
 # 1) 克隆本仓库（如已克隆可跳过）

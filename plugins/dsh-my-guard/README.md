@@ -79,7 +79,7 @@ Server 端监听 `tools/pre-execute`，bash 命令匹配破坏性模式时记录
 
 ## 安装
 
-> 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-my-guard`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。
+> 💡 **npm 安装（普通用户推荐）**：`dsh plugin --profile web add dsh-my-guard --trust-lockfile`——无需克隆本仓库；以下 link 方式供本仓库开发者使用。
 
 ```bash
 # 1) 克隆本仓库（任意目录）

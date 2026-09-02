@@ -21,7 +21,7 @@
 
 ```bash
 # npm 安装（推荐）
-dsh plugin --profile web add dsh-my-memory
+dsh plugin --profile web add dsh-my-memory --trust-lockfile
 
 # 或从本仓库 link 安装
 git clone https://github.com/baosfeng/my-dsh-plugins.git
