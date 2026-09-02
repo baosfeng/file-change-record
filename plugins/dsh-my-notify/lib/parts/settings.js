@@ -1,5 +1,6 @@
 // ── 设置页视图：配置可视化（issue #27，官方 slots 扩展点）──────────
-const SETTINGS_STYLES = `
+const SETTINGS_STYLES =
+  `
 .dsh-my-notify-settings{display:flex;flex-direction:column;gap:10px;padding:12px}
 .dsh-my-notify-section{display:flex;flex-direction:column;gap:8px}
 .dsh-my-notify-section-title{font:var(--dsw-font-xs-strong-13);color:var(--dsw-alias-label-secondary)}
@@ -24,7 +25,7 @@ const SETTINGS_STYLES = `
 .dsh-my-notify-saved{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-state-success-primary)}
 .dsh-my-notify-error{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-state-error-primary)}
 .dsh-my-notify-status{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary)}
-`
+` + WEBHOOK_STYLES
 
 /** 开关行（布尔配置项）。 */
 function SwitchRow({ label, hint, on, onChange }) {
@@ -92,64 +93,79 @@ function VolumeRow({ label, hint, value, onChange }) {
   )
 }
 
-/** 设置表单渲染（触发开关 + 音量 + 高级项 + 保存动作）。 */
-function renderSettingsForm(draft, patch, save, saved, error, volume, onVolumeChange) {
+/** 触发开关区块（end/ask/approval/subagentEnd + 音量）。 */
+function renderTriggersSection(draft, patch, volume, onVolumeChange) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-notify-section' },
+    createElement('div', { className: 'dsh-my-notify-section-title' }, strings.settingsTriggers()),
+    createElement(SwitchRow, {
+      label: strings.settingsEnd(),
+      hint: strings.settingsEndHint(),
+      on: draft.end === true,
+      onChange: (v) => patch('end', v),
+    }),
+    createElement(SwitchRow, {
+      label: strings.settingsAsk(),
+      hint: strings.settingsAskHint(),
+      on: draft.ask === true,
+      onChange: (v) => patch('ask', v),
+    }),
+    createElement(SwitchRow, {
+      label: strings.settingsApproval(),
+      hint: strings.settingsApprovalHint(),
+      on: draft.approval === true,
+      onChange: (v) => patch('approval', v),
+    }),
+    createElement(SwitchRow, {
+      label: strings.settingsSubagentEnd(),
+      hint: strings.settingsSubagentEndHint(),
+      on: draft.subagentEnd === true,
+      onChange: (v) => patch('subagentEnd', v),
+    }),
+    createElement(VolumeRow, {
+      label: strings.settingsVolume(),
+      hint: strings.settingsVolumeHint(),
+      value: volume,
+      onChange: onVolumeChange,
+    }),
+  )
+}
+
+/** 高级区块（apiToken + dedupeMs）。 */
+function renderAdvancedSection(draft, patch) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-notify-section' },
+    createElement('div', { className: 'dsh-my-notify-section-title' }, strings.settingsAdvanced()),
+    createElement(TextRow, {
+      label: strings.settingsApiToken(),
+      hint: strings.settingsApiTokenHint(),
+      value: draft.apiToken ?? '',
+      onChange: (v) => patch('apiToken', v),
+    }),
+    createElement(TextRow, {
+      label: strings.settingsDedupeMs(),
+      hint: strings.settingsDedupeMsHint(),
+      value: String(draft.dedupeMs ?? 3000),
+      type: 'number',
+      onChange: (v) => patch('dedupeMs', Number(v)),
+    }),
+  )
+}
+
+/** 设置表单渲染（触发开关 + 出站 webhook + 高级项 + 保存动作）。 */
+function renderSettingsForm(draft, patch, save, saved, error, volume, onVolumeChange, webhookProps) {
   return createElement(
     'div',
     { className: 'dsh-my-notify-settings' },
-    createElement(
-      'div',
-      { className: 'dsh-my-notify-section' },
-      createElement('div', { className: 'dsh-my-notify-section-title' }, strings.settingsTriggers()),
-      createElement(SwitchRow, {
-        label: strings.settingsEnd(),
-        hint: strings.settingsEndHint(),
-        on: draft.end === true,
-        onChange: (v) => patch('end', v),
-      }),
-      createElement(SwitchRow, {
-        label: strings.settingsAsk(),
-        hint: strings.settingsAskHint(),
-        on: draft.ask === true,
-        onChange: (v) => patch('ask', v),
-      }),
-      createElement(SwitchRow, {
-        label: strings.settingsApproval(),
-        hint: strings.settingsApprovalHint(),
-        on: draft.approval === true,
-        onChange: (v) => patch('approval', v),
-      }),
-      createElement(SwitchRow, {
-        label: strings.settingsSubagentEnd(),
-        hint: strings.settingsSubagentEndHint(),
-        on: draft.subagentEnd === true,
-        onChange: (v) => patch('subagentEnd', v),
-      }),
-      createElement(VolumeRow, {
-        label: strings.settingsVolume(),
-        hint: strings.settingsVolumeHint(),
-        value: volume,
-        onChange: onVolumeChange,
-      }),
-    ),
-    createElement(
-      'div',
-      { className: 'dsh-my-notify-section' },
-      createElement('div', { className: 'dsh-my-notify-section-title' }, strings.settingsAdvanced()),
-      createElement(TextRow, {
-        label: strings.settingsApiToken(),
-        hint: strings.settingsApiTokenHint(),
-        value: draft.apiToken ?? '',
-        onChange: (v) => patch('apiToken', v),
-      }),
-      createElement(TextRow, {
-        label: strings.settingsDedupeMs(),
-        hint: strings.settingsDedupeMsHint(),
-        value: String(draft.dedupeMs ?? 3000),
-        type: 'number',
-        onChange: (v) => patch('dedupeMs', Number(v)),
-      }),
-    ),
+    renderTriggersSection(draft, patch, volume, onVolumeChange),
+    createElement(WebhookSection, {
+      webhooks: draft.webhooks ?? [],
+      failures: webhookProps.failures,
+      onPatchWebhooks: (webhooks) => patch('webhooks', webhooks),
+    }),
+    renderAdvancedSection(draft, patch),
     createElement(
       'div',
       { className: 'dsh-my-notify-actions' },
@@ -184,6 +200,8 @@ function NotifySettingsView() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [saved, setSaved] = useState(false)
+  // issue #92: 出站 webhook 推送失败记录（GET /notify/api/webhooks）
+  const [failures, setFailures] = useState([])
   // issue #71: 音量走 localStorage（纯 client 端偏好，不随 server config 保存）
   const [volume, setVolume] = useState(() => prefVolume())
 
@@ -199,6 +217,19 @@ function NotifySettingsView() {
       .catch(() => {
         setLoading(false)
         setError(true)
+      })
+  }, [])
+
+  // 出站 webhook 失败记录（issue #92：面板可见）
+  useEffect(() => {
+    fetch('/notify/api/webhooks')
+      .then((res) => res.json())
+      .then((body) => {
+        if (body === null || body.ok !== true) throw new Error('bad webhooks response')
+        setFailures(body.value.failures ?? [])
+      })
+      .catch(() => {
+        // failures are best-effort; the section renders empty
       })
   }, [])
 
@@ -226,7 +257,7 @@ function NotifySettingsView() {
       // storage unavailable: volume stays in-memory for this session
     }
   }
-  return renderSettingsForm(draft, patch, save, saved, error, volume, onVolumeChange)
+  return renderSettingsForm(draft, patch, save, saved, error, volume, onVolumeChange, { failures })
 }
 
 /** 设置页 tab 注册（官方 slots 扩展点；服务缺省时静默跳过）。 */

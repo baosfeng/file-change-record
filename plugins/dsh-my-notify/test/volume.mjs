@@ -49,13 +49,14 @@ function loadParts(storage, audioCtxFactory) {
 /** Eval the settings part and return VolumeRow. */
 function loadSettings(storage) {
   const i18nSrc = fs.readFileSync(new URL('../lib/parts/i18n.js', import.meta.url), 'utf8')
+  const webhookSrc = fs.readFileSync(new URL('../lib/parts/webhook-settings.js', import.meta.url), 'utf8')
   const settingsSrc = fs.readFileSync(new URL('../lib/parts/settings.js', import.meta.url), 'utf8')
   const factory = new Function(
     'createElement',
     'document',
     'navigator',
     'window',
-    `${i18nSrc}\n${settingsSrc}\nreturn { VolumeRow }`,
+    `${i18nSrc}\n${webhookSrc}\n${settingsSrc}\nreturn { VolumeRow }`,
   )
   return factory(createElement, {}, { language: 'zh-CN' }, { localStorage: storage })
 }

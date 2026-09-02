@@ -162,6 +162,7 @@ test('config API suite', async () => {
           subagentEnd: false,
           apiToken: '',
           dedupeMs: 3000,
+          webhooks: [],
         },
         'defaults reported',
       )
@@ -182,6 +183,7 @@ test('config API suite', async () => {
           subagentEnd: false,
           apiToken: '',
           dedupeMs: 5000,
+          webhooks: [],
         },
         'app-level config reflected',
       )
@@ -220,6 +222,7 @@ test('config API suite', async () => {
           subagentEnd: true,
           apiToken: 'tok-1',
           dedupeMs: 7000,
+          webhooks: [],
         },
         'saved config read back',
       )
@@ -322,7 +325,7 @@ test('config API suite', async () => {
       const get = mockResponse()
       await invoke(api2, mockRequest({ url: '/notify/api/config' }), get)
       const body = JSON.parse(get.written.join(''))
-      assert.deepEqual(body.value, saved, 'config survives restart')
+      assert.deepEqual(body.value, { ...saved, webhooks: [] }, 'config survives restart')
       // 重启后监听器按持久化配置工作
       const stream = mockResponse()
       await invoke(api2, mockRequest({ url: '/notify/api/stream' }), stream)

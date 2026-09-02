@@ -1,14 +1,16 @@
 /**
- * dsh-my-notify — /notify/api 路由（SSE 长连接 + 远程 hook + 信息查询）。
+ * dsh-my-notify — /notify/api 路由（SSE 长连接 + 远程 hook + 信息查询 +
+ * 配置读写 + 出站 webhook 状态）。
  *
  * 所有请求先做 loopback 信任围栏（与 /api 网关一致的契约）；stream 为
  * EventSource 长连接（心跳保活，卸载清理），trigger 为远程 webhook（可选
- * apiToken 校验），info 返回当前触发开关。
+ * apiToken 校验），info 返回当前触发开关，config 读写配置（含 webhooks），
+ * webhooks 返回出站 webhook 列表 + 失败记录（设置页可见）。
  */
 import { isTrustedApiRequest, header, readJsonBody, writeJson, writeError } from 'dsh-shared'
 
 /** 注册 /notify/api 路由与心跳清理（两个 effect，各自返回 disposer）。 */
-export function registerNotifyRoutes(ctx, options, bus, onConfigChange) {
+export function registerNotifyRoutes(ctx, options, bus, onConfigChange, emitNotice, webhookStore) {
   const webRuntime = ctx.get ? ctx.get('webRuntime') : undefined
   const trustedHosts =
     webRuntime !== undefined && webRuntime !== null && Array.isArray(webRuntime.trustedHosts)
@@ -21,7 +23,7 @@ export function registerNotifyRoutes(ctx, options, bus, onConfigChange) {
       ctx.webServer.register({
         kind: 'prefix',
         path: '/notify/api',
-        handler: apiHandler(fence, options, bus, onConfigChange),
+        handler: apiHandler(fence, options, bus, onConfigChange, emitNotice, webhookStore),
       }),
     'dsh-my-notify: /notify/api routes',
   )
@@ -33,7 +35,7 @@ export function registerNotifyRoutes(ctx, options, bus, onConfigChange) {
 // ── 路由分派 ─────────────────────────────────────────────────────────────
 
 /** 构造 /notify/api 统一 handler：fence → 方法分派 → 404/错误兜底。 */
-function apiHandler(fence, options, bus, onConfigChange) {
+function apiHandler(fence, options, bus, onConfigChange, emitNotice, webhookStore) {
   return async (request, response) => {
     if (!fence(request)) {
       writeJson(response, 403, { ok: false, error: { code: 'forbidden', message: 'forbidden' } })
@@ -44,7 +46,16 @@ function apiHandler(fence, options, bus, onConfigChange) {
     const pathname = url.pathname
     const method = pathname.startsWith('/notify/api/') ? pathname.slice('/notify/api/'.length) : undefined
     try {
-      const handled = await dispatchMethod(method, request, response, options, bus, onConfigChange)
+      const handled = await dispatchMethod(
+        method,
+        request,
+        response,
+        options,
+        bus,
+        onConfigChange,
+        emitNotice,
+        webhookStore,
+      )
       if (!handled) {
         writeJson(response, 404, {
           ok: false,
@@ -65,13 +76,13 @@ function isMethod(method, request, name, verb) {
 }
 
 /** 按 method 分派到具体 handler；未识别返回 false（调用方回 404）。 */
-async function dispatchMethod(method, request, response, options, bus, onConfigChange) {
+async function dispatchMethod(method, request, response, options, bus, onConfigChange, emitNotice, webhookStore) {
   if (isMethod(method, request, 'stream', 'GET')) {
     handleStream(response, bus)
     return true
   }
   if (isMethod(method, request, 'trigger', 'POST')) {
-    await handleTrigger(request, response, options, bus)
+    await handleTrigger(request, response, options, emitNotice)
     return true
   }
   if (isMethod(method, request, 'info', 'GET')) {
@@ -84,6 +95,10 @@ async function dispatchMethod(method, request, response, options, bus, onConfigC
   }
   if (isMethod(method, request, 'config', 'PUT')) {
     await handleConfigPut(request, response, onConfigChange)
+    return true
+  }
+  if (isMethod(method, request, 'webhooks', 'GET')) {
+    writeJson(response, 200, { ok: true, value: webhooksValue(options, webhookStore) })
     return true
   }
   return false
@@ -109,7 +124,7 @@ function handleStream(response, bus) {
 }
 
 /** 远程 hook：任意进程/webhook 触发通知（apiToken 校验 + JSON body）。 */
-async function handleTrigger(request, response, options, bus) {
+async function handleTrigger(request, response, options, emitNotice) {
   const token = header(request.headers, 'x-notify-token')
   if (options.apiToken !== '' && token !== options.apiToken) {
     writeJson(response, 403, {
@@ -119,7 +134,7 @@ async function handleTrigger(request, response, options, bus) {
     return
   }
   const payload = await readJsonBody(request)
-  bus.emitNotice({
+  emitNotice({
     kind: 'remote',
     sessionId: typeof payload.sessionId === 'string' ? payload.sessionId : '',
     title: typeof payload.title === 'string' ? payload.title : '',
@@ -150,27 +165,121 @@ function configValue(options) {
     subagentEnd: options.subagentEnd,
     apiToken: options.apiToken,
     dedupeMs: options.dedupeMs,
+    webhooks: options.webhooks,
   }
+}
+
+/** 出站 webhook 状态：当前配置列表 + 失败记录（设置页可见）。 */
+function webhooksValue(options, webhookStore) {
+  return {
+    webhooks: options.webhooks,
+    failures: webhookStore?.failures?.list() ?? [],
+  }
+}
+
+/** 渠道白名单。 */
+const CHANNELS = new Set(['wecom', 'feishu', 'dingtalk', 'generic'])
+
+/** 事件白名单。 */
+const EVENT_KINDS = new Set(['end', 'ask', 'approval', 'remote'])
+
+/** 非空字符串判定。 */
+function isNonEmptyString(value) {
+  return typeof value === 'string' && value !== ''
 }
 
 /** 校验并规整配置 payload（部分字段合法，缺失字段不校验）；非法输入返回 undefined。 */
 function normalizeConfig(payload) {
   if (payload === null || typeof payload !== 'object') return undefined
   const result = {}
-  for (const key of ['end', 'ask', 'approval', 'subagentEnd']) {
+  const booleans = normalizeBooleans(payload, ['end', 'ask', 'approval', 'subagentEnd'])
+  if (booleans === undefined) return undefined
+  Object.assign(result, booleans)
+  const apiToken = normalizeStringField(payload, 'apiToken')
+  if (apiToken === undefined) return undefined
+  Object.assign(result, apiToken)
+  const dedupeMs = normalizeDedupeMs(payload)
+  if (dedupeMs === undefined) return undefined
+  Object.assign(result, dedupeMs)
+  const webhooks = normalizeWebhooksField(payload)
+  if (webhooks === undefined) return undefined
+  Object.assign(result, webhooks)
+  return result
+}
+
+/** 规整布尔字段组（缺失跳过；任一非法返回 undefined）。 */
+function normalizeBooleans(payload, keys) {
+  const result = {}
+  for (const key of keys) {
     if (payload[key] === undefined) continue
     if (typeof payload[key] !== 'boolean') return undefined
     result[key] = payload[key]
   }
-  if (payload.apiToken !== undefined) {
-    if (typeof payload.apiToken !== 'string') return undefined
-    result.apiToken = payload.apiToken
-  }
-  if (payload.dedupeMs !== undefined) {
-    if (!Number.isFinite(payload.dedupeMs)) return undefined
-    result.dedupeMs = payload.dedupeMs
+  return result
+}
+
+/** 规整字符串字段（缺失返回空对象；非法返回 undefined）。 */
+function normalizeStringField(payload, key) {
+  if (payload[key] === undefined) return {}
+  if (typeof payload[key] !== 'string') return undefined
+  return { [key]: payload[key] }
+}
+
+/** 规整 dedupeMs（缺失返回空对象；非法返回 undefined）。 */
+function normalizeDedupeMs(payload) {
+  if (payload.dedupeMs === undefined) return {}
+  if (!Number.isFinite(payload.dedupeMs)) return undefined
+  return { dedupeMs: payload.dedupeMs }
+}
+
+/** 规整 webhooks 字段（缺失返回空对象；非法返回 undefined）。 */
+function normalizeWebhooksField(payload) {
+  if (payload.webhooks === undefined) return {}
+  const webhooks = normalizeWebhooks(payload.webhooks)
+  if (webhooks === undefined) return undefined
+  return { webhooks }
+}
+
+/** 校验 webhooks 数组（对象数组，逐项规整）；任一非法返回 undefined。 */
+function normalizeWebhooks(value) {
+  if (!Array.isArray(value)) return undefined
+  const result = []
+  for (const item of value) {
+    const webhook = normalizeWebhook(item)
+    if (webhook === undefined) return undefined
+    result.push(webhook)
   }
   return result
+}
+
+/** 校验单个 webhook：名称/URL 必填，渠道/事件白名单，缺省补默认值。 */
+function normalizeWebhook(item) {
+  if (item === null || typeof item !== 'object') return undefined
+  if (!isNonEmptyString(item.name)) return undefined
+  if (!isNonEmptyString(item.url)) return undefined
+  const channel = item.channel ?? 'generic'
+  if (!CHANNELS.has(channel)) return undefined
+  const events = normalizeEvents(item.events)
+  if (events === undefined) return undefined
+  return {
+    name: item.name,
+    channel,
+    url: item.url,
+    secret: typeof item.secret === 'string' ? item.secret : '',
+    events,
+    enabled: item.enabled !== false,
+    msgType: ['markdown', 'post'].includes(item.msgType) ? item.msgType : 'text',
+  }
+}
+
+/** 校验事件选择（end/ask/approval/remote 子集，去重）；缺省空数组 = 全部。 */
+function normalizeEvents(value) {
+  if (value === undefined) return []
+  if (!Array.isArray(value)) return undefined
+  for (const event of value) {
+    if (!EVENT_KINDS.has(event)) return undefined
+  }
+  return [...new Set(value)]
 }
 
 /** 保存配置：校验 → 持久化 + 更新内存 + 重载监听器（onConfigChange）。 */
