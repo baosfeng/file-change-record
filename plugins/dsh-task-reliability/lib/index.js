@@ -70,6 +70,13 @@ import {
   AUTOPILOT_GRACE_MS,
   WATCHDOG_INTERVAL_MS,
   STALL_TIMEOUT_MS,
+  REPEAT_SIM_THRESHOLD,
+  REPEAT_CONSECUTIVE,
+  REPEAT_MAX_PER_SESSION,
+  TOOL_LOOP_BUFFER,
+  TOOL_LOOP_CONSECUTIVE,
+  TOOL_LOOP_WINDOW,
+  NO_PROGRESS_ROUNDS,
 } from './constants.js'
 
 export const name = 'dsh-task-reliability'
@@ -110,6 +117,11 @@ function nonNegInt(value, fallback) {
   return Number.isInteger(value) && value >= 0 ? value : fallback
 }
 
+/** 0~1 之间的比例配置（相似度阈值），非法回退默认。 */
+function ratio(value, fallback) {
+  return typeof value === 'number' && value > 0 && value < 1 ? value : fallback
+}
+
 function codeSet(value) {
   return Array.isArray(value) && value.length > 0 ? new Set(value) : RETRYABLE_CODES
 }
@@ -135,6 +147,16 @@ function buildOptionsFrom(c) {
     autopilotGraceMs: nonNegInt(c.autopilotGraceMs, AUTOPILOT_GRACE_MS),
     watchdogIntervalMs: nonNegInt(c.watchdogIntervalMs, WATCHDOG_INTERVAL_MS),
     stallTimeoutMs: positiveInt(c.stallTimeoutMs, STALL_TIMEOUT_MS),
+    // —— 死循环检测（issue #77）——
+    repeatSimThreshold: ratio(c.repeatSimThreshold, REPEAT_SIM_THRESHOLD),
+    repeatConsecutive: positiveInt(c.repeatConsecutive, REPEAT_CONSECUTIVE),
+    repeatMaxPerSession: positiveInt(c.repeatMaxPerSession, REPEAT_MAX_PER_SESSION),
+    toolLoopConsecutive: positiveInt(c.toolLoopConsecutive, TOOL_LOOP_CONSECUTIVE),
+    toolLoopWindow: positiveInt(c.toolLoopWindow, TOOL_LOOP_WINDOW),
+    toolLoopBuffer: positiveInt(c.toolLoopBuffer, TOOL_LOOP_BUFFER),
+    noProgressRounds: nonNegInt(c.noProgressRounds, NO_PROGRESS_ROUNDS),
+    notifyOnLoop: c.notifyOnLoop === true,
+    notifyUrl: strOption(c.notifyUrl, ''),
   }
 }
 

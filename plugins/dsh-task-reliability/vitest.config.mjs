@@ -18,6 +18,7 @@ export default defineConfig({
         'lib/fence.js',
         'lib/text.js',
         'lib/repeat.js',
+        'lib/loop.js',
         'lib/store.js',
         'lib/verify.js',
         'lib/events.js',

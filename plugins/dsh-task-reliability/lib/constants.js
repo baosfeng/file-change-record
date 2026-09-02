@@ -16,9 +16,13 @@ export const RETRY_MAX_DELAY_MS = 30000
 export const RATE_WINDOW_MS = 60000
 export const RATE_MAX_ACTIONS = 12
 export const REPEAT_MAX_PER_SESSION = 3
-export const REPEAT_SIM_THRESHOLD = 0.85
+export const REPEAT_SIM_THRESHOLD = 0.8
 export const REPEAT_CONSECUTIVE = 3
 export const REPEAT_BUFFER = 6
+export const TOOL_LOOP_BUFFER = 20
+export const TOOL_LOOP_CONSECUTIVE = 3
+export const TOOL_LOOP_WINDOW = 4
+export const NO_PROGRESS_ROUNDS = 3
 export const VERIFY_TIMEOUT_MS = 60000
 export const RESUME_GRACE_MS = 2000
 export const SAVE_DEBOUNCE_MS = 500
@@ -46,11 +50,25 @@ export const DIRECT_CONTINUE_TEXT = (desc) =>
   '检查当前进度，列出剩余未完成的部分并逐一执行，直到任务真正完成。' +
   '如果任务实际上已经完成，请明确说明已完成并结束。'
 
-export const REPEAT_BREAK_TEXT = (level) =>
-  level >= 2
+export const REPEAT_BREAK_TEXT = (level, kind = 'reason') => {
+  if (kind === 'tool') {
+    return level >= 2
+      ? '【检测到工具调用循环】你正在反复执行相同的工具/命令，无法推进任务。请立即停止重复调用，' +
+          '改为基于已有结果直接推进结论并继续执行任务。'
+      : '【检测到工具调用循环】检测到你在反复执行相同的工具/命令，迟迟没有进展。请停止重复调用，' +
+          '改用新的方式推进任务并给出结论。'
+  }
+  if (kind === 'progress') {
+    return level >= 2
+      ? '【检测到无进展循环】你反复思考/执行但始终没有新的产出或结论，任务一直无法推进。请立即停止空转，' +
+          '基于已有信息直接给出结论并继续执行任务。'
+      : '【检测到无进展循环】检测到你反复思考/执行但始终没有新的有效产出。请停止空转，直接基于已有信息给出结论并继续。'
+  }
+  return level >= 2
     ? '【检测到思考重复循环】你正在反复输出相同的思考内容。请立即停止重复推理，' +
-      '以最简方式基于已有信息直接给出结论，并继续执行任务，不要再次重复思考。'
+        '以最简方式基于已有信息直接给出结论，并继续执行任务，不要再次重复思考。'
     : '【检测到思考重复】检测到思考过程出现重复。请收敛思考，避免重复推理，直接基于已有信息给出结论并继续。'
+}
 
 export const AUTOPILOT_DENY_REASON =
   '【自主决策模式】用户当前不在线，无法回答问题。请基于已有信息和上下文做出最合理的决策并继续执行，' +
