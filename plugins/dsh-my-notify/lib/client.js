@@ -86,6 +86,9 @@ const strings = {
   webhookSecretPlaceholder: () => (isZh() ? '机器人签名密钥' : 'Bot signing secret'),
   webhookEvents: () => (isZh() ? '触发事件' : 'Trigger events'),
   webhookMsgType: () => (isZh() ? '消息类型' : 'Message type'),
+  webhookTemplate: () => (isZh() ? '自定义模板（可选）' : 'Content template (optional)'),
+  webhookTemplatePlaceholder: () =>
+    isZh() ? '如 {title} {kind} {note} {tokens} {question} {sessionUrl} {time}' : 'e.g. {title} {kind} {note} {tokens}',
   webhookAdd: () => (isZh() ? '添加 Webhook' : 'Add webhook'),
   webhookEdit: () => (isZh() ? '编辑' : 'Edit'),
   webhookDelete: () => (isZh() ? '删除' : 'Delete'),
@@ -1034,6 +1037,7 @@ function emptyWebhook() {
     events: ['end', 'ask', 'approval'],
     enabled: true,
     msgType: 'text',
+    template: '',
   }
 }
 
@@ -1177,6 +1181,16 @@ function WebhookEditor({ draft, onChange, onSave, onCancel }) {
     editorField(
       strings.webhookMsgType(),
       selectInput(draft.msgType, msgTypeOptions(draft.channel), (v) => patch('msgType', v)),
+    ),
+    editorField(
+      strings.webhookTemplate(),
+      createElement('textarea', {
+        className: 'dsh-my-notify-webhook-input',
+        style: { height: 'auto', minHeight: '56px', resize: 'vertical', padding: '6px 8px' },
+        value: draft.template ?? '',
+        placeholder: strings.webhookTemplatePlaceholder(),
+        onChange: (event) => patch('template', event.target.value),
+      }),
     ),
     createElement(
       'div',

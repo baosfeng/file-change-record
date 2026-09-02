@@ -50,6 +50,9 @@ const strings = {
   webhookSecretPlaceholder: () => (isZh() ? '机器人签名密钥' : 'Bot signing secret'),
   webhookEvents: () => (isZh() ? '触发事件' : 'Trigger events'),
   webhookMsgType: () => (isZh() ? '消息类型' : 'Message type'),
+  webhookTemplate: () => (isZh() ? '自定义模板（可选）' : 'Content template (optional)'),
+  webhookTemplatePlaceholder: () =>
+    isZh() ? '如 {title} {kind} {note} {tokens} {question} {sessionUrl} {time}' : 'e.g. {title} {kind} {note} {tokens}',
   webhookAdd: () => (isZh() ? '添加 Webhook' : 'Add webhook'),
   webhookEdit: () => (isZh() ? '编辑' : 'Edit'),
   webhookDelete: () => (isZh() ? '删除' : 'Delete'),

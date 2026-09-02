@@ -39,6 +39,7 @@
  */
 import { createNoticeBus } from './notice.js'
 import { attachListeners } from './listeners.js'
+import { createTokenMeter } from './token-meter.js'
 import { registerNotifyRoutes } from './routes.js'
 import { createWebhookStore } from './webhook-store.js'
 import { dispatchWebhooks } from './webhook/pusher.js'
@@ -62,6 +63,9 @@ export function apply(ctx, config) {
   // （设置页保存的 webhooks，重启恢复）。
   options.webhooks = Array.isArray(config?.webhooks) ? config.webhooks : webhookStore.load()
 
+  // ── 会话 token 计量：跨配置重载共享，end 通知取全量 usage（issue #109）───
+  const tokenMeter = createTokenMeter()
+
   // ── 通知总线：客户端集合 + 去重 + 心跳，监听与路由共享 ──────────────
   const bus = createNoticeBus(options)
 
@@ -77,11 +81,12 @@ export function apply(ctx, config) {
     bus.emitNotice(notice)
     dispatchWebhooks(options.webhooks, notice, {
       onFailure: (failure) => webhookStore.failures.add(failure),
+      formatOpts: { askFull: options.askMode !== 'summary' },
     })
   }
 
   // ── 事件监听（只读观察；waterfall 一律透传 next()）──────────────────
-  let listenerDisposers = attachListeners(ctx, options, emitNotice)
+  let listenerDisposers = attachListeners(ctx, options, emitNotice, tokenMeter)
 
   // 配置保存：持久化到 profile patch 文件 + 更新内存 + 重载监听器。
   // patch 文件写入完整配置（当前值 + 新值合并），重启后完整恢复；
@@ -96,7 +101,7 @@ export function apply(ctx, config) {
     }
     Object.assign(options, next)
     for (const dispose of listenerDisposers.splice(0)) dispose()
-    listenerDisposers = attachListeners(ctx, options, emitNotice)
+    listenerDisposers = attachListeners(ctx, options, emitNotice, tokenMeter)
   }
 
   // ── 路由（SSE / trigger / info / config / webhooks + 心跳清理）──────
@@ -105,15 +110,38 @@ export function apply(ctx, config) {
 
 /** 应用层配置 → options（默认值 + 类型规整）。 */
 function buildOptions(config) {
+  const c = config ?? {}
   return {
-    end: config?.end !== false,
-    ask: config?.ask !== false,
-    approval: config?.approval !== false,
-    subagentEnd: config?.subagentEnd === true,
-    apiToken: typeof config?.apiToken === 'string' ? config.apiToken : '',
-    dedupeMs: Number.isFinite(config?.dedupeMs) ? config.dedupeMs : 3000,
+    end: notFalse(c.end),
+    ask: notFalse(c.ask),
+    approval: notFalse(c.approval),
+    subagentEnd: whenTrue(c.subagentEnd),
+    askMode: c.askMode === 'summary' ? 'summary' : 'full',
+    webBaseUrl: str(c.webBaseUrl),
+    apiToken: str(c.apiToken),
+    dedupeMs: num(c.dedupeMs, 3000),
     webhooks: [],
   }
+}
+
+/** 布尔开关默认开启：缺省/true → true，false → false。 */
+function notFalse(value) {
+  return value !== false
+}
+
+/** 仅显式 true 才开启（subagentEnd/子代理）。 */
+function whenTrue(value) {
+  return value === true
+}
+
+/** 字符串字段规整：缺失/非字符串回退空串。 */
+function str(value) {
+  return typeof value === 'string' ? value : ''
+}
+
+/** 数值字段规整：非有限回退 fallback。 */
+function num(value, fallback) {
+  return Number.isFinite(value) ? value : fallback
 }
 
 /** 从 patch 配置中剥离 webhooks（对象数组无法 YAML 子集序列化）。 */

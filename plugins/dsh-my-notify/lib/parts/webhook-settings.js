@@ -38,6 +38,7 @@ function emptyWebhook() {
     events: ['end', 'ask', 'approval'],
     enabled: true,
     msgType: 'text',
+    template: '',
   }
 }
 
@@ -181,6 +182,16 @@ function WebhookEditor({ draft, onChange, onSave, onCancel }) {
     editorField(
       strings.webhookMsgType(),
       selectInput(draft.msgType, msgTypeOptions(draft.channel), (v) => patch('msgType', v)),
+    ),
+    editorField(
+      strings.webhookTemplate(),
+      createElement('textarea', {
+        className: 'dsh-my-notify-webhook-input',
+        style: { height: 'auto', minHeight: '56px', resize: 'vertical', padding: '6px 8px' },
+        value: draft.template ?? '',
+        placeholder: strings.webhookTemplatePlaceholder(),
+        onChange: (event) => patch('template', event.target.value),
+      }),
     ),
     createElement(
       'div',

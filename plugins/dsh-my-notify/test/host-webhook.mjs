@@ -217,7 +217,7 @@ test('webhook integration suite', async () => {
         assert.equal(mock.calls.length, 1, 'ask event pushed')
         const body = JSON.parse(mock.calls[0].options.body)
         assert.equal(body.msg_type, 'text')
-        assert.ok(body.content.text.includes('需要你回答：确认部署'), 'ask note carried')
+        assert.ok(body.content.text.includes('需要你回答：问题 1：确认部署'), 'ask carries the full question')
         assert.equal(typeof body.timestamp, 'string', 'feishu sign timestamp in body')
         assert.equal(typeof body.sign, 'string', 'feishu sign in body')
       } finally {
@@ -250,6 +250,80 @@ test('webhook integration suite', async () => {
         assert.equal(body.kind, 'remote')
         assert.equal(body.title, 'CI 完成')
         assert.equal(body.note, '构建成功')
+      } finally {
+        mock.restore()
+      }
+    }
+
+    // ── 3b. end 事件推送携带 token 消耗/耗时/会话链接（issue #109） ─────
+    {
+      const webhooks = [
+        {
+          name: '企微-富字段',
+          channel: 'wecom',
+          url: 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=abc',
+          events: ['end'],
+          enabled: true,
+        },
+      ]
+      const { listeners } = boot({ webhooks, webBaseUrl: 'https://dsh.local/' })
+      const mock = installFetch(() => ({ ok: true }))
+      try {
+        // 先计量会话 token（assistant/message 真实 usage）
+        await dispatchEvent(
+          listeners,
+          'session/event',
+          { id: 's1' },
+          { type: 'assistant/message', data: { usage: { inputTokens: 100, outputTokens: 50 } } },
+        )
+        await dispatchEvent(listeners, 'agent/status', { agent: topAgent('s1'), status: 'idle' })
+        await flush()
+        assert.equal(mock.calls.length, 1, 'end webhook pushed')
+        const body = JSON.parse(mock.calls[0].options.body)
+        assert.ok(body.text.content.includes('标题-s1'), 'carries the session title')
+        assert.ok(body.text.content.includes('会话已结束'), 'carries the event label')
+        assert.ok(body.text.content.includes('token 消耗：输入 100 / 输出 50 / 总计 150'), 'token usage carried')
+        assert.ok(body.text.content.includes('会话耗时：'), 'duration carried')
+        assert.ok(body.text.content.includes('会话链接：https://dsh.local/sessions/s1'), 'session link carried')
+      } finally {
+        mock.restore()
+      }
+    }
+
+    // ── 3c. 模板变量渲染推送到 webhook（issue #109） ────────────────────
+    {
+      const webhooks = [
+        {
+          name: '模板',
+          channel: 'wecom',
+          url: 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=abc',
+          events: ['ask'],
+          enabled: true,
+          template: '**{title}**\n{kind}\n{question}\n{note}',
+        },
+      ]
+      const { listeners } = boot({ webhooks })
+      const mock = installFetch(() => ({ ok: true }))
+      try {
+        await dispatchEvent(
+          listeners,
+          'tools/pre-execute',
+          {
+            name: 'ask_user_question',
+            agent: topAgent('a2'),
+            arguments: { questions: [{ question: '请回答这个问题' }] },
+          },
+          async () => {},
+        )
+        await flush()
+        assert.equal(mock.calls.length, 1, 'ask webhook pushed via template')
+        const body = JSON.parse(mock.calls[0].options.body)
+        assert.equal(body.msgtype, 'text', 'template channel renders as text')
+        assert.equal(
+          body.text.content,
+          '**标题-a2**\n需要你回答\n问题 1：请回答这个问题\n请回答这个问题',
+          'template vars rendered',
+        )
       } finally {
         mock.restore()
       }
@@ -304,6 +378,7 @@ test('webhook integration suite', async () => {
             events: ['end', 'ask'],
             enabled: true,
             msgType: 'markdown',
+            template: '',
           },
         ],
         'events deduped, defaults filled',
@@ -322,6 +397,7 @@ test('webhook integration suite', async () => {
           events: ['approval'],
           enabled: true,
           msgType: 'text',
+          template: '',
         },
       ]
       const put = mockResponse()
