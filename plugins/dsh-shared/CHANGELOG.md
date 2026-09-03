@@ -2,6 +2,22 @@
 
 本文件记录 dsh-shared 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.2] - 2026-09-03
+
+### 变更
+
+- feat(shared): 新增 jsonlAppender 增量追加原语 + atomicWriteJson 护栏
+- feat(mermaid-render): #85 图表导出 PNG/SVG 下载 + 复制源码 (#100)
+- fix(scripts): #72 插件依赖未随安装自动安装（dsh-shared 未发布 npm） (#96)
+
+## [0.1.1] - 2026-09-03
+
+### 变更
+
+- feat(shared): 新增 jsonlAppender 增量追加原语 + atomicWriteJson 护栏
+- feat(mermaid-render): #85 图表导出 PNG/SVG 下载 + 复制源码 (#100)
+- fix(scripts): #72 插件依赖未随安装自动安装（dsh-shared 未发布 npm） (#96)
+
 ## [0.1.0] - 2026-08-28
 
 ### 新增

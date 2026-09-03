@@ -277,6 +277,13 @@ if (skipReal) {
     process.exit(1)
   }
   console.log(`- 跳过真实环境验证（${skipRealVerify ? `--skip-reason: ${skipReason}` : 'CI / DSH_SKIP_REAL_VERIFY'}）`)
+} else if (isLibrary) {
+  // library 包（dsh.kind=library，如 dsh-shared）不是 profile bundle：无插件行、
+  // 无 client，verify-real-profile --addons 的 bundle 组合校验不适用。
+  // 验证职责已由 3b 测试门禁（单测/覆盖率/eslint 全绿）覆盖；npm pack 内容
+  // 由本脚本 3d 校验（files 清单 + exports 可解析）。
+  const warn = (msg) => console.log(`- ${msg}`)
+  warn('共享工具包（dsh.kind=library）非 bundle 插件：跳过 profile 组合验证（--addons 不适用）；' + '验证由测试门禁与 pack 校验覆盖')
 } else {
   const port = await findFreePort(3087)
   const checklistPath = join(root, 'verification', `${name}-${version}.md`)
