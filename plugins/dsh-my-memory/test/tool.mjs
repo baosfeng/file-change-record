@@ -1,13 +1,23 @@
 /**
- * dsh-my-memory — memory_query tool tests: read-only semantics, scope
- * filtering, keyword filtering, session-cwd resolution, output rendering.
+ * dsh-my-memory — tool tests: memory_query read-only semantics, scope
+ * filtering, keyword filtering, session-cwd resolution, output rendering;
+ * memory_save write tool + user-consent approval gate (issue #107).
  */
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createMemoryQueryTool, filterItems, renderQueryResult } from '../lib/tool.js'
+import {
+  createMemoryQueryTool,
+  createMemorySaveGate,
+  createMemorySaveTool,
+  filterItems,
+  renderQueryResult,
+  renderSaveResult,
+  saveToolDescription,
+} from '../lib/tool.js'
+import { createStore } from '../lib/store.js'
 
 const dir = mkdtempSync(join(tmpdir(), 'dmm-tool-test-'))
 process.env.DSH_HOME = dir
@@ -201,6 +211,168 @@ test('the tool render produces text blocks', () => {
   assert.equal(blocks.length, 1)
   assert.equal(blocks[0].type, 'text')
   assert.ok(blocks[0].text.includes('回复使用中文'))
+})
+
+// ── memory_save 写工具 + 用户确认门（issue #107）──────────────────────
+
+/** A save tool bound to real stores (temp dirs) so writes can be verified. */
+function realSaveTool() {
+  const globalStore = createStore({ file: join(dir, 'memory.json') })
+  const projectDir = join(dir, 'proj')
+  mkdirSync(join(projectDir, '.git'), { recursive: true })
+  const stores = new Map()
+  const getProjectStore = async (cwd) => {
+    let store = stores.get(cwd)
+    if (store === undefined) {
+      store = createStore({ file: join(cwd, '.dsh', 'memory.json') })
+      stores.set(cwd, store)
+    }
+    return store
+  }
+  return {
+    tool: createMemorySaveTool({ globalStore, getProjectStore, config: {} }),
+    queryTool: createMemoryQueryTool({ globalStore, getProjectStore }),
+    stores,
+    projectDir,
+  }
+}
+
+test('memory_save registers a write tool with scope+desc required', () => {
+  const { tool } = realSaveTool()
+  assert.equal(tool.name, 'memory_save', 'tool name')
+  const params = tool.parameters
+  assert.equal(params.type, 'object')
+  assert.deepEqual(params.required, ['scope', 'desc'], 'scope and desc are required')
+  assert.deepEqual(params.properties.scope.enum, ['global', 'project'], 'scope enum')
+  assert.equal(params.properties.desc.type, 'string')
+  assert.equal(params.properties.cwd.type, 'string')
+  assert.equal(params.additionalProperties, false)
+  assert.equal(typeof tool.execute, 'function', 'execute callable')
+  assert.ok(tool.output.schema.additionalProperties === false, 'output schema closed')
+  assert.deepEqual(tool.output.schema.required, ['scope', 'cwd', 'projectRoot', 'item'], 'save output fields')
+})
+
+test('memory_save saves into the global store and becomes queryable at once', async () => {
+  const { tool, queryTool } = realSaveTool()
+  const value = await tool.execute({ scope: 'global', desc: '用户偏好用 pnpm' }, {})
+  assert.equal(value.scope, 'global')
+  assert.equal(value.cwd, '')
+  assert.equal(value.item.desc, '用户偏好用 pnpm')
+  assert.ok(value.item.id.startsWith('mem-'), 'generated id')
+  // 保存后 memory_query 立即可查（同一 store 的内存缓存即时更新）
+  const query = await queryTool.execute({ scope: 'global' }, {})
+  assert.equal(query.items.length, 1, 'saved memory immediately queryable')
+  assert.equal(query.items[0].desc, '用户偏好用 pnpm')
+})
+
+test('memory_save accepts a project scope with an explicit cwd', async () => {
+  const { tool, queryTool, projectDir } = realSaveTool()
+  const value = await tool.execute({ scope: 'project', cwd: projectDir, desc: '本项目使用 pnpm' }, {})
+  assert.equal(value.scope, 'project')
+  assert.equal(value.cwd, projectDir)
+  assert.equal(value.item.desc, '本项目使用 pnpm')
+  const query = await queryTool.execute({ scope: 'project', cwd: projectDir }, {})
+  assert.equal(query.items.length, 1)
+  assert.equal(query.items[0].desc, '本项目使用 pnpm')
+  // 全局不受影响
+  const global = await queryTool.execute({ scope: 'global' }, {})
+  assert.equal(global.items.length, 0, 'project save isolated from global')
+})
+
+test('memory_save resolves the project cwd from the calling agent session', async () => {
+  const { tool, queryTool, projectDir } = realSaveTool()
+  const exec = { agent: { session: { header: { cwd: projectDir } } } }
+  await tool.execute({ scope: 'project', desc: '会话目录约定' }, exec)
+  const query = await queryTool.execute({ scope: 'project' }, exec)
+  assert.equal(query.items.length, 1)
+  assert.equal(query.items[0].desc, '会话目录约定')
+})
+
+test('memory_save rejects empty desc and project-without-cwd with clear errors', async () => {
+  const { tool } = realSaveTool()
+  await assert.rejects(() => tool.execute({ scope: 'global', desc: '   ' }, {}), /desc is required/)
+  await assert.rejects(() => tool.execute({ scope: 'project', desc: 'x' }, {}), /project scope requires a cwd/)
+})
+
+test('the approval gate answers memory_save with an ask gate', async () => {
+  const gate = createMemorySaveGate()
+  const callback = { called: false, decision: null }
+  const next = async () => {
+    callback.called = true
+    callback.decision = { kind: 'allow' }
+    return callback.decision
+  }
+  const decision = await gate({ name: 'memory_save', arguments: { scope: 'global', desc: '回复使用中文' } }, next)
+  assert.equal(callback.called, true, 'next() invoked first (waterfall contract)')
+  assert.equal(decision.kind, 'ask', 'memory_save raises an ask gate')
+  assert.ok(decision.reason.includes('保存全局记忆'), 'reason names the target scope')
+  assert.ok(decision.reason.includes('回复使用中文'), 'reason shows the desc snippet')
+  assert.ok(decision.reason.includes('确认'), 'reason asks for confirmation')
+})
+
+test('the approval gate passes unrelated tools through untouched', async () => {
+  const gate = createMemorySaveGate()
+  const decision = { kind: 'allow' }
+  const next = async () => decision
+  const pass = await gate({ name: 'memory_query', arguments: { scope: 'global' } }, next)
+  assert.equal(pass, decision, 'downstream decision returned as-is for other tools')
+  const passProject = await gate({ name: 'bash', arguments: { command: 'ls' } }, next)
+  assert.equal(passProject, decision, 'bash tool also untouched')
+})
+
+test('the approval gate tolerates a missing exec and missing args', async () => {
+  const gate = createMemorySaveGate()
+  const decision = { kind: 'allow' }
+  const next = async () => decision
+  const pass = await gate(undefined, next)
+  assert.equal(pass, decision, 'no exec → pass through')
+  const ask = await gate({ name: 'memory_save' }, next)
+  assert.equal(ask.kind, 'ask', 'memory_save without args still asks for consent')
+})
+
+test('saveToolDescription switches with proactivePropose (default off)', () => {
+  const plain = saveToolDescription(undefined)
+  assert.ok(plain.includes('需用户确认'), 'default description mentions user consent')
+  assert.ok(!plain.includes('主动向用户提议'), 'default: no proactive proposal guidance')
+  const proactive = saveToolDescription(true)
+  assert.ok(proactive.includes('主动向用户提议'), 'proactivePropose on guides proactive saving')
+  assert.equal(saveToolDescription(false), plain, 'explicit false equals default')
+})
+
+test('renderSaveResult renders scope and the saved desc', () => {
+  const global = renderSaveResult({
+    scope: 'global',
+    cwd: '',
+    projectRoot: '',
+    item: { id: 'm1', desc: '用户偏好用 pnpm', createdAt: 1, updatedAt: 1 },
+  })
+  assert.ok(global.includes('已保存全局记忆'), 'global label')
+  assert.ok(global.includes('用户偏好用 pnpm'), 'desc shown')
+  assert.ok(global.includes('m1'), 'id shown')
+  const project = renderSaveResult({
+    scope: 'project',
+    cwd: '/p',
+    projectRoot: '/p',
+    item: { id: 'p1', desc: '本项目使用 pnpm', createdAt: 1, updatedAt: 1 },
+  })
+  assert.ok(project.includes('已保存项目记忆'), 'project label')
+  assert.ok(project.includes('/p'), 'project root shown')
+})
+
+test('the save tool render produces text blocks', () => {
+  const { tool } = realSaveTool()
+  const blocks = tool.output.render(
+    { scope: 'global', desc: 'x' },
+    {
+      scope: 'global',
+      cwd: '',
+      projectRoot: '',
+      item: { id: 'm1', desc: '用户偏好用 pnpm', createdAt: 1, updatedAt: 1 },
+    },
+  )
+  assert.equal(blocks.length, 1)
+  assert.equal(blocks[0].type, 'text')
+  assert.ok(blocks[0].text.includes('用户偏好用 pnpm'))
 })
 
 test('cleanup', () => {

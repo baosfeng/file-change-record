@@ -47,6 +47,25 @@
     那么 只返回 "代码注释用中文"
     并且 查询不改变记忆内容
 
+  场景: memory_save 工具保存记忆需经用户确认（issue #107）
+    当 agent 调用 memory_save 保存全局记忆 "用户偏好用 pnpm"
+    那么 触发用户确认流程（ask 门）
+    当 用户批准该保存
+    那么 memory_save 写入成功并返回条目 id
+    当 查询全局记忆
+    那么 全局记忆包含 "用户偏好用 pnpm"
+
+  场景: memory_save 保存后 memory_query 立即查询到
+    当 agent 调用 memory_save 保存全局记忆 "用户偏好用 pnpm"
+    当 用户批准该保存
+    当 agent 调用 memory_query 查询全局记忆
+    那么 返回一条记忆
+    并且 该记忆内容为 "用户偏好用 pnpm"
+
+  场景: memory_save 不改变其他工具流程
+    当 agent 调用 memory_query 查询全局记忆
+    那么 查询不触发用户确认流程
+
   场景: 面板打开时解析当前会话项目根
     当 查询会话 "work-session" 的工作目录
     那么 返回工作目录 "/work/proj"
