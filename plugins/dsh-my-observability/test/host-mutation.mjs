@@ -353,12 +353,12 @@ test('AI timeout degrades with a note', async () => {
 
 // ── 变异补充：store 边界（杀 store.js 存活变异体）────────────────────────
 
-test('stateFile falls back to homedir without DSH_HOME', async () => {
-  const { stateFile } = await import('../lib/store.js')
+test('jsonlFile falls back to homedir without DSH_HOME', async () => {
+  const { jsonlFile } = await import('../lib/store-persist.js')
   const old = process.env.DSH_HOME
   delete process.env.DSH_HOME
   try {
-    const file = stateFile()
+    const file = jsonlFile()
     assert.ok(file.includes('observability'), 'path contains observability dir')
     assert.ok(!file.startsWith('/tmp/'), 'not under DSH_HOME when unset')
   } finally {

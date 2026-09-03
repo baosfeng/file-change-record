@@ -1,47 +1,58 @@
 /**
- * dsh-my-observability — audit event store.
+ * dsh-my-observability — audit event store（内存态 + 增量持久化编排）。
  *
- * 事件审计日志的内存态 + 持久化：
- *  - 按会话隔离（bySession 分桶），查询/追加都限定在单个会话内；
- *  - 每会话事件上限（MAX_EVENTS_PER_SESSION，FIFO 淘汰），防无限膨胀；
- *  - 持久化 $DSH_HOME/observability/audit.json（防抖 500ms + 原子写
- *    tmp+rename + teardown flush），启动时异步加载（加载完成前的事件
- *    缓冲在 pending，加载后回放），重启后完整恢复；
- *  - 全局事件上限（MAX_TOTAL_EVENTS），超限按会话轮转淘汰最旧会话事件。
+ * 持久化策略（修复 9/2 写放大磁盘风暴：
+ * 旧实现每次防抖落盘都把全部事件 JSON.stringify 全量重写审计文件，
+ * 事件流持续时每小时数 GB 写入）：
+ *  - 追加式：新事件 JSON 行入队，防抖批量 append 到 `audit.jsonl`
+ *    （落盘字节 ≈ 事件本体字节，O(新增) 而非 O(全量)）；
+ *  - 周期 compact：追加行数达阈值时原子快照重写（文件大小有界，
+ *    启动加载不回归），快照前后台事件不丢不重；
+ *  - 旧格式兼容：升级前 `audit.json` 自动迁移（读取 + 快照 + 备份移除）；
+ *  - 每会话 2000 / 全局 20000 上限在内存与加载规整处一致生效。
+ *
+ * 磁盘 I/O 与格式规整在 store-persist.js。
  */
-import { readFile } from 'node:fs/promises'
-import { atomicWriteJson } from 'dsh-shared'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
+import {
+  jsonlFile,
+  legacyFile,
+  loadPersisted,
+  writeSnapshot,
+  appendLines,
+  removeLegacyAfterMigration,
+  normalizeLoaded,
+  MAX_EVENTS_PER_SESSION,
+  MAX_TOTAL_EVENTS,
+  COMPACT_LINES,
+} from './store-persist.js'
 
-const MAX_EVENTS_PER_SESSION = 2000
-const MAX_TOTAL_EVENTS = 20000
-
-/** 审计数据文件：$DSH_HOME/observability/audit.json（fallback ~/.dsh/…）。 */
-export function stateFile() {
-  const home = process.env.DSH_HOME
-  const base = typeof home === 'string' && home !== '' ? home : homedir()
-  return join(base, 'observability', 'audit.json')
-}
+const FLUSH_INTERVAL_MS = 500
+const COMPACT_DEBOUNCE_MS = 300
+const PREFIX = '[dsh-my-observability]'
 
 /** 初始空状态。 */
 function createState() {
   return { version: 1, bySession: {} }
 }
 
-/**
- * 创建审计存储：{ state, record, events, sessions, count, dispose }。
- * record 在状态加载完成前缓冲（不丢事件）；dispose 冲刷未落盘数据。
- */
+/** 创建审计存储：{ record, events, sessions, count, dispose }。
+ *  record 在状态加载完成前缓冲（不丢事件）；dispose 冲刷未落盘数据。 */
 export function createStore(ctx) {
   const store = { state: createState() }
   const handle = {
     ctx,
-    file: stateFile(),
+    file: jsonlFile(),
+    legacy: legacyFile(),
     store,
     pending: [],
     ready: false,
-    persistTimer: null,
+    lineQueue: [],
+    queuedLines: 0,
+    total: 0,
+    flushTimer: null,
+    compactTimer: null,
+    compacting: false,
+    migrated: false,
     dirtyChain: Promise.resolve(),
   }
   store.record = (event) => record(handle, event)
@@ -49,9 +60,7 @@ export function createStore(ctx) {
   store.sessions = () => sessionsOf(handle)
   store.count = () => countOf(handle)
   store.dispose = () => dispose(handle)
-  void readFile(handle.file, 'utf8')
-    .then((text) => onLoaded(handle, text))
-    .catch(() => onLoaded(handle, ''))
+  void loadPersisted(handle.file, handle.legacy).then((result) => onLoaded(handle, result))
   return store
 }
 
@@ -62,9 +71,17 @@ function record(handle, event) {
     handle.pending.push(item)
     return item
   }
-  appendEvent(handle, item)
-  persistSoon(handle)
+  enqueueRecord(handle, item)
+  scheduleFlush(handle)
   return item
+}
+
+/** 事件入内存桶 + 排队待落盘行（回放与运行时共用，保证回放也落盘）。 */
+function enqueueRecord(handle, item) {
+  appendEvent(handle, item)
+  handle.lineQueue.push(JSON.stringify(item))
+  handle.queuedLines += 1
+  if (handle.queuedLines >= COMPACT_LINES) scheduleCompact(handle)
 }
 
 /** 全部会话事件：合并各会话并按时间正序（sessionId='*'）。 */
@@ -109,11 +126,9 @@ function sessionsOf(handle) {
   return list
 }
 
-/** 全部会话事件总数（供状态展示/测试断言）。 */
+/** 全部会话事件总数（O(1) 计数）。 */
 function countOf(handle) {
-  let total = 0
-  for (const bucket of Object.values(handle.store.state.bySession)) total += bucket.events.length
-  return total
+  return handle.total
 }
 
 /** 事件自增 id（跨会话单调）。 */
@@ -122,15 +137,17 @@ function nextId(handle) {
   return handle.seq
 }
 
-/** 追加事件到会话桶：FIFO 淘汰 + 全局上限轮转淘汰。 */
+/** 追加事件到会话桶：FIFO 淘汰 + 全局上限轮转淘汰（维护 O(1) 计数）。 */
 function appendEvent(handle, event) {
   const state = handle.store.state
   const bucket = state.bySession[event.sessionId] ?? (state.bySession[event.sessionId] = { events: [] })
   bucket.events.push(event)
+  handle.total += 1
   if (bucket.events.length > MAX_EVENTS_PER_SESSION) {
-    bucket.events.splice(0, bucket.events.length - MAX_EVENTS_PER_SESSION)
+    const removed = bucket.events.splice(0, bucket.events.length - MAX_EVENTS_PER_SESSION).length
+    handle.total -= removed
   }
-  if (countOf(handle) > MAX_TOTAL_EVENTS) evictOldest(handle)
+  if (handle.total > MAX_TOTAL_EVENTS) evictOldest(handle)
 }
 
 /** 全局超限：从最早活动的会话整桶淘汰，直到回到上限内。 */
@@ -140,9 +157,9 @@ function evictOldest(handle) {
     .filter(([, bucket]) => bucket.events.length > 0)
     .sort((a, b) => firstTimeOf(a[1]) - firstTimeOf(b[1]))
   for (const [sessionId, bucket] of sessions) {
-    if (countOf(handle) <= MAX_TOTAL_EVENTS) break
+    if (handle.total <= MAX_TOTAL_EVENTS) break
+    handle.total -= bucket.events.length
     delete state.bySession[sessionId]
-    void bucket
   }
 }
 
@@ -150,92 +167,104 @@ function firstTimeOf(bucket) {
   return bucket.events.length > 0 ? bucket.events[0].time : 0
 }
 
-/** 状态加载完成：解析/规整 + 合并本进程已产生的事件 + 回放缓冲 + 落盘。 */
-function onLoaded(handle, text) {
-  const parsed = parseLoaded(text)
-  if (parsed !== undefined) {
-    mergeCurrent(handle.store.state, parsed)
-    handle.store.state = parsed
-  }
+/** 状态加载完成：合并本进程已产生的事件（防 dispose 回放被覆盖）+ 回放缓冲 + 迁移/紧凑调度。 */
+function onLoaded(handle, result) {
+  const parsed = result.state
+  mergeCurrentEvents(handle.store.state, parsed)
+  const normalized = normalizeLoaded(parsed.bySession)
+  handle.store.state = normalized
+  handle.total = countOfState(normalized)
   handle.ready = true
   const pending = handle.pending.splice(0)
-  for (const item of pending) appendEvent(handle, item)
-  if (pending.length > 0 || parsed !== undefined) persistSoon(handle)
+  for (const item of pending) enqueueRecord(handle, item)
+  if (pending.length > 0) scheduleFlush(handle)
+  handle.migrated = result.migrated
+  if (result.migrated || result.lines >= COMPACT_LINES) scheduleCompact(handle)
 }
 
-/** 把当前 state 中已产生的事件合并进磁盘状态（防 dispose 回放后覆盖丢失）。 */
-function mergeCurrent(current, parsed) {
-  for (const [sessionId, bucket] of Object.entries(current.bySession)) {
+/** 把 load 完成前（或 dispose 回放时）已进入内存的事件合并进加载状态：后到的事件追加于桶尾。 */
+function mergeCurrentEvents(current, parsed) {
+  for (const [sessionId, bucket] of Object.entries(current.bySession ?? {})) {
     if (!Array.isArray(bucket.events) || bucket.events.length === 0) continue
     const target = parsed.bySession[sessionId] ?? (parsed.bySession[sessionId] = { events: [] })
     target.events.push(...bucket.events)
   }
 }
 
-/** 解析已持久化的状态（结构不合法时回退空状态）。 */
-function parseLoaded(text) {
-  if (text === undefined || text === null || text === '') return undefined
-  try {
-    const parsed = JSON.parse(text)
-    if (!isValidRoot(parsed)) return undefined
-    const state = createState()
-    for (const [sessionId, bucket] of Object.entries(parsed.bySession)) {
-      const events = validEventsOf(bucket)
-      if (events.length > 0) state.bySession[sessionId] = { events }
-    }
-    return state
-  } catch {
-    return undefined
+function countOfState(state) {
+  let total = 0
+  for (const bucket of Object.values(state.bySession ?? {})) {
+    if (Array.isArray(bucket?.events)) total += bucket.events.length
   }
+  return total
 }
 
-/** 持久化根结构校验（bySession 必须为对象）。 */
-function isValidRoot(parsed) {
-  return parsed !== null && typeof parsed === 'object' && typeof parsed.bySession === 'object'
+/** 防抖批量追加落盘（一次 append 全部待写行）。 */
+function scheduleFlush(handle) {
+  if (handle.flushTimer !== null) return
+  handle.flushTimer = setTimeout(() => {
+    handle.flushTimer = null
+    flushNow(handle)
+  }, FLUSH_INTERVAL_MS)
 }
 
-/** 会话桶事件规整：过滤非法事件 + 截断到每会话上限。 */
-function validEventsOf(bucket) {
-  return Array.isArray(bucket?.events) ? bucket.events.filter(isValidEvent).slice(-MAX_EVENTS_PER_SESSION) : []
-}
-
-/** 事件结构校验（时间/会话/类型为字符串与数字的合理形态）。 */
-function isValidEvent(event) {
-  return (
-    event !== null &&
-    typeof event === 'object' &&
-    typeof event.time === 'number' &&
-    typeof event.sessionId === 'string' &&
-    typeof event.type === 'string'
+function flushNow(handle) {
+  if (handle.lineQueue.length === 0) return
+  const text = `${handle.lineQueue.join('\n')}\n`
+  handle.lineQueue = []
+  handle.dirtyChain = handle.dirtyChain.then(() =>
+    appendLines(handle.file, text, handle.ctx.logger, PREFIX),
   )
 }
 
-/** 原子写当前状态（经 dirtyChain 串行化；自动建目录）。 */
-function persistNow(handle) {
+/** 防抖紧凑调度（合并短时间多次触发）。 */
+function scheduleCompact(handle) {
+  if (handle.compactTimer !== null || handle.compacting) return
+  handle.compactTimer = setTimeout(() => {
+    handle.compactTimer = null
+    compactNow(handle)
+  }, COMPACT_DEBOUNCE_MS)
+}
+
+/** 原子快照重写 jsonl（内存 state 全量；含未 flush 行 → 排队行清空防重复）。 */
+function compactNow(handle) {
+  if (handle.compacting) return
+  handle.compacting = true
+  if (handle.flushTimer !== null) {
+    clearTimeout(handle.flushTimer)
+    handle.flushTimer = null
+  }
+  handle.lineQueue = []
+  handle.queuedLines = 0
+  const migrated = handle.migrated
+  handle.migrated = false
+  const file = handle.file
+  const legacy = handle.legacy
   handle.dirtyChain = handle.dirtyChain
-    .then(() => atomicWriteJson(handle.file, handle.store.state, handle.ctx.logger, '[dsh-my-observability]'))
-    .catch(() => {})
+    .then(async () => {
+      await writeSnapshot(file, handle.store.state, handle.ctx.logger, PREFIX)
+      if (migrated) await removeLegacyAfterMigration(legacy)
+    })
+    .finally(() => {
+      handle.compacting = false
+    })
 }
 
-/** 防抖（500ms）调度持久化。 */
-function persistSoon(handle) {
-  if (handle.persistTimer !== null) return
-  handle.persistTimer = setTimeout(() => {
-    handle.persistTimer = null
-    persistNow(handle)
-  }, 500)
-}
-
-/** 卸载冲刷：清定时器 + 回放未就绪缓冲 + 立即落盘。 */
+/** 卸载冲刷：清定时器 + 回放未就绪缓冲 + 立即落盘（迁移兜底）。 */
 function dispose(handle) {
-  if (handle.persistTimer !== null) {
-    clearTimeout(handle.persistTimer)
-    handle.persistTimer = null
+  if (handle.flushTimer !== null) {
+    clearTimeout(handle.flushTimer)
+    handle.flushTimer = null
+  }
+  if (handle.compactTimer !== null) {
+    clearTimeout(handle.compactTimer)
+    handle.compactTimer = null
   }
   if (!handle.ready) {
     const pending = handle.pending.splice(0)
-    for (const item of pending) appendEvent(handle, item)
+    for (const item of pending) enqueueRecord(handle, item)
   }
-  persistNow(handle)
+  flushNow(handle)
+  if (handle.migrated || handle.queuedLines >= COMPACT_LINES) compactNow(handle)
   void handle.dirtyChain
 }

@@ -11,6 +11,7 @@ export default {
     'lib/index.js',
     'lib/audit.js',
     'lib/store.js',
+    'lib/store-persist.js',
     'lib/git.js',
     'lib/diff.js',
     'lib/review.js',

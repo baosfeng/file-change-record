@@ -13,6 +13,7 @@ export default defineConfig({
         'lib/audit.js',
         'lib/audit-view.js',
         'lib/store.js',
+        'lib/store-persist.js',
         'lib/git.js',
         'lib/diff.js',
         'lib/review.js',
