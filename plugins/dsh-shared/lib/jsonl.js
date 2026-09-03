@@ -80,7 +80,9 @@ function flushNow(handle) {
       handle.bytesWritten += text.length
       handle.writes += 1
     })
-    .catch((error) => handle.logger?.warn(`${handle.prefix} append failed: ${error instanceof Error ? error.message : String(error)}`))
+    .catch((error) =>
+      handle.logger?.warn(`${handle.prefix} append failed: ${error instanceof Error ? error.message : String(error)}`),
+    )
 }
 
 /** 紧凑调度（防抖合并；回调由宿主决定快照内容）。 */
@@ -111,7 +113,11 @@ async function snapshot(handle, lines) {
       handle.bytesWritten += text.length
       handle.writes += 1
     })
-    .catch((error) => handle.logger?.warn(`${handle.prefix} snapshot failed: ${error instanceof Error ? error.message : String(error)}`))
+    .catch((error) =>
+      handle.logger?.warn(
+        `${handle.prefix} snapshot failed: ${error instanceof Error ? error.message : String(error)}`,
+      ),
+    )
   return handle.dirtyChain
 }
 

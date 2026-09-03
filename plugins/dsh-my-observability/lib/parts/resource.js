@@ -15,7 +15,10 @@ function useResourceState(visible) {
     if (!visible) return undefined
     let alive = true
     const tick = () => {
-      if (alive) apiJson('/observability/api/resources').then(setResource).catch(() => {})
+      if (alive)
+        apiJson('/observability/api/resources')
+          .then(setResource)
+          .catch(() => {})
     }
     tick()
     const timer = setInterval(tick, RESOURCE_POLL_MS)
@@ -50,8 +53,14 @@ function ResourcePanel({ resource }) {
       'div',
       { className: 'dsh-my-observability-resource-grid' },
       createElement(ResourceMetric, { label: strings.resourceFile(), value: fmtResourceBytes(resource.fileBytes) }),
-      createElement(ResourceMetric, { label: strings.resourceRate(), value: `${fmtResourceBytes(resource.writeRateBytesPerHour)}/h` }),
-      createElement(ResourceMetric, { label: strings.resourceCpu(), value: `${Math.round(resource.cpuPercent ?? 0)}%` }),
+      createElement(ResourceMetric, {
+        label: strings.resourceRate(),
+        value: `${fmtResourceBytes(resource.writeRateBytesPerHour)}/h`,
+      }),
+      createElement(ResourceMetric, {
+        label: strings.resourceCpu(),
+        value: `${Math.round(resource.cpuPercent ?? 0)}%`,
+      }),
       createElement(ResourceMetric, { label: strings.resourceMem(), value: fmtResourceBytes(resource.memoryBytes) }),
     ),
     alerts.length > 0

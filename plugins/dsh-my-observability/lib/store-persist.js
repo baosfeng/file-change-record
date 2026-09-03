@@ -65,7 +65,9 @@ export function normalizeLoaded(bySession) {
   let total = 0
   for (const bucket of Object.values(sessionBuckets)) total += bucket.events.length
   if (total > MAX_TOTAL_EVENTS) {
-    const ordered = Object.keys(sessionBuckets).sort((a, b) => firstTimeOf(sessionBuckets[a]) - firstTimeOf(sessionBuckets[b]))
+    const ordered = Object.keys(sessionBuckets).sort(
+      (a, b) => firstTimeOf(sessionBuckets[a]) - firstTimeOf(sessionBuckets[b]),
+    )
     for (const sessionId of ordered) {
       if (total <= MAX_TOTAL_EVENTS) break
       total -= sessionBuckets[sessionId].events.length

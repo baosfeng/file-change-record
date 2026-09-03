@@ -93,17 +93,11 @@ test('loadPersisted: jsonl 优先；缺 jsonl 时走 legacy 且标记迁移', as
   // 同时存在 jsonl 与 legacy：jsonl 优先，不迁移
   writeFileSync(join(dir, 'audit.jsonl'), `${JSON.stringify(ev(1, 'p'))}\n`, 'utf8')
   writeFileSync(join(dir, 'audit.json'), JSON.stringify({ version: 1, bySession: { p: { events: [ev(9, 'p')] } } }))
-  const both = await loadPersisted(
-    join(dir, 'audit.jsonl'),
-    join(dir, 'audit.json'),
-  )
+  const both = await loadPersisted(join(dir, 'audit.jsonl'), join(dir, 'audit.json'))
   assert.equal(both.migrated, false, 'jsonl takes precedence')
   assert.equal(both.state.bySession.p.events.length, 1, 'jsonl content loaded')
   // 只有 legacy：迁移标记
-  const legacyOnly = await loadPersisted(
-    join(dir, 'missing.jsonl'),
-    join(dir, 'audit.json'),
-  )
+  const legacyOnly = await loadPersisted(join(dir, 'missing.jsonl'), join(dir, 'audit.json'))
   assert.equal(legacyOnly.migrated, true, 'legacy-only marks migration')
   assert.equal(legacyOnly.state.bySession.p.events.length, 1, 'legacy events loaded')
   // 都缺失：空状态

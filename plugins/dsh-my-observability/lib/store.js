@@ -212,9 +212,7 @@ function flushNow(handle) {
   if (handle.lineQueue.length === 0) return
   const text = `${handle.lineQueue.join('\n')}\n`
   handle.lineQueue = []
-  handle.dirtyChain = handle.dirtyChain.then(() =>
-    appendLines(handle.file, text, handle.ctx.logger, PREFIX),
-  )
+  handle.dirtyChain = handle.dirtyChain.then(() => appendLines(handle.file, text, handle.ctx.logger, PREFIX))
 }
 
 /** 防抖紧凑调度（合并短时间多次触发）。 */

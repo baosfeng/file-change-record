@@ -12,15 +12,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { evaluateResourceAlerts, DEFAULT_LIMITS } from '../lib/resource-rules.js'
 import { createResourceMonitor } from '../lib/resource-monitor.js'
-import {
-  bootPlugin,
-  mockRequest,
-  mockResponse,
-  invoke,
-  jsonOf,
-  createTempHome,
-  cleanupHome,
-} from './lib/helpers.mjs'
+import { bootPlugin, mockRequest, mockResponse, invoke, jsonOf, createTempHome, cleanupHome } from './lib/helpers.mjs'
 
 const disposeAlls = []
 afterAll(() => {
@@ -33,22 +25,36 @@ test('resource rules: 各阈值边界判定', () => {
   const limits = { ...DEFAULT_LIMITS, writeRateBytesPerHour: 1000, fileBytes: 500, cpuPercent: 10, memoryBytes: 200 }
   // 正常 → 无告警
   assert.equal(
-    evaluateResourceAlerts({ writeRateBytesPerHour: 900, fileBytes: 400, cpuPercent: 5, memoryBytes: 100 }, limits).length,
+    evaluateResourceAlerts({ writeRateBytesPerHour: 900, fileBytes: 400, cpuPercent: 5, memoryBytes: 100 }, limits)
+      .length,
     0,
     '正常样本无告警',
   )
   // 写入速率超限
-  const rate = evaluateResourceAlerts({ writeRateBytesPerHour: 1001, fileBytes: 400, cpuPercent: 5, memoryBytes: 100 }, limits)
+  const rate = evaluateResourceAlerts(
+    { writeRateBytesPerHour: 1001, fileBytes: 400, cpuPercent: 5, memoryBytes: 100 },
+    limits,
+  )
   assert.equal(rate.length, 1)
   assert.equal(rate[0].rule, 'write-rate')
   // 文件大小超限
-  const file = evaluateResourceAlerts({ writeRateBytesPerHour: 10, fileBytes: 501, cpuPercent: 5, memoryBytes: 100 }, limits)
+  const file = evaluateResourceAlerts(
+    { writeRateBytesPerHour: 10, fileBytes: 501, cpuPercent: 5, memoryBytes: 100 },
+    limits,
+  )
   assert.equal(file[0].rule, 'file-size')
   // CPU 超限 + 内存超限（多告警并存）
-  const both = evaluateResourceAlerts({ writeRateBytesPerHour: 10, fileBytes: 100, cpuPercent: 11, memoryBytes: 201 }, limits)
+  const both = evaluateResourceAlerts(
+    { writeRateBytesPerHour: 10, fileBytes: 100, cpuPercent: 11, memoryBytes: 201 },
+    limits,
+  )
   assert.deepEqual(both.map((a) => a.rule).sort(), ['cpu', 'memory'])
   // 边界值相等 → 不算超限
-  assert.equal(evaluateResourceAlerts({ writeRateBytesPerHour: 1000, fileBytes: 500, cpuPercent: 10, memoryBytes: 200 }, limits).length, 0)
+  assert.equal(
+    evaluateResourceAlerts({ writeRateBytesPerHour: 1000, fileBytes: 500, cpuPercent: 10, memoryBytes: 200 }, limits)
+      .length,
+    0,
+  )
 })
 
 test('resource monitor: 采样统计（文件字节/写入速率/CPU/内存 + ring buffer）', async () => {

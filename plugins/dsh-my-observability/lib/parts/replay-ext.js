@@ -279,7 +279,10 @@ function useReplayDataState(props) {
     if (!visible) return undefined
     let alive = true
     const tick = () => {
-      if (alive) apiJson('/observability/api/resources').then(setResource).catch(() => {})
+      if (alive)
+        apiJson('/observability/api/resources')
+          .then(setResource)
+          .catch(() => {})
     }
     tick()
     const timer = setInterval(tick, RESOURCE_POLL_MS)
