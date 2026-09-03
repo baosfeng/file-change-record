@@ -9,7 +9,8 @@ DSH 插件共享工具包：多插件共用的 server 端工具，消除复制�
 - **配置持久化** `currentProfile()` / `profileDirOf(profile)` / `patchFileOf(profile)` / `extractConfig(text, rowId)` / `writePatchConfig(file, rowId, config)` — cordis.patch.yml 的 YAML 子集读写（设置页保存配置，原子写 tmp+rename）。
 - **项目根解析** `findProjectRoot(cwd)` — 最近 `.git` 祖先目录（项目级配置/记忆的根）。
 - **异步与消息** `withTimeout(promise, ms)` / `userMessage(text)` — 超时包装（不 reject）与 user 角色消息构造。
-- **原子写** `atomicWriteJson(file, value, logger, prefix)` — JSON 快照原子写（tmp+rename，自动建目录，失败仅告警）。
+- **原子写（护栏版）** `atomicWriteJson(file, value, logger, prefix, options?)` — JSON 快照原子写（tmp+rename，自动建目录，失败仅告警）；options 护栏：`minIntervalMs` 节流、`maxBytes` 巨型对象拒绝，超限 warn 并返回 false。
+- **jsonl 增量追加** `jsonlAppender(file, options)`（+ `parseJsonlLines`）— 防写放大持久化原语：`append(obj)` 只写新行（防抖批量 appendFile）、行数达 `compactLines` 阈值回调 `onCompact` 宿主做 `snapshot(lines)` 原子快照、`dispose()` 冲刷、`stats()` 暴露写入字节/次数。**高频事件持久化必须用它**（9/2 审计插件写放大事故的根治模式，口径见 `resource-budget-review`）。
 
 ## 安装
 

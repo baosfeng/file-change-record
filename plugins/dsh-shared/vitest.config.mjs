@@ -18,6 +18,7 @@ export default defineConfig({
         'lib/project.js',
         'lib/async.js',
         'lib/persist.js',
+        'lib/jsonl.js',
       ],
     },
   },

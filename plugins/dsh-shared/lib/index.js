@@ -18,3 +18,4 @@ export { currentProfile, profileDirOf, patchFileOf, extractConfig, writePatchCon
 export { findProjectRoot } from './project.js'
 export { withTimeout, userMessage } from './async.js'
 export { atomicWriteJson } from './persist.js'
+export { jsonlAppender, parseJsonlLines } from './jsonl.js'
