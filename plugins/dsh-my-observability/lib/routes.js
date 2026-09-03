@@ -17,7 +17,7 @@ import { reviewRules } from './review.js'
 import { runAiReview } from './ai.js'
 
 /** 注册 /observability/api 路由（effect 持有 disposer）。 */
-export function registerObservabilityRoutes(ctx, store, options) {
+export function registerObservabilityRoutes(ctx, store, monitor, options) {
   const webRuntime = ctx.get ? ctx.get('webRuntime') : undefined
   const trustedHosts =
     webRuntime !== undefined && webRuntime !== null && Array.isArray(webRuntime.trustedHosts)
@@ -30,14 +30,14 @@ export function registerObservabilityRoutes(ctx, store, options) {
       ctx.webServer.register({
         kind: 'prefix',
         path: '/observability/api',
-        handler: apiHandler(ctx, fence, store, options),
+        handler: apiHandler(ctx, fence, store, monitor, options),
       }),
     'dsh-my-observability: /observability/api routes',
   )
 }
 
 /** 统一 handler：fence → 方法分派 → 404/错误兜底。 */
-function apiHandler(ctx, fence, store, options) {
+function apiHandler(ctx, fence, store, monitor, options) {
   return async (request, response) => {
     if (!fence(request)) {
       writeJson(response, 403, { ok: false, error: { code: 'forbidden', message: 'forbidden' } })
@@ -47,7 +47,7 @@ function apiHandler(ctx, fence, store, options) {
     const pathname = url.pathname
     const method = pathname.startsWith('/observability/api/') ? pathname.slice('/observability/api/'.length) : undefined
     try {
-      const handled = await dispatchMethod(method, request, response, url, ctx, store, options)
+      const handled = await dispatchMethod(method, request, response, url, ctx, store, monitor, options)
       if (!handled) {
         writeJson(response, 404, {
           ok: false,
@@ -66,9 +66,13 @@ function isMethod(method, request, name, verb) {
 }
 
 /** 按 method 分派到具体 handler；未识别返回 false（调用方回 404）。 */
-async function dispatchMethod(method, request, response, url, ctx, store, options) {
+async function dispatchMethod(method, request, response, url, ctx, store, monitor, options) {
   if (isMethod(method, request, 'sessions', 'GET')) {
     writeJson(response, 200, { ok: true, value: store.sessions() })
+    return true
+  }
+  if (isMethod(method, request, 'resources', 'GET')) {
+    writeJson(response, 200, { ok: true, value: monitor.sample() })
     return true
   }
   if (isMethod(method, request, 'events', 'GET')) {

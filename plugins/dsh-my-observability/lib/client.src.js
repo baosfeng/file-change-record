@@ -34,6 +34,7 @@ window.__ModuleLoader__.load({
     /*__PART_ICONS__*/
     /*__PART_AUDIT_VIEW__*/
     /*__PART_REPLAY__*/
+    /*__PART_RESOURCE__*/
     /*__PART_REPLAY_EXT__*/
     /*__PART_GIT__*/
     /*__PART_STYLES__*/

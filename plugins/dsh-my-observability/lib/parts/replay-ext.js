@@ -272,6 +272,22 @@ function useReplayDataState(props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reloadTick, setReloadTick] = useState(0)
+  const [resource, setResource] = useState(null)
+
+  // 资源采样轮询（写放大/资源超限预警；可见时 15s 一次，隐藏暂停）
+  useEffect(() => {
+    if (!visible) return undefined
+    let alive = true
+    const tick = () => {
+      if (alive) apiJson('/observability/api/resources').then(setResource).catch(() => {})
+    }
+    tick()
+    const timer = setInterval(tick, RESOURCE_POLL_MS)
+    return () => {
+      alive = false
+      clearInterval(timer)
+    }
+  }, [visible])
 
   useEffect(() => {
     if (!visible) return undefined
@@ -296,6 +312,7 @@ function useReplayDataState(props) {
 
   return {
     currentSession,
+    resource,
     sessions,
     selected,
     events,
@@ -344,6 +361,7 @@ function useReplayState(props) {
   const onExport = (format) => void runExport(format, scope, filtered, criteria, data.setError)
 
   return {
+    resource: data.resource,
     sessions: data.sessions,
     selected: data.selected,
     events: data.events,

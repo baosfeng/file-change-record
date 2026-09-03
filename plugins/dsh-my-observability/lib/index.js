@@ -22,6 +22,7 @@
 import { createStore } from './store.js'
 import { attachAuditListeners } from './audit.js'
 import { registerObservabilityRoutes } from './routes.js'
+import { createResourceMonitor } from './resource-monitor.js'
 
 export const name = 'dsh-my-observability'
 
@@ -40,9 +41,19 @@ export function apply(ctx, config) {
   // ── 事件监听（只读观察；waterfall 一律透传 next()）──────────────────
   attachAuditListeners(ctx, store.record)
 
-  // ── 路由（查询 / git 工具 / diff 审查）──────────────────────────────
-  registerObservabilityRoutes(ctx, store, options)
+  // ── 资源监控（15s 采样 CPU/内存/审计写入速率，阈值告警）─────────────
+  const monitor = createResourceMonitor(ctx, {
+    intervalMs: config?.resourceIntervalMs,
+    limits: config?.resourceLimits,
+  })
+  monitor.start()
 
-  // ── 卸载冲刷：清防抖定时器 + 立即落盘 ───────────────────────────────
-  ctx.effect(() => store.dispose, 'dsh-my-observability: persistence teardown')
+  // ── 路由（查询 / git 工具 / diff 审查 / 资源）───────────────────────
+  registerObservabilityRoutes(ctx, store, monitor, options)
+
+  // ── 卸载冲刷：清防抖定时器 + 立即落盘 + 停采样 ──────────────────────
+  ctx.effect(() => {
+    monitor.stop()
+    return store.dispose
+  }, 'dsh-my-observability: persistence teardown')
 }

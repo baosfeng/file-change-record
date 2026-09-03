@@ -14,6 +14,8 @@ export default defineConfig({
         'lib/audit-view.js',
         'lib/store.js',
         'lib/store-persist.js',
+        'lib/resource-monitor.js',
+        'lib/resource-rules.js',
         'lib/git.js',
         'lib/diff.js',
         'lib/review.js',

@@ -42,6 +42,12 @@ function isZh() {
 
 const strings = {
   replayTitle: () => (isZh() ? '轨迹回放' : 'Trajectory'),
+  resourceTitle: () => (isZh() ? '资源监控' : 'Resources'),
+  resourceLoading: () => (isZh() ? '资源采样中…' : 'Sampling…'),
+  resourceFile: () => (isZh() ? '审计文件' : 'Audit file'),
+  resourceRate: () => (isZh() ? '写入速率' : 'Write rate'),
+  resourceCpu: () => (isZh() ? 'CPU' : 'CPU'),
+  resourceMem: () => (isZh() ? '内存' : 'Memory'),
   gitTitle: () => (isZh() ? 'Git 工具' : 'Git Tools'),
   allSessions: () => (isZh() ? '全部会话' : 'All sessions'),
   filterAll: () => (isZh() ? '全部' : 'All'),
@@ -986,6 +992,7 @@ function ReplayPanel(props) {
   return createElement(
     'div',
     { className: 'dsh-my-observability-panel' },
+    createElement(ResourcePanel, { resource: s.resource }),
     createElement(ReplayToolbar, {
       sessions: s.sessions,
       selected: s.selected,
@@ -1023,6 +1030,78 @@ function ReplayPanel(props) {
       : null,
     s.showStats ? createElement(StatsPanel, { events: s.filtered }) : null,
     createElement('div', { className: 'dsh-my-observability-timeline' }, s.rows),
+  )
+}
+
+    // ── 资源监控区块（写放大/资源超限预警，见 lib/resource-monitor.js）──────
+// 依赖 replay.js 先拼接（apiJson）与 i18n.js（strings）。纯函数声明文本。
+
+const RESOURCE_POLL_MS = 15000
+
+function fmtResourceBytes(bytes) {
+  if (!Number.isFinite(bytes)) return '-'
+  return `${(bytes / 1048576).toFixed(1)} MB`
+}
+
+/** 资源采样状态：可见时每 15s 轮询 /observability/api/resources。 */
+function useResourceState(visible) {
+  const [resource, setResource] = useState(null)
+  useEffect(() => {
+    if (!visible) return undefined
+    let alive = true
+    const tick = () => {
+      if (alive) apiJson('/observability/api/resources').then(setResource).catch(() => {})
+    }
+    tick()
+    const timer = setInterval(tick, RESOURCE_POLL_MS)
+    return () => {
+      alive = false
+      clearInterval(timer)
+    }
+  }, [visible])
+  return resource
+}
+
+function ResourceMetric({ label, value }) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-observability-resource-metric' },
+    createElement('span', { className: 'dsh-my-observability-resource-label' }, label),
+    createElement('span', { className: 'dsh-my-observability-resource-value' }, value),
+  )
+}
+
+/** 资源面板：四指标 + 告警列表（write-rate/file-size level=error 红色，cpu/memory warn 黄色）。 */
+function ResourcePanel({ resource }) {
+  if (resource === null || resource === undefined) {
+    return createElement('div', { className: 'dsh-my-observability-resource' }, strings.resourceLoading())
+  }
+  const alerts = Array.isArray(resource.alerts) ? resource.alerts : []
+  return createElement(
+    'div',
+    { className: 'dsh-my-observability-resource' },
+    createElement('div', { className: 'dsh-my-observability-resource-head' }, strings.resourceTitle()),
+    createElement(
+      'div',
+      { className: 'dsh-my-observability-resource-grid' },
+      createElement(ResourceMetric, { label: strings.resourceFile(), value: fmtResourceBytes(resource.fileBytes) }),
+      createElement(ResourceMetric, { label: strings.resourceRate(), value: `${fmtResourceBytes(resource.writeRateBytesPerHour)}/h` }),
+      createElement(ResourceMetric, { label: strings.resourceCpu(), value: `${Math.round(resource.cpuPercent ?? 0)}%` }),
+      createElement(ResourceMetric, { label: strings.resourceMem(), value: fmtResourceBytes(resource.memoryBytes) }),
+    ),
+    alerts.length > 0
+      ? createElement(
+          'div',
+          { className: 'dsh-my-observability-resource-alerts' },
+          alerts.map((alert) =>
+            createElement(
+              'div',
+              { className: `dsh-my-observability-resource-alert dsh-my-observability-resource-alert-${alert.level}` },
+              alert.message,
+            ),
+          ),
+        )
+      : null,
   )
 }
 
@@ -1300,6 +1379,22 @@ function useReplayDataState(props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reloadTick, setReloadTick] = useState(0)
+  const [resource, setResource] = useState(null)
+
+  // 资源采样轮询（写放大/资源超限预警；可见时 15s 一次，隐藏暂停）
+  useEffect(() => {
+    if (!visible) return undefined
+    let alive = true
+    const tick = () => {
+      if (alive) apiJson('/observability/api/resources').then(setResource).catch(() => {})
+    }
+    tick()
+    const timer = setInterval(tick, RESOURCE_POLL_MS)
+    return () => {
+      alive = false
+      clearInterval(timer)
+    }
+  }, [visible])
 
   useEffect(() => {
     if (!visible) return undefined
@@ -1324,6 +1419,7 @@ function useReplayDataState(props) {
 
   return {
     currentSession,
+    resource,
     sessions,
     selected,
     events,
@@ -1372,6 +1468,7 @@ function useReplayState(props) {
   const onExport = (format) => void runExport(format, scope, filtered, criteria, data.setError)
 
   return {
+    resource: data.resource,
     sessions: data.sessions,
     selected: data.selected,
     events: data.events,
@@ -1826,6 +1923,16 @@ const STYLES = `
 .dsh-my-observability-review-ok{font:var(--dsw-font-xxs-strong-12);color:var(--dsw-alias-state-success-primary)}
 .dsh-my-observability-ai{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary);line-height:1.5;
   border:1px dashed var(--dsw-alias-border-l2);border-radius:6px;padding:6px 8px}
+.dsh-my-observability-resource{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px;margin:0 0 8px}
+.dsh-my-observability-resource-head{font:var(--dsw-font-xxs-strong-12);color:var(--dsw-alias-label-primary);margin-bottom:6px}
+.dsh-my-observability-resource-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}
+.dsh-my-observability-resource-metric{display:flex;justify-content:space-between;gap:8px;font:var(--dsw-font-xxs-12)}
+.dsh-my-observability-resource-label{color:var(--dsw-alias-label-secondary)}
+.dsh-my-observability-resource-value{color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-mono-xxs)}
+.dsh-my-observability-resource-alerts{margin-top:6px;display:flex;flex-direction:column;gap:4px}
+.dsh-my-observability-resource-alert{font:var(--dsw-font-xxxs-11);border-radius:4px;padding:2px 6px}
+.dsh-my-observability-resource-alert-error{color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 12%,transparent)}
+.dsh-my-observability-resource-alert-warn{color:var(--dsw-alias-state-warn-primary);background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 12%,transparent)}
 `
 
 function injectStyles() {

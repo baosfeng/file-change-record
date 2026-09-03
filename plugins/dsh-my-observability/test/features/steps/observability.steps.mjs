@@ -271,3 +271,16 @@ Then('落盘字节数不超过事件本体字节的 1.6 倍', async function () 
     `写放大：落盘 ${size}B vs 事件本体 ${eventBytes}B`,
   )
 })
+
+When('请求资源采样', async function () {
+  await this.invoke('/observability/api/resources')
+})
+
+Then('资源采样包含 CPU 与内存指标', function () {
+  assert.equal(typeof this.lastValue.cpuPercent, 'number')
+  assert.equal(typeof this.lastValue.memoryBytes, 'number')
+})
+
+Then('资源采样包含告警列表', function () {
+  assert.ok(Array.isArray(this.lastValue.alerts), 'alerts 为数组')
+})

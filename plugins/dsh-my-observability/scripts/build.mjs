@@ -34,6 +34,7 @@ const PARTS = [
   ['/*__PART_ICONS__*/', 'icons.part.js', { shared: true }],
   ['/*__PART_AUDIT_VIEW__*/', 'audit-view.js', { root: 'lib', stripExport: true }],
   ['/*__PART_REPLAY__*/', 'replay.js'],
+  ['/*__PART_RESOURCE__*/', 'resource.js'],
   ['/*__PART_REPLAY_EXT__*/', 'replay-ext.js'],
   ['/*__PART_GIT__*/', 'git.js'],
   ['/*__PART_STYLES__*/', 'styles.js'],

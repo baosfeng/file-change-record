@@ -10,6 +10,12 @@ function isZh() {
 
 const strings = {
   replayTitle: () => (isZh() ? '轨迹回放' : 'Trajectory'),
+  resourceTitle: () => (isZh() ? '资源监控' : 'Resources'),
+  resourceLoading: () => (isZh() ? '资源采样中…' : 'Sampling…'),
+  resourceFile: () => (isZh() ? '审计文件' : 'Audit file'),
+  resourceRate: () => (isZh() ? '写入速率' : 'Write rate'),
+  resourceCpu: () => (isZh() ? 'CPU' : 'CPU'),
+  resourceMem: () => (isZh() ? '内存' : 'Memory'),
   gitTitle: () => (isZh() ? 'Git 工具' : 'Git Tools'),
   allSessions: () => (isZh() ? '全部会话' : 'All sessions'),
   filterAll: () => (isZh() ? '全部' : 'All'),

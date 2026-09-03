@@ -279,6 +279,7 @@ function ReplayPanel(props) {
   return createElement(
     'div',
     { className: 'dsh-my-observability-panel' },
+    createElement(ResourcePanel, { resource: s.resource }),
     createElement(ReplayToolbar, {
       sessions: s.sessions,
       selected: s.selected,
