@@ -2,6 +2,14 @@
 
 本文件记录 dsh-my-observability 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.3] - 2026-09-03
+
+### 变更
+
+- fix(observability): 审计持久化改增量追加，根治写放大磁盘风暴
+- feat(observability): #89 审计日志搜索/过滤 + JSON/CSV 导出 (#120)
+- docs: #106 安装命令统一加 --trust-lockfile (#113)
+
 ## [0.1.2] - 2026-09-01
 
 ### 变更
