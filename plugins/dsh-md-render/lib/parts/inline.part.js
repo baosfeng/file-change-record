@@ -52,9 +52,13 @@ function domEm(m) {
 function inlineDomMatch(m) {
   if (m[1] !== undefined) return domCode(m)
   if (m[3] !== undefined) return domStrong(m)
-  if (m[4] !== undefined) return domImg(m)
+  // issue #84：image 关闭 → 单元格内图片语法保持原文。
+  if (m[4] !== undefined && renderOptions.image) return domImg(m)
+  if (m[4] !== undefined) return m[0]
   if (m[6] !== undefined) return domLink(m)
-  if (m[7] !== undefined) return domDel(m)
+  // issue #84：strikethrough 关闭 → 单元格内删除线保持原文。
+  if (m[7] !== undefined && renderOptions.strikethrough) return domDel(m)
+  if (m[7] !== undefined) return m[0]
   return domEm(m)
 }
 

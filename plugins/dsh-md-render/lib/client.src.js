@@ -33,11 +33,15 @@ window.__ModuleLoader__.load({
     var exports = module.exports
     Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' })
     // MarkdownView（markdown.part.js 片段）使用 createElement；
-    // CopyButton（issue #74 复制按钮）使用 useState。
-    const { createElement, useState } = require('react')
+    // CopyButton（issue #74 复制按钮）使用 useState；设置页
+    // （settings.part.js，issue #84）使用 useEffect。
+    const { createElement, useState, useEffect } = require('react')
 
     // ── 共享图标（dsh-shared/client-parts，issue #54 阶段 0）────────
     /*__PART_ICONS__*/
+
+    // ── 渲染配置（issue #84）：增强开关状态 + setRenderOptions ──────
+    /*__PART_CONFIG__*/
 
     // ── 复制按钮（issue #74）：CopyButton + 复制工具函数 ──────────
     /*__PART_COPY__*/
@@ -68,6 +72,9 @@ window.__ModuleLoader__.load({
 
     // ── 样式（DSH 语义 token，随 activation 注入）──────────────────
     /*__PART_STYLES__*/
+
+    // ── 设置页（issue #84）：渲染增强开关可视化 + 保存 ───────────────
+    /*__PART_SETTINGS__*/
 
     // ── 插件入口：样式注入 + 扫描器装配 ───────────────────────────
     /*__PART_APPLY__*/

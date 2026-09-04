@@ -41,31 +41,34 @@ function foldRows(rows, limit) {
   return { visible: rows.slice(0, limit), hidden: rows.length - limit }
 }
 
-/** 构建 thead（表头行 + 每列对齐 + 排序列标记与箭头 span）。 */
+/** 构建 thead（表头行 + 每列对齐 + 排序列标记与箭头 span；issue #84：
+ *  tableSort 关闭 → th 不渲染排序列标记与箭头）。 */
 function renderHead(table) {
   const thead = document.createElement('thead')
   const headTr = document.createElement('tr')
   table.header.forEach((cell, j) => {
     const th = document.createElement('th')
     th.style.textAlign = table.aligns[j] || 'left'
-    th.setAttribute('data-sort-col', String(j))
     th.appendChild(renderInline(cell))
-    const arrow = document.createElement('span')
-    arrow.className = 'dsh-md-render-sort-arrow'
-    arrow.setAttribute('aria-hidden', 'true')
-    th.appendChild(arrow)
+    if (renderOptions.tableSort) {
+      th.setAttribute('data-sort-col', String(j))
+      const arrow = document.createElement('span')
+      arrow.className = 'dsh-md-render-sort-arrow'
+      arrow.setAttribute('aria-hidden', 'true')
+      th.appendChild(arrow)
+    }
     headTr.appendChild(th)
   })
   thead.appendChild(headTr)
   return thead
 }
 
-/** 构建 tbody（数据行 + 每列对齐；超过 FOLD_LIMIT 的行加折叠 class）。 */
+/** 构建 tbody（数据行 + 每列对齐；issue #84：tableFold 关闭 → 不折叠）。 */
 function renderBody(table) {
   const tbody = document.createElement('tbody')
   table.rows.forEach((row, i) => {
     const tr = document.createElement('tr')
-    if (i >= FOLD_LIMIT) tr.className = 'dsh-md-render-folded-row'
+    if (renderOptions.tableFold && i >= FOLD_LIMIT) tr.className = 'dsh-md-render-folded-row'
     row.forEach((cell, j) => {
       const td = document.createElement('td')
       td.style.textAlign = table.aligns[j] || 'left'
@@ -142,19 +145,22 @@ function toggleFold(scroll, btn) {
   }
 }
 
-/** scroll 容器上的 click 事件委托：表头排序 / 折叠按钮切换。 */
+/** scroll 容器上的 click 事件委托：表头排序 / 折叠按钮切换（issue #84：
+ *  tableSort / tableFold 关闭 → 对应交互不生效）。 */
 function onTableClick(e) {
   const target = e.target
   if (!target || typeof target.closest !== 'function') return
   const scroll = target.closest('.dsh-md-render-table-scroll')
   if (!scroll) return
   const th = target.closest('th[data-sort-col]')
-  if (th) {
+  if (th && renderOptions.tableSort) {
     sortTable(scroll, th)
     return
   }
-  const btn = target.closest('.dsh-md-render-table-fold')
-  if (btn) toggleFold(scroll, btn)
+  if (renderOptions.tableFold) {
+    const btn = target.closest('.dsh-md-render-table-fold')
+    if (btn) toggleFold(scroll, btn)
+  }
 }
 
 /** 共享图标风格的 chevronRight（DOM 侧手写 SVG，stroke=currentColor，
@@ -201,7 +207,8 @@ function renderTable(table) {
   tbl.appendChild(renderHead(table))
   if (table.rows.length > 0) {
     tbl.appendChild(renderBody(table))
-    if (table.rows.length > FOLD_LIMIT) {
+    // issue #84：tableFold 关闭 → 不渲染折叠按钮（全部行可见）。
+    if (renderOptions.tableFold && table.rows.length > FOLD_LIMIT) {
       scroll.dataset.totalRows = String(table.rows.length)
       scroll.appendChild(renderFoldButton(table.rows.length))
     }

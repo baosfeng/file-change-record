@@ -101,12 +101,13 @@ function mdInline(text, key) {
   let m,
     k = 0
   while ((m = re.exec(text)) !== null) {
-    k = scanMathErrors(text, last, m.index, key, k, out)
+    // issue #84：mathStructures 关闭 → 不扫描疑似公式的未闭合 `$`（保持原文）。
+    if (renderOptions.mathStructures) k = scanMathErrors(text, last, m.index, key, k, out)
     out.push(inlineMatch(m, text, key + '-i' + k))
     k += 1
     last = m.index + m[0].length
   }
-  scanMathErrors(text, last, text.length, key, k, out)
+  if (renderOptions.mathStructures) scanMathErrors(text, last, text.length, key, k, out)
   return out
 }
 
@@ -240,6 +241,12 @@ function mathErrorEl(out, title, content) {
 }
 
 function tryMath(lines, i, out) {
+  // issue #84：mathStructures 关闭 → 块级公式不渲染为公式结构（回退段落）。
+  if (!renderOptions.mathStructures) return 0
+  return tryMathEnabled(lines, i, out)
+}
+
+function tryMathEnabled(lines, i, out) {
   const single = lines[i].match(/^\$\$([^$]*)\$\$\s*$/)
   if (single) {
     const content = single[1].trim()
@@ -309,7 +316,13 @@ function MarkdownView({ text }) {
     }
     i = tryParagraph(lines, i, out)
   }
-  return createElement('div', { className: 'tzx-md' }, out, createElement(CopyButton, { kind: 'content' }))
+  return createElement(
+    'div',
+    { className: 'tzx-md' },
+    out,
+    // issue #84：copyButton 关闭 → 整段内容复制按钮不渲染。
+    renderOptions.copyButton ? createElement(CopyButton, { kind: 'content' }) : null,
+  )
 }
 
 exports.MarkdownView = MarkdownView
