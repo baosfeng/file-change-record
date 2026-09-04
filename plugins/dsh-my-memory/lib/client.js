@@ -98,7 +98,11 @@ const strings = {
   globalScope: () => (isZh() ? '全局' : 'Global'),
   projectScope: () => (isZh() ? '项目' : 'Project'),
   countBadge: (label, n) => (isZh() ? `${label} · ${n} 条` : `${label} · ${n}`),
+  countOnly: (n) => (isZh() ? `${n} 条` : `${n}`),
   projectBadge: (root, n) => (isZh() ? `项目根：${root} · ${n} 条` : `Project root: ${root} · ${n}`),
+  pathInputAria: () => (isZh() ? '项目根路径' : 'Project root path'),
+  addInputAria: (scope) =>
+    isZh() ? `新增记忆内容（${scope === 'project' ? '项目' : '全局'}）` : `New memory (${scope})`,
   justNow: () => (isZh() ? '刚刚' : 'just now'),
   minutesAgo: (n) => (isZh() ? `${n} 分钟前` : `${n} min ago`),
   hoursAgo: (n) => (isZh() ? `${n} 小时前` : `${n} hr ago`),
@@ -185,9 +189,10 @@ const STYLES = `
 .dsh-my-memory-sections { display:flex; flex-direction:column; gap:8px; }
 .dsh-my-memory-section { display:flex; flex-direction:column; gap:6px; padding:8px; border-radius:8px;
   border:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-layer-1); }
-/* The project scope gets the brand accent so the two scopes never blur. */
-.dsh-my-memory-section-project { border-color:color-mix(in srgb, var(--dsw-alias-accent) 45%, transparent);
-  background:color-mix(in srgb, var(--dsw-alias-accent) 6%, var(--dsw-alias-bg-layer-1)); }
+/* The project scope gets a subtle accent border (keeps the two scopes
+    distinguishable without breaking the neutral baseline — 之前 45% 边框 +
+   6% 底色过于抢眼，弱化为 28% 描边 + 中性底). */
+.dsh-my-memory-section-project { border-color:color-mix(in srgb, var(--dsw-alias-accent) 28%, transparent); }
 .dsh-my-memory-section-head { display:flex; align-items:center; gap:8px; }
 .dsh-my-memory-section-title { font:var(--dsw-font-s-strong-14); color:var(--dsw-alias-label-primary); }
 .dsh-my-memory-badge { flex:none; display:inline-flex; align-items:center; height:17px; padding:0 5px; border-radius:4px;
@@ -230,7 +235,7 @@ const STYLES = `
 .dsh-my-memory-meta-icon { display:inline-flex; color:var(--dsw-alias-label-dimmed); }
 .dsh-my-memory-addbar { display:flex; gap:6px; align-items:center; }
 .dsh-my-memory-addbar-wrap { display:flex; flex-direction:column; gap:3px; }
-.dsh-my-memory-entry-hint { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-state-warning-primary);
+.dsh-my-memory-entry-hint { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-state-warn-primary);
   line-height:1.7; padding:0 2px; }
 .dsh-my-memory-add-input { flex:1; min-width:0; height:28px; padding:0 8px; border-radius:6px;
   border:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-layer-2);
@@ -288,8 +293,8 @@ const STYLES = `
   font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-secondary);
   background:var(--dsw-alias-bg-layer-1); border:1px solid var(--dsw-alias-border-l1); }
 .dsh-my-memory-conflict-badge { flex:none; display:inline-flex; align-items:center; height:16px; padding:0 5px; border-radius:4px;
-  font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-state-warning-primary);
-  background:color-mix(in srgb, var(--dsw-alias-state-warning-primary) 15%, transparent); }
+  font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-state-warn-primary);
+  background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 15%, transparent); }
 .dsh-my-memory-meta-sep { color:var(--dsw-alias-label-dimmed); }
 .dsh-my-memory-history-entry { display:inline-flex; font:var(--dsw-font-xxxs-11);
   color:var(--dsw-alias-label-tertiary); }
@@ -857,6 +862,7 @@ function AddBar({ scope, value, onChange, onAdd, entryLimit }) {
       createElement('input', {
         className: 'dsh-my-memory-add-input',
         placeholder: strings.addPlaceholder(),
+        'aria-label': strings.addInputAria(scope),
         value,
         onChange: (event) => onChange(event.target.value),
       }),
@@ -1054,6 +1060,44 @@ const CONFIRM_TEXTS = {
   delete: () => strings.confirmDelete(),
 }
 
+/** Path input + load/refresh buttons + consent note. */
+function Toolbar({ pathInput, onInput, onLoad, onRefresh }) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-memory-toolbar' },
+    createElement(
+      'div',
+      { className: 'dsh-my-memory-pathbar' },
+      createElement('input', {
+        className: 'dsh-my-memory-path-input',
+        placeholder: strings.projectHint(),
+        'aria-label': strings.pathInputAria(),
+        title: strings.pathInputAria(),
+        value: pathInput,
+        onChange: (event) => onInput(event.target.value),
+        onKeyDown: (event) => {
+          if (event.key === 'Enter') onLoad(pathInput)
+        },
+      }),
+      createElement(
+        'button',
+        { className: 'dsh-my-memory-btn', 'aria-label': strings.loadProject(), onClick: () => onLoad(pathInput) },
+        icon.folder(14),
+        strings.loadProject(),
+      ),
+      createElement(
+        'button',
+        { className: 'dsh-my-memory-btn', 'aria-label': strings.refresh(), onClick: () => onRefresh(pathInput) },
+        icon.refresh(14),
+        strings.refresh(),
+      ),
+    ),
+    createElement('div', { className: 'dsh-my-memory-note' }, strings.confirmHint()),
+  )
+}
+
+    // ── candidates: 待确认候选 / 元数据行 / 演进历史（issue #78）────────────────
+// 拆分自 view-rows.part.js：与条目卡片解耦，控制单文件行数（≤400 门禁）。
 /** 一条待确认候选（issue #78）：分类徽标 + 描述 + 范围 + 来源 + 确认/拒弃。 */
 function CandidateRow({ candidate, busy, onConfirm, onDismiss }) {
   return createElement(
@@ -1105,34 +1149,24 @@ function CandidateRow({ candidate, busy, onConfirm, onDismiss }) {
   )
 }
 
-/** 记忆条目元数据行（issue #78）：分类徽标 + 置信度 + 矛盾标记 + 演进历史
- *  （展开时显示 history 列表）。 */
-function MetadataRow({ item, isExpanded, onToggle }) {
+/** 演进历史控件：展开/收起按钮 + 历史条目列表（有 history 才渲染）。 */
+function HistoryControl({ item, isExpanded, onToggle }) {
   const hasHistory = Array.isArray(item.history) && item.history.length > 0
+  if (!hasHistory) return null
   return createElement(
-    'div',
-    { className: 'dsh-my-memory-meta' },
-    createElement('span', { className: 'dsh-my-memory-ct-badge' }, strings.categoryLabel(item.category)),
-    createElement('span', { className: 'dsh-my-memory-conf-badge' }, strings.confidenceLabel(item.confidence)),
-    item.status === 'conflict-pending'
-      ? createElement('span', { className: 'dsh-my-memory-conflict-badge' }, strings.statusConflict())
-      : null,
-    createElement('span', { className: 'dsh-my-memory-meta-sep' }, '·'),
-    createElement('span', { className: 'dsh-my-memory-meta-icon' }, icon.clock(11)),
-    relativeTime(item.updatedAt),
-    hasHistory
-      ? createElement(
-          'button',
-          {
-            className: 'dsh-my-memory-expand',
-            'aria-label': isExpanded ? strings.collapse() : strings.historyLabel(),
-            onClick: onToggle,
-          },
-          icon.chevronDown(14),
-          isExpanded ? strings.collapse() : strings.historyLabel(),
-        )
-      : null,
-    isExpanded && hasHistory
+    'span',
+    null,
+    createElement(
+      'button',
+      {
+        className: 'dsh-my-memory-expand',
+        'aria-label': isExpanded ? strings.collapse() : strings.historyLabel(),
+        onClick: onToggle,
+      },
+      icon.chevronDown(14),
+      isExpanded ? strings.collapse() : strings.historyLabel(),
+    ),
+    isExpanded
       ? item.history.map((entry, index) =>
           createElement(
             'span',
@@ -1141,6 +1175,28 @@ function MetadataRow({ item, isExpanded, onToggle }) {
           ),
         )
       : null,
+  )
+}
+
+/** 记忆条目元数据行（issue #78）：分类徽标 + 置信度 + 矛盾标记 + 演进历史
+ *  （展开时显示 history 列表）。confidence 缺失/非数字时不渲染置信度徽标
+ *  （之前直接拼 "置信度 ${n}"，缺失时出现"置信度 undefined"）。 */
+function MetadataRow({ item, isExpanded, onToggle }) {
+  const hasConfidence = typeof item.confidence === 'number' && Number.isFinite(item.confidence) && item.confidence >= 0
+  return createElement(
+    'div',
+    { className: 'dsh-my-memory-meta' },
+    createElement('span', { className: 'dsh-my-memory-ct-badge' }, strings.categoryLabel(item.category)),
+    hasConfidence
+      ? createElement('span', { className: 'dsh-my-memory-conf-badge' }, strings.confidenceLabel(item.confidence))
+      : null,
+    item.status === 'conflict-pending'
+      ? createElement('span', { className: 'dsh-my-memory-conflict-badge' }, strings.statusConflict())
+      : null,
+    createElement('span', { className: 'dsh-my-memory-meta-sep' }, '·'),
+    createElement('span', { className: 'dsh-my-memory-meta-icon' }, icon.clock(11)),
+    relativeTime(item.updatedAt),
+    createElement(HistoryControl, { item, isExpanded, onToggle }),
   )
 }
 
@@ -1173,40 +1229,6 @@ function CandidatesBlock({ candidates, busy, onConfirmCandidate, onDismissCandid
             onDismiss: () => onDismissCandidate(candidate.id),
           }),
         ),
-  )
-}
-
-/** Path input + load/refresh buttons + consent note. */
-function Toolbar({ pathInput, onInput, onLoad, onRefresh }) {
-  return createElement(
-    'div',
-    { className: 'dsh-my-memory-toolbar' },
-    createElement(
-      'div',
-      { className: 'dsh-my-memory-pathbar' },
-      createElement('input', {
-        className: 'dsh-my-memory-path-input',
-        placeholder: strings.projectHint(),
-        value: pathInput,
-        onChange: (event) => onInput(event.target.value),
-        onKeyDown: (event) => {
-          if (event.key === 'Enter') onLoad(pathInput)
-        },
-      }),
-      createElement(
-        'button',
-        { className: 'dsh-my-memory-btn', 'aria-label': strings.loadProject(), onClick: () => onLoad(pathInput) },
-        icon.folder(14),
-        strings.loadProject(),
-      ),
-      createElement(
-        'button',
-        { className: 'dsh-my-memory-btn', 'aria-label': strings.refresh(), onClick: () => onRefresh(pathInput) },
-        icon.refresh(14),
-        strings.refresh(),
-      ),
-    ),
-    createElement('div', { className: 'dsh-my-memory-note' }, strings.confirmHint()),
   )
 }
 
@@ -1567,13 +1589,14 @@ function SectionBlock({
   onCommit,
 }) {
   const isProject = scope === 'project'
-  // 徽标：分类 + 数量（不再重复标题文字；项目加载后附带项目根路径）。
+  // 徽标：数量（标题本身已含"全局记忆/项目记忆"，徽标不再重复 scope 标签；
+  // 项目加载后附带项目根路径信息）。
   const badge =
     scope === 'global'
-      ? strings.countBadge(strings.globalScope(), data.items.length)
+      ? strings.countOnly(data.items.length)
       : data.cwd !== ''
         ? strings.projectBadge(data.projectRoot, data.items.length)
-        : strings.countBadge(strings.projectScope(), data.items.length)
+        : strings.countOnly(data.items.length)
   const order = sortOrder[scope]
   const items = sortMemories(data.items, order)
   const rows = buildRows(items, scope, editing, onEdit, onEditDesc, onCancelEdit, onConfirm, expanded, onToggle)

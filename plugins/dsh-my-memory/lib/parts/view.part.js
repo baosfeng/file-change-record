@@ -355,13 +355,14 @@ function SectionBlock({
   onCommit,
 }) {
   const isProject = scope === 'project'
-  // 徽标：分类 + 数量（不再重复标题文字；项目加载后附带项目根路径）。
+  // 徽标：数量（标题本身已含"全局记忆/项目记忆"，徽标不再重复 scope 标签；
+  // 项目加载后附带项目根路径信息）。
   const badge =
     scope === 'global'
-      ? strings.countBadge(strings.globalScope(), data.items.length)
+      ? strings.countOnly(data.items.length)
       : data.cwd !== ''
         ? strings.projectBadge(data.projectRoot, data.items.length)
-        : strings.countBadge(strings.projectScope(), data.items.length)
+        : strings.countOnly(data.items.length)
   const order = sortOrder[scope]
   const items = sortMemories(data.items, order)
   const rows = buildRows(items, scope, editing, onEdit, onEditDesc, onCancelEdit, onConfirm, expanded, onToggle)

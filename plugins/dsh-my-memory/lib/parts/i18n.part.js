@@ -66,7 +66,11 @@ const strings = {
   globalScope: () => (isZh() ? '全局' : 'Global'),
   projectScope: () => (isZh() ? '项目' : 'Project'),
   countBadge: (label, n) => (isZh() ? `${label} · ${n} 条` : `${label} · ${n}`),
+  countOnly: (n) => (isZh() ? `${n} 条` : `${n}`),
   projectBadge: (root, n) => (isZh() ? `项目根：${root} · ${n} 条` : `Project root: ${root} · ${n}`),
+  pathInputAria: () => (isZh() ? '项目根路径' : 'Project root path'),
+  addInputAria: (scope) =>
+    isZh() ? `新增记忆内容（${scope === 'project' ? '项目' : '全局'}）` : `New memory (${scope})`,
   justNow: () => (isZh() ? '刚刚' : 'just now'),
   minutesAgo: (n) => (isZh() ? `${n} 分钟前` : `${n} min ago`),
   hoursAgo: (n) => (isZh() ? `${n} 小时前` : `${n} hr ago`),

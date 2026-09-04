@@ -41,6 +41,7 @@ function AddBar({ scope, value, onChange, onAdd, entryLimit }) {
       createElement('input', {
         className: 'dsh-my-memory-add-input',
         placeholder: strings.addPlaceholder(),
+        'aria-label': strings.addInputAria(scope),
         value,
         onChange: (event) => onChange(event.target.value),
       }),
@@ -238,128 +239,6 @@ const CONFIRM_TEXTS = {
   delete: () => strings.confirmDelete(),
 }
 
-/** 一条待确认候选（issue #78）：分类徽标 + 描述 + 范围 + 来源 + 确认/拒弃。 */
-function CandidateRow({ candidate, busy, onConfirm, onDismiss }) {
-  return createElement(
-    'div',
-    { className: 'dsh-my-memory-row dsh-my-memory-row-candidate' },
-    createElement(
-      'div',
-      { className: 'dsh-my-memory-row-head' },
-      createElement(
-        'div',
-        { className: 'dsh-my-memory-row-desc-wrap' },
-        createElement('span', { className: 'dsh-my-memory-ct-badge' }, strings.categoryLabel(candidate.category)),
-        createElement('span', { className: 'dsh-my-memory-desc' }, candidate.desc),
-      ),
-      createElement(
-        'div',
-        { className: 'dsh-my-memory-actions' },
-        createElement(
-          IconButton,
-          {
-            className: 'dsh-my-memory-iconbtn dsh-my-memory-iconbtn-confirm',
-            label: `${strings.confirmCandidate()} ${candidate.id}`,
-            onClick: onConfirm,
-          },
-          icon.check(14),
-        ),
-        createElement(
-          IconButton,
-          {
-            className: 'dsh-my-memory-iconbtn dsh-my-memory-iconbtn-danger',
-            label: `${strings.dismissCandidate()} ${candidate.id}`,
-            onClick: onDismiss,
-          },
-          icon.close(14),
-        ),
-      ),
-    ),
-    createElement(
-      'div',
-      { className: 'dsh-my-memory-meta' },
-      createElement('span', { className: 'dsh-my-memory-meta-icon' }, icon.clock(11)),
-      relativeTime(candidate.createdAt),
-      createElement('span', { className: 'dsh-my-memory-meta-sep' }, '·'),
-      strings.candidateScopeBadge(candidate.scope),
-      createElement('span', { className: 'dsh-my-memory-meta-sep' }, '·'),
-      strings.candidateSource(candidate.source?.sessionId),
-    ),
-    busy ? createElement('div', { className: 'dsh-my-memory-entry-hint' }, strings.loading()) : null,
-  )
-}
-
-/** 记忆条目元数据行（issue #78）：分类徽标 + 置信度 + 矛盾标记 + 演进历史
- *  （展开时显示 history 列表）。 */
-function MetadataRow({ item, isExpanded, onToggle }) {
-  const hasHistory = Array.isArray(item.history) && item.history.length > 0
-  return createElement(
-    'div',
-    { className: 'dsh-my-memory-meta' },
-    createElement('span', { className: 'dsh-my-memory-ct-badge' }, strings.categoryLabel(item.category)),
-    createElement('span', { className: 'dsh-my-memory-conf-badge' }, strings.confidenceLabel(item.confidence)),
-    item.status === 'conflict-pending'
-      ? createElement('span', { className: 'dsh-my-memory-conflict-badge' }, strings.statusConflict())
-      : null,
-    createElement('span', { className: 'dsh-my-memory-meta-sep' }, '·'),
-    createElement('span', { className: 'dsh-my-memory-meta-icon' }, icon.clock(11)),
-    relativeTime(item.updatedAt),
-    hasHistory
-      ? createElement(
-          'button',
-          {
-            className: 'dsh-my-memory-expand',
-            'aria-label': isExpanded ? strings.collapse() : strings.historyLabel(),
-            onClick: onToggle,
-          },
-          icon.chevronDown(14),
-          isExpanded ? strings.collapse() : strings.historyLabel(),
-        )
-      : null,
-    isExpanded && hasHistory
-      ? item.history.map((entry, index) =>
-          createElement(
-            'span',
-            { key: `${entry.at}-${index}`, className: 'dsh-my-memory-history-entry' },
-            `${strings.historyEntry(entry.action)} · ${relativeTime(entry.at)}`,
-          ),
-        )
-      : null,
-  )
-}
-
-/** 待确认候选区块（issue #78）：自动提取的记忆候选，确认后写入（渐进
- *  合并）、拒弃则丢弃——记忆绝不静默变更。 */
-function CandidatesBlock({ candidates, busy, onConfirmCandidate, onDismissCandidate }) {
-  const list = Array.isArray(candidates) ? candidates : []
-  return createElement(
-    'div',
-    { className: 'dsh-my-memory-candidates' },
-    createElement(
-      'div',
-      { className: 'dsh-my-memory-section-head' },
-      createElement('span', { className: 'dsh-my-memory-section-title' }, strings.candidatesSection()),
-      createElement(
-        'span',
-        { className: 'dsh-my-memory-badge' },
-        strings.countBadge(strings.candidatesSection(), list.length),
-      ),
-    ),
-    createElement('div', { className: 'dsh-my-memory-note' }, strings.candidatesNote()),
-    list.length === 0
-      ? createElement('div', { className: 'dsh-my-memory-empty' }, strings.candidatesEmpty())
-      : list.map((candidate) =>
-          createElement(CandidateRow, {
-            key: candidate.id,
-            candidate,
-            busy,
-            onConfirm: () => onConfirmCandidate(candidate.id),
-            onDismiss: () => onDismissCandidate(candidate.id),
-          }),
-        ),
-  )
-}
-
 /** Path input + load/refresh buttons + consent note. */
 function Toolbar({ pathInput, onInput, onLoad, onRefresh }) {
   return createElement(
@@ -371,6 +250,8 @@ function Toolbar({ pathInput, onInput, onLoad, onRefresh }) {
       createElement('input', {
         className: 'dsh-my-memory-path-input',
         placeholder: strings.projectHint(),
+        'aria-label': strings.pathInputAria(),
+        title: strings.pathInputAria(),
         value: pathInput,
         onChange: (event) => onInput(event.target.value),
         onKeyDown: (event) => {

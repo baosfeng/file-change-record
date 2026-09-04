@@ -36,6 +36,7 @@ window.__ModuleLoader__.load({
     __PART_ICONS__
     __PART_UTILS__
     __PART_VIEW_ROWS__
+    __PART_CANDIDATES__
     __PART_VIEW__
     __PART_APPLY__
 

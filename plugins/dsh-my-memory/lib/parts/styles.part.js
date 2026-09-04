@@ -38,9 +38,10 @@ const STYLES = `
 .dsh-my-memory-sections { display:flex; flex-direction:column; gap:8px; }
 .dsh-my-memory-section { display:flex; flex-direction:column; gap:6px; padding:8px; border-radius:8px;
   border:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-layer-1); }
-/* The project scope gets the brand accent so the two scopes never blur. */
-.dsh-my-memory-section-project { border-color:color-mix(in srgb, var(--dsw-alias-accent) 45%, transparent);
-  background:color-mix(in srgb, var(--dsw-alias-accent) 6%, var(--dsw-alias-bg-layer-1)); }
+/* The project scope gets a subtle accent border (keeps the two scopes
+    distinguishable without breaking the neutral baseline — 之前 45% 边框 +
+   6% 底色过于抢眼，弱化为 28% 描边 + 中性底). */
+.dsh-my-memory-section-project { border-color:color-mix(in srgb, var(--dsw-alias-accent) 28%, transparent); }
 .dsh-my-memory-section-head { display:flex; align-items:center; gap:8px; }
 .dsh-my-memory-section-title { font:var(--dsw-font-s-strong-14); color:var(--dsw-alias-label-primary); }
 .dsh-my-memory-badge { flex:none; display:inline-flex; align-items:center; height:17px; padding:0 5px; border-radius:4px;
@@ -83,7 +84,7 @@ const STYLES = `
 .dsh-my-memory-meta-icon { display:inline-flex; color:var(--dsw-alias-label-dimmed); }
 .dsh-my-memory-addbar { display:flex; gap:6px; align-items:center; }
 .dsh-my-memory-addbar-wrap { display:flex; flex-direction:column; gap:3px; }
-.dsh-my-memory-entry-hint { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-state-warning-primary);
+.dsh-my-memory-entry-hint { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-state-warn-primary);
   line-height:1.7; padding:0 2px; }
 .dsh-my-memory-add-input { flex:1; min-width:0; height:28px; padding:0 8px; border-radius:6px;
   border:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-layer-2);
@@ -141,8 +142,8 @@ const STYLES = `
   font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-secondary);
   background:var(--dsw-alias-bg-layer-1); border:1px solid var(--dsw-alias-border-l1); }
 .dsh-my-memory-conflict-badge { flex:none; display:inline-flex; align-items:center; height:16px; padding:0 5px; border-radius:4px;
-  font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-state-warning-primary);
-  background:color-mix(in srgb, var(--dsw-alias-state-warning-primary) 15%, transparent); }
+  font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-state-warn-primary);
+  background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 15%, transparent); }
 .dsh-my-memory-meta-sep { color:var(--dsw-alias-label-dimmed); }
 .dsh-my-memory-history-entry { display:inline-flex; font:var(--dsw-font-xxxs-11);
   color:var(--dsw-alias-label-tertiary); }

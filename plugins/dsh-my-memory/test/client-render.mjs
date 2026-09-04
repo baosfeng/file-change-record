@@ -241,6 +241,9 @@ assert.equal(countSections(tree2), 2, 'both scopes render as sections (side by s
 assert.ok(joined.includes('回复使用中文'), 'global memory desc rendered')
 assert.ok(joined.includes('暂无记忆'), 'project section empty before a project is loaded')
 assert.ok(joined.includes('当前无项目会话'), 'project empty state prompts to load a project path')
+// ── 回归：confidence 缺失时不渲染"置信度 undefined"；徽标不重复 scope 标签 ──
+assert.ok(!joined.includes('置信度 undefined'), 'confidence omitted when missing (no undefined text)')
+assert.ok(joined.includes('1 条'), 'global count badge rendered (count only)')
 const buttons2 = []
 collectButtons(tree2, buttons2)
 assert.ok(
