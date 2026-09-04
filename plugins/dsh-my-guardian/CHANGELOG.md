@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.6] - 2026-09-04
+
+### 变更
+
+- fix(guardian): 事件日志不再访问 entry.id getter——构造期 parent.tree 未就绪会抛错炸掉 DSH 启动（隔离实例复现）
+- fix(guardian): 诊断面板可读性 + entry 标识修复——插件失败时不再"看不懂/兜不住"
+- fix(guardian): #86 发版一致性修复——package.json 0.3.5 + CHANGELOG 0.3.5 段（rebase 冲突还原恢复）
+- chore(release): dsh-my-guardian v0.3.5（#86 依赖预检 + 验证清单）
+- feat(guardian): #86 候选区插件依赖预检 + 失败分类 (#124)
+- docs: #106 安装命令统一加 --trust-lockfile (#113)
+
 ## [0.3.5] - 2026-09-04
 
 ### 新增
