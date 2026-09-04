@@ -1,0 +1,9 @@
+# dsh-my-remote bundle patch: inserts the plugin row into the profile roster.
+# The row mounts the host half (DSH event watchers + remote command API +
+# outbound event push). Install with:
+#
+#   git clone https://github.com/baosfeng/my-dsh-plugins.git
+#   dsh plugin --profile web add link:<仓库路径>/plugins/dsh-my-remote
+- insert:
+    - id: remote
+      name: 'dsh-my-remote'

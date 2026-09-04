@@ -55,6 +55,7 @@ const MODULES = {
   'dsh-my-observability': { module: '可观测性', display: '可观测性', npm: 'dsh-my-observability' },
   'dsh-my-guard': { module: '安全护栏', display: '安全护栏', npm: 'dsh-my-guard' },
   'dsh-my-context': { module: '上下文透镜', display: '上下文透镜', npm: 'dsh-my-context' },
+  'dsh-my-remote': { module: '远程控制', display: '远程控制', npm: 'dsh-my-remote' },
   'dsh-plugin-dev-mode': { module: '插件开发模式', display: '插件开发模式', npm: null }, // agent preset，非 npm 插件
   'dsh-ts-example': { module: 'TS示例', display: 'TS 示例插件', npm: 'dsh-ts-example' },
   'dsh-shared': { module: '共享工具包', display: '共享工具包', npm: 'dsh-shared' }, // 共享工具包（issue #45）

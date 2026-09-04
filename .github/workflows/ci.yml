@@ -55,6 +55,7 @@ jobs:
           - dsh-plugin-dev-mode
           - dsh-task-reliability
           - dsh-ts-example
+          - dsh-my-remote
     steps:
       - uses: actions/checkout@v7
 
