@@ -38,12 +38,12 @@ const uiPrimitives = require('@deepseek-ai/dsh-client-ui-primitives')
 
 ## 与其他方案的对比
 
-| 方案 | 判定 |
-|------|------|
-| **官方 ui-primitives** | ✅ 首选：零引入、零打包、require 即用、视觉与 DSH 原生 100% 同源 |
-| ant-design | ❌ 不可行：拼接单 bundle + ModuleLoader 无法解析 antd 依赖图；esbuild 硬打包则每插件 200-500KB 且风格冲突 |
-| 自研 dsh-ui 组件包 | 降级为补充：只补官方没有的控件（如自定义确认面板 / 专用表单项） |
-| dsh-shared/client-parts（构建期拼接） | 保留：图标（icons.part.js）/ 碎片复用 / 样式规范 |
+| 方案                                  | 判定                                                                                                      |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **官方 ui-primitives**                | ✅ 首选：零引入、零打包、require 即用、视觉与 DSH 原生 100% 同源                                          |
+| ant-design                            | ❌ 不可行：拼接单 bundle + ModuleLoader 无法解析 antd 依赖图；esbuild 硬打包则每插件 200-500KB 且风格冲突 |
+| 自研 dsh-ui 组件包                    | 降级为补充：只补官方没有的控件（如自定义确认面板 / 专用表单项）                                           |
+| dsh-shared/client-parts（构建期拼接） | 保留：图标（icons.part.js）/ 碎片复用 / 样式规范                                                          |
 
 ## 踩坑记录
 
