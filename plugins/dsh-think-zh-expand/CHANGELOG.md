@@ -2,6 +2,13 @@
 
 本文件记录 dsh-think-zh-expand 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.7] - 2026-09-04
+
+### 变更
+
+- fix(think-zh-expand): 剥离模型输出的 xml 控制标签（<review>/<think>/<answer>）——原样渲染成裸文本的"无效标签"效果
+- docs: #106 安装命令统一加 --trust-lockfile (#113)
+
 ## [0.4.6] - 2026-09-01
 
 ### 变更
