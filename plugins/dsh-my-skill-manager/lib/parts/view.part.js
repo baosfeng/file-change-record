@@ -320,9 +320,9 @@ function formatTime(ts) {
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-/** Card row: name + state chip on the main line, description (with source /
- *  not-cataloged note and usage statistics in small text) below — issue #69
- *  information hierarchy + issue #91 usage columns. */
+/** Card row: name + meta on the main line, description below —
+ *  issue #69 hierarchy + issue #91 usage columns. State is encoded ONLY by
+ *  the switch (曾经的"状态 chip + 开关"双编码让状态表达重复且拥挤，已移除)。 */
 function SkillRow({ skill, disabled, onToggle, usage }) {
   const usageMeta =
     usage === undefined
@@ -332,21 +332,23 @@ function SkillRow({ skill, disabled, onToggle, usage }) {
           strings.usageLast(formatTime(usage.lastUsedAt)),
           usage.lastSource === 'model' ? strings.usageSourceModel() : strings.usageSourceUser(),
         ].join(' · ')
-  const meta = [
-    isProjectSource(skill.source) ? strings.sourceProject(skill.source) : strings.sourceGlobal(skill.source),
-    skill.cataloged === false ? strings.notCataloged() : null,
-    usageMeta,
-  ]
-    .filter((item) => item !== null)
-    .join(' · ')
+  const sourceText = isProjectSource(skill.source)
+    ? strings.sourceProject(skill.source)
+    : strings.sourceGlobal(skill.source)
   return createElement(
     'div',
     { className: `dsh-my-skill-manager-row${disabled ? ' dsh-my-skill-manager-row-disabled' : ''}` },
     createElement(
       'div',
       { className: 'dsh-my-skill-manager-row-head' },
-      createElement('span', { className: 'dsh-my-skill-manager-name' }, skill.name),
-      createElement(StateChip, { disabled }),
+      createElement('span', { className: 'dsh-my-skill-manager-name', title: skill.name }, skill.name),
+      skill.cataloged === false
+        ? createElement(
+            'span',
+            { className: 'dsh-my-skill-manager-chip-warn', title: strings.notCatalogedHint() },
+            strings.notCataloged(),
+          )
+        : null,
       createElement(Switch, {
         checked: !disabled,
         label: `${skill.name}: ${disabled ? strings.disabled() : strings.enabled()}`,
@@ -354,25 +356,8 @@ function SkillRow({ skill, disabled, onToggle, usage }) {
       }),
     ),
     createElement('div', { className: 'dsh-my-skill-manager-desc' }, skill.description),
-    meta !== ''
-      ? createElement(
-          'div',
-          {
-            className: 'dsh-my-skill-manager-row-meta',
-            title: skill.cataloged === false ? strings.notCatalogedHint() : undefined,
-          },
-          meta,
-        )
-      : null,
-  )
-}
-
-/** State chip: text + color double encoding (enabled = success, disabled = neutral). */
-function StateChip({ disabled }) {
-  return createElement(
-    'span',
-    { className: `dsh-my-skill-manager-chip${disabled ? '' : ' dsh-my-skill-manager-chip-on'}` },
-    disabled ? strings.disabled() : strings.enabled(),
+    createElement('div', { className: 'dsh-my-skill-manager-row-source' }, sourceText),
+    createElement('div', { className: 'dsh-my-skill-manager-row-meta' }, usageMeta),
   )
 }
 

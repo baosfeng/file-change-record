@@ -187,8 +187,17 @@ assert.equal(countSections(tree2), 1, 'global view renders exactly one section (
 assert.ok(joined.includes('web-search'), 'skill name rendered')
 assert.ok(joined.includes('codebase-memory'), 'second skill rendered')
 assert.ok(joined.includes('网络搜索'), 'skill description rendered')
-assert.ok(joined.includes('已禁用'), 'disabled chip rendered for web-search')
-assert.ok(joined.includes('启用'), 'enabled chip rendered for codebase-memory')
+assert.ok(joined.includes('已禁用') === false, 'no state chip text (switch is the single encoding)')
+const switchButtons = []
+collectButtons(tree2, switchButtons)
+assert.ok(
+  switchButtons.some((b) => b.label.includes('web-search') && b.label.includes('已禁用')),
+  'disabled switch label rendered',
+)
+assert.ok(
+  switchButtons.some((b) => b.label.includes('codebase-memory') && b.label.includes('启用')),
+  'enabled switch label rendered',
+)
 assert.ok(joined.includes('全局（user-dsh）'), 'source note rendered in meta line')
 assert.ok(joined.includes('项目（project-dsh）'), 'project source note rendered in meta line')
 
@@ -221,12 +230,10 @@ assert.equal(segs.length, 1, 'only the global segment without a session cwd')
 assert.equal(segs[0].props['aria-pressed'], true, 'global segment active by default')
 assert.equal(segs[0].props.children, '全局', 'global segment label')
 
-// ── issue #69: state chips (text + color double encoding) ──────────────────
+// ── state encoded by the switch only (双编码 chip 已移除) ──────────────────
 const chips = []
 collectByClass(tree2, 'dsh-my-skill-manager-chip', chips)
-assert.equal(chips.length, 2, 'one chip per skill row')
-const chipOn = chips.filter((c) => c.props.className.includes('dsh-my-skill-manager-chip-on'))
-assert.equal(chipOn.length, 1, 'enabled skill carries the on-chip')
+assert.equal(chips.length, 0, 'state chip removed — switch is the single encoding')
 
 // ── toggle: click the global enable toggle of codebase-memory ─────────────
 const toggle = buttons.find((t) => t.label.includes('codebase-memory') && t.label.includes('启用'))

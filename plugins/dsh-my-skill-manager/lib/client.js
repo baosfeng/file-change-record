@@ -463,12 +463,13 @@ const STYLES = `
   font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-label-tertiary); text-transform:uppercase; letter-spacing:.04em; }
 .dsh-my-skill-manager-section-title { font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-label-tertiary);
   text-transform:uppercase; letter-spacing:.04em; }
-/* ── sort + unused filter bar (issue #91) ───────────────────────────────── */
+/* ── sort + unused filter bar (issue #91; size/hit-area raised for visibility) */
 .dsh-my-skill-manager-sortbar { display:inline-flex; align-items:center; gap:2px; }
-.dsh-my-skill-manager-sortseg, .dsh-my-skill-manager-unused { height:18px; padding:0 6px; border:none; border-radius:4px;
-  background:transparent; font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-label-tertiary); cursor:pointer;
+.dsh-my-skill-manager-sortseg, .dsh-my-skill-manager-unused { height:22px; padding:0 8px; border:none; border-radius:4px;
+  background:transparent; font:var(--dsw-font-xxs-strong-12); color:var(--dsw-alias-label-secondary); cursor:pointer;
   transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out), color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
-.dsh-my-skill-manager-sortseg:hover, .dsh-my-skill-manager-unused:hover { color:var(--dsw-alias-label-primary); }
+.dsh-my-skill-manager-sortseg:hover, .dsh-my-skill-manager-unused:hover { color:var(--dsw-alias-label-primary);
+  background:var(--dsw-alias-interactive-bg-hover); }
 .dsh-my-skill-manager-sortseg-on { background:var(--dsw-alias-interactive-bg-hover); color:var(--dsw-alias-label-primary); }
 .dsh-my-skill-manager-unused-on { color:var(--dsw-alias-state-warn-primary);
   background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
@@ -486,13 +487,13 @@ const STYLES = `
 .dsh-my-skill-manager-row-head { display:flex; align-items:center; gap:6px; min-width:0; }
 .dsh-my-skill-manager-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   font:var(--dsw-font-s-strong-14); color:var(--dsw-alias-label-primary); }
-/* ── state chip: text + color double encoding (issue #69) ───────────────── */
-.dsh-my-skill-manager-chip { flex:none; display:inline-flex; align-items:center; height:17px; padding:0 6px; border-radius:4px;
-  font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-label-tertiary); background:var(--dsw-alias-interactive-bg-hover); }
-.dsh-my-skill-manager-chip-on { color:var(--dsw-alias-state-success-primary);
-  background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 16%, transparent); }
+/* ── not-cataloged badge (warn chip in the row head) ─────────────────────── */
+.dsh-my-skill-manager-chip-warn { flex:none; display:inline-flex; align-items:center; height:17px; padding:0 6px; border-radius:4px;
+  font:var(--dsw-font-xxxs-strong-11); color:var(--dsw-alias-state-warn-primary);
+  background:color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
 .dsh-my-skill-manager-desc { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-secondary); }
-.dsh-my-skill-manager-row-meta { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
+.dsh-my-skill-manager-row-source { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); margin-top:2px; }
+.dsh-my-skill-manager-row-meta { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-dimmed); }
 /* ── switch (role=switch): track + sliding thumb, checked = enabled ────────
    Off = neutral grey track, on = success accent; both thumb and track
    transition on --ds-transition-duration-slow. */
@@ -929,9 +930,9 @@ function formatTime(ts) {
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-/** Card row: name + state chip on the main line, description (with source /
- *  not-cataloged note and usage statistics in small text) below — issue #69
- *  information hierarchy + issue #91 usage columns. */
+/** Card row: name + meta on the main line, description below —
+ *  issue #69 hierarchy + issue #91 usage columns. State is encoded ONLY by
+ *  the switch (曾经的"状态 chip + 开关"双编码让状态表达重复且拥挤，已移除)。 */
 function SkillRow({ skill, disabled, onToggle, usage }) {
   const usageMeta =
     usage === undefined
@@ -941,21 +942,23 @@ function SkillRow({ skill, disabled, onToggle, usage }) {
           strings.usageLast(formatTime(usage.lastUsedAt)),
           usage.lastSource === 'model' ? strings.usageSourceModel() : strings.usageSourceUser(),
         ].join(' · ')
-  const meta = [
-    isProjectSource(skill.source) ? strings.sourceProject(skill.source) : strings.sourceGlobal(skill.source),
-    skill.cataloged === false ? strings.notCataloged() : null,
-    usageMeta,
-  ]
-    .filter((item) => item !== null)
-    .join(' · ')
+  const sourceText = isProjectSource(skill.source)
+    ? strings.sourceProject(skill.source)
+    : strings.sourceGlobal(skill.source)
   return createElement(
     'div',
     { className: `dsh-my-skill-manager-row${disabled ? ' dsh-my-skill-manager-row-disabled' : ''}` },
     createElement(
       'div',
       { className: 'dsh-my-skill-manager-row-head' },
-      createElement('span', { className: 'dsh-my-skill-manager-name' }, skill.name),
-      createElement(StateChip, { disabled }),
+      createElement('span', { className: 'dsh-my-skill-manager-name', title: skill.name }, skill.name),
+      skill.cataloged === false
+        ? createElement(
+            'span',
+            { className: 'dsh-my-skill-manager-chip-warn', title: strings.notCatalogedHint() },
+            strings.notCataloged(),
+          )
+        : null,
       createElement(Switch, {
         checked: !disabled,
         label: `${skill.name}: ${disabled ? strings.disabled() : strings.enabled()}`,
@@ -963,25 +966,8 @@ function SkillRow({ skill, disabled, onToggle, usage }) {
       }),
     ),
     createElement('div', { className: 'dsh-my-skill-manager-desc' }, skill.description),
-    meta !== ''
-      ? createElement(
-          'div',
-          {
-            className: 'dsh-my-skill-manager-row-meta',
-            title: skill.cataloged === false ? strings.notCatalogedHint() : undefined,
-          },
-          meta,
-        )
-      : null,
-  )
-}
-
-/** State chip: text + color double encoding (enabled = success, disabled = neutral). */
-function StateChip({ disabled }) {
-  return createElement(
-    'span',
-    { className: `dsh-my-skill-manager-chip${disabled ? '' : ' dsh-my-skill-manager-chip-on'}` },
-    disabled ? strings.disabled() : strings.enabled(),
+    createElement('div', { className: 'dsh-my-skill-manager-row-source' }, sourceText),
+    createElement('div', { className: 'dsh-my-skill-manager-row-meta' }, usageMeta),
   )
 }
 
