@@ -198,6 +198,27 @@ const icon = {
       ],
       size,
     ),
+  // 下载（issue #85 新增）：箭头入托盘，图表导出按钮（dsh-mermaid-render
+  // 卡片下载 PNG/SVG），stroke=currentColor 风格与其余图标一致。
+  download: (size = 16) =>
+    iconSvg(
+      [
+        createElement('path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+        createElement('polyline', { points: '7 10 12 15 17 10' }),
+        createElement('line', { x1: 12, y1: 15, x2: 12, y2: 3 }),
+      ],
+      size,
+    ),
+  // 复制（issue #85 新增）：双层矩形，复制源码按钮（dsh-mermaid-render
+  // 卡片复制代码），stroke=currentColor 风格与其余图标一致。
+  copy: (size = 16) =>
+    iconSvg(
+      [
+        createElement('rect', { x: 9, y: 9, width: 13, height: 13, rx: 2 }),
+        createElement('path', { d: 'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1' }),
+      ],
+      size,
+    ),
 }
 
 // Common-language / file-type badges (issue #24): brand fill + contrast
@@ -406,10 +427,23 @@ const thinkIcon = ({ size = 14, className }) =>
     }),
   )
 
+// ── 控制标签剥离（issue #1xx：思考/回答中的 xml 风格标签原样显示）─────
+// 模型输出里会出现 xml 风格的控制/分段标签（`<review>`/`</review>`、
+// `<think>`/`</think>`、`<answer>`/`</answer>`）：它们不属于 markdown，
+// MarkdownView 会原样渲染成裸文本，看起来像"无效标签"。渲染前剥离
+// 标签本身、保留内部内容（不丢模型生成的内容）。
+const CONTROL_TAG_RE = /<\s*\/?\s*(?:think|review|answer)\s*>/gi
+
+function stripControlTags(text) {
+  if (typeof text !== 'string' || text === '') return text
+  return text.replace(CONTROL_TAG_RE, '')
+}
+
 // ── 思考块：默认展开，可点击收起，流式中强制展开 ───────────────────
 // 结构对齐官方 ReasoningRow（DisclosureRow）：leading（展开态 chevron /
 // 收起态 Think 图标 + chevron）+ 标题 + separator + 摘要 + thinkBody。
 function ThinkBlock({ text, running }) {
+  const cleanText = stripControlTags(text)
   const [expanded, setExpanded] = useState(true)
   const open = expanded || running
   const firstLine = (t) => {
@@ -418,8 +452,7 @@ function ThinkBlock({ text, running }) {
   }
   return createElement(
     'div',
-    { className: 'dsh-think-zh-expand-think', 'data-variant': 'think', 'data-state': running ? 'running' : 'ok' },
-    createElement(
+    { className: 'dsh-think-zh-expand-think', 'data-variant': 'think', 'data-state': running ? 'running' : 'ok' },    createElement(
       'div',
       {
         className: 'dsh-think-zh-expand-think-head',
@@ -461,14 +494,19 @@ function ThinkBlock({ text, running }) {
       createElement('span', { className: 'dsh-think-zh-expand-think-title' }, '思考'),
       !open && [
         createElement('span', { className: 'dsh-think-zh-expand-think-separator', 'aria-hidden': 'true' }),
-        createElement('span', { className: 'dsh-think-zh-expand-think-summary' }, firstLine(text)),
+        createElement('span', { className: 'dsh-think-zh-expand-think-summary' }, firstLine(cleanText)),
       ],
     ),
     // 思考内容也走统一 Markdown 渲染（dsh-md-render 的 MarkdownView：
     // 代码块 / mermaid / 表格 / 列表 / 标题 / 公式等），否则思考里出现
-    // 的 markdown 会以原始语法文本显示。
+    // 的 markdown 会以原始语法文本显示。渲染前剥离 thinking/review 等
+    // 模型控制标签（否则 `<review>`、`</review>` 以裸文本出现）。
     open &&
-      createElement('div', { className: 'dsh-think-zh-expand-think-body' }, createElement(MarkdownView, { text })),
+      createElement(
+        'div',
+        { className: 'dsh-think-zh-expand-think-body' },
+        createElement(MarkdownView, { text: cleanText }),
+      ),
   )
 }
 
@@ -487,7 +525,7 @@ function imageGroupEnd(blocks, i) {
 function renderBlock(blocks, i, streaming, last, renderMessageImages) {
   const block = blocks[i]
   if (block.kind === 'text' && typeof block.text === 'string') {
-    return createElement(MarkdownView, { key: 't' + i, text: block.text })
+    return createElement(MarkdownView, { key: 't' + i, text: stripControlTags(block.text) })
   }
   if (block.kind === 'reasoning' && typeof block.text === 'string') {
     return createElement(ThinkBlock, {

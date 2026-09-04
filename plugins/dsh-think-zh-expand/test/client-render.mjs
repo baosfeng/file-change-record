@@ -605,6 +605,38 @@ try {
     're-expanded after second click',
   )
 
+  // ── 控制标签剥离回归 ────────────────────────────────────────────────
+  // 模型输出中的 xml 风格控制标签（<review>/</review>、<think>、
+  // <answer>）不得以裸文本出现在正文/思考里：标签剥离、内部内容保留。
+  const stripped1 = renderText('执行发版 <review>目标 0.1.4</review> 完成')
+  assert.ok(
+    !stripped1.texts.some((t) => t.includes('<review>') || t.includes('</review>')),
+    'review tags stripped from text blocks',
+  )
+  assert.ok(
+    stripped1.texts.some((t) => t.includes('目标 0.1.4')),
+    'review inner content preserved',
+  )
+  const strippedThink = collectTexts(
+    capturedRenderer2({
+      node: {
+        data: {
+          blocks: [{ kind: 'reasoning', text: '</review>\n<review>执行 md-render 0.1.4 发版。\n<review></think>' }],
+        },
+      },
+    }),
+  )
+  assert.ok(
+    !strippedThink.some(
+      (t) => t.includes('<review>') || t.includes('</review>') || t.includes('</think>') || t.includes('<think>'),
+    ),
+    'control tags stripped from reasoning blocks',
+  )
+  assert.ok(
+    strippedThink.some((t) => t.includes('执行 md-render 0.1.4 发版。')),
+    'reasoning content preserved',
+  )
+
   // 16. 前缀统一回归：bundle 不再包含旧 tzx-* 本插件类名；共享图标已拼接
   assert.ok(!bundleSrc.includes("'tzx-think"), 'legacy tzx-think class prefix removed from bundle')
   assert.ok(!bundleSrc.includes("'tzx-assistant"), 'legacy tzx-assistant class prefix removed from bundle')
