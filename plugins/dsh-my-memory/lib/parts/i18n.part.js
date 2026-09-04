@@ -76,4 +76,39 @@ const strings = {
   sortOldest: () => (isZh() ? '最旧优先' : 'Oldest first'),
   expand: () => (isZh() ? '展开' : 'Expand'),
   collapse: () => (isZh() ? '收起' : 'Collapse'),
+  // ── issue #78 渐进式索引记忆：待确认候选 + 元数据展示 ──
+  candidatesSection: () => (isZh() ? '自动学习候选（待确认）' : 'Auto-learned candidates (pending)'),
+  candidatesNote: () =>
+    isZh()
+      ? '会话结束后自动从对话提取的记忆候选（autoLearn 开启时）。确认后写入记忆（同主题自动提升置信度），拒绝则丢弃——记忆绝不静默变更'
+      : 'Memory candidates auto-extracted from conversations (when autoLearn is on). Confirm to store them (same themes gain confidence), dismiss to drop — memories never change silently',
+  candidatesEmpty: () => (isZh() ? '暂无待确认候选' : 'No pending candidates'),
+  confirmCandidate: () => (isZh() ? '确认写入' : 'Confirm'),
+  dismissCandidate: () => (isZh() ? '拒弃' : 'Dismiss'),
+  candidateSource: (sessionId) =>
+    isZh()
+      ? `来源会话：${sessionId === '' ? '(无)' : sessionId}`
+      : `Source session: ${sessionId === '' ? '(none)' : sessionId}`,
+  candidateScopeBadge: (scope) =>
+    isZh() ? (scope === 'project' ? '项目候选' : '全局候选') : scope === 'project' ? 'Project' : 'Global',
+  categoryLabel: (category) =>
+    ({
+      preference: isZh() ? '偏好' : 'Preference',
+      fact: isZh() ? '事实' : 'Fact',
+      project: isZh() ? '项目' : 'Project',
+      stack: isZh() ? '技术栈' : 'Stack',
+      workflow: isZh() ? '工作流' : 'Workflow',
+    })[category] ?? (isZh() ? '事实' : 'Fact'),
+  confidenceLabel: (n) => (isZh() ? `置信度 ${n}` : `Confidence ${n}`),
+  statusConflict: () => (isZh() ? '待处理矛盾' : 'Conflict'),
+  historyLabel: () => (isZh() ? '演进历史' : 'History'),
+  historyEntry: (action) =>
+    isZh()
+      ? action === 'reinforce'
+        ? '多次出现，置信度提升'
+        : action === 'conflict'
+          ? '内容更新（可能矛盾）'
+          : '新增'
+      : action,
+  noHistory: () => (isZh() ? '暂无演进历史' : 'No history yet'),
 }

@@ -15,7 +15,7 @@ function mergeScope(data, scope, value) {
 }
 
 /** Data actions bound to the state setters; error: null | 'load' | 'save'. */
-function createActions({ setData, setLoading, setError, setSaved }) {
+function createActions({ setData, setLoading, setError, setSaved, setCandidates, setCandidateBusy }) {
   const applyValue = (value) => {
     setData(value)
     setLoading(false)
@@ -31,8 +31,59 @@ function createActions({ setData, setLoading, setError, setSaved }) {
         setError('load')
       })
   }
+  const loadCandidates = () => {
+    fetchCandidates()
+      .then((items) => setCandidates(items))
+      .catch(() => setCandidates([]))
+  }
   const run = (cwd) => refreshWith(fetchAll, cwd)
-  return { load: run, refresh: run }
+  const refreshCandidates = () => {
+    setCandidateBusy(false)
+    loadCandidates()
+  }
+  return { load: run, refresh: run, loadCandidates, refreshCandidates }
+}
+
+/** 候选确认 / 拒弃处理器（issue #78）：写入或丢弃都要用户显式动作
+ *  （服务端强制 confirmed 标记），操作成功后刷新候选列表与分区数据。 */
+function createCandidateHandlers({ candidateBusy, setCandidateBusy, setSaved, setError, actions, pathInput }) {
+  const busy = () => {
+    if (candidateBusy) return true
+    setCandidateBusy(true)
+    return false
+  }
+  const settle = () => setCandidateBusy(false)
+  const refreshScope = (value, pathInput) => {
+    actions.loadCandidates()
+    if (value?.scope === 'project' && value?.cwd !== '') actions.load(value.cwd)
+    else actions.refresh(pathInput)
+  }
+  const onConfirmCandidate = (id) => {
+    if (busy()) return
+    confirmCandidate(id)
+      .then((value) => {
+        settle()
+        setSaved(true)
+        refreshScope(value, pathInput)
+      })
+      .catch(() => {
+        settle()
+        setError('save')
+      })
+  }
+  const onDismissCandidate = (id) => {
+    if (busy()) return
+    dismissCandidate(id)
+      .then(() => {
+        settle()
+        actions.loadCandidates()
+      })
+      .catch(() => {
+        settle()
+        setError('save')
+      })
+  }
+  return { onConfirmCandidate, onDismissCandidate }
 }
 
 function MemoryView() {
@@ -47,7 +98,9 @@ function MemoryView() {
   const [expanded, setExpanded] = useState(() => new Set())
   const [sortOrder, setSortOrder] = useState({ global: 'desc', project: 'desc' })
   const [entryLimit, setEntryLimit] = useState(DEFAULT_ENTRY_LIMIT)
-  const actions = createActions({ setData, setLoading, setError, setSaved })
+  const [candidates, setCandidates] = useState([])
+  const [candidateBusy, setCandidateBusy] = useState(false)
+  const actions = createActions({ setData, setLoading, setError, setSaved, setCandidates, setCandidateBusy })
 
   useEffect(() => {
     // 面板打开即拉取服务端精简引导配置（issue #105；失败回落默认值），
@@ -56,10 +109,71 @@ function MemoryView() {
       .then((value) => setEntryLimit(value.maxEntryLength))
       .catch(() => {})
     fetchSessionCwd(currentSessionId()).then((cwd) => actions.load(cwd))
+    actions.loadCandidates()
   }, [])
 
   const commit = createCommitHandler({ data, setData, setSaved, setError, setDrafts, setEditing, setConfirming })
+  const { onConfirmCandidate, onDismissCandidate } = createCandidateHandlers({
+    candidateBusy,
+    setCandidateBusy,
+    setSaved,
+    setError,
+    actions,
+    pathInput,
+  })
+  return renderRoot({
+    data,
+    loading,
+    error,
+    pathInput,
+    saved,
+    drafts,
+    editing,
+    confirming,
+    expanded,
+    sortOrder,
+    entryLimit,
+    candidates,
+    candidateBusy,
+    actions,
+    setDrafts,
+    setEditing,
+    setExpanded,
+    setSortOrder,
+    setConfirming,
+    setPathInput,
+    commit,
+    onConfirmCandidate,
+    onDismissCandidate,
+  })
+}
 
+/** 根视图渲染（保持 MemoryView 简洁；全部状态经 props 传入）。 */
+function renderRoot({
+  data,
+  loading,
+  error,
+  pathInput,
+  saved,
+  drafts,
+  editing,
+  confirming,
+  expanded,
+  sortOrder,
+  entryLimit,
+  candidates,
+  candidateBusy,
+  actions,
+  setDrafts,
+  setEditing,
+  setExpanded,
+  setSortOrder,
+  setConfirming,
+  setPathInput,
+  commit,
+  onConfirmCandidate,
+  onDismissCandidate,
+}) {
   return createElement(
     'div',
     { className: 'dsh-my-memory-root' },
@@ -83,6 +197,8 @@ function MemoryView() {
             expanded,
             sortOrder,
             entryLimit,
+            candidates,
+            candidateBusy,
             onDraft: (scope, value) => setDrafts({ ...drafts, [scope]: value }),
             onEdit: (scope, id, desc) => setEditing({ scope, id, desc }),
             onEditDesc: (value) => setEditing({ ...editing, desc: value }),
@@ -98,6 +214,8 @@ function MemoryView() {
               }),
             onSort: (scope) => setSortOrder((prev) => ({ ...prev, [scope]: prev[scope] === 'desc' ? 'asc' : 'desc' })),
             onCommit: commit,
+            onConfirmCandidate,
+            onDismissCandidate,
           }),
   )
 }
@@ -143,41 +261,8 @@ function createCommitHandler({ data, setData, setSaved, setError, setDrafts, set
   }
 }
 
-/** Path input + load/refresh buttons + consent note. */
-function Toolbar({ pathInput, onInput, onLoad, onRefresh }) {
-  return createElement(
-    'div',
-    { className: 'dsh-my-memory-toolbar' },
-    createElement(
-      'div',
-      { className: 'dsh-my-memory-pathbar' },
-      createElement('input', {
-        className: 'dsh-my-memory-path-input',
-        placeholder: strings.projectHint(),
-        value: pathInput,
-        onChange: (event) => onInput(event.target.value),
-        onKeyDown: (event) => {
-          if (event.key === 'Enter') onLoad(pathInput)
-        },
-      }),
-      createElement(
-        'button',
-        { className: 'dsh-my-memory-btn', 'aria-label': strings.loadProject(), onClick: () => onLoad(pathInput) },
-        icon.folder(14),
-        strings.loadProject(),
-      ),
-      createElement(
-        'button',
-        { className: 'dsh-my-memory-btn', 'aria-label': strings.refresh(), onClick: () => onRefresh(pathInput) },
-        icon.refresh(14),
-        strings.refresh(),
-      ),
-    ),
-    createElement('div', { className: 'dsh-my-memory-note' }, strings.confirmHint()),
-  )
-}
-
-/** The two scopes side by side: global (default) + project (accented). */
+/** The two scopes side by side (global default + project accented), plus the
+ *  pending auto-learned candidates block (issue #78). */
 function Sections({
   data,
   saved,
@@ -187,6 +272,8 @@ function Sections({
   expanded,
   sortOrder,
   entryLimit,
+  candidates,
+  candidateBusy,
   onDraft,
   onEdit,
   onEditDesc,
@@ -196,6 +283,8 @@ function Sections({
   onToggle,
   onSort,
   onCommit,
+  onConfirmCandidate,
+  onDismissCandidate,
 }) {
   const blockProps = {
     drafts,
@@ -230,6 +319,12 @@ function Sections({
       note: strings.projectNote(),
       data: data.project,
       ...blockProps,
+    }),
+    createElement(CandidatesBlock, {
+      candidates,
+      busy: candidateBusy,
+      onConfirmCandidate,
+      onDismissCandidate,
     }),
     saved
       ? createElement('div', { className: 'dsh-my-memory-status dsh-my-memory-saved' }, icon.check(14), strings.saved())

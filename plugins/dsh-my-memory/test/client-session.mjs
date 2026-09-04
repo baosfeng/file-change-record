@@ -174,11 +174,13 @@ const projectValue = {
 // 初始挂载的 fetch 顺序（与 view.part.js 的 useEffect 一致）：
 // 1. GET /my-memory/api/config → { maxEntryLength }（issue #105 精简引导）
 // 2. GET /my-memory/api/session?sessionId=s1 → { cwd: '/work/proj' }
-// 3. GET /my-memory/api/memory?scope=global → globalValue
-// 4. GET /my-memory/api/memory?scope=project&cwd=%2Fwork%2Fproj → projectValue
+// 3. GET /my-memory/api/candidates → []（issue #78 待确认候选）
+// 4. GET /my-memory/api/memory?scope=global → globalValue
+// 5. GET /my-memory/api/memory?scope=project&cwd=%2Fwork%2Fproj → projectValue
 cannedResponses.push(
   { ok: true, value: { maxEntryLength: 50 } },
   { ok: true, value: { cwd: '/work/proj' } },
+  { ok: true, value: { items: [] } },
   globalValue,
   projectValue,
 )
