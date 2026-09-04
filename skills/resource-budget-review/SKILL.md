@@ -59,3 +59,29 @@ description: Use when 开发或修改任何持续运行逻辑（持久化/事件
 ## 无工具兜底
 
 没有 profiler 时用系统工具实测：macOS `sample -p <pid> 5`（CPU 栈）、`iostat -d 1`（磁盘吞吐）、`ps -o pid,rss,vsz -p <pid>`（内存）、`lsof -p <pid> | grep REG`（打开文件与偏移）。
+
+## 自动降级（9/2 复盘缺口 3 的对策，issue #127）
+
+**只监控告警不动作 = 事故仍要等人手动介入**。持续运行逻辑必须设计降级路径：
+
+```
+周期采样（15s：cpuUsage / memoryUsage / 文件字节）
+  → 纯函数判定（连续 ≥3 次关键阈值超限才降级，防抖动）
+  → 降级动作（按影响从小到大选）：
+      L1 提高持久化节流间隔（写盘次数减少）
+      L2 停止事件落盘（内存有界，恢复时全量快照补齐）
+      L3 事件降采样（只保留状态/流事件）
+  → 连续 ≥3 次正常 → 恢复（全量快照补齐降级窗口）
+```
+
+要求：判定是纯函数（可单测）；降级中内存/文件仍有界；恢复全量快照一次（内存=真相）；阈值可配置。样例实现：`plugins/dsh-my-observability/lib/resource-monitor.js` + `resource-rules.js`（shouldEnterDegrade/shouldExitDegrade + setPersistEnabled）。
+
+## CI 资源冒烟（9/2 复盘缺口 2 的对策，issue #127）
+
+发版前必须有资源回归门禁：`scripts/resource-smoke.mjs`（CI `resource-smoke` job）模拟长会话高频事件流，断言写放大 ≤1.6 / 内存有界 / 降级触发与恢复。新插件接入：在冒烟脚本或自身测试中加入「写放大复现测试」（先 RED 后 GREEN）。
+
+## 参考
+
+- 插件资源安全规范（文档细则）：`docs/开发指南/插件资源安全规范.md`
+- 事故复盘与高频插件热点清单：#126 根因、各插件写模式分级见 `docs/踩坑/插件资源占用事故复盘.md`
+- dsh-shared 原语：`plugins/dsh-shared/lib/jsonl.js`（增量 append）、`plugins/dsh-shared/lib/persist.js`（快照 + 护栏）——事件流型禁止用快照原语。
