@@ -2,6 +2,14 @@
 
 本文件记录 dsh-file-activity 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.5.6] - 2026-09-04
+
+### 变更
+
+- chore(release): dsh-file-activity v0.5.6（#111 浮窗预览 + 验证清单）
+- fix(file-activity): #111 HTML 预览内容撑满浮窗 (#116)
+- docs: #106 安装命令统一加 --trust-lockfile (#113)
+
 ## [0.5.5] - 2026-09-02
 
 ### 变更
