@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-09-04
+
+### 变更
+
+- chore(release): dsh-my-plugin-manager v0.1.4（#90 详情页 + 验证清单）
+- feat(plugin-manager): #90 插件详情页（README/版本历史/依赖） (#125)
+- docs: #106 安装命令统一加 --trust-lockfile (#113)
+
 ## [0.1.3] - 2026-09-01
 
 ### 变更
