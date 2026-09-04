@@ -2,6 +2,14 @@
 
 本文件记录 dsh-my-context 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.2] - 2026-09-04
+
+### 变更
+
+- chore(release): dsh-my-context v0.1.2（#87 溢出预警 + 验证清单）
+- feat(context): #87 上下文溢出预警 + 压缩建议 (#118)
+- docs: #106 安装命令统一加 --trust-lockfile (#113)
+
 ## [0.1.1] - 2026-09-01
 
 ### 变更
