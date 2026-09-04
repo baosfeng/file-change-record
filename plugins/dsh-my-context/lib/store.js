@@ -106,6 +106,9 @@ function applyRequest(session, request) {
   const cacheRead = numberOr(usage?.cacheReadTokens, 0)
   const cacheWrite = numberOr(usage?.cacheWriteTokens, 0)
   const composition = session.composition
+  // 当前上下文长度 = 最近一次请求的 prompt（含缓存命中部分）；
+  // 历史累计 usage 会把每轮重复的 cacheRead 累加，导致占用比例虚高。
+  session.lastPromptTokens = prompt
   session.requests.push({
     turn: numberOr(request.turn, 0),
     step: numberOr(request.step, 0),

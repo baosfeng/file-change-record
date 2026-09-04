@@ -76,6 +76,12 @@ function normalizeSession(sessionId, raw) {
   if (Array.isArray(raw.requests)) session.requests = raw.requests.slice(-MAX_REQUESTS_PER_SESSION)
   if (Array.isArray(raw.alerts)) session.alerts = raw.alerts.slice(-MAX_ALERTS_PER_SESSION)
   if (Array.isArray(raw.overflows)) session.overflows = raw.overflows.slice(-MAX_OVERFLOWS_PER_SESSION)
+  // 旧版本数据没有 lastPromptTokens：从最近一次请求快照回填（`prompt` 字段同上）。
+  copyNumber(session, raw, 'lastPromptTokens')
+  if (session.lastPromptTokens === 0) {
+    const last = session.requests[session.requests.length - 1]
+    if (last !== undefined && typeof last.prompt === 'number') session.lastPromptTokens = last.prompt
+  }
   return session
 }
 

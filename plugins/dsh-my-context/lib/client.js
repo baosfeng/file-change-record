@@ -190,8 +190,10 @@ function windowNote(session) {
 /** 概览卡片：累计 token + 缓存命中率 + 模型/上下文窗口。 */
 function OverviewCard({ session }) {
   const usage = session.usage || {}
-  const total =
-    (usage.inputTokens || 0) + (usage.outputTokens || 0) + (usage.cacheReadTokens || 0) + (usage.cacheWriteTokens || 0)
+  // 累计消耗 = 输入 + 输出（每次请求的新增 token）；
+  // cacheRead/cacheWrite 是缓存计价项，逐轮重复累加会虚高（曾把累计
+  // token 显示到窗口的多倍），因此不计入"累计"。
+  const total = (usage.inputTokens || 0) + (usage.outputTokens || 0)
   return createElement(
     'div',
     { className: 'dso-card' },
@@ -506,15 +508,19 @@ function ContextPanel(props) {
 
     // ── 上下文溢出预警（issue #87）────────────────────────────────────
 // 用量比例 + 分级预警（80/90/95%）进度条、压缩建议卡、预警记录列表、
-// 阈值配置。与 server lib/overflow.js 语义一致（比值口径 = usageTotal/
-// contextWindow）；client 无相对 import，分级逻辑在此本地复刻。
+// 阈值配置。与 server lib/overflow.js 语义一致（比值口径 = 当前上下文
+// 长度/contextWindow，其中"当前上下文长度"取最近一次请求的 prompt——
+// 历史累计 usage 含每轮重复的 cacheRead，会导致占用虚高数倍）；
+// client 无相对 import，分级逻辑在此本地复刻。
 
-/** 会话累计用量（usage 桶还原为完整 token 总量，与 server 一致）。 */
+/** 当前上下文长度（最近一次请求 prompt；旧数据回退最近请求快照）。 */
 function contextUsage(session) {
-  const usage = session.usage || {}
-  return (
-    (usage.inputTokens || 0) + (usage.outputTokens || 0) + (usage.cacheReadTokens || 0) + (usage.cacheWriteTokens || 0)
-  )
+  if (typeof session?.lastPromptTokens === 'number' && session.lastPromptTokens > 0) {
+    return session.lastPromptTokens
+  }
+  const requests = session?.requests || []
+  const last = requests[requests.length - 1]
+  return typeof last?.prompt === 'number' ? last.prompt : 0
 }
 
 /** 非负有限比例，夹到 [0,1]。 */

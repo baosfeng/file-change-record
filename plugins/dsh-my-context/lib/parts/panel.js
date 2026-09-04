@@ -71,8 +71,10 @@ function windowNote(session) {
 /** 概览卡片：累计 token + 缓存命中率 + 模型/上下文窗口。 */
 function OverviewCard({ session }) {
   const usage = session.usage || {}
-  const total =
-    (usage.inputTokens || 0) + (usage.outputTokens || 0) + (usage.cacheReadTokens || 0) + (usage.cacheWriteTokens || 0)
+  // 累计消耗 = 输入 + 输出（每次请求的新增 token）；
+  // cacheRead/cacheWrite 是缓存计价项，逐轮重复累加会虚高（曾把累计
+  // token 显示到窗口的多倍），因此不计入"累计"。
+  const total = (usage.inputTokens || 0) + (usage.outputTokens || 0)
   return createElement(
     'div',
     { className: 'dso-card' },

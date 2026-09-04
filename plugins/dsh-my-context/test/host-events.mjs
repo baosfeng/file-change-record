@@ -354,6 +354,38 @@ test('agent/pre-step: no overflow recorded when context window unknown', async (
   handle.disposeAll()
 })
 
+test('agent/pre-step: cumulative cacheRead never triggers overflow — only the current context length does', async () => {
+  const handle = boot({ warnThreshold: 0.8, alertThreshold: 0.9 })
+  await settle()
+  const { session, event } = sessionEvent('s-1', 'request/context', { contextWindow: 100 })
+  await dispatchEvent(handle.listeners, 'session/event', session, event)
+  // 多轮请求：累计 usage（含重复 cacheRead）远超窗口，但当前上下文
+  // 长度（最近一次 prompt）只占窗口 30% → 不得产生溢出预警（回归）。
+  for (const usage of [
+    { inputTokens: 30, cacheReadTokens: 0 },
+    { inputTokens: 20, cacheReadTokens: 10, cacheWriteTokens: 0 },
+  ]) {
+    const { session: s, event: e } = sessionEvent('s-1', 'assistant/message', {
+      turn: 1,
+      step: 1,
+      message: { content: [{ type: 'text', text: 'x' }] },
+      usage,
+    })
+    await dispatchEvent(handle.listeners, 'session/event', s, e)
+  }
+  await settle()
+  await dispatchEvent(handle.listeners, 'agent/pre-step', preStepPayload('s-1'), async () => ({
+    kind: 'enter',
+    messages: [],
+  }))
+  await settle()
+  const stats = await sessionStats(handle, 's-1')
+  assert.equal(stats.usage.cacheReadTokens, 10, 'cumulative cacheRead still recorded')
+  assert.equal(stats.lastPromptTokens, 30, 'context length = latest prompt (20+10)')
+  assert.equal(stats.overflows.length, 0, '30% context length must not warn despite huge cumulative usage')
+  handle.disposeAll()
+})
+
 test('isInjection: source classification', () => {
   assert.equal(isInjection(null), false)
   assert.equal(isInjection({ kind: 'user' }), false)

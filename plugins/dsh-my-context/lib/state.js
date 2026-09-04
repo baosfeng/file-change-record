@@ -36,6 +36,10 @@ export function createSession(sessionId) {
     usage: zeroUsage(),
     turnUsage: { turn: 0, ...zeroUsage() },
     composition: zeroComposition(),
+    // 最近一次请求的上下文长度（prompt = input + cacheRead + cacheWrite），
+    // 溢出预警/上下文占用以此为准——历史累计 usage 含每轮重复的 cacheRead，
+    // 不能作为"当前上下文占用"。
+    lastPromptTokens: 0,
     requests: [],
     header: { system: '', tools: [], systemTokens: 0, toolsTokens: 0 },
     alerts: [],

@@ -65,6 +65,28 @@ test('store: recordRequest accumulates usage and snapshots composition', async (
   assert.equal(request.total, 180)
   assert.equal(request.user, 10)
   assert.equal(request.assistant, 20)
+  assert.equal(session.lastPromptTokens, 150, 'lastPromptTokens = latest request prompt')
+  disposeAll()
+})
+
+test('store: lastPromptTokens tracks the latest request, not the cumulative total', async () => {
+  const { ctx, disposeAll } = boot({})
+  const store = createStore(ctx)
+  await settle()
+  // 多轮请求：cacheRead 每轮都很大且会重复累计（usage 口径），
+  // 但"当前上下文长度"必须等于最近一次请求的 prompt。
+  store.recordRequest('s-1', { turn: 1, step: 1, usage: { inputTokens: 100, cacheReadTokens: 900 } })
+  store.recordRequest('s-1', {
+    turn: 2,
+    step: 1,
+    usage: { inputTokens: 50, cacheReadTokens: 950, cacheWriteTokens: 5 },
+  })
+  await settle()
+  const session = store.session('s-1')
+  assert.equal(session.usage.inputTokens, 150, 'cumulative input still accumulates')
+  assert.equal(session.usage.cacheReadTokens, 1850, 'cumulative cacheRead still accumulates')
+  assert.equal(session.lastPromptTokens, 1005, 'context length = latest prompt (50+950+5)')
+  assert.equal(session.requests[session.requests.length - 1].prompt, 1005)
   disposeAll()
 })
 
@@ -188,6 +210,7 @@ test('store: persistence survives restart (recovery)', async () => {
   assert.equal(session.usage.inputTokens, 100)
   assert.equal(session.usage.cacheReadTokens, 30)
   assert.equal(session.requests.length, 1)
+  assert.equal(session.lastPromptTokens, 130, 'lastPromptTokens recovered after restart')
   assert.equal(session.alerts.length, 1)
   assert.equal(session.alerts[0].blocked, true)
   store2.dispose()

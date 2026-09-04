@@ -107,7 +107,9 @@ async function handlePreStep(payload, next, store, options, cooldown, overflowCo
 
 /** 溢出分级命中预警级别时记录预警事件（同一会话同一级别 60s 冷却）。 */
 function recordOverflowIfNeeded(store, session, options, cooldown) {
-  const outcome = overflowLevel(session.usage, session.contextWindow, options.overflow)
+  // 口径 = 当前上下文长度（最近一次请求 prompt），而非历史累计 usage：
+  // 累计 usage 中 cacheRead 每轮重复累加，会把占用虚高到数倍于窗口。
+  const outcome = overflowLevel(session.lastPromptTokens, session.contextWindow, options.overflow)
   if (!isOverflowing(outcome.level)) return
   const scope = `overflow:${outcome.level}`
   if (withinCooldown(cooldown, session.sessionId, scope)) return
