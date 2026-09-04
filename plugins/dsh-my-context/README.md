@@ -3,7 +3,7 @@
 [![插件生态](https://img.shields.io/badge/插件生态-topic%20dsh-4d6bfe)](https://github.com/topics/dsh)
 
 <div align="center">
-  <img alt="上下文透镜面板：概览卡片（累计 token / KV 缓存命中率）+ 上下文构成条 + 请求记录 + 预算告警 + 预算设置" src="https://unpkg.com/dsh-my-context/assets/context-panel.png" width="640" />
+  <img alt="上下文透镜面板：概览卡片（累计 token / KV 缓存命中率）+ 上下文占用进度条与溢出预警（严重 99.2% + 压缩建议卡）+ 上下文构成条 + 请求记录 + 预算告警 + 预算设置" src="https://unpkg.com/dsh-my-context/assets/context-panel.png" width="640" />
 </div>
 
 **DSH 上下文透镜 + 成本治理插件**：**上下文透镜**统计每次请求的 token 用量与上下文构成（system / tools / user / 注入 / assistant / 工具结果），KV 缓存命中率可视化，按会话隔离、重启后恢复；**成本治理**提供每轮 / 每会话 token 预算配置，超限提醒（warn）或拦截（deny）。
