@@ -4,6 +4,12 @@
 
 ![npm 版本](https://img.shields.io/badge/dsh--my--remote-v0.1.0-blue) ![DSH 插件](https://img.shields.io/badge/DSH%20Plugin-server--only-lightgrey) ![License](https://img.shields.io/badge/License-MIT-green)
 
+## 效果图
+
+真实运行画面（隔离 DSH 实例）：模型调用 `ask_user_question` 提问时，插件拦截并渲染「等待回答」卡片，同时事件帧下行到外部通道（webhook / 手机中转）。
+
+![远程回答 ask：GUI 等待回答卡片](assets/ask-push.png)
+
 ## 功能
 
 | 能力              | 说明                                                                                                                                                                              |
