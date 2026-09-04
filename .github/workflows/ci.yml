@@ -77,6 +77,29 @@ jobs:
       - name: Test ${{ matrix.plugin }} (unit tests + coverage gates)
         run: (cd "plugins/${{ matrix.plugin }}" && npm test)
 
+  # 质量门禁：资源冒烟（issue #127 插件资源占用防护）
+  # 长会话资源回归检查：模拟「高频工具调用 + 多子 agent + 数小时」的生产形态
+  # （补充 #126 长会话测试盲区），断言审计存储：
+  #   1. 写放大 ≤1.6（增量追加，不是每次全量重写——9/2 磁盘风暴根因）；
+  #   2. 内存有界（每会话/全局事件上限生效，不随事件数线性增长）；
+  #   3. 降级路径（资源看门狗：停落盘 → 恢复全量快照补齐，不丢不重）。
+  # 独立 job 与 test 并行，不拉长主流程墙钟。脚本：scripts/resource-smoke.mjs
+  resource-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install root toolchain (eslint, dependency-cruiser)
+        run: npm ci
+
+      - name: Resource smoke (long-session write amplification + degrade)
+        run: node scripts/resource-smoke.mjs
+
   # 质量门禁：变异测试（issue #13 试点：dsh-file-activity）
   # 本地实测 20s（90.91% 变异分 ≥ break 70）；独立 job 与测试并行
   mutation:
