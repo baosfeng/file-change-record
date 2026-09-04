@@ -1,9 +1,11 @@
 exports.inject = []
 
 exports.apply = function apply(ctx) {
-  // 增强功能开关（issue #84）：从插件配置读取全部开关（默认开）；缺省
-  // 或非法值保持默认，不覆盖 renderOptions。
-  setRenderOptions(pickRenderOptions(ctx && ctx.config))
+  // 增强功能开关（issue #84）：默认全开；真实配置异步经 GET /md/api/config
+  // 拉取应用（client 端不能访问 ctx.config——Cordis inject 限制，访问抛
+  // "cannot get property without inject"，导致 client failed to apply）。
+  setRenderOptions(pickRenderOptions())
+  initConfigFromServer()
 
   // Stylesheet first, unconditionally (see dsh-file-activity pitfall:
   // injecting styles behind a service early-return loses them on HMR).

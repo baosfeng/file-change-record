@@ -5,6 +5,12 @@
 <div align="center">
   <!-- 真实截图：非思考模式不标准表格渲染为表格（独立实例验证） -->
   <img alt="非思考模式 markdown 表格渲染增强（不标准表格渲染为表格）" src="./assets/md-table-render.png" width="480" />
+  <br />
+  <!-- 真实截图：公式结构渲染（issue #82，独立实例验证） -->
+  <img alt="公式结构渲染：分数 / 根号 / 上下标 / 求和 / 块级公式" src="./assets/math-frac.png" width="480" />
+  <br />
+  <!-- 真实截图：设置页增强开关（issue #84，独立实例验证） -->
+  <img alt="设置 → 插件 → 渲染：11 个增强功能开关（默认全开）" src="./assets/settings-tab.png" width="480" />
 </div>
 
 **DSH 对话统一 Markdown 渲染插件**（issue #31 渲染职责迁移）：提供统一 **MarkdownView** 组件（表格 / 公式 / 代码块容器），承接 dsh-think-zh-expand 迁出的渲染职责；并在 DOM 层做**表格渲染增强**——非思考模式下模型输出的 markdown 表格，包括**无首尾管道符、分隔行变体**等不标准格式，自动识别并渲染为**真正的表格**（表头 / 边框 / 对齐），宽表格支持**横向滚动**。
