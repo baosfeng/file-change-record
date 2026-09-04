@@ -115,7 +115,51 @@ test('apply registers the API route and declares the required injects', async ()
   assert.ok(getRoute(), '/my-memory/api route registered')
   assert.deepEqual(inject, ['systemPrompt', 'tools', 'webServer', 'webRuntime', 'sessions'], 'inject list intact')
   const disposers = ctx.effectCallbacks.filter((e) => typeof e.disposer === 'function')
-  assert.ok(disposers.length >= 4, 'store/section/tool/route effects return disposers')
+  assert.ok(disposers.length >= 5, 'store/section/query-tool/save-tool/route effects return disposers')
+})
+
+test('apply registers memory_save and its pre-execute user-consent gate (issue #107)', async () => {
+  const registered = []
+  const events = []
+  const home = mkdtempSync(join(tmpdir(), 'dmm-api-save-'))
+  homes.push(home)
+  process.env.DSH_HOME = home
+  const ctx = {
+    logger: { warn: () => {} },
+    webRuntime: { trustedHosts: [] },
+    systemPrompt: { section: () => () => {} },
+    tools: {
+      register: (tool) => {
+        registered.push(tool)
+        return () => {}
+      },
+    },
+    webServer: { register: () => () => {} },
+    events,
+    effectCallbacks: [],
+    on(name, listener) {
+      events.push({ name, listener })
+    },
+    effect(callback) {
+      callback()
+      return () => {}
+    },
+  }
+  apply(ctx)
+  const saveTool = registered.find((t) => t.name === 'memory_save')
+  assert.ok(saveTool, 'memory_save tool registered')
+  assert.deepEqual(saveTool.parameters.required, ['scope', 'desc'], 'scope+desc required')
+  const gateEvent = events.find((e) => e.name === 'tools/pre-execute')
+  assert.ok(gateEvent, 'tools/pre-execute listener registered')
+  // gate: memory_save → ask（触发原生审批）；其它工具 → 透传下游决策
+  const decision = { kind: 'allow' }
+  const ask = await gateEvent.listener(
+    { name: 'memory_save', arguments: { scope: 'global', desc: '偏好' } },
+    async () => decision,
+  )
+  assert.equal(ask.kind, 'ask', 'memory_save raises the approval gate')
+  const pass = await gateEvent.listener({ name: 'memory_query', arguments: { scope: 'global' } }, async () => decision)
+  assert.equal(pass, decision, 'other tools pass through')
 })
 
 test('API refuses requests outside the fence (403)', async () => {

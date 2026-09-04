@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `memory_save` 工具（issue #107）：agent 主动保存记忆（`scope`/`desc` 必填、`cwd` 可选），每次调用经 `tools/pre-execute` 确认门触发 DSH 原生审批（`{ kind: 'ask' }`），用户确认后才写入——记忆绝不静默变更；保存后 `memory_query` 立即可查、后续会话注入生效；`proactivePropose` 配置预留（默认关，#78 阶段）。
+- 测试：工具注册（schema 硬规则）/ 确认门（ask gate + 透传）/ 写入生效（save → query 联动）/ saveToolDescription 开关；Gherkin 场景 6-8。
+
 ## [0.1.2] - 2026-09-01
 
 ### 变更

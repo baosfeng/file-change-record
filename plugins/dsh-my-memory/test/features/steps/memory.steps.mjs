@@ -19,9 +19,12 @@ class World {
     this.apiHolder = captureRoute('/my-memory/api')
     this.sections = []
     this.tools = []
+    this.events = []
     this.lastResponse = null
     this.lastSectionText = ''
     this.lastToolValue = null
+    this.lastSaveValue = null
+    this.lastAsk = null
     this.boot()
   }
 
@@ -50,9 +53,11 @@ class World {
           return () => {}
         },
       },
-      events: [],
+      events: this.events,
       effectCallbacks: [],
-      on() {},
+      on(name, listener) {
+        this.events.push({ name, listener })
+      },
       effect(callback) {
         this.effectCallbacks.push({ callback })
         const disposer = callback()
@@ -82,6 +87,29 @@ class World {
 
   tool() {
     return this.tools.find((t) => t.name === 'memory_query')
+  }
+
+  saveTool() {
+    return this.tools.find((t) => t.name === 'memory_save')
+  }
+
+  gate() {
+    return this.events.find((e) => e.name === 'tools/pre-execute')?.listener
+  }
+
+  /** Run the pre-execute gate for one tool call; returns the gate decision. */
+  async runGate(name, args) {
+    if (this.gate() === undefined) return null
+    this.lastAsk = await this.gate()({ name, arguments: args ?? {} }, async () => ({ kind: 'allow' }))
+    return this.lastAsk
+  }
+
+  /** Execute a save tool call after approval; records the returned value. */
+  async callSave(args, exec) {
+    const tool = this.saveTool()
+    assert.ok(tool, 'memory_save tool registered')
+    this.lastSaveValue = await tool.execute(args, exec ?? {})
+    return this.lastSaveValue
   }
 
   async callTool(args, exec) {
@@ -292,6 +320,10 @@ Then('返回两条记忆', function () {
   assert.equal(this.lastToolValue.items.length, 2)
 })
 
+Then('返回一条记忆', function () {
+  assert.equal(this.lastToolValue.items.length, 1)
+})
+
 When('agent 以关键词 {string} 过滤查询', async function (keyword) {
   await this.callTool({ scope: 'global', keyword })
 })
@@ -317,4 +349,34 @@ Then('返回工作目录 {string}', function (cwd) {
 
 Then('返回空工作目录', function () {
   assert.equal(this.lastResponse.json.value.cwd, '')
+})
+
+// ── 场景 6-8：memory_save 工具（issue #107）────────────────────────────
+When('agent 调用 memory_save 保存全局记忆 {string}', async function (desc) {
+  await this.runGate('memory_save', { scope: 'global', desc })
+})
+
+Then('触发用户确认流程（ask 门）', function () {
+  assert.ok(this.lastAsk, 'gate answered')
+  assert.equal(this.lastAsk.kind, 'ask', 'memory_save raises a DSH native approval (ask)')
+  assert.ok(this.lastAsk.reason.includes('确认'), 'reason asks for user consent')
+})
+
+When('用户批准该保存', async function () {
+  await this.callSave({ scope: 'global', desc: '用户偏好用 pnpm' })
+})
+
+Then('memory_save 写入成功并返回条目 id', function () {
+  assert.ok(this.lastSaveValue, 'save returned a value')
+  assert.ok(this.lastSaveValue.item.id.startsWith('mem-'), 'returned item id')
+  assert.equal(this.lastSaveValue.item.desc, '用户偏好用 pnpm')
+})
+
+Then('该记忆内容为 {string}', function (desc) {
+  assert.equal(this.lastToolValue.items[0].desc, desc)
+})
+
+Then('查询不触发用户确认流程', async function () {
+  await this.runGate('memory_query', { scope: 'global' })
+  assert.equal(this.lastAsk.kind, 'allow', 'read-only tools do not raise an approval gate')
 })
