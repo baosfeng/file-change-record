@@ -8,7 +8,7 @@
 
 真实运行画面（隔离 DSH 实例）：模型调用 `ask_user_question` 提问时，插件拦截并渲染「等待回答」卡片，同时事件帧下行到外部通道（webhook / 手机中转）。
 
-![远程回答 ask：GUI 等待回答卡片](assets/ask-push.png)
+![远程回答 ask：GUI 等待回答卡片](./assets/ask-push.png)
 
 ## 功能
 
