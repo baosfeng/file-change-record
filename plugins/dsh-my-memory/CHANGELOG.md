@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-09-04
+
+### 变更
+
+- fix(memory): 面板修正——置信度 undefined 不渲染、错误 token 修复、徽标不重复 scope、层级弱化
+
 ## [0.1.3] - 2026-09-04
 
 ### 变更
