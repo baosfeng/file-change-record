@@ -2,6 +2,19 @@
 
 本文件记录 dsh-md-render 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.3] - 2026-09-04
+
+### 变更
+
+- fix(md-render): client 端移除 ctx.config 访问，配置改异步拉取（修复 Cordis inject 崩溃）
+- feat(md-render): #82 公式渲染增强（分数/根号/上下标/求和/希腊字母） (#138)
+- feat(md-render): #84 增强功能配置化（设置页开关 + 持久化 + 热生效） (#137)
+- feat(md-render): #81 Markdown 语法补全（任务列表/删除线/图片/嵌套列表） (#129)
+- feat(md-render): #80 代码块语法高亮 + 语言标签 + 行号 (#122)
+- docs: #106 安装命令统一加 --trust-lockfile (#113)
+- feat(dsh-md-render): #83 表格交互增强（表头排序 + 长表格折叠） (#103)
+- feat(md-render): #74 代码块与整段内容一键复制按钮 (#99)
+
 ## [0.1.2] - 2026-08-28
 
 ### 变更
