@@ -1,2 +1,11 @@
+#!/usr/bin/env bash
 # 本地一键全量校验：push 前对齐 CI 全部门禁（默认不含 audit/mutation，详见 scripts/verify-local.mjs）
+#
+# ⚠️ 必须先清理 git 钩子环境变量（issue #127 修复）：
+# git 在执行 pre-push 钩子时会设置 GIT_DIR / GIT_WORK_TREE 等变量，若不清除，
+# 钩子里启动的 verify-local（含各插件测试）继承后，测试中创建临时 git 仓库时
+# `git rev-parse` 会被 GIT_DIR 劫持指向本仓库 → 普通临时目录误判为 git 仓库、
+# `git config user.name` 报错，导致 host-git / host-mutation 等测试全部失败。
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_COMMON_DIR GIT_PREFIX 2>/dev/null || true
+
 node scripts/verify-local.mjs
