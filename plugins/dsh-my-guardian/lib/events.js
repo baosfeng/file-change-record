@@ -30,15 +30,20 @@ export function attachEventListeners(ctx, shared) {
 }
 
 /**
- * entry 可读标识：优先 entry.id（Entry 类 getter，含父级前缀；真实 DSH
- * loader 事件参数是 Entry 实例）。旧实现读 `entry?.options?.id`——Entry
- * 实例的 options.id 经常为空，导致日志全部显示 "entry ? initialized"。
+ * entry 可读标识——⚠️ 只读 options 字段，绝不访问 `entry.id` getter：
+ * loader 在 Entry **构造函数中** emit `loader/entry-init`，此时
+ * `parent.tree` 尚未就绪，访问 getter 会抛 "Cannot read properties of
+ * undefined (reading 'tree')" —— 这个异常发生在启动阶段，会让整个
+ * DSH 服务起不来（守护插件自己炸启动，实锤隔离实例复现）。
+ * （此前读 `entry?.options?.id` 安全但恒为空显示 '?'；本次改为
+ *  options.id → options.name → '?' 的回退，全部属性访问都可安全兜底。）
  */
 function entryLabelOf(entry) {
   if (entry === null || typeof entry !== 'object') return '?'
-  if (typeof entry.id === 'string' && entry.id !== '') return entry.id
-  if (entry.options !== null && typeof entry.options === 'object' && entry.options.id !== undefined) {
-    return String(entry.options.id)
+  const options = entry.options
+  if (options !== null && typeof options === 'object') {
+    if (options.id !== undefined && options.id !== null) return String(options.id)
+    if (typeof options.name === 'string' && options.name !== '') return options.name
   }
   return '?'
 }
