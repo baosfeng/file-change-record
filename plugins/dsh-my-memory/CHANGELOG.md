@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `memory_save` 工具（issue #107）：agent 主动保存记忆（`scope`/`desc` 必填、`cwd` 可选），每次调用经 `tools/pre-execute` 确认门触发 DSH 原生审批（`{ kind: 'ask' }`），用户确认后才写入——记忆绝不静默变更；保存后 `memory_query` 立即可查、后续会话注入生效；`proactivePropose` 配置预留（默认关，#78 阶段）。
 - 测试：工具注册（schema 硬规则）/ 确认门（ask gate + 透传）/ 写入生效（save → query 联动）/ saveToolDescription 开关；Gherkin 场景 6-8。
 
+### Changed
+
+- **项目记忆集中存储（issue #108）**：项目记忆从 `<项目根>/.dsh/memory.json` 迁移到 `$DSH_HOME/memory/projects/<项目 id>.json`（项目 id = 项目根路径 sha256 前 12 位），项目目录不再产生 `.dsh/`、数据统一备份/迁移；既有旧位置数据在首次访问该项目时自动迁移到新位置（复制 → 清理旧文件与空 `.dsh` 目录），记忆不丢失。
+- 测试：迁移逻辑单测（复制/清理/跳过）+ 首次访问自动迁移集成断言 + 真实性路径保存断言改写。
+
 ## [0.1.2] - 2026-09-01
 
 ### 变更
