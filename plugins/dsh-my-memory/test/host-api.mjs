@@ -6,10 +6,11 @@
  */
 import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { apply, inject } from '../lib/index.js'
+import { projectMemoryDir, projectIdOf, resolveProjectMemory } from '../lib/store.js'
 
 const dir = mkdtempSync(join(tmpdir(), 'dmm-api-test-'))
 process.env.DSH_HOME = dir
@@ -297,6 +298,39 @@ test('project scope: add/list/delete with a cwd, isolated from global', async ()
     `/my-memory/api/memory?scope=project&cwd=${encodeURIComponent(join(dir, 'other'))}`,
   )
   assert.equal(other.json.value.items.length, 0, 'project memory isolated per project')
+})
+
+test('legacy project memory is auto-migrated to the centralized location on first access (issue #108)', async () => {
+  const { getRoute } = await boot()
+  // 预置旧位置 <项目根>/.dsh/memory.json 数据（模拟升级前已存在的记忆）
+  const proj = join(dir, 'legacy-proj')
+  mkdirSync(join(proj, '.git'), { recursive: true })
+  mkdirSync(join(proj, '.dsh'), { recursive: true })
+  const legacyFile = join(proj, '.dsh', 'memory.json')
+  const legacyItems = [
+    { id: 'legacy-1', desc: '升级前项目约定', createdAt: 1, updatedAt: 2 },
+    { id: 'legacy-2', desc: '升级前技术栈决策', createdAt: 3, updatedAt: 4 },
+  ]
+  writeFileSync(legacyFile, JSON.stringify({ items: legacyItems }), 'utf8')
+  const resolved = await resolveProjectMemory(proj)
+
+  // 首次 GET 项目记忆 → 触发自动迁移
+  const list = await callRoute(getRoute, 'GET', `/my-memory/api/memory?scope=project&cwd=${encodeURIComponent(proj)}`)
+  assert.equal(list.status, 200)
+  assert.equal(list.json.value.items.length, 2, 'legacy items readable on first access')
+  assert.equal(list.json.value.projectRoot, proj, 'project root unchanged')
+
+  // 新位置文件包含旧数据（磁盘断言），旧文件已清理
+  const migratedFile = join(projectMemoryDir(), `${projectIdOf(proj)}.json`)
+  assert.equal(migratedFile, resolved.file, 'centralized file path')
+  assert.ok(existsSync(migratedFile), 'migrated file exists')
+  const onDisk = JSON.parse(readFileSync(migratedFile, 'utf8'))
+  assert.equal(onDisk.items.length, 2, 'legacy items persisted to the new file')
+  assert.ok(!existsSync(legacyFile), 'legacy file removed after migration')
+
+  // 再次访问不重复迁移、数据仍在
+  const again = await callRoute(getRoute, 'GET', `/my-memory/api/memory?scope=project&cwd=${encodeURIComponent(proj)}`)
+  assert.equal(again.json.value.items.length, 2, 'data survives a second access')
 })
 
 test('validation errors: bad scope, bad action, missing fields, unknown id', async () => {

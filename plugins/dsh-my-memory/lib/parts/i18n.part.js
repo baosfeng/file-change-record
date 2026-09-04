@@ -14,8 +14,8 @@ const strings = {
   projectSection: () => (isZh() ? '项目记忆' : 'Project memory'),
   projectHint: () =>
     isZh()
-      ? '输入项目根路径以查看 / 编辑该项目记忆（写入 <项目根>/.dsh/memory.json）'
-      : 'Enter a project root to view/edit its project memory (stored in <projectRoot>/.dsh/memory.json)',
+      ? '输入项目根路径以查看 / 编辑该项目记忆（存储于 $DSH_HOME/memory/projects/）'
+      : 'Enter a project root to view/edit its project memory (stored under $DSH_HOME/memory/projects/)',
   loadProject: () => (isZh() ? '加载' : 'Load'),
   refresh: () => (isZh() ? '刷新' : 'Refresh'),
   retry: () => (isZh() ? '重试' : 'Retry'),
@@ -48,8 +48,8 @@ const strings = {
       : 'Global memories are injected into the system prompt at session start; stored in $DSH_HOME/memory.json',
   projectNote: () =>
     isZh()
-      ? '项目记忆按项目隔离，仅该项目会话可见；存于 <项目根>/.dsh/memory.json'
-      : 'Project memories are scoped to this project only; stored in <projectRoot>/.dsh/memory.json',
+      ? '项目记忆按项目隔离，仅该项目会话可见；存于 $DSH_HOME/memory/projects/（按项目根路径哈希分文件）'
+      : 'Project memories are scoped to this project only; stored under $DSH_HOME/memory/projects/ (one file per project-root hash)',
   confirmHint: () =>
     isZh() ? '所有新增 / 修改 / 删除都需要你确认' : 'Every add / edit / delete needs your confirmation',
   updatedAt: (ts) => (isZh() ? `更新于 ${new Date(ts).toLocaleString()}` : `Updated ${new Date(ts).toLocaleString()}`),
