@@ -81,6 +81,10 @@ export const DESTRUCTIVE_PATTERNS = [
 /**
  * 提示注入检测规则（对用户消息文本匹配）。
  * 规则 + 启发式：每条规则 = id + 正则 + 严重度 + 消息。
+ *  - explain：规则一句话说明（面板展示，让用户理解为什么会告警）；
+ *  - discussable：是否为"上下文敏感"规则（如"越狱"两字出现在普通提问/
+ *    讨论里也会命中正则）。discussable = true 时，若整条消息是元讨论
+ *    （讨论/询问护栏、告警、规则本身）且无强令词，则豁免（防误报）。
  */
 export const INJECTION_RULES = [
   {
@@ -88,42 +92,56 @@ export const INJECTION_RULES = [
     re: /忽略(之前|以上|前面).{0,20}(指令|内容|要求|规则)|ignore\s+(all\s+)?previous\s+(instructions|prompts|messages)|disregard\s+(all\s+)?previous/i,
     severity: 'high',
     message: '忽略先前指令',
+    explain: '要求模型忽略此前的指令/系统提示，是典型的提示注入手法',
+    discussable: false,
   },
   {
     id: 'system-override',
     re: /你是(系统|管理员|root)|override\s+(the\s+)?system\s+prompt|system\s+prompt\s+override|你现在是(系统|管理员)/i,
     severity: 'high',
     message: '系统提示词覆盖',
+    explain: '声称自己是系统/管理员或要求覆盖系统提示词，试图改变模型的预设身份',
+    discussable: false,
   },
   {
     id: 'jailbreak',
     re: /\b(DAN|jailbreak|do\s+anything\s+now)\b|越狱/i,
     severity: 'high',
     message: '越狱尝试',
+    explain: '命中越狱关键词（DAN / jailbreak / 越狱）：要求模型突破内置约束',
+    discussable: true,
   },
   {
     id: 'role-escalation',
     re: /(扮演|假装|pretend|act\s+as).{0,30}(root|管理员|admin|系统|无限制|unrestricted)/i,
     severity: 'medium',
     message: '角色越权',
+    explain: '要求扮演高权限角色（root/管理员/无限制），脱离预设身份执行任务',
+    discussable: true,
   },
   {
     id: 'secret-exfil',
     re: /(发送|上传|泄露|外传|curl|post|upload).{0,30}(密钥|密码|token|secret|文件内容|\/etc\/passwd)|(\/etc\/passwd|密钥|密码|token|secret|文件内容).{0,30}(发送|上传|泄露|外传)/i,
     severity: 'high',
     message: '敏感信息外传',
+    explain: '指示模型发送/上传密钥、密码或敏感文件内容到外部',
+    discussable: true,
   },
   {
     id: 'encoding-obfuscation',
     re: /\b(base64|rot13|hex)\b.{0,20}(解码|decode|编码|encode)/i,
     severity: 'medium',
     message: '编码混淆指令',
+    explain: '要求对指令做 base64/hex 等编解码，常见于伪装注入载荷',
+    discussable: true,
   },
   {
     id: 'disable-safety',
     re: /(关闭|禁用|绕过|disable|bypass|turn\s+off).{0,20}(安全|审查|限制|safety|guardrails|restrictions)/i,
     severity: 'high',
     message: '禁用安全机制',
+    explain: '明确要求关闭/绕过安全审查或限制，属高危指令',
+    discussable: true,
   },
 ]
 

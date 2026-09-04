@@ -50,9 +50,8 @@ function alertTypeIcon(alert) {
   return icon.alert(15)
 }
 
-/** 单条告警行：类型图标 + 类型徽章 + 严重度徽章 + 时间 + 消息 + 详情 + 确认操作。
- *  已确认告警弱化显示（已处理=不再打扰），确认按钮带 check 图标与 aria-label。 */
-function AlertRow({ alert, onConfirm }) {
+/** 告警 meta 行：命令/文件/规则 id + 会话短标识。 */
+function AlertMeta({ alert }) {
   const detail = alert.detail || {}
   const meta =
     detail.command !== undefined
@@ -60,8 +59,32 @@ function AlertRow({ alert, onConfirm }) {
       : detail.file !== undefined
         ? `${strings.file()} ${detail.file}`
         : detail.rule !== undefined
-          ? `${strings.rule()} ${detail.rule}`
+          ? `${strings.rule()} ${detail.rule}${alert.sessionId ? ' · ' + strings.sessionShort(shortSessionId(alert.sessionId)) : ''}`
           : ''
+  return meta !== '' ? createElement('div', { className: 'dsh-my-guard-alert-meta' }, meta) : null
+}
+
+/** 告警详情行：规则说明 + 命中原文（可读性）。 */
+function AlertDetails({ alert }) {
+  const detail = alert.detail || {}
+  return createElement(
+    'div',
+    null,
+    createElement(AlertMeta, { alert }),
+    typeof detail.explain === 'string' && detail.explain !== ''
+      ? createElement('div', { className: 'dsh-my-guard-alert-explain' }, detail.explain)
+      : null,
+    typeof detail.snippet === 'string' && detail.snippet !== ''
+      ? createElement('div', { className: 'dsh-my-guard-alert-snippet' }, `${strings.hitSnippet()}：${detail.snippet}`)
+      : null,
+  )
+}
+
+/** 单条告警行：类型图标 + 类型徽章 + 严重度徽章 + 时间 + 消息 + 详情 + 确认操作。
+ *  已确认告警弱化显示（已处理=不再打扰），确认按钮带 check 图标与 aria-label。
+ *  提示注入告警补：规则说明（explain）+ 命中原文（snippet）+ 会话 id +
+ *  「如为误报可确认」提示——之前只显示"规则 <id>"，用户看不懂告警含义。 */
+function AlertRow({ alert, onConfirm }) {
   const kind = alertKind(alert)
   return createElement(
     'div',
@@ -79,22 +102,36 @@ function AlertRow({ alert, onConfirm }) {
       createElement('span', { className: 'dsh-my-guard-time' }, timeText(alert.time)),
     ),
     createElement('div', { className: 'dsh-my-guard-alert-msg' }, alert.message),
-    meta !== '' ? createElement('div', { className: 'dsh-my-guard-alert-meta' }, meta) : null,
+    createElement(AlertDetails, { alert }),
     alert.confirmed
       ? confirmedBadge()
       : createElement(
-          'button',
-          {
-            type: 'button',
-            className: 'dsh-my-guard-btn dsh-my-guard-btn-confirm',
-            'aria-label': strings.confirmAria(),
-            title: strings.confirm(),
-            onClick: () => onConfirm(alert.id),
-          },
-          icon.check(14),
-          createElement('span', null, strings.confirm()),
+          'div',
+          { className: 'dsh-my-guard-alert-actions' },
+          createElement(
+            'div',
+            { className: 'dsh-my-guard-alert-hint' },
+            alert.type === 'injection' ? strings.falsePositiveHint() : '',
+          ),
+          createElement(
+            'button',
+            {
+              type: 'button',
+              className: 'dsh-my-guard-btn dsh-my-guard-btn-confirm',
+              'aria-label': strings.confirmAria(),
+              title: strings.confirm(),
+              onClick: () => onConfirm(alert.id),
+            },
+            icon.check(14),
+            createElement('span', null, strings.confirm()),
+          ),
         ),
   )
+}
+
+/** 会话 id 短显示（UUID 取前 8 位）。 */
+function shortSessionId(sessionId) {
+  return typeof sessionId === 'string' && sessionId.length > 8 ? sessionId.slice(0, 8) + '…' : sessionId || ''
 }
 
 /** 拉取告警列表。 */

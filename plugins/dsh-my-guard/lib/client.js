@@ -78,6 +78,13 @@ const strings = {
   checkHits: (count) => (isZh() ? `命中 ${count} 条规则` : `${count} rule(s) hit`),
   file: () => (isZh() ? '文件' : 'file'),
   rule: () => (isZh() ? '规则' : 'rule'),
+  // ── 告警可读性（issue #1xx：让用户看懂告警）──────────────────────────
+  sessionShort: (id) => (isZh() ? `会话 ${id}` : `session ${id}`),
+  hitSnippet: () => (isZh() ? '命中原文' : 'Matched text'),
+  falsePositiveHint: () =>
+    isZh()
+      ? '如为误报：点击「确认」标记为已处理，该告警将弱化显示'
+      : 'If this is a false positive, click "Confirm" to mark it as handled (it will be dimmed)',
   noTarget: () => (isZh() ? '请输入包名或路径' : 'Enter a package name or path'),
   noText: () => (isZh() ? '请输入要检测的文本' : 'Enter text to check'),
   modeLabel: () => (isZh() ? '护栏模式' : 'Guard mode'),
@@ -495,9 +502,8 @@ function alertTypeIcon(alert) {
   return icon.alert(15)
 }
 
-/** 单条告警行：类型图标 + 类型徽章 + 严重度徽章 + 时间 + 消息 + 详情 + 确认操作。
- *  已确认告警弱化显示（已处理=不再打扰），确认按钮带 check 图标与 aria-label。 */
-function AlertRow({ alert, onConfirm }) {
+/** 告警 meta 行：命令/文件/规则 id + 会话短标识。 */
+function AlertMeta({ alert }) {
   const detail = alert.detail || {}
   const meta =
     detail.command !== undefined
@@ -505,8 +511,32 @@ function AlertRow({ alert, onConfirm }) {
       : detail.file !== undefined
         ? `${strings.file()} ${detail.file}`
         : detail.rule !== undefined
-          ? `${strings.rule()} ${detail.rule}`
+          ? `${strings.rule()} ${detail.rule}${alert.sessionId ? ' · ' + strings.sessionShort(shortSessionId(alert.sessionId)) : ''}`
           : ''
+  return meta !== '' ? createElement('div', { className: 'dsh-my-guard-alert-meta' }, meta) : null
+}
+
+/** 告警详情行：规则说明 + 命中原文（可读性）。 */
+function AlertDetails({ alert }) {
+  const detail = alert.detail || {}
+  return createElement(
+    'div',
+    null,
+    createElement(AlertMeta, { alert }),
+    typeof detail.explain === 'string' && detail.explain !== ''
+      ? createElement('div', { className: 'dsh-my-guard-alert-explain' }, detail.explain)
+      : null,
+    typeof detail.snippet === 'string' && detail.snippet !== ''
+      ? createElement('div', { className: 'dsh-my-guard-alert-snippet' }, `${strings.hitSnippet()}：${detail.snippet}`)
+      : null,
+  )
+}
+
+/** 单条告警行：类型图标 + 类型徽章 + 严重度徽章 + 时间 + 消息 + 详情 + 确认操作。
+ *  已确认告警弱化显示（已处理=不再打扰），确认按钮带 check 图标与 aria-label。
+ *  提示注入告警补：规则说明（explain）+ 命中原文（snippet）+ 会话 id +
+ *  「如为误报可确认」提示——之前只显示"规则 <id>"，用户看不懂告警含义。 */
+function AlertRow({ alert, onConfirm }) {
   const kind = alertKind(alert)
   return createElement(
     'div',
@@ -524,22 +554,36 @@ function AlertRow({ alert, onConfirm }) {
       createElement('span', { className: 'dsh-my-guard-time' }, timeText(alert.time)),
     ),
     createElement('div', { className: 'dsh-my-guard-alert-msg' }, alert.message),
-    meta !== '' ? createElement('div', { className: 'dsh-my-guard-alert-meta' }, meta) : null,
+    createElement(AlertDetails, { alert }),
     alert.confirmed
       ? confirmedBadge()
       : createElement(
-          'button',
-          {
-            type: 'button',
-            className: 'dsh-my-guard-btn dsh-my-guard-btn-confirm',
-            'aria-label': strings.confirmAria(),
-            title: strings.confirm(),
-            onClick: () => onConfirm(alert.id),
-          },
-          icon.check(14),
-          createElement('span', null, strings.confirm()),
+          'div',
+          { className: 'dsh-my-guard-alert-actions' },
+          createElement(
+            'div',
+            { className: 'dsh-my-guard-alert-hint' },
+            alert.type === 'injection' ? strings.falsePositiveHint() : '',
+          ),
+          createElement(
+            'button',
+            {
+              type: 'button',
+              className: 'dsh-my-guard-btn dsh-my-guard-btn-confirm',
+              'aria-label': strings.confirmAria(),
+              title: strings.confirm(),
+              onClick: () => onConfirm(alert.id),
+            },
+            icon.check(14),
+            createElement('span', null, strings.confirm()),
+          ),
         ),
   )
+}
+
+/** 会话 id 短显示（UUID 取前 8 位）。 */
+function shortSessionId(sessionId) {
+  return typeof sessionId === 'string' && sessionId.length > 8 ? sessionId.slice(0, 8) + '…' : sessionId || ''
 }
 
 /** 拉取告警列表。 */
@@ -1199,6 +1243,11 @@ const STYLES = `
 .dsh-my-guard-time{flex:none;margin-left:auto;font:var(--dsw-font-xxxs-11);color:var(--dsw-alias-label-tertiary);white-space:nowrap}
 .dsh-my-guard-alert-msg{font:var(--dsw-font-xxs-strong-12);color:var(--dsw-alias-label-primary);line-height:1.5;margin-top:4px;word-break:break-word}
 .dsh-my-guard-alert-meta{font:var(--dsw-font-mono-xxs);font-size:11px;color:var(--dsw-alias-label-secondary);line-height:1.5;margin-top:2px;word-break:break-all}
+.dsh-my-guard-alert-explain{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary);line-height:1.5;margin-top:2px;word-break:break-word}
+.dsh-my-guard-alert-snippet{font:var(--dsw-font-mono-xxs);font-size:11px;color:var(--dsw-alias-label-tertiary);line-height:1.5;margin-top:2px;word-break:break-all}
+.dsh-my-guard-alert-hint{font:var(--dsw-font-xxxs-11);color:var(--dsw-alias-label-dimmed);line-height:1.5;margin-top:2px}
+.dsh-my-guard-alert-actions{display:flex;align-items:flex-end;justify-content:space-between;gap:6px;margin-top:4px}
+.dsh-my-guard-alert-actions>.dsh-my-guard-alert-hint{flex:1;min-width:0;margin-top:0}
 .dsh-my-guard-alert-confirmed{display:flex;align-items:center;gap:4px;font:var(--dsw-font-xxxs-strong-11);color:var(--dsw-alias-state-success-primary);margin-top:4px}
 .dsh-my-guard-alert-confirmed svg{display:block;flex:none}
 /* ── 按钮（图标 + 文字，hover/active/disabled 过渡）── */
@@ -1211,7 +1260,7 @@ const STYLES = `
 .dsh-my-guard-btn:disabled{opacity:.4;cursor:default}
 .dsh-my-guard-btn-primary{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-interactive-primary);
   background:color-mix(in srgb, var(--dsw-alias-interactive-primary) 16%, transparent)}
-.dsh-my-guard-btn-confirm{margin-top:4px;padding:2px 10px;font:var(--dsw-font-xxxs-strong-11)}
+.dsh-my-guard-btn-confirm{padding:2px 10px;font:var(--dsw-font-xxxs-strong-11)}
 /* ── 状态区：loading / 空 / 错误 ── */
 .dsh-my-guard-state{display:flex;align-items:center;gap:6px;padding:8px 6px;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary)}
 .dsh-my-guard-state svg{flex:none;animation:dsh-my-guard-spin 1s linear infinite}

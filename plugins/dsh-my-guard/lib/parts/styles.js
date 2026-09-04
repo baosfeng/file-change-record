@@ -32,6 +32,11 @@ const STYLES = `
 .dsh-my-guard-time{flex:none;margin-left:auto;font:var(--dsw-font-xxxs-11);color:var(--dsw-alias-label-tertiary);white-space:nowrap}
 .dsh-my-guard-alert-msg{font:var(--dsw-font-xxs-strong-12);color:var(--dsw-alias-label-primary);line-height:1.5;margin-top:4px;word-break:break-word}
 .dsh-my-guard-alert-meta{font:var(--dsw-font-mono-xxs);font-size:11px;color:var(--dsw-alias-label-secondary);line-height:1.5;margin-top:2px;word-break:break-all}
+.dsh-my-guard-alert-explain{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-secondary);line-height:1.5;margin-top:2px;word-break:break-word}
+.dsh-my-guard-alert-snippet{font:var(--dsw-font-mono-xxs);font-size:11px;color:var(--dsw-alias-label-tertiary);line-height:1.5;margin-top:2px;word-break:break-all}
+.dsh-my-guard-alert-hint{font:var(--dsw-font-xxxs-11);color:var(--dsw-alias-label-dimmed);line-height:1.5;margin-top:2px}
+.dsh-my-guard-alert-actions{display:flex;align-items:flex-end;justify-content:space-between;gap:6px;margin-top:4px}
+.dsh-my-guard-alert-actions>.dsh-my-guard-alert-hint{flex:1;min-width:0;margin-top:0}
 .dsh-my-guard-alert-confirmed{display:flex;align-items:center;gap:4px;font:var(--dsw-font-xxxs-strong-11);color:var(--dsw-alias-state-success-primary);margin-top:4px}
 .dsh-my-guard-alert-confirmed svg{display:block;flex:none}
 /* ── 按钮（图标 + 文字，hover/active/disabled 过渡）── */
@@ -44,7 +49,7 @@ const STYLES = `
 .dsh-my-guard-btn:disabled{opacity:.4;cursor:default}
 .dsh-my-guard-btn-primary{color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-interactive-primary);
   background:color-mix(in srgb, var(--dsw-alias-interactive-primary) 16%, transparent)}
-.dsh-my-guard-btn-confirm{margin-top:4px;padding:2px 10px;font:var(--dsw-font-xxxs-strong-11)}
+.dsh-my-guard-btn-confirm{padding:2px 10px;font:var(--dsw-font-xxxs-strong-11)}
 /* ── 状态区：loading / 空 / 错误 ── */
 .dsh-my-guard-state{display:flex;align-items:center;gap:6px;padding:8px 6px;font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary)}
 .dsh-my-guard-state svg{flex:none;animation:dsh-my-guard-spin 1s linear infinite}

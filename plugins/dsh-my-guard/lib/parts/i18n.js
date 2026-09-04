@@ -49,6 +49,13 @@ const strings = {
   checkHits: (count) => (isZh() ? `命中 ${count} 条规则` : `${count} rule(s) hit`),
   file: () => (isZh() ? '文件' : 'file'),
   rule: () => (isZh() ? '规则' : 'rule'),
+  // ── 告警可读性（issue #1xx：让用户看懂告警）──────────────────────────
+  sessionShort: (id) => (isZh() ? `会话 ${id}` : `session ${id}`),
+  hitSnippet: () => (isZh() ? '命中原文' : 'Matched text'),
+  falsePositiveHint: () =>
+    isZh()
+      ? '如为误报：点击「确认」标记为已处理，该告警将弱化显示'
+      : 'If this is a false positive, click "Confirm" to mark it as handled (it will be dimmed)',
   noTarget: () => (isZh() ? '请输入包名或路径' : 'Enter a package name or path'),
   noText: () => (isZh() ? '请输入要检测的文本' : 'Enter text to check'),
   modeLabel: () => (isZh() ? '护栏模式' : 'Guard mode'),
