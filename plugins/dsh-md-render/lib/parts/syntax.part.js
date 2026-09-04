@@ -43,7 +43,12 @@ function mathSpanOrText(m, text, kk) {
   // issue #84：mathStructures 关闭 → 公式语法保持原文（不渲染公式结构）。
   if (!renderOptions.mathStructures) return m[7]
   if (isMathSpan(text, m)) {
-    return createElement('span', { key: kk, className: 'dsh-md-render-math' }, m[7].slice(1, -1))
+    const content = m[7].slice(1, -1)
+    const parsed = parseMath(content)
+    // issue #82：轻量结构解析成功 → 渲染嵌套结构；解析失败 → 保持原文
+    // （不误伤，与 R14 错误标记逻辑兼容——此处仅处理合法公式内容）。
+    const kids = parsed.failed ? [content] : mathNodesToReact(parsed.nodes)
+    return createElement('span', { key: kk, className: 'dsh-md-render-math' }, ...kids)
   }
   if (isMathError(m)) {
     return createElement(

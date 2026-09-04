@@ -250,11 +250,7 @@ function tryMathEnabled(lines, i, out) {
   const single = lines[i].match(/^\$\$([^$]*)\$\$\s*$/)
   if (single) {
     const content = single[1].trim()
-    out.push(
-      content === ''
-        ? mathErrorEl(out, MATH_ERROR_TITLES.empty, lines[i].trim())
-        : createElement('div', { key: 'b' + out.length, className: 'dsh-md-render-math-block' }, content),
-    )
+    out.push(content === '' ? mathErrorEl(out, MATH_ERROR_TITLES.empty, lines[i].trim()) : mathBlockEl(out, content))
     return i + 1
   }
   if (!/^\$\$\s*$/.test(lines[i])) return 0
@@ -268,12 +264,15 @@ function tryMathEnabled(lines, i, out) {
   i += 1
   const content = buf.join('\n').trim()
   const err = !closed ? MATH_ERROR_TITLES.unclosed : content === '' ? MATH_ERROR_TITLES.empty : null
-  out.push(
-    err
-      ? mathErrorEl(out, err, !closed ? '$$\n' + buf.join('\n') : '$$\n$$')
-      : createElement('div', { key: 'b' + out.length, className: 'dsh-md-render-math-block' }, content),
-  )
+  out.push(err ? mathErrorEl(out, err, !closed ? '$$\n' + buf.join('\n') : '$$\n$$') : mathBlockEl(out, content))
   return i
+}
+
+/** 块级公式内容：轻量结构解析成功 → 嵌套结构；失败 → 保持原文（issue #82）。 */
+function mathBlockEl(out, content) {
+  const parsed = parseMath(content)
+  const kids = parsed.failed ? [content] : mathNodesToReact(parsed.nodes)
+  return createElement('div', { key: 'b' + out.length, className: 'dsh-md-render-math-block' }, ...kids)
 }
 
 function tryParagraph(lines, i, out) {

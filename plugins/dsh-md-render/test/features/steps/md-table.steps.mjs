@@ -230,6 +230,10 @@ class World {
     let mathSpans = 0
     let mathErrorSpans = 0
     let mathErrorBlocks = 0
+    let mathFracs = 0
+    let mathSqrts = 0
+    let mathSupsubs = 0
+    let mathBigs = 0
     let copyButtons = 0
     let tokenSpans = 0
     let langLabels = 0
@@ -250,6 +254,11 @@ class World {
         if (node.type === 'div' && props.className === 'md-code-block') mdCodeBlockWrappers += 1
         if (node.type === 'code' && typeof props.className === 'string') codeLangs.push(props.className)
         if (node.type === 'span' && props.className === 'dsh-md-render-math') mathSpans += 1
+        // issue #82：公式结构计数（分数/根号/上下标/大符号）。
+        if (node.type === 'span' && props.className === 'dsh-md-render-frac') mathFracs += 1
+        if (node.type === 'span' && props.className === 'dsh-md-render-sqrt') mathSqrts += 1
+        if (node.type === 'span' && props.className === 'dsh-md-render-supsub') mathSupsubs += 1
+        if (node.type === 'span' && props.className === 'dsh-md-render-big') mathBigs += 1
         if (node.type === 'span' && props.className === 'dsh-md-render-math-error') mathErrorSpans += 1
         if (node.type === 'div' && props.className === 'dsh-md-render-math-error') mathErrorBlocks += 1
         if (
@@ -289,6 +298,10 @@ class World {
       mathSpans,
       mathErrorSpans,
       mathErrorBlocks,
+      mathFracs,
+      mathSqrts,
+      mathSupsubs,
+      mathBigs,
       copyButtons,
       tokenSpans,
       langLabels,
@@ -465,6 +478,30 @@ When('渲染含行内公式的文本块', async function () {
   this.renderMarkdown('公式 $x^2 + y^2$ 测试')
 })
 
+When('渲染含分数命令的文本块', async function () {
+  this.renderMarkdown('公式 $\\frac{a}{b}$ 与 $\\frac{x+1}{y-1}$')
+})
+
+When('渲染含根号命令的文本块', async function () {
+  this.renderMarkdown('公式 $\\sqrt{x}$ 与 $\\sqrt{a+b}$')
+})
+
+When('渲染含上下标命令的文本块', async function () {
+  this.renderMarkdown('公式 $x^2 + x_i + x_i^2$')
+})
+
+When('渲染含求和命令的文本块', async function () {
+  this.renderMarkdown('公式 $\\sum_{i=1}^{n} i$ 与 $\\int_0^1 x dx$')
+})
+
+When('渲染含希腊字母命令的文本块', async function () {
+  this.renderMarkdown('公式 $\\alpha + \\beta$ 与 $\\omega$')
+})
+
+When('渲染含无法解析公式的文本块', async function () {
+  this.renderMarkdown('公式 $\\frac{a}{b$ 测试')
+})
+
 When('渲染含未闭合公式的文本块', async function () {
   this.renderMarkdown('公式 $x^2 测试')
 })
@@ -544,7 +581,46 @@ Then('代码块保留语言标记', async function () {
 
 Then('输出包含公式元素', async function () {
   assert.equal(this.lastMarkdown.mathSpans, 1, 'inline math span rendered')
-  assert.ok(this.lastMarkdown.texts.includes('x^2 + y^2'), 'math content kept')
+  // issue #82：x^2 渲染为上标结构（文本递归收集拼接保留内容）。
+  assert.ok(this.lastMarkdown.texts.join('').includes('x2 + y2'), 'math content kept (flattened)')
+})
+
+Then('输出包含分数结构', async function () {
+  assert.ok(this.lastMarkdown.mathFracs >= 1, 'frac structure rendered')
+  assert.ok(this.lastMarkdown.texts.join('').includes('a'), 'frac numerator content kept')
+  assert.ok(this.lastMarkdown.texts.join('').includes('b'), 'frac denominator content kept')
+})
+
+Then('输出包含根号结构', async function () {
+  assert.ok(this.lastMarkdown.mathSqrts >= 1, 'sqrt structure rendered')
+  assert.ok(this.lastMarkdown.texts.includes('√'), 'sqrt symbol rendered')
+})
+
+Then('输出包含上下标结构', async function () {
+  assert.ok(this.lastMarkdown.mathSupsubs >= 3, 'sup/sub structures rendered')
+  assert.ok(this.lastMarkdown.texts.join('').includes('x2'), 'superscript content kept')
+  assert.ok(this.lastMarkdown.texts.join('').includes('xi'), 'subscript content kept')
+})
+
+Then('输出包含大符号结构', async function () {
+  assert.ok(this.lastMarkdown.mathBigs >= 2, 'sum/int big structures rendered')
+  assert.ok(this.lastMarkdown.texts.includes('∑'), 'sum symbol rendered')
+  assert.ok(this.lastMarkdown.texts.includes('∫'), 'integral symbol rendered')
+})
+
+Then('输出包含希腊字母符号', async function () {
+  const flat = this.lastMarkdown.texts.join('')
+  assert.ok(flat.includes('α'), 'alpha symbol rendered')
+  assert.ok(flat.includes('β'), 'beta symbol rendered')
+  assert.ok(flat.includes('ω'), 'omega symbol rendered')
+})
+
+Then('输出不包含分数结构', async function () {
+  assert.equal(this.lastMarkdown.mathFracs, 0, 'no frac structure for unparseable math')
+})
+
+Then('无法解析的公式原文保留', async function () {
+  assert.ok(this.lastMarkdown.texts.join('').includes('\\frac{a}{b'), 'unparseable formula keeps original text')
 })
 
 Then('输出包含公式错误标记', async function () {

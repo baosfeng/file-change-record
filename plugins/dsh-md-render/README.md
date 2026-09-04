@@ -13,6 +13,7 @@
 
 - **统一 MarkdownView**（供 dsh-think-zh-expand 跨插件调用）：代码块 / 标题 / 列表 / 引用 / 表格（含对齐）/ **公式** / 粗体 / 斜体 / 行内代码 / 链接；代码块保持 `div.md-code-block` 容器结构（dsh-mermaid-render 无需改动即可扫描）。
 - **公式渲染**（自实现零依赖）：行内 `$...$` 渲染为公式样式（货币 `$5` / 变量 `a$b` / 块级 `$$` 保护），块级 `$$...$$` 渲染为居中公式块。
+- **公式结构渲染**（issue #82）：常见数学结构自动排版——**分数** `\frac{a}{b}`（上下结构 + 分数线）、**根号** `\sqrt{x}`、**上下标** `x^2` / `x_i`、**求和/积分** `\sum` / `\int`（带上下限）、**希腊字母** `\alpha` 等命令转符号；自实现轻量 LaTeX 子集解析器（零依赖，不引 KaTeX/MathJax），输出语义化嵌套结构（`dsh-md-render-frac` / `-sqrt` / `-supsub` / `-big`），样式走 DSH 语义 token、深浅主题自适应；**无法解析的公式保持原文**（不误伤、不报错）；受 `mathStructures` 配置开关门控（关闭时退回轻量渲染）。
 - **公式错误提示**：公式内容异常（未闭合 `$`、空公式、内容以空白开头、块级未闭合/空）时渲染为错误标记（`span.dsh-md-render-math-error` / `div.dsh-md-render-math-error`），显示原文 + 错误样式（DSH 语义 token `--dsw-alias-state-error-primary`），不破坏整体布局；货币 `$5` / 变量 `a$b` / 块级 `$$` 保护不误报。
 - **不标准表格也能渲染**：增强表格检测——表头/数据行只需含 `|` 且 ≥2 列（允许无首尾管道符），分隔行支持 `--- | ---`、`-|-|-`、`---` 等变体；模型输出的"半成品"表格不再以纯文本段落展示。
 - **对齐标记**：`:---` 左对齐、`:---:` 居中、`---:` 右对齐，逐列生效。
@@ -32,6 +33,7 @@
 
 - **统一 MarkdownView**（`lib/parts/markdown.part.js`）：从 dsh-think-zh-expand 迁移的轻量 Markdown 渲染管线（`mdInline` + 块级 `tryXxx`），输出结构保持迁移前约定（`div.tzx-md` / `p.tzx-p` / `table.tzx-table` / `div.md-code-block`）；新增行内/块级公式渲染；`exports.MarkdownView` 供 think-zh-expand 跨 bundle require。
 - **复制按钮**（`lib/parts/copy.part.js`）：MarkdownView 在每个 `div.md-code-block` 头部（与语言标签同排，issue #80）与 `div.tzx-md` 容器右下角渲染 `button.dsh-md-render-copy`；点击时从 DOM 取文本——代码块取 `code` 元素文本、内容块递归收集纯文本并跳过按钮文案；`navigator.clipboard.writeText` 优先、失败回退 `document.execCommand('copy')`（textarea 中转）；流式渲染中由 CSS（`[data-streaming] .dsh-md-render-copy{display:none}`）隐藏。
+- **公式结构解析器**（`lib/parts/math.part.js` + `math-symbols.part.js` + `math-render.part.js`，issue #82）：轻量 LaTeX 子集自实现（tokenize `\命令` / `{组}` / `^` `_` + 递归下降）——`\frac{a}{b}` → `span.dsh-md-render-frac`（num/den 上下 + 分数线）、`\sqrt{x}` → `-sqrt`（√ + 顶部根号线）、`x^2` / `x_i` → `-supsub`（base + 上下标）、`\sum_{i=1}^{n}` / `\int_0^1` → `-big`（∑/∫ + 上下限）、`\alpha` 等命令 → Unicode 符号；**回退**：结构命令参数不完整（`\frac{a}{b`）→ 整个公式保持原文（不报错、不误伤），未知命令当文本保留；受 `mathStructures` 开关门控（#84），关闭时公式结构不渲染（退回轻量样式/原文）。
 - **代码块增强**（`lib/parts/highlight.part.js` tokenizer + `codeblock.part.js` 渲染，issue #80）：tokenizer 为纯函数单遍扫描，按语言规则拆分 token 输出 `<span class="dsh-md-render-tok-*">`；`div.md-code-block` 内新增头部 `div.dsh-md-render-code-head`（语言名 + 复制按钮），`code` 内按行输出 `div.dsh-md-render-code-line`（行号经 CSS counter `::before` 显示，不进入文本内容）；未知语言/超长代码块（>500 行）跳过高亮；行号开关 `config.lineNumbers` 经 `apply(ctx)` 读取，`setRenderOptions` 可编程切换。
 - **DOM 层表格增强**（`lib/parts/detect|render|scanner.part.js`）：扫描 `[data-conversation-scroll]` 内的 `div.tzx-md`（MarkdownView 输出）与 `div.md-table-wide`（内置 MarkdownText 的宽表格容器）容器；对容器内以纯文本段落（`p.tzx-p`）形式存在的表格文本，用增强检测规则解析（表头 + 分隔行 + 数据行 + 对齐），将段落替换为 `div.dsh-md-render-table-scroll > table.dsh-md-render-table`（thead/tbody/逐列对齐）；单元格内的 `**bold**` / `` `code` `` / `*em*` / `[link]` 行内格式重新渲染。
 - **构建**（`scripts/build.mjs`）：把 `lib/parts/*.part.js` 片段拼接进 `lib/client.src.js` 模板，生成 `lib/client.js`（DSH 实际服务的单一 `__ModuleLoader__` bundle）。
@@ -63,7 +65,7 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-md-render
 | dsh-think-zh-expand | 0.4.2 |
 ```
 
-上面的表格（无首尾管道符）会自动渲染为带表头、边框、对齐的表格；列数 ≥4 的宽表格支持横向滚动。行内公式 `$x^2$` 与块级公式 `$$E=mc^2$$` 以公式样式显示。
+上面的表格（无首尾管道符）会自动渲染为带表头、边框、对齐的表格；列数 ≥4 的宽表格支持横向滚动。行内公式 `$x^2$` 渲染为上标结构，`$\frac{a}{b}$`、`$\sqrt{x}$`、`$\sum_{i=1}^{n} i$`、`$\alpha \beta$` 等常见数学结构自动排版；块级公式 `$$E=mc^2$$` 居中显示。
 
 ## 开发
 
@@ -81,7 +83,7 @@ npm test
 
 - 表格必须能从段落文本中识别（含 `|` 分隔且 ≥2 列 + 分隔行）；纯空格分隔的"表格"无法识别（不是标准 markdown 表格）。
 - 单元格行内格式（`**bold**` 等）在段落被替换时重新渲染；若原段落已渲染过行内格式（标准表格场景），不重复处理。
-- 公式为轻量渲染（等宽斜体样式），非完整数学排版（不引 katex，零依赖约束）；异常公式（未闭合 `$` / 空公式 / 内容以空白开头 / 块级未闭合或空）以错误标记显示原文，不静默吞掉。
+- 公式结构渲染覆盖高频结构（分数/根号/上下标/求和积分/希腊字母/常见符号），非完整 LaTeX 排版（不引 KaTeX，零依赖约束）；**无法解析的公式（结构命令参数不完整）保持原文显示**（不误伤、不报错）；异常公式（未闭合 `$` / 空公式 / 内容以空白开头 / 块级未闭合或空）以错误标记显示原文，不静默吞掉。
 
 ## 配置
 

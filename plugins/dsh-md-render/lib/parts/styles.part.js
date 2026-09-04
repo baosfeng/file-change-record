@@ -28,6 +28,26 @@ const STYLES = `
 .dsh-md-render-math-error{display:inline-flex;align-items:center;gap:4px;font:var(--dsw-font-markdown-code-block-small);font-style:italic;color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);border-radius:4px;padding:0 4px}
 .dsh-md-render-math-error svg{display:block;flex:none}
 div.dsh-md-render-math-error{margin:0;text-align:center;justify-content:center;padding:4px 8px}
+/* ── 公式结构（issue #82）：分数 / 根号 / 上下标 / 求和积分、希腊字母 ──
+   自实现轻量 LaTeX 子集（零依赖）：frac(a,b) 上下结构 + 分数线、
+   sqrt(x) 根号符号 + 顶部根号线、x^2 / x_i 上下标、sum / int 符号 +
+   上下限；flex 布局走语义 token（currentColor 继承，深浅主题自适应）。
+   无法解析的公式命令回退原文（不误伤，见 math.part.js / syntax.part.js）。 */
+.dsh-md-render-math,.dsh-md-render-math-block{white-space:normal}
+.dsh-md-render-math .dsh-md-render-frac,.dsh-md-render-math .dsh-md-render-sqrt,.dsh-md-render-math .dsh-md-render-supsub,.dsh-md-render-math .dsh-md-render-big,.dsh-md-render-math .dsh-md-render-seq,.dsh-md-render-math-block .dsh-md-render-frac,.dsh-md-render-math-block .dsh-md-render-sqrt,.dsh-md-render-math-block .dsh-md-render-supsub,.dsh-md-render-math-block .dsh-md-render-big,.dsh-md-render-math-block .dsh-md-render-seq{display:inline;font-style:italic;white-space:nowrap}
+.dsh-md-render-frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 2px;line-height:1.25}
+.dsh-md-render-frac-num{padding:1px 4px 0}
+.dsh-md-render-frac-den{border-top:1px solid currentColor;padding:0 4px 1px}
+.dsh-md-render-sqrt{display:inline-flex;align-items:center;vertical-align:middle;margin:0 2px}
+.dsh-md-render-sqrt-symbol{font-size:1.2em;line-height:1;padding-right:1px}
+.dsh-md-render-sqrt-body{display:inline-flex;flex-direction:column;justify-content:center;border-top:1px solid currentColor;padding:1px 2px 0}
+.dsh-md-render-supsub{display:inline-flex;align-items:flex-start;vertical-align:middle;margin:0 1px}
+.dsh-md-render-supsub-base{line-height:1.3}
+.dsh-md-render-supsub-scripts{display:inline-flex;flex-direction:column;align-items:flex-start;font-size:.7em;line-height:1.05;margin-left:1px}
+.dsh-md-render-big{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 2px;line-height:1.1}
+.dsh-md-render-big-limits{display:flex;flex-direction:column;align-items:center;font-size:.7em;line-height:1.05}
+.dsh-md-render-big-symbol{font-size:1.5em;line-height:1}
+.dsh-md-render-seq{display:inline}
 .dsh-md-render-table-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;margin:0;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:var(--dsw-alias-bg-layer-1);transition:border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
 .dsh-md-render-table-scroll:hover{border-color:var(--dsw-alias-border-l2)}
 .dsh-md-render-table{border-collapse:collapse;width:max-content;max-width:max-content;font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary)}

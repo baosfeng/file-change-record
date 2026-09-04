@@ -52,6 +52,11 @@ window.__ModuleLoader__.load({
     // ── 代码块增强（issue #80）：语言标签 + 复制按钮头部 + 行号 ─────
     /*__PART_CODEBLOCK__*/
 
+    // ── 公式结构（issue #82）：命令符号表 / 轻量解析器 / 结构渲染 ────
+    /*__PART_MATH_SYMBOLS__*/
+    /*__PART_MATH__*/
+    /*__PART_MATH_RENDER__*/
+
     // ── 语法补全（issue #81）：图片 / 任务列表 / 行内元素构造 / 列表解析 ──
     /*__PART_SYNTAX__*/
 
