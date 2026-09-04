@@ -21,6 +21,7 @@ import {
   topAgent,
   dispatchEvent,
 } from './lib/helpers.mjs'
+import { createStore } from '../lib/store.js'
 
 const disposeAlls = []
 afterAll(() => {
@@ -247,6 +248,52 @@ test('store: 旧格式迁移在 dispose 前完成（migrated 兜底）', async (
     const events = await eventsOf(second.api, '?sessionId=m2')
     assert.equal(events.length, 2, '旧事件 + 新回放事件均恢复')
     second.disposeAll()
+  } finally {
+    cleanupHome(home)
+  }
+})
+
+test('store: setPersistEnabled 降级停落盘 / 恢复全量快照补齐（资源看门狗，issue #127）', async () => {
+  const home = createTempHome()
+  try {
+    const oldHome = process.env.DSH_HOME
+    process.env.DSH_HOME = home
+    const store = createStore({ logger: { warn() {} } })
+    const countLines = () =>
+      readFileSync(jsonlFile(home), 'utf8')
+        .split('\n')
+        .filter((l) => l !== '').length
+    const recordN = (n, tag) => {
+      for (let i = 0; i < n; i += 1) {
+        store.record({ sessionId: 'g1', type: 'agent_status', data: { status: `${tag}-${i}` } })
+      }
+    }
+
+    await sleep(400) // 等待 loadPersisted 完成
+    // 正常阶段：50 事件落盘
+    recordN(50, 'normal')
+    await sleep(900) // flush 500ms 完成
+    assert.ok(existsSync(jsonlFile(home)), 'normal phase writes jsonl')
+    const linesNormal = countLines()
+    assert.equal(linesNormal, 50, 'normal phase: 50 events persisted')
+
+    // 降级：停落盘；再记录 50 事件只入内存不写盘
+    store.setPersistEnabled(false)
+    recordN(50, 'degrade')
+    await sleep(900) // 若 flush 仍在写会增长；应保持不变
+    assert.equal(countLines(), linesNormal, 'degrade phase: no disk writes')
+
+    // 事件仍可查询（内存有界，不丢）
+    assert.equal(store.events('g1', undefined, 1000).length, 100, 'events still queryable in memory during degrade')
+
+    // 恢复：全量快照补齐降级窗口事件
+    store.setPersistEnabled(true)
+    await sleep(900) // compact 原子快照完成
+    assert.equal(countLines(), 100, 'recover phase: full snapshot restores all events (50 old + 50 degrade)')
+
+    store.dispose()
+    if (oldHome !== undefined) process.env.DSH_HOME = oldHome
+    else delete process.env.DSH_HOME
   } finally {
     cleanupHome(home)
   }

@@ -53,12 +53,14 @@ export function createStore(ctx) {
     compactTimer: null,
     compacting: false,
     migrated: false,
+    persistEnabled: true,
     dirtyChain: Promise.resolve(),
   }
   store.record = (event) => record(handle, event)
   store.events = (sessionId, type, limit) => eventsOf(handle, sessionId, type, limit)
   store.sessions = () => sessionsOf(handle)
   store.count = () => countOf(handle)
+  store.setPersistEnabled = (enabled) => setPersistEnabled(handle, enabled)
   store.dispose = () => dispose(handle)
   void loadPersisted(handle.file, handle.legacy).then((result) => onLoaded(handle, result))
   return store
@@ -76,12 +78,32 @@ function record(handle, event) {
   return item
 }
 
-/** 事件入内存桶 + 排队待落盘行（回放与运行时共用，保证回放也落盘）。 */
+/** 事件入内存桶 + 排队待落盘行（回放与运行时共用，保证回放也落盘）。
+ *  降级（persistEnabled=false）时事件照常入内存桶（有 FIFO 上限保护），
+ *  但不排队落盘行、不触发 flush——写盘完全停止，恢复时全量快照补齐。 */
 function enqueueRecord(handle, item) {
   appendEvent(handle, item)
+  if (!handle.persistEnabled) return
   handle.lineQueue.push(JSON.stringify(item))
   handle.queuedLines += 1
   if (handle.queuedLines >= COMPACT_LINES) scheduleCompact(handle)
+}
+
+/**
+ * 落盘开关（资源看门狗降级用）：
+ *  - false（降级）：停止落盘——清空待写行（内存 state 仍在，不丢），停 flush。
+ *  - true（恢复）：立即 compact 全量快照（内存=真相，补齐降级窗口事件），恢复增量。
+ */
+function setPersistEnabled(handle, enabled) {
+  if (handle.persistEnabled === enabled) return
+  handle.persistEnabled = enabled
+  if (handle.flushTimer !== null) {
+    clearTimeout(handle.flushTimer)
+    handle.flushTimer = null
+  }
+  handle.lineQueue = []
+  handle.queuedLines = 0
+  if (enabled) compactNow(handle)
 }
 
 /** 全部会话事件：合并各会话并按时间正序（sessionId='*'）。 */
@@ -209,7 +231,7 @@ function scheduleFlush(handle) {
 }
 
 function flushNow(handle) {
-  if (handle.lineQueue.length === 0) return
+  if (handle.lineQueue.length === 0 || !handle.persistEnabled) return
   const text = `${handle.lineQueue.join('\n')}\n`
   handle.lineQueue = []
   handle.dirtyChain = handle.dirtyChain.then(() => appendLines(handle.file, text, handle.ctx.logger, PREFIX))

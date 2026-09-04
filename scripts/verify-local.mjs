@@ -69,6 +69,7 @@ const CHECK_IDS = [
   'knip',
   'jscpd',
   'docs',
+  'resource-smoke',
 ]
 const OPTIONAL_CHECKS = ['audit', 'mutation'] // CI 强制但本地默认跳过的项
 const ALL_PLUGINS = readdirSync(join(root, 'plugins'))
@@ -178,6 +179,12 @@ const CHECKS = [
     id: 'docs',
     label: 'docs consistency (node scripts/check-docs.mjs)',
     run: () => run('node', ['scripts/check-docs.mjs']),
+  },
+  {
+    id: 'resource-smoke',
+    label: 'resource smoke (node scripts/resource-smoke.mjs)',
+    note: 'issue #127 发版前资源回归门禁：长会话写放大 ≤1.6 / 内存有界 / 降级触发与恢复（对齐 CI resource-smoke job）',
+    run: () => run('node', ['scripts/resource-smoke.mjs']),
   },
 ]
 

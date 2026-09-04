@@ -283,3 +283,7 @@ Then('资源采样包含 CPU 与内存指标', function () {
 Then('资源采样包含告警列表', function () {
   assert.ok(Array.isArray(this.lastValue.alerts), 'alerts 为数组')
 })
+
+Then('资源采样包含降级状态', function () {
+  assert.equal(typeof this.lastValue.degraded, 'boolean', 'degraded 为布尔（资源看门狗降级标记，issue #127）')
+})

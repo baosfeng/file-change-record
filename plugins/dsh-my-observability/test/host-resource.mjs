@@ -8,9 +8,9 @@
  */
 import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync, appendFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { evaluateResourceAlerts, DEFAULT_LIMITS } from '../lib/resource-rules.js'
+import { evaluateResourceAlerts, DEFAULT_LIMITS, shouldEnterDegrade, shouldExitDegrade } from '../lib/resource-rules.js'
 import { createResourceMonitor } from '../lib/resource-monitor.js'
 import { bootPlugin, mockRequest, mockResponse, invoke, jsonOf, createTempHome, cleanupHome } from './lib/helpers.mjs'
 
@@ -98,4 +98,74 @@ test('resource monitor: 路由 /observability/api/resources（fence + 结构）'
   const evil = mockResponse()
   await invoke(handle.api, mockRequest({ url: '/observability/api/resources', host: 'evil.example.com' }), evil)
   assert.equal(evil.writeHeadStatus, 403, '跨域拒绝')
+})
+
+test('degrade: shouldEnterDegrade 连续超限才降级（含冷启动保护）', () => {
+  const limits = { ...DEFAULT_LIMITS, writeRateBytesPerHour: 1000, fileBytes: 500 }
+  const over = () => ({ writeRateBytesPerHour: 2000, fileBytes: 300 })
+  const normal = () => ({ writeRateBytesPerHour: 10, fileBytes: 100 })
+  // 样本不足 confirmCount 不降级
+  assert.equal(shouldEnterDegrade([over(), over()], limits), false, '样本不足不降级')
+  // 连续 3 次超限 → 降级
+  assert.equal(shouldEnterDegrade([over(), over(), over()], limits), true, '连续 3 次超限降级')
+  // 中间有一次正常 → 不降级
+  assert.equal(shouldEnterDegrade([over(), normal(), over()], limits), false, '中断不降级')
+})
+
+test('degrade: shouldExitDegrade 连续正常才恢复（含刚降级抖动保护）', () => {
+  const limits = { ...DEFAULT_LIMITS, writeRateBytesPerHour: 1000, fileBytes: 500 }
+  const over = () => ({ writeRateBytesPerHour: 2000, fileBytes: 300 })
+  const normal = () => ({ writeRateBytesPerHour: 10, fileBytes: 100 })
+  // 样本不足不恢复
+  assert.equal(shouldExitDegrade([normal(), normal()], limits), false, '样本不足不恢复')
+  // 连续 3 次正常 → 恢复
+  assert.equal(shouldExitDegrade([normal(), normal(), normal()], limits), true, '连续 3 次正常恢复')
+  // 中间有一次超限 → 不恢复
+  assert.equal(shouldExitDegrade([normal(), over(), normal()], limits), false, '中断不恢复')
+})
+
+test('degrade: monitor 接入 onDegrade/onRecover（连续超限降级 + 连续正常恢复）', async () => {
+  const home = createTempHome()
+  try {
+    const handle = bootPlugin({}, { home })
+    const dir = join(home, 'observability')
+    mkdirSync(dir, { recursive: true })
+    const auditFile = join(dir, 'audit.jsonl')
+    writeFileSync(auditFile, `${'x'.repeat(1024)}\n`, 'utf8')
+    const signs = { degraded: 0, recovered: 0, status: '' }
+    const monitor = createResourceMonitor(handle.ctx, {
+      intervalMs: 1000,
+      limits: { ...DEFAULT_LIMITS, writeRateBytesPerHour: 40 * 1024 * 1024, fileBytes: 50 * 1024 * 1024 },
+      onDegrade: () => {
+        signs.degraded += 1
+        signs.status = 'degraded'
+      },
+      onRecover: () => {
+        signs.recovered += 1
+        signs.status = 'recovered'
+      },
+    })
+    // 先做两次常规采样打底（冷启动保护需要 ≥confirm 样本才有判定）
+    await monitor.sample()
+    // 模拟 3 次采样窗口内写入放大：每次追加 1MB → 速率 ≈ 2GB/h > 40MB/h
+    for (let i = 0; i < 3; i += 1) {
+      appendFileSync(auditFile, `${'y'.repeat(1024 * 1024)}\n`, 'utf8')
+      await monitor.sample()
+    }
+    assert.equal(monitor.isDegraded(), true, '连续超限后进入降级')
+    assert.equal(signs.degraded, 1, 'onDegrade 恰好触发一次')
+
+    // 恢复正常：连续 3 次小写入 → 速率 < 阈值 → 恢复
+    writeFileSync(auditFile, `${'x'.repeat(100)}\n`, 'utf8')
+    for (let i = 0; i < 3; i += 1) {
+      await settle()
+      await monitor.sample()
+    }
+    assert.equal(monitor.isDegraded(), false, '连续正常后退出降级')
+    assert.equal(signs.recovered, 1, 'onRecover 恰好触发一次')
+    monitor.stop()
+    handle.disposeAll()
+  } finally {
+    cleanupHome(home)
+  }
 })

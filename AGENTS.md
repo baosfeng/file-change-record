@@ -34,7 +34,7 @@ docs/
 ├── TS示例/                   ← dsh-ts-example 插件模块文档（TS 插件开发说明，源码: plugins/dsh-ts-example/）
 ├── 共享工具包/               ← dsh-shared 共享工具包文档（多插件共用实现，源码: plugins/dsh-shared/）
 ├── 快速集成/                 ← 插件安装与快速开始
-├── 开发指南/                 ← 文档规范/构建与测试/lint 配置建议
+├── 开发指南/                 ← 文档规范/构建与测试/lint 配置建议/插件资源安全规范
 ├── adr/                      ← 架构决策记录（ADR 模板 + 已采纳决策，如 dsh-my-* 改名）
 └── 踩坑/                     ← 已知问题与解决方案
 ```
@@ -62,7 +62,7 @@ docs/
 > | **发版前功能级验证（强制，issue #67）**   | → **[verifying-dsh-plugins](~/.dsh/skills/verifying-dsh-plugins/SKILL.md)** + [构建与测试.md](docs/开发指南/构建与测试.md) — 隔离实例先装先测：真实浏览器走通核心功能/易碎场景/client UI/插件联动，勾选 `verification/<插件>-<版本>.md` 清单；release.mjs 3c 门禁校验功能级项未全勾选即阻断发版；跳过必须带 `--skip-reason` 显式理由 |
 > | 修改/理解插件代码（server/client 任一端） | → **[文件活动追踪](docs/文件活动追踪/概述.md)** 或对应模块文档                                                                                                                                                                                                                                                                       |
 > | **开发/修改插件功能（含新功能）**         | → **[需求清单 + 回归检查](docs/开发指南/构建与测试.md#需求回归强制要求)** — 先读插件需求清单，开发后对照既有功能逐条回归；重启恢复/会话隔离/持久化等易碎需求必须有测试断言                                                                                                                                                           |
-> | **评估持续逻辑的资源预算**                | → **[resource-budget-review](skills/resource-budget-review/SKILL.md)** — 持久化/监听器/轮询涉及 IO/CPU/内存/网络/磁盘存量五维评审（写放大判定）：设计期填「资源影响」栏、开发期写放大复现测试、验证期「资源曲线平稳」项                                                                                                              |
+> | **评估持续逻辑的资源预算**                | → **[resource-budget-review](skills/resource-budget-review/SKILL.md)** + [插件资源安全规范](docs/开发指南/插件资源安全规范.md) — 持久化/监听器/轮询涉及 IO/CPU/内存/网络/磁盘存量五维评审（写放大判定）：设计期填「资源影响」栏、开发期写放大复现测试、验证期「资源曲线平稳」项；规范含高频写路径选型/降级模板（issue #127）         |
 > | **开发任何功能/修复 BUG/提交前**          | → **[质量门禁（强制）](.reasonix/skills/quality-gates/SKILL.md)** — 10 项门禁：TDD 单元测试、Gherkin 验收、QA 流程、圈复杂度 ≤10、函数 ≤70 行/文件 ≤400 行（issue #44 引入 prettier 后调整，见 eslint.config.js 注释）、依赖无环、变异 ≥70%、覆盖率 85/75、bug 复现测试防复发、真实环境验证                                          |
 > | **验证/调试插件后**                       | → **[清理验证环境（强制）](docs/开发指南/构建与测试.md#需求回归强制要求)** — 停后台实例、删 `/tmp/dsh-<port>` 临时目录、关验证浏览器、释放端口；多插件并行开发时残留会互相干扰                                                                                                                                                       |
 > | 新建/修改/调试/发布插件                   | → **[插件开发技能](skills/dsh-plugin-development/SKILL.md)** — 插件形态、目录结构、发布流程                                                                                                                                                                                                                                          |

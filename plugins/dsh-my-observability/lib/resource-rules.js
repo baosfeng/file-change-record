@@ -60,6 +60,43 @@ export function evaluateResourceAlerts(sample, limits = DEFAULT_LIMITS) {
   return alerts
 }
 
+/** 连续多少次采样超限（关键阈值）判定进入降级（模块内默认值）。 */
+const DEGRADE_CONFIRM_COUNT = 3
+
+/** 连续多少次采样正常判定退出降级（模块内默认值）。 */
+const RECOVER_CONFIRM_COUNT = 3
+
+/**
+ * 关键阈值判定：磁盘写放大风险主导（write-rate / file-size 任一超限即记超限）。
+ * CPU/内存超限告警但不触发落盘降级（避免误伤正常大请求峰值）。
+ */
+function isCriticalOverLimit(sample, limits = DEFAULT_LIMITS) {
+  return (
+    (sample.writeRateBytesPerHour ?? 0) > limits.writeRateBytesPerHour || (sample.fileBytes ?? 0) > limits.fileBytes
+  )
+}
+
+/**
+ * 降级判定（纯函数）：最近 confirmCount 个样本**全部**关键阈值超限 → 进入降级。
+ * 历史样本不足 confirmCount 时不降级（冷启动保护）。
+ * 返回布尔（shouldEnterDegrade）。
+ */
+export function shouldEnterDegrade(history, limits = DEFAULT_LIMITS, confirmCount = DEGRADE_CONFIRM_COUNT) {
+  const recent = history.slice(-confirmCount)
+  if (recent.length < confirmCount) return false
+  return recent.every((sample) => isCriticalOverLimit(sample, limits))
+}
+
+/**
+ * 恢复判定（纯函数）：最近 confirmCount 个样本**全部**关键阈值正常 → 退出降级。
+ * 历史样本不足 confirmCount 时不恢复（避免刚降级立即恢复抖动）。
+ */
+export function shouldExitDegrade(history, limits = DEFAULT_LIMITS, confirmCount = RECOVER_CONFIRM_COUNT) {
+  const recent = history.slice(-confirmCount)
+  if (recent.length < confirmCount) return false
+  return recent.every((sample) => !isCriticalOverLimit(sample, limits))
+}
+
 function fmtMB(bytes) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
