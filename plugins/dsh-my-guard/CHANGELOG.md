@@ -2,6 +2,16 @@
 
 本文件记录 dsh-my-guard 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.4] - 2026-09-04
+
+### 变更
+
+- fix(guard): 提示注入误报豁免 + 告警面板可读性
+- chore(release): dsh-my-guard v0.1.3（自动 bump patch + CHANGELOG 生成）
+- chore(release): dsh-my-guard v0.1.3（#88 规则自定义 + 验证清单）
+- feat(guard): #88 护栏规则自定义 + 告警通知 (#121)
+- docs: #106 安装命令统一加 --trust-lockfile (#113)
+
 ## [0.1.3] - 2026-09-04
 
 ### 变更
