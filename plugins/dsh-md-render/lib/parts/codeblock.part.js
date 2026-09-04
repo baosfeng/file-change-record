@@ -4,14 +4,10 @@
 // 行号用 CSS counter 伪元素渲染，不进入 code/pre 文本内容，mermaid 扫
 // 描与复制按钮读取的原文本不受污染。语法高亮 tokenizer 见
 // highlight.part.js。
-
-// 渲染选项（行号开关，默认开）；apply(ctx) 从 ctx.config.lineNumbers
+// 增强开关（issue #84）：renderOptions 见 config.part.js（copyButton /
+// syntaxHighlight / languageLabel / lineNumbers），apply(ctx) 从配置
 // 读取，测试可用 setRenderOptions 切换。模块级变量，MarkdownView 渲染
 // 代码块时读取。
-let renderOptions = { lineNumbers: true }
-function setRenderOptions(next) {
-  renderOptions = { ...renderOptions, ...(next || {}) }
-}
 
 // token 类型 → 高亮类名（其余类型渲染为纯文本）。
 const TOKEN_CLASS = {
@@ -56,13 +52,20 @@ function renderCodeCells(code, lang, lines, highlight, lineNumbers) {
 /** 渲染完整代码块：头部（语言名 + 复制按钮）+ pre > code（高亮/行号）。 */
 function renderCodeBlock({ key, lang, code }) {
   const lines = String(code).split('\n')
-  const highlight = shouldHighlight(lang, lines)
-  const head = createElement(
-    'div',
-    { className: 'dsh-md-render-code-head' },
-    createElement('span', { className: 'dsh-md-render-code-lang' }, langLabel(lang)),
-    createElement(CopyButton, { kind: 'code' }),
-  )
+  // issue #84：syntaxHighlight 关闭 → 不做 token 高亮（回退纯文本）。
+  const highlight = renderOptions.syntaxHighlight && shouldHighlight(lang, lines)
+  // issue #84：copyButton / languageLabel 关闭 → 头部对应元素不渲染。
+  const head =
+    renderOptions.copyButton || renderOptions.languageLabel
+      ? createElement(
+          'div',
+          { className: 'dsh-md-render-code-head' },
+          renderOptions.languageLabel
+            ? createElement('span', { className: 'dsh-md-render-code-lang' }, langLabel(lang))
+            : null,
+          renderOptions.copyButton ? createElement(CopyButton, { kind: 'code' }) : null,
+        )
+      : null
   const body = renderCodeCells(code, lang, lines, highlight, renderOptions.lineNumbers)
   return createElement(
     'div',
@@ -75,5 +78,3 @@ function renderCodeBlock({ key, lang, code }) {
     ),
   )
 }
-
-exports.setRenderOptions = setRenderOptions

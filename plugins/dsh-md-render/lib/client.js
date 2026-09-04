@@ -33,8 +33,9 @@ window.__ModuleLoader__.load({
     var exports = module.exports
     Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' })
     // MarkdownView（markdown.part.js 片段）使用 createElement；
-    // CopyButton（issue #74 复制按钮）使用 useState。
-    const { createElement, useState } = require('react')
+    // CopyButton（issue #74 复制按钮）使用 useState；设置页
+    // （settings.part.js，issue #84）使用 useEffect。
+    const { createElement, useState, useEffect } = require('react')
 
     // ── 共享图标（dsh-shared/client-parts，issue #54 阶段 0）────────
     // ── shared icons (inline, stroke=currentColor, matching better-sidebar) ──
@@ -361,6 +362,46 @@ const fileIconByExt = (ext, size = 14) => {
     ]
   return spec === undefined ? icon.file(size) : badgeIcon(spec, size)
 }
+
+
+    // ── 渲染配置（issue #84）：增强开关状态 + setRenderOptions ──────
+    // ── 渲染配置（issue #84 配置化）：增强功能开关状态 ─────────────────
+// 各增强功能独立开关（默认全部开启）：copyButton / syntaxHighlight /
+// languageLabel / lineNumbers / taskList / strikethrough / image /
+// nestedList / mathStructures / tableSort / tableFold。apply(ctx) 从
+// ctx.config 读取（setRenderOptions 编程式切换），渲染管线（代码块 /
+// 行内 / DOM 表格）在渲染时读取本模块级状态，配置变更即生效。
+const DEFAULT_RENDER_OPTIONS = {
+  copyButton: true,
+  syntaxHighlight: true,
+  languageLabel: true,
+  lineNumbers: true,
+  taskList: true,
+  strikethrough: true,
+  image: true,
+  nestedList: true,
+  mathStructures: true,
+  tableSort: true,
+  tableFold: true,
+}
+
+let renderOptions = { ...DEFAULT_RENDER_OPTIONS }
+function setRenderOptions(next) {
+  renderOptions = { ...renderOptions, ...(next || {}) }
+}
+
+/** 从应用层配置提取显式布尔开关（缺失/非法值保持默认，不覆盖）。 */
+function pickRenderOptions(config) {
+  const out = {}
+  const cfg = config ?? {}
+  for (const key of Object.keys(DEFAULT_RENDER_OPTIONS)) {
+    if (typeof cfg[key] === 'boolean') out[key] = cfg[key]
+  }
+  return out
+}
+
+exports.setRenderOptions = setRenderOptions
+exports.pickRenderOptions = pickRenderOptions
 
 
     // ── 复制按钮（issue #74）：CopyButton + 复制工具函数 ──────────
@@ -842,14 +883,10 @@ exports.langLabel = langLabel
 // 行号用 CSS counter 伪元素渲染，不进入 code/pre 文本内容，mermaid 扫
 // 描与复制按钮读取的原文本不受污染。语法高亮 tokenizer 见
 // highlight.part.js。
-
-// 渲染选项（行号开关，默认开）；apply(ctx) 从 ctx.config.lineNumbers
+// 增强开关（issue #84）：renderOptions 见 config.part.js（copyButton /
+// syntaxHighlight / languageLabel / lineNumbers），apply(ctx) 从配置
 // 读取，测试可用 setRenderOptions 切换。模块级变量，MarkdownView 渲染
 // 代码块时读取。
-let renderOptions = { lineNumbers: true }
-function setRenderOptions(next) {
-  renderOptions = { ...renderOptions, ...(next || {}) }
-}
 
 // token 类型 → 高亮类名（其余类型渲染为纯文本）。
 const TOKEN_CLASS = {
@@ -894,13 +931,20 @@ function renderCodeCells(code, lang, lines, highlight, lineNumbers) {
 /** 渲染完整代码块：头部（语言名 + 复制按钮）+ pre > code（高亮/行号）。 */
 function renderCodeBlock({ key, lang, code }) {
   const lines = String(code).split('\n')
-  const highlight = shouldHighlight(lang, lines)
-  const head = createElement(
-    'div',
-    { className: 'dsh-md-render-code-head' },
-    createElement('span', { className: 'dsh-md-render-code-lang' }, langLabel(lang)),
-    createElement(CopyButton, { kind: 'code' }),
-  )
+  // issue #84：syntaxHighlight 关闭 → 不做 token 高亮（回退纯文本）。
+  const highlight = renderOptions.syntaxHighlight && shouldHighlight(lang, lines)
+  // issue #84：copyButton / languageLabel 关闭 → 头部对应元素不渲染。
+  const head =
+    renderOptions.copyButton || renderOptions.languageLabel
+      ? createElement(
+          'div',
+          { className: 'dsh-md-render-code-head' },
+          renderOptions.languageLabel
+            ? createElement('span', { className: 'dsh-md-render-code-lang' }, langLabel(lang))
+            : null,
+          renderOptions.copyButton ? createElement(CopyButton, { kind: 'code' }) : null,
+        )
+      : null
   const body = renderCodeCells(code, lang, lines, highlight, renderOptions.lineNumbers)
   return createElement(
     'div',
@@ -913,8 +957,6 @@ function renderCodeBlock({ key, lang, code }) {
     ),
   )
 }
-
-exports.setRenderOptions = setRenderOptions
 
 
     // ── 语法补全（issue #81）：图片 / 任务列表 / 行内元素构造 / 列表解析 ──
@@ -960,6 +1002,8 @@ function linkEl(full, kk) {
 }
 
 function mathSpanOrText(m, text, kk) {
+  // issue #84：mathStructures 关闭 → 公式语法保持原文（不渲染公式结构）。
+  if (!renderOptions.mathStructures) return m[7]
   if (isMathSpan(text, m)) {
     return createElement('span', { key: kk, className: 'dsh-md-render-math' }, m[7].slice(1, -1))
   }
@@ -977,11 +1021,23 @@ function mathSpanOrText(m, text, kk) {
 function inlineMatch(m, text, kk) {
   if (m[1] !== undefined) return createElement('code', { key: kk }, trimCode(m[2]))
   if (m[3] !== undefined) return createElement('strong', { key: kk }, m[3].slice(2, -2))
-  if (m[4] !== undefined) return createElement(MarkdownImage, { key: kk, src: m[5], alt: m[4] })
+  if (m[4] !== undefined) return matchImage(m, kk)
   if (m[6] !== undefined) return linkEl(m[6], kk)
   if (m[7] !== undefined) return mathSpanOrText(m, text, kk)
-  if (m[8] !== undefined) return createElement('del', { key: kk, className: 'dsh-md-render-del' }, m[8])
+  if (m[8] !== undefined) return matchDel(m, kk)
   return createElement('em', { key: kk }, m[9].slice(1, -1))
+}
+
+function matchImage(m, kk) {
+  // issue #84：image 关闭 → 图片语法保持原文（不解析为 <img>）。
+  if (renderOptions.image) return createElement(MarkdownImage, { key: kk, src: m[5], alt: m[4] })
+  return m[0]
+}
+
+function matchDel(m, kk) {
+  // issue #84：strikethrough 关闭 → 删除线保持原文（不解析为 <del>）。
+  if (renderOptions.strikethrough) return createElement('del', { key: kk, className: 'dsh-md-render-del' }, m[8])
+  return m[0]
 }
 
 // ── 列表解析（issue #81 增强）：多级嵌套 + 任务列表（- [ ] / - [x]）
@@ -995,8 +1051,9 @@ function listInfo(line) {
   let rest = m[3]
   let task = false
   let checked = false
+  // issue #84：taskList 关闭 → 任务标记保持原文（不解析 checkbox）。
   const tm = rest.match(/^\[( |x|X)\]\s+(.*)$/)
-  if (tm) {
+  if (tm && renderOptions.taskList) {
     task = true
     checked = tm[1] !== ' '
     rest = tm[2]
@@ -1005,7 +1062,8 @@ function listInfo(line) {
 }
 
 function sameLevel(info, indent, ordered) {
-  return info && info.indent === indent && info.ordered === ordered
+  // issue #84：nestedList 关闭 → 忽略缩进层级，全部同级渲染（不嵌套）。
+  return !!info && info.ordered === ordered && (!renderOptions.nestedList || info.indent === indent)
 }
 
 function itemKids(info, i) {
@@ -1027,6 +1085,9 @@ function parseList(lines, start) {
     const kids = itemKids(info, i)
     i += 1
     while (i < lines.length) {
+      // issue #84：nestedList 关闭 → 不递归解析深层列表（深层项由外层
+      // 同级消费，扁平渲染）。
+      if (!renderOptions.nestedList) break
       const nxt = listInfo(lines[i])
       if (!nxt || nxt.indent <= indent) break
       const nested = parseList(lines, i)
@@ -1153,12 +1214,13 @@ function mdInline(text, key) {
   let m,
     k = 0
   while ((m = re.exec(text)) !== null) {
-    k = scanMathErrors(text, last, m.index, key, k, out)
+    // issue #84：mathStructures 关闭 → 不扫描疑似公式的未闭合 `$`（保持原文）。
+    if (renderOptions.mathStructures) k = scanMathErrors(text, last, m.index, key, k, out)
     out.push(inlineMatch(m, text, key + '-i' + k))
     k += 1
     last = m.index + m[0].length
   }
-  scanMathErrors(text, last, text.length, key, k, out)
+  if (renderOptions.mathStructures) scanMathErrors(text, last, text.length, key, k, out)
   return out
 }
 
@@ -1292,6 +1354,12 @@ function mathErrorEl(out, title, content) {
 }
 
 function tryMath(lines, i, out) {
+  // issue #84：mathStructures 关闭 → 块级公式不渲染为公式结构（回退段落）。
+  if (!renderOptions.mathStructures) return 0
+  return tryMathEnabled(lines, i, out)
+}
+
+function tryMathEnabled(lines, i, out) {
   const single = lines[i].match(/^\$\$([^$]*)\$\$\s*$/)
   if (single) {
     const content = single[1].trim()
@@ -1361,7 +1429,13 @@ function MarkdownView({ text }) {
     }
     i = tryParagraph(lines, i, out)
   }
-  return createElement('div', { className: 'tzx-md' }, out, createElement(CopyButton, { kind: 'content' }))
+  return createElement(
+    'div',
+    { className: 'tzx-md' },
+    out,
+    // issue #84：copyButton 关闭 → 整段内容复制按钮不渲染。
+    renderOptions.copyButton ? createElement(CopyButton, { kind: 'content' }) : null,
+  )
 }
 
 exports.MarkdownView = MarkdownView
@@ -1502,9 +1576,13 @@ function domEm(m) {
 function inlineDomMatch(m) {
   if (m[1] !== undefined) return domCode(m)
   if (m[3] !== undefined) return domStrong(m)
-  if (m[4] !== undefined) return domImg(m)
+  // issue #84：image 关闭 → 单元格内图片语法保持原文。
+  if (m[4] !== undefined && renderOptions.image) return domImg(m)
+  if (m[4] !== undefined) return m[0]
   if (m[6] !== undefined) return domLink(m)
-  if (m[7] !== undefined) return domDel(m)
+  // issue #84：strikethrough 关闭 → 单元格内删除线保持原文。
+  if (m[7] !== undefined && renderOptions.strikethrough) return domDel(m)
+  if (m[7] !== undefined) return m[0]
   return domEm(m)
 }
 
@@ -1571,31 +1649,34 @@ function foldRows(rows, limit) {
   return { visible: rows.slice(0, limit), hidden: rows.length - limit }
 }
 
-/** 构建 thead（表头行 + 每列对齐 + 排序列标记与箭头 span）。 */
+/** 构建 thead（表头行 + 每列对齐 + 排序列标记与箭头 span；issue #84：
+ *  tableSort 关闭 → th 不渲染排序列标记与箭头）。 */
 function renderHead(table) {
   const thead = document.createElement('thead')
   const headTr = document.createElement('tr')
   table.header.forEach((cell, j) => {
     const th = document.createElement('th')
     th.style.textAlign = table.aligns[j] || 'left'
-    th.setAttribute('data-sort-col', String(j))
     th.appendChild(renderInline(cell))
-    const arrow = document.createElement('span')
-    arrow.className = 'dsh-md-render-sort-arrow'
-    arrow.setAttribute('aria-hidden', 'true')
-    th.appendChild(arrow)
+    if (renderOptions.tableSort) {
+      th.setAttribute('data-sort-col', String(j))
+      const arrow = document.createElement('span')
+      arrow.className = 'dsh-md-render-sort-arrow'
+      arrow.setAttribute('aria-hidden', 'true')
+      th.appendChild(arrow)
+    }
     headTr.appendChild(th)
   })
   thead.appendChild(headTr)
   return thead
 }
 
-/** 构建 tbody（数据行 + 每列对齐；超过 FOLD_LIMIT 的行加折叠 class）。 */
+/** 构建 tbody（数据行 + 每列对齐；issue #84：tableFold 关闭 → 不折叠）。 */
 function renderBody(table) {
   const tbody = document.createElement('tbody')
   table.rows.forEach((row, i) => {
     const tr = document.createElement('tr')
-    if (i >= FOLD_LIMIT) tr.className = 'dsh-md-render-folded-row'
+    if (renderOptions.tableFold && i >= FOLD_LIMIT) tr.className = 'dsh-md-render-folded-row'
     row.forEach((cell, j) => {
       const td = document.createElement('td')
       td.style.textAlign = table.aligns[j] || 'left'
@@ -1672,19 +1753,22 @@ function toggleFold(scroll, btn) {
   }
 }
 
-/** scroll 容器上的 click 事件委托：表头排序 / 折叠按钮切换。 */
+/** scroll 容器上的 click 事件委托：表头排序 / 折叠按钮切换（issue #84：
+ *  tableSort / tableFold 关闭 → 对应交互不生效）。 */
 function onTableClick(e) {
   const target = e.target
   if (!target || typeof target.closest !== 'function') return
   const scroll = target.closest('.dsh-md-render-table-scroll')
   if (!scroll) return
   const th = target.closest('th[data-sort-col]')
-  if (th) {
+  if (th && renderOptions.tableSort) {
     sortTable(scroll, th)
     return
   }
-  const btn = target.closest('.dsh-md-render-table-fold')
-  if (btn) toggleFold(scroll, btn)
+  if (renderOptions.tableFold) {
+    const btn = target.closest('.dsh-md-render-table-fold')
+    if (btn) toggleFold(scroll, btn)
+  }
 }
 
 /** 共享图标风格的 chevronRight（DOM 侧手写 SVG，stroke=currentColor，
@@ -1731,7 +1815,8 @@ function renderTable(table) {
   tbl.appendChild(renderHead(table))
   if (table.rows.length > 0) {
     tbl.appendChild(renderBody(table))
-    if (table.rows.length > FOLD_LIMIT) {
+    // issue #84：tableFold 关闭 → 不渲染折叠按钮（全部行可见）。
+    if (renderOptions.tableFold && table.rows.length > FOLD_LIMIT) {
       scroll.dataset.totalRows = String(table.rows.length)
       scroll.appendChild(renderFoldButton(table.rows.length))
     }
@@ -1906,16 +1991,199 @@ div.dsh-md-render-math-error{margin:0;text-align:center;justify-content:center;p
 `
 
 
+    // ── 设置页（issue #84）：渲染增强开关可视化 + 保存 ───────────────
+    // ── 设置页视图（issue #84）：各增强功能开关可视化 ──────────────────
+// 官方 slots 扩展点：设置 → 插件 → 渲染 页签。开关列表与 server 端
+// （lib/index.js buildOptions + lib/routes.js SWITCH_KEYS）一一对应；
+// 保存经 PUT /md/api/config 写入 profile patch 文件（持久化），DSH 的
+// watchUserPatches 热重载后 client 重新 apply（保存即生效）；保存成功
+// 后立即 setRenderOptions 应用新开关（当前页面无需等待重载）。
+const SETTINGS_STYLES = `
+.dsh-md-render-settings{display:flex;flex-direction:column;gap:10px;padding:12px}
+.dsh-md-render-settings-section{display:flex;flex-direction:column;gap:8px}
+.dsh-md-render-settings-section-title{font:var(--dsw-font-xs-strong-13);color:var(--dsw-alias-label-secondary)}
+.dsh-md-render-settings-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-2)}
+.dsh-md-render-settings-info{display:flex;flex-direction:column;gap:2px;min-width:0}
+.dsh-md-render-settings-label{font:var(--dsw-font-xs-strong-13)}
+.dsh-md-render-settings-hint{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary);line-height:1.5}
+.dsh-md-render-settings-toggle{flex:none;width:34px;height:20px;border-radius:10px;border:1px solid var(--dsw-alias-border-l2);background:color-mix(in srgb, var(--dsw-alias-label-tertiary) 30%, transparent);position:relative;cursor:pointer;transition:background var(--ds-transition-duration-slow) var(--ds-ease-in-out),border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+.dsh-md-render-settings-toggle[data-on="true"]{background:var(--dsw-alias-state-success-primary);border-color:transparent}
+.dsh-md-render-settings-toggle::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--dsw-alias-label-primary);transition:transform var(--ds-transition-duration-slow) var(--ds-ease-in-out),background var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
+.dsh-md-render-settings-toggle[data-on="true"]::after{transform:translateX(12px);background:var(--dsw-alias-label-primary-foreground)}
+.dsh-md-render-settings-actions{display:flex;align-items:center;gap:8px}
+.dsh-md-render-settings-btn{height:28px;padding:0 14px;border-radius:6px;cursor:pointer;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-interactive-bg);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xxs-12)}
+.dsh-md-render-settings-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.dsh-md-render-settings-status{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-label-tertiary)}
+.dsh-md-render-settings-saved{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-state-success-primary)}
+.dsh-md-render-settings-error{font:var(--dsw-font-xxs-12);color:var(--dsw-alias-state-error-primary)}
+`
+
+/** 开关定义（key 与 server 端 SWITCH_KEYS / config.part.js 一致）。 */
+const SETTINGS_SWITCHES = [
+  { key: 'copyButton', label: '复制按钮', hint: '代码块头部与整段内容右下角的复制按钮（issue #74）' },
+  { key: 'syntaxHighlight', label: '语法高亮', hint: '代码块关键字/字符串/注释等着色（issue #80）' },
+  { key: 'languageLabel', label: '语言标签', hint: '代码块头部显示语言名（issue #80）' },
+  { key: 'lineNumbers', label: '行号', hint: '代码块左侧行号（issue #80）' },
+  { key: 'taskList', label: '任务列表', hint: '- [ ] / - [x] 渲染为 checkbox（issue #81）' },
+  { key: 'strikethrough', label: '删除线', hint: '~~text~~ 渲染为删除线（issue #81）' },
+  { key: 'image', label: '图片', hint: '![alt](url) 渲染为图片（issue #81）' },
+  { key: 'nestedList', label: '嵌套列表', hint: '按缩进层级嵌套列表（issue #81）' },
+  { key: 'mathStructures', label: '公式结构', hint: '行内 $...$ 与块级 $$...$$ 公式渲染（issue #82）' },
+  { key: 'tableSort', label: '表头排序', hint: '点击表头按列排序（issue #83）' },
+  { key: 'tableFold', label: '长表格折叠', hint: '超过 20 行的表格默认折叠（issue #83）' },
+]
+
+/** 开关行（布尔配置项）。 */
+function SettingsSwitchRow({ label, hint, on, onChange }) {
+  return createElement(
+    'div',
+    { className: 'dsh-md-render-settings-row' },
+    createElement(
+      'div',
+      { className: 'dsh-md-render-settings-info' },
+      createElement('div', { className: 'dsh-md-render-settings-label' }, label),
+      createElement('div', { className: 'dsh-md-render-settings-hint' }, hint),
+    ),
+    createElement('div', {
+      className: 'dsh-md-render-settings-toggle',
+      'data-on': String(on),
+      role: 'switch',
+      'aria-checked': String(on),
+      onClick: () => onChange(!on),
+    }),
+  )
+}
+
+/** 开关区块（全部增强项）。 */
+function renderSwitchesSection(draft, patch) {
+  return createElement(
+    'div',
+    { className: 'dsh-md-render-settings-section' },
+    createElement('div', { className: 'dsh-md-render-settings-section-title' }, '渲染增强'),
+    ...SETTINGS_SWITCHES.map((item) =>
+      createElement(SettingsSwitchRow, {
+        key: item.key,
+        label: item.label,
+        hint: item.hint,
+        on: draft[item.key] === true,
+        onChange: (v) => patch(item.key, v),
+      }),
+    ),
+  )
+}
+
+/** 保存配置（PUT /md/api/config），成功/失败更新状态。 */
+function saveConfig(draft, setSaved, setError) {
+  setSaved(false)
+  setError(false)
+  fetch('/md/api/config', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(draft),
+  })
+    .then((res) => res.json())
+    .then((body) => {
+      if (body === null || body.ok !== true) throw new Error('save failed')
+      // 立即应用新开关（无需等待 patch 热重载，当前页面生效）。
+      setRenderOptions(pickRenderOptions(draft))
+      setSaved(true)
+    })
+    .catch(() => setError(true))
+}
+
+/** 设置页主视图：加载当前配置 → 开关编辑 → 保存（PUT /md/api/config）。 */
+function MdRenderSettingsView() {
+  const [config, setConfig] = useState(null)
+  const [draft, setDraft] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    fetch('/md/api/config')
+      .then((res) => res.json())
+      .then((body) => {
+        if (body === null || body.ok !== true) throw new Error('bad config response')
+        setConfig(body.value)
+        setDraft(body.value)
+        setLoading(false)
+      })
+      .catch(() => {
+        setLoading(false)
+        setError(true)
+      })
+  }, [])
+
+  if (loading) {
+    return createElement(
+      'div',
+      { className: 'dsh-md-render-settings' },
+      createElement('div', { className: 'dsh-md-render-settings-status' }, '加载中…'),
+    )
+  }
+  if (config === null) {
+    return createElement(
+      'div',
+      { className: 'dsh-md-render-settings' },
+      createElement('div', { className: 'dsh-md-render-settings-error' }, '配置加载失败'),
+    )
+  }
+  const patch = (key, value) => setDraft({ ...draft, [key]: value })
+  const save = () => saveConfig(draft, setSaved, setError)
+  return createElement(
+    'div',
+    { className: 'dsh-md-render-settings' },
+    renderSwitchesSection(draft, patch),
+    createElement(
+      'div',
+      { className: 'dsh-md-render-settings-actions' },
+      createElement('button', { className: 'dsh-md-render-settings-btn', onClick: save }, '保存'),
+      saved ? createElement('span', { className: 'dsh-md-render-settings-saved' }, '已保存') : null,
+      error ? createElement('span', { className: 'dsh-md-render-settings-error' }, '保存失败') : null,
+    ),
+  )
+}
+
+/** 设置页 tab 注册（官方 slots 扩展点；服务缺省时静默跳过）。 */
+function attachSettingsTab(ctx) {
+  // ctx.get 缺省（测试桩/精简上下文）时静默跳过，不影响渲染能力。
+  const slots = typeof ctx.get === 'function' ? ctx.get('slots') : undefined
+  if (slots === undefined) return
+  ctx.effect(() => {
+    if (typeof document === 'undefined' || typeof document.head === 'undefined') return () => {}
+    const style = document.createElement('style')
+    style.setAttribute('data-dsh-md-render-settings', 'styles')
+    style.textContent = SETTINGS_STYLES
+    document.head.appendChild(style)
+    return () => {
+      if (style.parentNode !== null) style.parentNode.removeChild(style)
+    }
+  }, 'dsh-md-render: settings styles')
+  ctx.effect(
+    () =>
+      slots.inject('settings.plugins.tab', () =>
+        slots.register(
+          {
+            name: 'settings.plugins.tab',
+            id: 'md-render-settings',
+            order: 90,
+            label: () => '渲染',
+          },
+          MdRenderSettingsView,
+        ),
+      ),
+    'dsh-md-render: settings tab registration',
+  )
+}
+
+
     // ── 插件入口：样式注入 + 扫描器装配 ───────────────────────────
     exports.inject = []
 
 exports.apply = function apply(ctx) {
-  // 行号开关（issue #80）：从插件配置读取 lineNumbers（默认开）；缺省
+  // 增强功能开关（issue #84）：从插件配置读取全部开关（默认开）；缺省
   // 或非法值保持默认，不覆盖 renderOptions。
-  const cfg = ctx && ctx.config
-  if (cfg && typeof cfg.lineNumbers === 'boolean') {
-    setRenderOptions({ lineNumbers: cfg.lineNumbers })
-  }
+  setRenderOptions(pickRenderOptions(ctx && ctx.config))
 
   // Stylesheet first, unconditionally (see dsh-file-activity pitfall:
   // injecting styles behind a service early-return loses them on HMR).
@@ -1931,6 +2199,9 @@ exports.apply = function apply(ctx) {
   }, 'dsh-md-render: styles')
 
   ctx.effect(() => installScanner(), 'dsh-md-render: scanner')
+
+  // 设置页 tab（官方 slots 扩展点，issue #84 配置可视化）。
+  attachSettingsTab(ctx)
 }
 
 

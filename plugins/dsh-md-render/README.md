@@ -24,7 +24,8 @@
 - **一键复制**（issue #74）：每个代码块头部（与语言标签同排）+ 整段 markdown 内容右下角有复制按钮（hover 才显示，不遮挡内容），点击一键复制代码内容（不含语言标记）/ 整段纯文本（不含按钮文案）；复制成功按钮短暂显示「已复制」；流式渲染中不显示按钮，避免复制到半截内容。
 - **代码块语法高亮**（issue #80）：常见语言（javascript/typescript/python/json/bash/markdown/yaml 等）的关键字/字符串/注释/数字/函数名着色（CSS 类 `dsh-md-render-tok-*` + 固定色板，深浅主题自适应）；自实现轻量 tokenizer（零依赖）；未知语言（如 mermaid）回退纯文本；超长代码块（>500 行）跳过高亮防卡顿。
 - **代码块语言标签**（issue #80）：从 `code.language-*` 类提取语言名，渲染在代码块头部（与复制按钮同排），别名归一（js→javascript、py→python、sh→bash）。
-- **代码块行号**（issue #80，可配置开关）：代码块左侧显示行号（CSS counter 伪元素，不污染 code/pre 文本——mermaid/复制读取原代码不受影响）；默认开，可经 `config.lineNumbers: false` 关闭。
+- **代码块行号**（issue #80，可配置开关）：代码块左侧显示行号（CSS counter 伪元素，不污染 code/pre 文本——mermaid/复制读取原代码不受影响）；默认开，可经设置页或 `config.lineNumbers: false` 关闭。
+- **增强功能配置化**（issue #84）：全部增强功能独立配置开关（默认开启），设置页（设置 → 插件 → 渲染）可视化编辑，保存即生效、重启不丢（写入 profile patch 文件），配置变更热生效（无需重启）。
 - **零依赖**：表格检测与渲染全部自实现，无第三方库、无 CDN。
 
 ## 工作原理
@@ -34,7 +35,7 @@
 - **代码块增强**（`lib/parts/highlight.part.js` tokenizer + `codeblock.part.js` 渲染，issue #80）：tokenizer 为纯函数单遍扫描，按语言规则拆分 token 输出 `<span class="dsh-md-render-tok-*">`；`div.md-code-block` 内新增头部 `div.dsh-md-render-code-head`（语言名 + 复制按钮），`code` 内按行输出 `div.dsh-md-render-code-line`（行号经 CSS counter `::before` 显示，不进入文本内容）；未知语言/超长代码块（>500 行）跳过高亮；行号开关 `config.lineNumbers` 经 `apply(ctx)` 读取，`setRenderOptions` 可编程切换。
 - **DOM 层表格增强**（`lib/parts/detect|render|scanner.part.js`）：扫描 `[data-conversation-scroll]` 内的 `div.tzx-md`（MarkdownView 输出）与 `div.md-table-wide`（内置 MarkdownText 的宽表格容器）容器；对容器内以纯文本段落（`p.tzx-p`）形式存在的表格文本，用增强检测规则解析（表头 + 分隔行 + 数据行 + 对齐），将段落替换为 `div.dsh-md-render-table-scroll > table.dsh-md-render-table`（thead/tbody/逐列对齐）；单元格内的 `**bold**` / `` `code` `` / `*em*` / `[link]` 行内格式重新渲染。
 - **构建**（`scripts/build.mjs`）：把 `lib/parts/*.part.js` 片段拼接进 `lib/client.src.js` 模板，生成 `lib/client.js`（DSH 实际服务的单一 `__ModuleLoader__` bundle）。
-- **Server 端**（`lib/index.js`）：空壳（纯 client 插件，无 host 逻辑）。
+- **Server 端**（`lib/index.js` + `lib/routes.js`）：提供应用层配置（issue #84）——`apply(ctx, config)` 读取全部增强开关（默认开启）；`GET/PUT /md/api/config` 配置读写（loopback 信任围栏），保存写入 profile patch 文件（复用 dsh-shared 配置持久化），DSH watchUserPatches 热重载。
 
 ## 安装
 
@@ -84,13 +85,23 @@ npm test
 
 ## 配置
 
-无强制配置项，插件激活即生效。可选配置：
+全部增强功能独立配置开关，**默认开启**（issue #84）。设置 → 插件 → 渲染 页签内可视化编辑，保存即生效、重启不丢；也可在 `cordis.patch.yml` 直接配置：
 
-| 配置          | 默认   | 说明                                      |
-| ------------- | ------ | ----------------------------------------- |
-| `lineNumbers` | `true` | 代码块行号开关（issue #80，`false` 关闭） |
+| 配置              | 默认   | 说明                               |
+| ----------------- | ------ | ---------------------------------- |
+| `copyButton`      | `true` | 复制按钮（issue #74，代码块/整段） |
+| `syntaxHighlight` | `true` | 代码块语法高亮（issue #80）        |
+| `languageLabel`   | `true` | 代码块语言标签（issue #80）        |
+| `lineNumbers`     | `true` | 代码块行号（issue #80）            |
+| `taskList`        | `true` | 任务列表 checkbox（issue #81）     |
+| `strikethrough`   | `true` | 删除线（issue #81）                |
+| `image`           | `true` | 图片渲染（issue #81）              |
+| `nestedList`      | `true` | 嵌套列表（issue #81）              |
+| `mathStructures`  | `true` | 公式结构（issue #82）              |
+| `tableSort`       | `true` | 表头排序（issue #83）              |
+| `tableFold`       | `true` | 长表格折叠（issue #83）            |
 
-> 示例 patch（`cordis.patch.yml` / settings 内联）：`lineNumbers: false`。`config.lineNumbers` 需以布尔值提供，非法/缺省保持默认。
+> 示例 patch：`lineNumbers: false` 关闭行号、`syntaxHighlight: false` 关闭语法高亮。开关需以布尔值提供，非法/缺省保持默认。设置页保存后无需重启（DSH watchUserPatches 热重载）；issue #80 的 `lineNumbers` 单开关写法保持兼容。
 
 ## 依赖
 
@@ -98,6 +109,7 @@ npm test
 | --------------------- | ------------------------------------------------------------------------------------------------ | -------------- |
 | `cordis`              | 插件运行时                                                                                       | 是（宿主提供） |
 | `react`               | client 端 MarkdownView 组件                                                                      | —              |
+| `dsh-shared`          | server 端配置持久化与 HTTP 工具（issue #84：patch 写入 / 围栏 / JSON 读写）                      | —              |
 | `dsh-think-zh-expand` | 其 assistant-step 渲染器跨插件 require 本插件 MarkdownView（依赖方向：think-zh-expand → 本插件） | 是（可配合）   |
 
 ## 相关文档

@@ -177,6 +177,7 @@ class World {
     this.pPlain = null
     this.thinkTable = null
     this.markdownView = null
+    this.exportsObj = null
     this.lastMarkdown = null
   }
 
@@ -217,6 +218,7 @@ class World {
     })
     assert.equal(typeof exportsObj.MarkdownView, 'function', 'MarkdownView exported')
     this.markdownView = exportsObj.MarkdownView
+    this.exportsObj = exportsObj
   }
 
   /** 调用 MarkdownView 渲染文本并收集元素树（函数组件展开）。 */
@@ -229,6 +231,9 @@ class World {
     let mathErrorSpans = 0
     let mathErrorBlocks = 0
     let copyButtons = 0
+    let tokenSpans = 0
+    let langLabels = 0
+    let checkboxes = 0
     function walk(node) {
       if (node === null || node === undefined || typeof node === 'boolean') return
       if (typeof node === 'string' || typeof node === 'number') {
@@ -254,6 +259,21 @@ class World {
         ) {
           copyButtons += 1
         }
+        if (
+          node.type === 'span' &&
+          typeof props.className === 'string' &&
+          props.className.startsWith('dsh-md-render-tok-')
+        ) {
+          tokenSpans += 1
+        }
+        if (
+          node.type === 'span' &&
+          typeof props.className === 'string' &&
+          props.className.includes('dsh-md-render-code-lang')
+        ) {
+          langLabels += 1
+        }
+        if (node.type === 'input' && props.type === 'checkbox') checkboxes += 1
       } else if (typeof node.type === 'function') {
         walk(node.type(node.props))
         return
@@ -270,7 +290,16 @@ class World {
       mathErrorSpans,
       mathErrorBlocks,
       copyButtons,
+      tokenSpans,
+      langLabels,
+      checkboxes,
     }
+  }
+
+  /** 设置渲染开关（issue #84）：等效 client apply 读取 ctx.config）。 */
+  setRenderOptions(config) {
+    assert.ok(this.exportsObj, 'bundle loaded before setting render options')
+    this.exportsObj.setRenderOptions(config)
   }
 
   buildDom() {
@@ -324,6 +353,12 @@ class World {
   }
 
   loadAndApply(bodyEl) {
+    this.loadForApply(bodyEl)
+    this.exportsObj.apply({ effect: (fn) => fn() })
+  }
+
+  /** 设置 DOM 全局 + 加载 bundle（不 apply），保留 exportsObj 供后续使用。 */
+  loadForApply(bodyEl) {
     const stubbed = {
       createElement: (type, props, ...children) => ({
         type,
@@ -379,8 +414,7 @@ class World {
       if (spec === 'react') return stubbed
       throw new Error('unexpected require: ' + spec)
     })
-    const ctx = { effect: (fn) => fn() }
-    exportsObj.apply(ctx)
+    this.exportsObj = exportsObj
   }
 }
 
@@ -586,3 +620,83 @@ Then('表头显示排序指示', async function () {
   assert.ok(arrow, 'sort arrow present')
   assert.equal(arrow.textContent, '↑', 'asc arrow')
 })
+
+// ── issue #84：渲染增强开关（设置页配置化）────────────────────────────
+Given('渲染插件已启动且渲染开关 {string}', async function (spec) {
+  this.loadMarkdownView()
+  const [key, value] = parseSwitch(spec)
+  this.setRenderOptions({ [key]: value })
+})
+
+Given('渲染插件已启动且渲染开关 {string} 且对话含超过 20 行的表格段落', async function (spec) {
+  const bodyEl = this.buildDom()
+  // 先加载 bundle（不 apply），设置开关，再 apply——扫描路径按新开关渲染
+  this.loadForApply(bodyEl)
+  const [key, value] = parseSwitch(spec)
+  this.setRenderOptions({ [key]: value })
+  this.exportsObj.apply({ effect: (fn) => fn() })
+})
+
+When('渲染含 js 代码块的文本块', async function () {
+  this.renderMarkdown('```js\nconst x = "hi" // comment\n```')
+})
+
+When('渲染含任务列表标记的文本块', async function () {
+  this.renderMarkdown('- [x] 已完成任务\n- [ ] 待办任务')
+})
+
+Then('输出不包含语法高亮 token span', async function () {
+  assert.equal(this.lastMarkdown.tokenSpans, 0, 'no syntax highlight token spans')
+})
+
+Then('语言标签仍渲染', async function () {
+  assert.ok(this.lastMarkdown.langLabels >= 1, 'language label still rendered')
+})
+
+Then('输出不包含复制按钮', async function () {
+  assert.equal(this.lastMarkdown.copyButtons, 0, 'no copy buttons')
+})
+
+Then('输出不包含 checkbox', async function () {
+  assert.equal(this.lastMarkdown.checkboxes, 0, 'no task checkboxes')
+})
+
+Then('任务标记文本保留', async function () {
+  assert.ok(
+    this.lastMarkdown.texts.some((t) => t.includes('[x]')),
+    'task marker kept as literal text',
+  )
+})
+
+Then('输出不包含公式元素', async function () {
+  assert.equal(this.lastMarkdown.mathSpans, 0, 'no inline math span')
+  assert.equal(this.lastMarkdown.mathErrorSpans, 0, 'no math error span')
+  assert.equal(this.lastMarkdown.mathErrorBlocks, 0, 'no math error block')
+})
+
+Then('公式原文保留', async function () {
+  assert.ok(
+    this.lastMarkdown.texts.some((t) => t.includes('$x^2 + y^2$')),
+    'formula text kept',
+  )
+})
+
+Then('表格不渲染折叠行', async function () {
+  const folded = this.scrollEl.querySelectorAll('tr.dsh-md-render-folded-row')
+  assert.equal(folded.length, 0, 'no folded rows')
+})
+
+Then('表格不渲染展开按钮', async function () {
+  const btn = this.scrollEl.querySelector('button.dsh-md-render-table-fold')
+  assert.equal(btn, null, 'no fold button')
+})
+
+/** 解析开关描述字符串（如 "syntaxHighlight=false" → ['syntaxHighlight', false]）。 */
+function parseSwitch(spec) {
+  const eq = spec.indexOf('=')
+  if (eq === -1) throw new Error(`bad switch spec: ${spec}`)
+  const key = spec.slice(0, eq)
+  const value = spec.slice(eq + 1)
+  if (value !== 'true' && value !== 'false') throw new Error(`bad switch value: ${spec}`)
+  return [key, value === 'true']
+}

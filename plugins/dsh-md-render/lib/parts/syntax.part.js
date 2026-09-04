@@ -40,6 +40,8 @@ function linkEl(full, kk) {
 }
 
 function mathSpanOrText(m, text, kk) {
+  // issue #84：mathStructures 关闭 → 公式语法保持原文（不渲染公式结构）。
+  if (!renderOptions.mathStructures) return m[7]
   if (isMathSpan(text, m)) {
     return createElement('span', { key: kk, className: 'dsh-md-render-math' }, m[7].slice(1, -1))
   }
@@ -57,11 +59,23 @@ function mathSpanOrText(m, text, kk) {
 function inlineMatch(m, text, kk) {
   if (m[1] !== undefined) return createElement('code', { key: kk }, trimCode(m[2]))
   if (m[3] !== undefined) return createElement('strong', { key: kk }, m[3].slice(2, -2))
-  if (m[4] !== undefined) return createElement(MarkdownImage, { key: kk, src: m[5], alt: m[4] })
+  if (m[4] !== undefined) return matchImage(m, kk)
   if (m[6] !== undefined) return linkEl(m[6], kk)
   if (m[7] !== undefined) return mathSpanOrText(m, text, kk)
-  if (m[8] !== undefined) return createElement('del', { key: kk, className: 'dsh-md-render-del' }, m[8])
+  if (m[8] !== undefined) return matchDel(m, kk)
   return createElement('em', { key: kk }, m[9].slice(1, -1))
+}
+
+function matchImage(m, kk) {
+  // issue #84：image 关闭 → 图片语法保持原文（不解析为 <img>）。
+  if (renderOptions.image) return createElement(MarkdownImage, { key: kk, src: m[5], alt: m[4] })
+  return m[0]
+}
+
+function matchDel(m, kk) {
+  // issue #84：strikethrough 关闭 → 删除线保持原文（不解析为 <del>）。
+  if (renderOptions.strikethrough) return createElement('del', { key: kk, className: 'dsh-md-render-del' }, m[8])
+  return m[0]
 }
 
 // ── 列表解析（issue #81 增强）：多级嵌套 + 任务列表（- [ ] / - [x]）
@@ -75,8 +89,9 @@ function listInfo(line) {
   let rest = m[3]
   let task = false
   let checked = false
+  // issue #84：taskList 关闭 → 任务标记保持原文（不解析 checkbox）。
   const tm = rest.match(/^\[( |x|X)\]\s+(.*)$/)
-  if (tm) {
+  if (tm && renderOptions.taskList) {
     task = true
     checked = tm[1] !== ' '
     rest = tm[2]
@@ -85,7 +100,8 @@ function listInfo(line) {
 }
 
 function sameLevel(info, indent, ordered) {
-  return info && info.indent === indent && info.ordered === ordered
+  // issue #84：nestedList 关闭 → 忽略缩进层级，全部同级渲染（不嵌套）。
+  return !!info && info.ordered === ordered && (!renderOptions.nestedList || info.indent === indent)
 }
 
 function itemKids(info, i) {
@@ -107,6 +123,9 @@ function parseList(lines, start) {
     const kids = itemKids(info, i)
     i += 1
     while (i < lines.length) {
+      // issue #84：nestedList 关闭 → 不递归解析深层列表（深层项由外层
+      // 同级消费，扁平渲染）。
+      if (!renderOptions.nestedList) break
       const nxt = listInfo(lines[i])
       if (!nxt || nxt.indent <= indent) break
       const nested = parseList(lines, i)
