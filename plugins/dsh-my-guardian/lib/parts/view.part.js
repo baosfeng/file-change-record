@@ -123,14 +123,19 @@ function EntryList({ rows, onAction }) {
   )
 }
 
-/** Recent guardian event log: badge + key info + time per entry. */
+/** 高频噪音事件：每次启动/热重载都会大量产生，挤掉真正重要的诊断信息。 */
+const EVENT_NOISE = new Set(['entry-init', 'entry-dispose'])
+
+/** Recent guardian event log: badge + key info + time per entry.
+ *  过滤 entry-init/entry-dispose 噪音，优先展示隔离/冻结/更新失败等关键事件。 */
 function EventList({ events }) {
-  if (events.length === 0) return null
+  const important = events.filter((event) => !EVENT_NOISE.has(event.type))
+  if (important.length === 0) return null
   return createElement(
     'div',
     { className: 'dsh-my-guardian-events' },
     createElement('div', { className: 'dsh-my-guardian-events-title' }, icon.clock(14), strings.events()),
-    events.map((event, index) =>
+    important.map((event, index) =>
       createElement(
         'div',
         {

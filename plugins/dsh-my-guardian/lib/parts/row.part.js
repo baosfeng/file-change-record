@@ -132,8 +132,20 @@ function RowActions({ entry, busy, onRetry, onRemove }) {
   )
 }
 
+/** 冻结行提示（连败停止自动重试，需手动操作）。 */
+function FrozenHint({ status }) {
+  if (status !== 'frozen') return null
+  return createElement('div', { className: 'dsh-my-guardian-freeze-hint' }, strings.frozenHint())
+}
+
 function EntryRow({ entry, source, onAction }) {
-  const [expanded, setExpanded] = useState(false)
+  // 失败/冻结行默认展开错误详情（用户之前必须手动点开才看得到真正报错）。
+  const [expanded, setExpanded] = useState(
+    () =>
+      typeof entry.lastError === 'string' &&
+      entry.lastError !== '' &&
+      (entry.status === 'failed' || entry.status === 'frozen'),
+  )
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const hasError = typeof entry.lastError === 'string' && entry.lastError !== ''
@@ -151,6 +163,7 @@ function EntryRow({ entry, source, onAction }) {
     { className: 'dsh-my-guardian-row' },
     createElement(RowHead, { entry, source }),
     createElement(RowMeta, { entry }),
+    createElement(FrozenHint, { status: entry.status }),
     installHint
       ? createElement(
           'div',

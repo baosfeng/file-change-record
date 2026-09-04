@@ -12,8 +12,8 @@ const strings = {
   safeMode: () => (isZh() ? '安全模式' : 'Safe mode'),
   safeModeDesc: () =>
     isZh()
-      ? '开启后所有候选/已转正插件都不再加载，用于快速恢复环境'
-      : 'Skips every staged/promoted plugin mount — fast recovery',
+      ? '开启后所有候选/已转正插件（候选区 cordis.staged.json 中的条目）都不再加载，用于快速恢复环境。注意：安全模式只作用于启动后挂载的候选插件；若插件直接写进启动名册（cordis.patch.yml / profile），DSH 启动时仍是 all-or-nothing——请把新插件先放进候选区。'
+      : 'Skips every staged/promoted plugin mount — fast recovery. Note: this only covers entries mounted after boot (cordis.staged.json); plugins in the boot roster (cordis.patch.yml / profile) are still all-or-nothing — put new plugins in the staged file first.',
   staged: () => (isZh() ? '候选' : 'staged'),
   promoted: () => (isZh() ? '转正' : 'promoted'),
   entries: () => (isZh() ? '插件条目' : 'Plugin entries'),
@@ -41,6 +41,10 @@ const strings = {
   loading: () => (isZh() ? '加载中…' : 'Loading…'),
   events: () => (isZh() ? '最近事件' : 'Recent events'),
   attempts: (n) => (isZh() ? `失败 ${n} 次` : `failed ×${n}`),
+  frozenHint: () =>
+    isZh()
+      ? '已冻结：连续失败停止自动重试——点击刷新按钮手动重试，或移除该条目'
+      : 'Frozen: auto-retry stopped after repeated failures — retry manually or remove the entry',
   failureDependency: () => (isZh() ? '依赖缺失' : 'Dependency'),
   failureCode: () => (isZh() ? '代码错误' : 'Code error'),
   failureOther: () => (isZh() ? '其他' : 'Other'),

@@ -122,6 +122,7 @@ const STYLES = `
   color:var(--dsw-alias-state-success-primary); word-break:break-all; }
 .dsh-my-guardian-row-meta { display:flex; align-items:center; gap:6px; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
 .dsh-my-guardian-attempts { color:var(--dsw-alias-state-error-primary); }
+.dsh-my-guardian-freeze-hint { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-state-warn-primary); line-height:1.6; }
 .dsh-my-guardian-link { display:inline-flex; align-items:center; gap:3px; padding:0; border:none; background:transparent; cursor:pointer;
   font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary);
   transition:color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
@@ -199,8 +200,8 @@ const strings = {
   safeMode: () => (isZh() ? '安全模式' : 'Safe mode'),
   safeModeDesc: () =>
     isZh()
-      ? '开启后所有候选/已转正插件都不再加载，用于快速恢复环境'
-      : 'Skips every staged/promoted plugin mount — fast recovery',
+      ? '开启后所有候选/已转正插件（候选区 cordis.staged.json 中的条目）都不再加载，用于快速恢复环境。注意：安全模式只作用于启动后挂载的候选插件；若插件直接写进启动名册（cordis.patch.yml / profile），DSH 启动时仍是 all-or-nothing——请把新插件先放进候选区。'
+      : 'Skips every staged/promoted plugin mount — fast recovery. Note: this only covers entries mounted after boot (cordis.staged.json); plugins in the boot roster (cordis.patch.yml / profile) are still all-or-nothing — put new plugins in the staged file first.',
   staged: () => (isZh() ? '候选' : 'staged'),
   promoted: () => (isZh() ? '转正' : 'promoted'),
   entries: () => (isZh() ? '插件条目' : 'Plugin entries'),
@@ -228,6 +229,10 @@ const strings = {
   loading: () => (isZh() ? '加载中…' : 'Loading…'),
   events: () => (isZh() ? '最近事件' : 'Recent events'),
   attempts: (n) => (isZh() ? `失败 ${n} 次` : `failed ×${n}`),
+  frozenHint: () =>
+    isZh()
+      ? '已冻结：连续失败停止自动重试——点击刷新按钮手动重试，或移除该条目'
+      : 'Frozen: auto-retry stopped after repeated failures — retry manually or remove the entry',
   failureDependency: () => (isZh() ? '依赖缺失' : 'Dependency'),
   failureCode: () => (isZh() ? '代码错误' : 'Code error'),
   failureOther: () => (isZh() ? '其他' : 'Other'),
@@ -784,8 +789,20 @@ function RowActions({ entry, busy, onRetry, onRemove }) {
   )
 }
 
+/** 冻结行提示（连败停止自动重试，需手动操作）。 */
+function FrozenHint({ status }) {
+  if (status !== 'frozen') return null
+  return createElement('div', { className: 'dsh-my-guardian-freeze-hint' }, strings.frozenHint())
+}
+
 function EntryRow({ entry, source, onAction }) {
-  const [expanded, setExpanded] = useState(false)
+  // 失败/冻结行默认展开错误详情（用户之前必须手动点开才看得到真正报错）。
+  const [expanded, setExpanded] = useState(
+    () =>
+      typeof entry.lastError === 'string' &&
+      entry.lastError !== '' &&
+      (entry.status === 'failed' || entry.status === 'frozen'),
+  )
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const hasError = typeof entry.lastError === 'string' && entry.lastError !== ''
@@ -803,6 +820,7 @@ function EntryRow({ entry, source, onAction }) {
     { className: 'dsh-my-guardian-row' },
     createElement(RowHead, { entry, source }),
     createElement(RowMeta, { entry }),
+    createElement(FrozenHint, { status: entry.status }),
     installHint
       ? createElement(
           'div',
@@ -957,14 +975,19 @@ function EntryList({ rows, onAction }) {
   )
 }
 
-/** Recent guardian event log: badge + key info + time per entry. */
+/** 高频噪音事件：每次启动/热重载都会大量产生，挤掉真正重要的诊断信息。 */
+const EVENT_NOISE = new Set(['entry-init', 'entry-dispose'])
+
+/** Recent guardian event log: badge + key info + time per entry.
+ *  过滤 entry-init/entry-dispose 噪音，优先展示隔离/冻结/更新失败等关键事件。 */
 function EventList({ events }) {
-  if (events.length === 0) return null
+  const important = events.filter((event) => !EVENT_NOISE.has(event.type))
+  if (important.length === 0) return null
   return createElement(
     'div',
     { className: 'dsh-my-guardian-events' },
     createElement('div', { className: 'dsh-my-guardian-events-title' }, icon.clock(14), strings.events()),
-    events.map((event, index) =>
+    important.map((event, index) =>
       createElement(
         'div',
         {

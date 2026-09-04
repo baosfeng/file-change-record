@@ -88,6 +88,7 @@ const STYLES = `
   color:var(--dsw-alias-state-success-primary); word-break:break-all; }
 .dsh-my-guardian-row-meta { display:flex; align-items:center; gap:6px; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
 .dsh-my-guardian-attempts { color:var(--dsw-alias-state-error-primary); }
+.dsh-my-guardian-freeze-hint { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-state-warn-primary); line-height:1.6; }
 .dsh-my-guardian-link { display:inline-flex; align-items:center; gap:3px; padding:0; border:none; background:transparent; cursor:pointer;
   font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary);
   transition:color var(--ds-transition-duration-slow) var(--ds-ease-in-out); }
