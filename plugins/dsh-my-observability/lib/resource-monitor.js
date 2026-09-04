@@ -18,7 +18,8 @@ const MAX_HISTORY = 60
 
 /** 创建资源监控器：{ sample, start, stop }。options: intervalMs / limits。 */
 export function createResourceMonitor(ctx, options = {}) {
-  const intervalMs = Number.isFinite(options.intervalMs) && options.intervalMs > 0 ? options.intervalMs : DEFAULT_INTERVAL_MS
+  const intervalMs =
+    Number.isFinite(options.intervalMs) && options.intervalMs > 0 ? options.intervalMs : DEFAULT_INTERVAL_MS
   const limits = { ...DEFAULT_LIMITS, ...(options.limits ?? {}) }
   const state = {
     timer: null,

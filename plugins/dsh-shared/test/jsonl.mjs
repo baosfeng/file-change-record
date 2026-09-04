@@ -28,7 +28,11 @@ afterAll(() => {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const noop = { warn() {} }
 const linesOf = (file) =>
-  existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter((l) => l !== '') : []
+  existsSync(file)
+    ? readFileSync(file, 'utf8')
+        .split('\n')
+        .filter((l) => l !== '')
+    : []
 
 test('jsonlAppender: 高频追加为增量写（无写放大）+ 防抖合并', async () => {
   const dir = tempDir()

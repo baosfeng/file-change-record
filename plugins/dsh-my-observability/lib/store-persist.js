@@ -24,7 +24,7 @@ export const MAX_TOTAL_EVENTS = 20000
 export const COMPACT_LINES = 5000
 
 /** 数据根目录：$DSH_HOME（fallback 家目录）。 */
-export function dataHome() {
+function dataHome() {
   const home = process.env.DSH_HOME
   return typeof home === 'string' && home !== '' ? home : homedir()
 }
@@ -40,7 +40,7 @@ export function legacyFile() {
 }
 
 /** 事件结构校验（时间/会话/类型为合理形态）。 */
-export function isValidEvent(event) {
+function isValidEvent(event) {
   return (
     event !== null &&
     typeof event === 'object' &&
@@ -65,7 +65,9 @@ export function normalizeLoaded(bySession) {
   let total = 0
   for (const bucket of Object.values(sessionBuckets)) total += bucket.events.length
   if (total > MAX_TOTAL_EVENTS) {
-    const ordered = Object.keys(sessionBuckets).sort((a, b) => firstTimeOf(sessionBuckets[a]) - firstTimeOf(sessionBuckets[b]))
+    const ordered = Object.keys(sessionBuckets).sort(
+      (a, b) => firstTimeOf(sessionBuckets[a]) - firstTimeOf(sessionBuckets[b]),
+    )
     for (const sessionId of ordered) {
       if (total <= MAX_TOTAL_EVENTS) break
       total -= sessionBuckets[sessionId].events.length

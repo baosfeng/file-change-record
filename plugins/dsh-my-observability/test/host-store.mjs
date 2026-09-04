@@ -130,7 +130,9 @@ test('store: compact 产生完整快照且随后恢复增量追加', async () =>
 
   const jsonl = jsonlFile(home)
   assert.ok(existsSync(jsonl), 'audit.jsonl exists after compact')
-  const lines = readFileSync(jsonl, 'utf8').split('\n').filter((l) => l !== '').length
+  const lines = readFileSync(jsonl, 'utf8')
+    .split('\n')
+    .filter((l) => l !== '').length
   assert.equal(lines, 5100, 'compact writes full live snapshot (no event loss)')
 
   // compact 后继续追加：100 事件只增 100 行（无放大）
@@ -138,7 +140,9 @@ test('store: compact 产生完整快照且随后恢复增量追加', async () =>
     await dispatchEvent(handle.listeners, 'agent/status', { agent: topAgent('c4'), status: `y${i}` })
   }
   await sleep(1200)
-  const linesAfter = readFileSync(jsonl, 'utf8').split('\n').filter((l) => l !== '').length
+  const linesAfter = readFileSync(jsonl, 'utf8')
+    .split('\n')
+    .filter((l) => l !== '').length
   assert.equal(linesAfter, 5200, 'append-only growth after compact')
   const events = await eventsOf(handle.api, '?sessionId=c4')
   assert.equal(events.length, 100, 'post-compact events queryable')
@@ -204,7 +208,9 @@ test('store: dispose 时紧凑挂起仍完整落盘（无事件丢失）', async
     await new Promise((resolve) => setTimeout(resolve, 1500))
     const jsonl = jsonlFile(home)
     assert.ok(existsSync(jsonl), 'jsonl flushed on dispose')
-    const lines = readFileSync(jsonl, 'utf8').split('\n').filter((l) => l !== '').length
+    const lines = readFileSync(jsonl, 'utf8')
+      .split('\n')
+      .filter((l) => l !== '').length
     assert.equal(lines, 2000, 'dispose 后事件完整落盘（每会话上限 2000）')
     // 重启恢复
     const second = bootPlugin({}, { home })

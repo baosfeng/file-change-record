@@ -256,7 +256,9 @@ function aiAgentsMock() {
 Then('审计数据文件以增量追加方式增长', function () {
   const file = join(this.sharedHome, 'observability', 'audit.jsonl')
   assert.ok(existsSync(file), '审计数据文件已创建')
-  const lines = readFileSync(file, 'utf8').split('\n').filter((l) => l !== '').length
+  const lines = readFileSync(file, 'utf8')
+    .split('\n')
+    .filter((l) => l !== '').length
   assert.ok(lines >= 200, `追加行数与事件数一致（实际 ${lines}）`)
 })
 
@@ -266,10 +268,7 @@ Then('落盘字节数不超过事件本体字节的 1.6 倍', async function () 
   await this.invoke('/observability/api/events?sessionId=amp')
   const events = this.lastValue ?? []
   const eventBytes = events.reduce((acc, e) => acc + JSON.stringify(e).length + 1, 0)
-  assert.ok(
-    size <= Math.ceil(eventBytes * 1.6) + 512,
-    `写放大：落盘 ${size}B vs 事件本体 ${eventBytes}B`,
-  )
+  assert.ok(size <= Math.ceil(eventBytes * 1.6) + 512, `写放大：落盘 ${size}B vs 事件本体 ${eventBytes}B`)
 })
 
 When('请求资源采样', async function () {
