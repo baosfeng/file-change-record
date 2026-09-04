@@ -4,24 +4,27 @@
  * Registers one section (`dsh-my-memory`, order -95 — before the deployment
  * persona at 0 and before dsh-think-zh's -90) whose text is a provider
  * evaluated at every prompt assembly: it reads the GLOBAL memory cache and
- * renders the newest `maxItems` entries, each truncated to
- * `maxDescLength` characters. An empty memory renders an empty section,
- * which the prompt renderer drops — so the injection costs nothing until
- * the user actually stores memories. Because the text is re-evaluated per
- * assembly, a memory saved mid-session is visible to the agent on the very
- * next turn without a restart.
+ * renders the newest `maxItems` entries, each summarized to
+ * `maxDescLength` characters — the summary prefers the full first sentence
+ * and never cuts mid-sentence (issue #105). An empty memory renders an
+ * empty section, which the prompt renderer drops — so the injection costs
+ * nothing until the user actually stores memories. Because the text is
+ * re-evaluated per assembly, a memory saved mid-session is visible to the
+ * agent on the very next turn without a restart.
  */
+import { DEFAULT_MAX_DESC_LENGTH, summarizeDesc } from './memory-text.js'
 
 /** Default cap on how many global memories are injected. */
 const DEFAULT_MAX_ITEMS = 5
 
-/** Default cap on one injected memory's desc length (characters). */
-const DEFAULT_MAX_DESC_LENGTH = 200
-
-/** Truncate one desc to the length cap (keeps the head). */
+/**
+ * Truncate one desc to the length cap, preferring the full first sentence
+ * (semantic truncation — never cuts mid-sentence when a sentence boundary
+ * fits; issue #105). Kept as the historical export name for callers/tests;
+ * the implementation now lives in memory-text.js.
+ */
 export function truncateDesc(desc, maxLength) {
-  if (desc.length <= maxLength) return desc
-  return `${desc.slice(0, maxLength)}…`
+  return summarizeDesc(desc, maxLength)
 }
 
 /** Render the injected section text for a list of global memories. */

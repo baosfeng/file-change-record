@@ -59,3 +59,17 @@ function fetchSessionCwd(sessionId) {
     })
     .catch(() => '')
 }
+
+/** GET /my-memory/api/config → the entry-length guidance (issue #105):
+ *  `maxEntryLength` (concise-input hint threshold) and `maxDescLength`
+ *  (injection cap). Falls back to the client-side default on failure. */
+function fetchConfig() {
+  return fetch(`${API_BASE}/config`)
+    .then((res) => res.json())
+    .then((body) => {
+      if (body === null || body.ok !== true) return { maxEntryLength: DEFAULT_ENTRY_LIMIT }
+      const limit = body.value?.maxEntryLength
+      return { maxEntryLength: Number.isInteger(limit) && limit > 0 ? limit : DEFAULT_ENTRY_LIMIT }
+    })
+    .catch(() => ({ maxEntryLength: DEFAULT_ENTRY_LIMIT }))
+}

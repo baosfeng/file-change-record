@@ -60,7 +60,16 @@ const strings = {
       ? '当前无项目会话，请在上方输入项目根路径加载项目记忆'
       : 'No active project session; enter a project root above to load its memory',
   addPlaceholder: () =>
-    isZh() ? '输入要记住的内容（如：回复使用中文）' : 'Type what to remember (e.g. reply in Chinese)',
+    isZh()
+      ? '输入要记住的内容（建议 1-2 句话概括，如：回复使用中文）'
+      : 'Type what to remember (keep it to 1-2 sentences, e.g. reply in Chinese)',
+  // ── issue #105 记忆内容精简：超长提示 / 概要预览 ──
+  entryTooLongHint: (current, limit) =>
+    isZh()
+      ? `内容过长（${current} 字，建议 ≤ ${limit} 字），建议精简为 1-2 句`
+      : `Entry too long (${current} chars, suggested ≤ ${limit}); keep it to 1-2 sentences`,
+  summaryPreview: () =>
+    isZh() ? '将保存完整内容；列表与注入显示概要：' : 'Full content is saved; list & injection show the summary: ',
   add: () => (isZh() ? '新增' : 'Add'),
   save: () => (isZh() ? '保存' : 'Save'),
   cancel: () => (isZh() ? '取消' : 'Cancel'),
@@ -185,6 +194,9 @@ const STYLES = `
 .dsh-my-memory-meta { display:flex; align-items:center; gap:4px; font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
 .dsh-my-memory-meta-icon { display:inline-flex; color:var(--dsw-alias-label-dimmed); }
 .dsh-my-memory-addbar { display:flex; gap:6px; align-items:center; }
+.dsh-my-memory-addbar-wrap { display:flex; flex-direction:column; gap:3px; }
+.dsh-my-memory-entry-hint { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-state-warning-primary);
+  line-height:1.7; padding:0 2px; }
 .dsh-my-memory-add-input { flex:1; min-width:0; height:28px; padding:0 8px; border-radius:6px;
   border:1px solid var(--dsw-alias-border-l1); background:var(--dsw-alias-bg-layer-2);
   color:var(--dsw-alias-label-primary); font:var(--dsw-font-s-14); }
@@ -207,6 +219,10 @@ const STYLES = `
 .dsh-my-memory-confirm-head svg { display:block; flex:none; }
 .dsh-my-memory-confirm-text { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-primary); }
 .dsh-my-memory-confirm-desc { font:var(--dsw-font-s-14); color:var(--dsw-alias-label-primary); word-break:break-word; }
+.dsh-my-memory-confirm-summary { display:flex; flex-direction:column; gap:2px; padding:4px 6px; border-radius:4px;
+  background:color-mix(in srgb, var(--dsw-alias-accent) 8%, transparent); }
+.dsh-my-memory-confirm-summary-label { font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-tertiary); }
+.dsh-my-memory-confirm-summary-text { font:var(--dsw-font-xxs-12); color:var(--dsw-alias-label-secondary); word-break:break-word; }
 .dsh-my-memory-confirm-actions { display:flex; gap:6px; align-items:center; }
 .dsh-my-memory-confirm-ok { display:inline-flex; align-items:center; gap:5px; height:26px; padding:0 12px; border-radius:6px; cursor:pointer;
   font:var(--dsw-font-xxs-12);
@@ -289,6 +305,20 @@ function fetchSessionCwd(sessionId) {
       return typeof body.value?.cwd === 'string' ? body.value.cwd : ''
     })
     .catch(() => '')
+}
+
+/** GET /my-memory/api/config → the entry-length guidance (issue #105):
+ *  `maxEntryLength` (concise-input hint threshold) and `maxDescLength`
+ *  (injection cap). Falls back to the client-side default on failure. */
+function fetchConfig() {
+  return fetch(`${API_BASE}/config`)
+    .then((res) => res.json())
+    .then((body) => {
+      if (body === null || body.ok !== true) return { maxEntryLength: DEFAULT_ENTRY_LIMIT }
+      const limit = body.value?.maxEntryLength
+      return { maxEntryLength: Number.isInteger(limit) && limit > 0 ? limit : DEFAULT_ENTRY_LIMIT }
+    })
+    .catch(() => ({ maxEntryLength: DEFAULT_ENTRY_LIMIT }))
 }
 
     // ── shared icons (inline, stroke=currentColor, matching better-sidebar) ──
@@ -616,16 +646,42 @@ const fileIconByExt = (ext, size = 14) => {
   return spec === undefined ? icon.file(size) : badgeIcon(spec, size)
 }
 
-    // ── utils: pure display helpers (truncation / relative time / sort) ──────
+    // ── utils: pure display helpers (summary / relative time / sort) ──────────
 // 纯展示层辅助函数：不触碰服务端状态，供客户端视图使用并可被单测直接调用。
-// 长条目截断 + 展开为纯展示层（issue #110 视觉设计）——不依赖 #105 的服务端逻辑。
+// 概要/详情两级展示为纯展示层（issue #105）：列表显示概要（首句/语义截断），
+// 点击展开查看完整详情——存储保留完整 desc，展示层只做概要计算。
+// 服务端同款逻辑见 lib/memory-text.js（summarizeDesc / firstSentence）。
 const TRUNCATE_LEN = 60
 
-/** 按字符截断长条目：返回截断后的文本与是否被截断（截断时用「…」收尾）。 */
+/** 默认建议单条记忆长度（字符，与服务端 maxEntryLength 默认一致；面板实际
+ *  值来自 GET /my-memory/api/config，取不到时回落此默认）。 */
+const DEFAULT_ENTRY_LIMIT = 50
+
+/** 句子边界：中英文句末标点 + 分号 + 换行（省略号吸收入前一句）。 */
+const SENTENCE_BOUNDARY = /[。！？!?；;\n….]+/u
+
+/** 取一段文本的首句（含边界标点；连续省略号/标点并入前一句）；无边界时整段。 */
+function firstSentence(text) {
+  const value = String(text ?? '')
+  const match = SENTENCE_BOUNDARY.exec(value)
+  if (match === null) return value
+  let end = match.index + 1
+  while (end < value.length && SENTENCE_BOUNDARY.test(value[end])) end += 1
+  return value.slice(0, end)
+}
+
+/** 语义截断长条目（issue #105 概要/详情两级展示）：多句条目列表**总是**显示
+ *  概要（首句），不截断在句子中间；单句条目仅在超长时退化为字符截断。
+ *  返回 { text, truncated }——truncated 为 true 表示有可展开的详情（多句或超长）。 */
 function truncateText(text, max = TRUNCATE_LEN) {
   const value = String(text ?? '').trim()
-  if (value.length <= max) return { text: value, truncated: false }
-  return { text: `${value.slice(0, max)}…`, truncated: true }
+  const first = firstSentence(value)
+  if (first === value) {
+    if (value.length <= max) return { text: value, truncated: false }
+    return { text: `${value.slice(0, max)}…`, truncated: true }
+  }
+  if (first.length <= max) return { text: first, truncated: true }
+  return { text: `${first.slice(0, max)}…`, truncated: true }
 }
 
 /** 更新时间相对化：「刚刚」「n 分钟前」「n 小时前」「n 天前」，超过 30 天回退绝对时间。 */
@@ -651,10 +707,18 @@ function sortMemories(items, dir = 'desc') {
   return copy
 }
 
+/** 是否超过建议长度上限（保存/输入时的精简提示用）。 */
+function isOverEntryLimit(text, max = DEFAULT_ENTRY_LIMIT) {
+  return String(text ?? '').length > max
+}
+
 // 导出纯函数供单测直接断言（插件只消费 apply，多余导出在 client 端无副作用）。
 exports.truncateText = truncateText
+exports.firstSentence = firstSentence
 exports.relativeTime = relativeTime
 exports.sortMemories = sortMemories
+exports.isOverEntryLimit = isOverEntryLimit
+exports.DEFAULT_ENTRY_LIMIT = DEFAULT_ENTRY_LIMIT
 
     // ── view-rows: row/entry widgets for the Memory tab ─────────────────────
 // 拆分自 view.part.js（issue #110 视觉重设计）：条目卡片、空状态、排序开关、
@@ -688,27 +752,38 @@ function EmptyState({ hint }) {
   )
 }
 
-/** 新增条目的输入 + 保存按钮。 */
-function AddBar({ scope, value, onChange, onAdd }) {
+/** 新增条目的输入 + 保存按钮；超长时给出精简提示（issue #105）。 */
+function AddBar({ scope, value, onChange, onAdd, entryLimit }) {
   return createElement(
     'div',
-    { className: 'dsh-my-memory-addbar' },
-    createElement('input', {
-      className: 'dsh-my-memory-add-input',
-      placeholder: strings.addPlaceholder(),
-      value,
-      onChange: (event) => onChange(event.target.value),
-    }),
+    { className: 'dsh-my-memory-addbar-wrap' },
     createElement(
-      'button',
-      {
-        className: 'dsh-my-memory-btn-save',
-        'aria-label': `${strings.add()} ${scope}`,
-        onClick: onAdd,
-      },
-      icon.plus(14),
-      strings.add(),
+      'div',
+      { className: 'dsh-my-memory-addbar' },
+      createElement('input', {
+        className: 'dsh-my-memory-add-input',
+        placeholder: strings.addPlaceholder(),
+        value,
+        onChange: (event) => onChange(event.target.value),
+      }),
+      createElement(
+        'button',
+        {
+          className: 'dsh-my-memory-btn-save',
+          'aria-label': `${strings.add()} ${scope}`,
+          onClick: onAdd,
+        },
+        icon.plus(14),
+        strings.add(),
+      ),
     ),
+    isOverEntryLimit(value, entryLimit)
+      ? createElement(
+          'div',
+          { className: 'dsh-my-memory-entry-hint' },
+          strings.entryTooLongHint(value.length, entryLimit),
+        )
+      : null,
   )
 }
 
@@ -832,8 +907,9 @@ function MemoryRow({
   )
 }
 
-/** 自定义确认面板（ask 模式，非原生 confirm）：删除红、保存绿。 */
-function ConfirmPanel({ confirm, onCancel, onOk }) {
+/** 自定义确认面板（ask 模式，非原生 confirm）：删除红、保存绿。
+ *  add/update 时若内容超长，显示概要预览（完整内容仍保存，issue #105）。 */
+function ConfirmPanel({ confirm, onCancel, onOk, entryLimit }) {
   const isDelete = confirm.kind === 'delete'
   const text =
     confirm.kind === 'add'
@@ -841,6 +917,8 @@ function ConfirmPanel({ confirm, onCancel, onOk }) {
       : confirm.kind === 'update'
         ? strings.confirmUpdate()
         : strings.confirmDelete()
+  const showSummary = !isDelete && isOverEntryLimit(confirm.desc, entryLimit)
+  const summary = showSummary ? truncateText(confirm.desc, TRUNCATE_LEN) : null
   return createElement(
     'div',
     { className: `dsh-my-memory-confirm dsh-my-memory-confirm-${isDelete ? 'delete' : 'save'}` },
@@ -851,6 +929,14 @@ function ConfirmPanel({ confirm, onCancel, onOk }) {
       createElement('div', { className: 'dsh-my-memory-confirm-text' }, text),
     ),
     createElement('div', { className: 'dsh-my-memory-confirm-desc' }, confirm.desc),
+    showSummary
+      ? createElement(
+          'div',
+          { className: 'dsh-my-memory-confirm-summary' },
+          createElement('span', { className: 'dsh-my-memory-confirm-summary-label' }, strings.summaryPreview()),
+          createElement('span', { className: 'dsh-my-memory-confirm-summary-text' }, summary.text),
+        )
+      : null,
     createElement(
       'div',
       { className: 'dsh-my-memory-confirm-actions' },
@@ -921,9 +1007,15 @@ function MemoryView() {
   const [confirming, setConfirming] = useState(null)
   const [expanded, setExpanded] = useState(() => new Set())
   const [sortOrder, setSortOrder] = useState({ global: 'desc', project: 'desc' })
+  const [entryLimit, setEntryLimit] = useState(DEFAULT_ENTRY_LIMIT)
   const actions = createActions({ setData, setLoading, setError, setSaved })
 
   useEffect(() => {
+    // 面板打开即拉取服务端精简引导配置（issue #105；失败回落默认值），
+    // 再解析当前会话 cwd 自动加载记忆（issue #104）。
+    fetchConfig()
+      .then((value) => setEntryLimit(value.maxEntryLength))
+      .catch(() => {})
     fetchSessionCwd(currentSessionId()).then((cwd) => actions.load(cwd))
   }, [])
 
@@ -951,6 +1043,7 @@ function MemoryView() {
             confirming,
             expanded,
             sortOrder,
+            entryLimit,
             onDraft: (scope, value) => setDrafts({ ...drafts, [scope]: value }),
             onEdit: (scope, id, desc) => setEditing({ scope, id, desc }),
             onEditDesc: (value) => setEditing({ ...editing, desc: value }),
@@ -1054,6 +1147,7 @@ function Sections({
   confirming,
   expanded,
   sortOrder,
+  entryLimit,
   onDraft,
   onEdit,
   onEditDesc,
@@ -1070,6 +1164,7 @@ function Sections({
     confirming,
     expanded,
     sortOrder,
+    entryLimit,
     onDraft,
     onEdit,
     onEditDesc,
@@ -1114,6 +1209,7 @@ function SectionBlock({
   confirming,
   expanded,
   sortOrder,
+  entryLimit,
   onDraft,
   onEdit,
   onEditDesc,
@@ -1152,12 +1248,14 @@ function SectionBlock({
     createElement(AddBar, {
       scope,
       value: drafts[scope],
+      entryLimit,
       onChange: (value) => onDraft(scope, value),
       onAdd: () => onConfirm({ kind: 'add', scope, desc: drafts[scope] }),
     }),
     confirming !== null && confirming.scope === scope
       ? createElement(ConfirmPanel, {
           confirm: confirming,
+          entryLimit,
           onCancel: onCancelConfirm,
           onOk: () => onCommit(confirming),
         })

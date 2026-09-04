@@ -207,6 +207,29 @@ test('GET /session returns empty cwd for unknown, absent or missing-sessions hos
   assert.equal(JSON.parse(res._body).value.cwd, '', 'tolerates a missing sessions service')
 })
 
+test('GET /config exposes the entry-length guidance (issue #105)', async () => {
+  const { getRoute } = await boot()
+  const r = await callRoute(getRoute, 'GET', '/my-memory/api/config')
+  assert.equal(r.status, 200)
+  assert.equal(r.json.ok, true)
+  assert.equal(r.json.value.maxEntryLength, 50, 'default entry-length guidance (issue #105 suggestion)')
+  assert.equal(r.json.value.maxDescLength, 200, 'default injection cap preserved')
+})
+
+test('POST /memory keeps the FULL desc in storage even when it exceeds maxEntryLength (issue #105)', async () => {
+  const { getRoute } = await boot()
+  const longDesc = '第一句完整的话。第二句解释性话语，超过建议的精简长度但是应该完整保留在存储中。'
+  const add = await callRoute(getRoute, 'POST', '/my-memory/api/memory', {
+    action: 'add',
+    scope: 'global',
+    desc: longDesc,
+    confirmed: true,
+  })
+  assert.equal(add.status, 200, 'long entries are NOT rejected (guidance, not a hard limit)')
+  assert.equal(add.json.value.items.length, 1)
+  assert.equal(add.json.value.items[0].desc, longDesc, 'full desc preserved verbatim in storage')
+})
+
 test('POST /memory refuses writes without the user-consent marker (400)', async () => {
   const { getRoute } = await boot()
   const r = await callRoute(getRoute, 'POST', '/my-memory/api/memory', {

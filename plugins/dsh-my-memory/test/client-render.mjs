@@ -215,7 +215,10 @@ const projectValue = {
     items: [{ id: 'p1', desc: '本项目用 vitest', createdAt: 1, updatedAt: 2 }],
   },
 }
-cannedResponses.push(globalValue)
+// 初始挂载 fetch 顺序（view.part.js useEffect 同步执行）：
+// 1. GET /my-memory/api/config → { maxEntryLength }（issue #105 精简引导）
+// 2. GET /my-memory/api/memory?scope=global → globalValue（sessionId 空不 fetch /session）
+cannedResponses.push({ ok: true, value: { maxEntryLength: 50 } }, globalValue)
 
 const tree = renderView()
 const texts0 = []
@@ -543,6 +546,101 @@ assert.ok(
   flippedJoined.indexOf('OLDER-ITEM') < flippedJoined.indexOf(truncatedLong),
   'toggling sort flips to oldest-updated first',
 )
+
+// ── issue #105 记忆内容精简：概要/详情两级展示 + 保存精简引导 ─────────────
+assert.equal(
+  exportsObj.firstSentence('回复使用中文。代码注释也要中文。'),
+  '回复使用中文。',
+  'firstSentence helper exported',
+)
+
+// 概要渲染：多句条目列表只显示首句（概要），点击展开显示完整详情
+const multiSentenceValue = {
+  ok: true,
+  value: {
+    scope: 'global',
+    cwd: '',
+    projectRoot: '',
+    items: [
+      { id: 'm1', desc: '这是重要约定。这是详细解释不应该铺开在列表里。', createdAt: 100, updatedAt: 100 },
+      { id: 'short', desc: '短条目', createdAt: 200, updatedAt: 200 },
+    ],
+  },
+}
+const reloadInputs105 = []
+collectInputs(renderView(), reloadInputs105)
+reloadInputs105.find((i) => i.className === 'dsh-my-memory-path-input').onChange({ target: { value: '' } })
+const reloadTree105 = renderView()
+const reloadButtons105 = []
+collectButtons(reloadTree105, reloadButtons105)
+cannedResponses.push(multiSentenceValue)
+reloadButtons105.find((b) => b.label.includes('刷新')).onClick()
+await new Promise((resolve) => setTimeout(resolve, 0))
+
+const summaryTree = renderView()
+const summaryTexts = []
+walkText(summaryTree, summaryTexts)
+const summaryJoined = summaryTexts.join('|')
+assert.ok(summaryJoined.includes('这是重要约定。'), 'list shows the first sentence as the summary')
+assert.ok(!summaryJoined.includes('这是详细解释不应该铺开在列表里'), 'list hides the detail sentences')
+const expandBtns105 = []
+collectButtons(summaryTree, expandBtns105)
+// 刷新后列表只有 m1（多句 → 概要截断，有展开按钮）与 short（短 → 无），
+// 唯一的「展开」按钮即属于多句条目
+const expandBtn105 = expandBtns105.find((b) => b.label.includes('展开'))
+assert.ok(expandBtn105, 'expand button renders for a multi-sentence item')
+expandBtn105.onClick()
+const expandedTree105 = renderView()
+const expandedTexts105 = []
+walkText(expandedTree105, expandedTexts105)
+assert.ok(
+  expandedTexts105.join('|').includes('这是详细解释不应该铺开在列表里'),
+  'clicking the summary expands to the FULL desc (detail level)',
+)
+
+// 输入超长提示：超过 maxEntryLength（config: 50）时出现精简提示
+const longDraftInputs = []
+collectInputs(renderView(), longDraftInputs)
+const longDraftInput = longDraftInputs.find(
+  (i) => i.className === 'dsh-my-memory-add-input' && i.placeholder.includes('记住'),
+)
+assert.ok(longDraftInput, 'global add input found')
+longDraftInput.onChange({ target: { value: 'x'.repeat(51) } })
+const longDraftTree = renderView()
+const longDraftTexts = []
+walkText(longDraftTree, longDraftTexts)
+assert.ok(longDraftTexts.join('|').includes('内容过长'), 'typing beyond maxEntryLength shows the concise-entry hint')
+assert.ok(longDraftTexts.join('|').includes('建议精简为 1-2 句'), 'hint suggests 1-2 sentences')
+// 短内容不提示
+longDraftInput.onChange({ target: { value: '短内容' } })
+const shortDraftTree = renderView()
+const shortDraftTexts = []
+walkText(shortDraftTree, shortDraftTexts)
+assert.ok(!shortDraftTexts.join('|').includes('内容过长'), 'short draft shows no hint')
+
+// 确认面板概要预览：超长 add 时确认面板说明「保存完整内容 + 显示概要」
+longDraftInput.onChange({
+  target: {
+    value: '保存这句完整内容。这句是较长的详情内容，会完整保留在存储中，同时列表与注入只展示概要首句以保持可扫读性。',
+  },
+})
+const confirmDraftTree = renderView()
+const addBtns105 = []
+collectButtons(confirmDraftTree, addBtns105)
+const addBtn105 = addBtns105.find((b) => b.label.includes('新增') && b.label.includes('global'))
+assert.ok(addBtn105, 'add button found')
+addBtn105.onClick()
+const previewTree = renderView()
+const previewTexts = []
+walkText(previewTree, previewTexts)
+const previewJoined = previewTexts.join('|')
+assert.ok(previewJoined.includes('确认新增这条记忆'), 'add confirmation shown')
+assert.ok(previewJoined.includes('将保存完整内容'), 'confirm panel previews the summary for a long entry')
+assert.ok(previewJoined.includes('保存这句完整内容。'), 'summary preview shows the first sentence')
+// 取消，避免污染后续流程
+const previewCancel = collectCancel(previewTree)
+assert.ok(previewCancel, 'cancel button present in the preview panel')
+previewCancel.onClick()
 
 console.log('ALL MY-MEMORY CLIENT RENDER-PATH TESTS PASSED')
 

@@ -15,6 +15,7 @@ export default {
     'lib/api-route.js',
     'lib/prompt.js',
     'lib/tool.js',
+    'lib/memory-text.js',
     'lib/fence.js',
     'lib/http.js',
   ],
