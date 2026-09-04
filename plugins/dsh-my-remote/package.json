@@ -1,0 +1,47 @@
+{
+  "name": "dsh-my-remote",
+  "version": "0.1.0",
+  "description": "DSH 远程控制插件：ask/approval/end 事件下发到外部通道（手机/IM webhook），远程回答 ask、批准 approval、查询状态、继续会话；适配器接口可扩展微信/QQ/飞书机器人。DSH web plugin: push ask/approval/end events to external channels, remote answer + approve with token auth and audited commands.",
+  "type": "module",
+  "main": "lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baosfeng/my-dsh-plugins"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "npx vitest run --coverage && cucumber-js test/features --import 'test/features/steps/*.mjs'"
+  },
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "cordis": "^4.0.0-rc.8"
+  },
+  "dependencies": {
+    "dsh-shared": "^0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "cordis": {
+      "optional": true
+    }
+  },
+  "license": "MIT"
+}
