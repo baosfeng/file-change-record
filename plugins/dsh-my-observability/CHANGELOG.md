@@ -2,6 +2,12 @@
 
 本文件记录 dsh-my-observability 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.6] - 2026-09-04
+
+### 变更
+
+- fix(observability): 轨迹回放会话下拉可读标题（首条用户消息）——此前只展示 UUID 清单
+
 ## [0.1.5] - 2026-09-04
 
 ### 变更
