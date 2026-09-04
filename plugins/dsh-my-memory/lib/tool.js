@@ -205,9 +205,9 @@ export function renderSaveResult(value) {
  */
 export function saveToolDescription(proactivePropose) {
   if (proactivePropose === true) {
-    return '保存记忆（写操作，需用户确认）：将一条值得记住的信息保存为全局或项目记忆。发现值得记住的信息时，可主动向用户提议保存；用户同意后调用本工具。保存后 memory_query 立即可查、后续会话注入生效。'
+    return '保存记忆（写操作，需用户确认）：将一条值得记住的信息保存为全局或项目记忆。内容建议浓缩为 1-2 句话概括（用「；」或「。」切分要点），不要长篇解释性话语。发现值得记住的信息时，可主动向用户提议保存；用户同意后调用本工具。保存后 memory_query 立即可查、后续会话注入生效。'
   }
-  return '保存记忆（写操作，需用户确认）：按用户要求将一条信息保存为全局或项目记忆。调用后需用户确认才会真正写入。保存后 memory_query 立即可查、后续会话注入生效。'
+  return '保存记忆（写操作，需用户确认）：按用户要求将一条信息保存为全局或项目记忆。内容建议浓缩为 1-2 句话概括（用「；」或「。」切分要点），不要长篇解释性话语。调用后需用户确认才会真正写入。保存后 memory_query 立即可查、后续会话注入生效。'
 }
 
 /** The memory_save tool definition (write; gated by the approval listener). */

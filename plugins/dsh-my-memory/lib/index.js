@@ -22,6 +22,7 @@
  */
 import { createApiHandler } from './api-route.js'
 import { isTrustedApiRequest } from 'dsh-shared'
+import { DEFAULT_MAX_ENTRY_LENGTH } from './memory-text.js'
 import { createMemorySection } from './prompt.js'
 import { createStore, globalMemoryFile, migrateProjectMemory, resolveProjectMemory } from './store.js'
 import { createMemoryQueryTool, createMemorySaveGate, createMemorySaveTool } from './tool.js'
@@ -30,13 +31,18 @@ export const name = 'dsh-my-memory'
 
 export const inject = ['systemPrompt', 'tools', 'webServer', 'webRuntime', 'sessions']
 
-export function apply(ctx, config) {
-  // ── stores：全局一个实例；项目按 cwd 懒创建并缓存 ────────────────────
+/** maxEntryLength 配置（issue #105 精简引导）；非法值回落默认 50。 */
+function maxEntryLengthOf(config) {
+  return Number.isInteger(config?.maxEntryLength) && config.maxEntryLength > 0
+    ? config.maxEntryLength
+    : DEFAULT_MAX_ENTRY_LENGTH
+}
+
+/** 全局 + 项目（按 cwd 懒创建并缓存；首次访问自动迁移旧集中前文件）stores。 */
+function createMemoryStores() {
   const globalStore = createStore({ file: globalMemoryFile() })
   const projectStores = new Map()
   const getProjectStore = async (cwd) => {
-    // 首次访问：把旧 <项目根>/.dsh/memory.json 数据迁移到新集中位置（issue #108），
-    // 再创建 store——store.load() 读到的是迁移后的数据，旧记忆不丢。
     const { file, legacyFile } = await resolveProjectMemory(cwd)
     let store = projectStores.get(file)
     if (store === undefined) {
@@ -47,6 +53,11 @@ export function apply(ctx, config) {
     }
     return store
   }
+  return { globalStore, projectStores, getProjectStore }
+}
+
+export function apply(ctx, config) {
+  const { globalStore, projectStores, getProjectStore } = createMemoryStores()
 
   ctx.effect(() => {
     globalStore.load().catch(() => {})
@@ -84,7 +95,13 @@ export function apply(ctx, config) {
       ctx.webServer.register({
         kind: 'prefix',
         path: '/my-memory/api',
-        handler: createApiHandler({ globalStore, getProjectStore, fence, sessions: ctx.sessions }),
+        handler: createApiHandler({
+          globalStore,
+          getProjectStore,
+          fence,
+          sessions: ctx.sessions,
+          config: { ...config, maxEntryLength: maxEntryLengthOf(config) },
+        }),
       }),
     'dsh-my-memory: /my-memory/api routes',
   )

@@ -30,27 +30,38 @@ function EmptyState({ hint }) {
   )
 }
 
-/** 新增条目的输入 + 保存按钮。 */
-function AddBar({ scope, value, onChange, onAdd }) {
+/** 新增条目的输入 + 保存按钮；超长时给出精简提示（issue #105）。 */
+function AddBar({ scope, value, onChange, onAdd, entryLimit }) {
   return createElement(
     'div',
-    { className: 'dsh-my-memory-addbar' },
-    createElement('input', {
-      className: 'dsh-my-memory-add-input',
-      placeholder: strings.addPlaceholder(),
-      value,
-      onChange: (event) => onChange(event.target.value),
-    }),
+    { className: 'dsh-my-memory-addbar-wrap' },
     createElement(
-      'button',
-      {
-        className: 'dsh-my-memory-btn-save',
-        'aria-label': `${strings.add()} ${scope}`,
-        onClick: onAdd,
-      },
-      icon.plus(14),
-      strings.add(),
+      'div',
+      { className: 'dsh-my-memory-addbar' },
+      createElement('input', {
+        className: 'dsh-my-memory-add-input',
+        placeholder: strings.addPlaceholder(),
+        value,
+        onChange: (event) => onChange(event.target.value),
+      }),
+      createElement(
+        'button',
+        {
+          className: 'dsh-my-memory-btn-save',
+          'aria-label': `${strings.add()} ${scope}`,
+          onClick: onAdd,
+        },
+        icon.plus(14),
+        strings.add(),
+      ),
     ),
+    isOverEntryLimit(value, entryLimit)
+      ? createElement(
+          'div',
+          { className: 'dsh-my-memory-entry-hint' },
+          strings.entryTooLongHint(value.length, entryLimit),
+        )
+      : null,
   )
 }
 
@@ -174,15 +185,23 @@ function MemoryRow({
   )
 }
 
-/** 自定义确认面板（ask 模式，非原生 confirm）：删除红、保存绿。 */
-function ConfirmPanel({ confirm, onCancel, onOk }) {
+/** 概要预览行（issue #105）：add/update 内容超长时提示「完整内容保存 + 显示概要」。 */
+function SummaryPreview({ desc }) {
+  const summary = truncateText(desc, TRUNCATE_LEN)
+  return createElement(
+    'div',
+    { className: 'dsh-my-memory-confirm-summary' },
+    createElement('span', { className: 'dsh-my-memory-confirm-summary-label' }, strings.summaryPreview()),
+    createElement('span', { className: 'dsh-my-memory-confirm-summary-text' }, summary.text),
+  )
+}
+
+/** 自定义确认面板（ask 模式，非原生 confirm）：删除红、保存绿。
+ *  add/update 时若内容超长，显示概要预览（完整内容仍保存，issue #105）。 */
+function ConfirmPanel({ confirm, onCancel, onOk, entryLimit }) {
   const isDelete = confirm.kind === 'delete'
-  const text =
-    confirm.kind === 'add'
-      ? strings.confirmAdd()
-      : confirm.kind === 'update'
-        ? strings.confirmUpdate()
-        : strings.confirmDelete()
+  const text = CONFIRM_TEXTS[confirm.kind]()
+  const showSummary = !isDelete && isOverEntryLimit(confirm.desc, entryLimit)
   return createElement(
     'div',
     { className: `dsh-my-memory-confirm dsh-my-memory-confirm-${isDelete ? 'delete' : 'save'}` },
@@ -193,6 +212,7 @@ function ConfirmPanel({ confirm, onCancel, onOk }) {
       createElement('div', { className: 'dsh-my-memory-confirm-text' }, text),
     ),
     createElement('div', { className: 'dsh-my-memory-confirm-desc' }, confirm.desc),
+    showSummary ? createElement(SummaryPreview, { desc: confirm.desc }) : null,
     createElement(
       'div',
       { className: 'dsh-my-memory-confirm-actions' },
@@ -213,4 +233,11 @@ function ConfirmPanel({ confirm, onCancel, onOk }) {
       ),
     ),
   )
+}
+
+/** 确认面板标题文案（按 kind 取；未知 kind 回落删除文案）。 */
+const CONFIRM_TEXTS = {
+  add: () => strings.confirmAdd(),
+  update: () => strings.confirmUpdate(),
+  delete: () => strings.confirmDelete(),
 }

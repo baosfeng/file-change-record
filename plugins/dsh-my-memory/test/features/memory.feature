@@ -1,6 +1,6 @@
 # language: zh-CN
-# 需求来源：docs/记忆/需求清单.md（R1-R8）+ issue #38
-# 验收基准：test/store.mjs、test/host-api.mjs、test/prompt.mjs、test/tool.mjs、test/client-render.mjs 的 Gherkin 化表达
+# 需求来源：docs/记忆/需求清单.md（R1-R12）+ issue #38 / #105 / #107 / #108
+# 验收基准：test/store.mjs、test/host-api.mjs、test/prompt.mjs、test/tool.mjs、test/client-render.mjs、test/memory-text.mjs 的 Gherkin 化表达
 
 功能: 记忆管理（全局/项目两级 + 系统提示词注入 + 工具查询 + 用户确认）
   作为使用 DSH 的用户
@@ -78,3 +78,15 @@
     那么 项目记忆包含迁移后的旧记忆
     并且 旧位置记忆文件已清理
     并且 项目记忆存于集中存储位置
+
+  场景: 保存长记忆保留完整内容，注入按语义截断不截断句子中间（issue #105）
+    当 用户确认新增全局记忆 "第一条完整的话。第二条解释性话语描述更多细节。"
+    那么 全局记忆包含 "第一条完整的话。第二条解释性话语描述更多细节。"
+    当 组装系统提示词
+    那么 section 文本包含 "第一条完整的话。"
+    并且 section 文本不包含 "第二条解释性话语"
+
+  场景: 面板拉取条目长度精简引导配置（issue #105）
+    当 查询记忆 API 配置
+    那么 返回精简单条长度上限 50
+    并且 返回单条注入长度上限 200

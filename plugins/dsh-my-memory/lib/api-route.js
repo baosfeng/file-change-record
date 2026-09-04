@@ -13,12 +13,17 @@
  *    settings panel sets only after its custom confirmation UI (delete is
  *    red, save is green). A write without the marker is refused with 400:
  *    memory must never change silently.
+ *  - GET  /my-memory/api/config → the entry-length guidance the settings
+ *    panel uses for concise-input hints (`maxEntryLength`, `maxDescLength`,
+ *    issue #105). Writes keep the FULL desc in storage — the panel and the
+ *    injection summarize for display only.
  *
  * Every request passes the trust fence first; responses are JSON with
  * cache-control: no-cache.
  */
 import { readJsonBody, writeError, writeJson } from 'dsh-shared'
 import { findProjectRoot } from 'dsh-shared'
+import { DEFAULT_MAX_DESC_LENGTH, DEFAULT_MAX_ENTRY_LENGTH } from './memory-text.js'
 
 /** The cwd query parameter, normalized to undefined when absent. */
 function cwdOf(url) {
@@ -26,7 +31,7 @@ function cwdOf(url) {
   return cwd !== '' ? cwd : undefined
 }
 
-export function createApiHandler({ globalStore, getProjectStore, fence, sessions }) {
+export function createApiHandler({ globalStore, getProjectStore, fence, sessions, config }) {
   return async (request, response) => {
     if (!fence(request)) {
       writeJson(response, 403, { ok: false, error: { code: 'forbidden', message: 'forbidden' } })
@@ -34,23 +39,43 @@ export function createApiHandler({ globalStore, getProjectStore, fence, sessions
     }
     const url = new URL(request.url ?? '/', 'http://dsh.internal')
     try {
-      if (url.pathname.endsWith('/session') && request.method === 'GET') {
-        await handleSession(sessions, url, response)
-        return
-      }
-      if (url.pathname.endsWith('/memory') && request.method === 'GET') {
-        await handleList(url, response, globalStore, getProjectStore)
-        return
-      }
-      if (url.pathname.endsWith('/memory') && request.method === 'POST') {
-        await handleWrite(request, response, globalStore, getProjectStore)
-        return
-      }
-      writeJson(response, 404, { ok: false, error: { message: 'unknown my-memory API method' } })
+      await routeRequest(url, request, response, { globalStore, getProjectStore, sessions, config })
     } catch (error) {
       writeError(response, error)
     }
   }
+}
+
+/** Dispatch one request to the matching handler by path + method. */
+async function routeRequest(url, request, response, { globalStore, getProjectStore, sessions, config }) {
+  if (url.pathname.endsWith('/config') && request.method === 'GET') {
+    handleConfig(config, response)
+    return
+  }
+  if (url.pathname.endsWith('/session') && request.method === 'GET') {
+    await handleSession(sessions, url, response)
+    return
+  }
+  if (url.pathname.endsWith('/memory') && request.method === 'GET') {
+    await handleList(url, response, globalStore, getProjectStore)
+    return
+  }
+  if (url.pathname.endsWith('/memory') && request.method === 'POST') {
+    await handleWrite(request, response, globalStore, getProjectStore)
+    return
+  }
+  writeJson(response, 404, { ok: false, error: { message: 'unknown my-memory API method' } })
+}
+
+/** GET /config — the entry-length guidance for the panel (issue #105). */
+function handleConfig(config, response) {
+  writeJson(response, 200, {
+    ok: true,
+    value: {
+      maxEntryLength: config?.maxEntryLength ?? DEFAULT_MAX_ENTRY_LENGTH,
+      maxDescLength: config?.maxDescLength ?? DEFAULT_MAX_DESC_LENGTH,
+    },
+  })
 }
 
 /** GET /session — the session's working directory ('' when none). The settings

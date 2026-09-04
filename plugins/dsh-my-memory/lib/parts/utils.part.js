@@ -1,13 +1,39 @@
-// ── utils: pure display helpers (truncation / relative time / sort) ──────
+// ── utils: pure display helpers (summary / relative time / sort) ──────────
 // 纯展示层辅助函数：不触碰服务端状态，供客户端视图使用并可被单测直接调用。
-// 长条目截断 + 展开为纯展示层（issue #110 视觉设计）——不依赖 #105 的服务端逻辑。
+// 概要/详情两级展示为纯展示层（issue #105）：列表显示概要（首句/语义截断），
+// 点击展开查看完整详情——存储保留完整 desc，展示层只做概要计算。
+// 服务端同款逻辑见 lib/memory-text.js（summarizeDesc / firstSentence）。
 const TRUNCATE_LEN = 60
 
-/** 按字符截断长条目：返回截断后的文本与是否被截断（截断时用「…」收尾）。 */
+/** 默认建议单条记忆长度（字符，与服务端 maxEntryLength 默认一致；面板实际
+ *  值来自 GET /my-memory/api/config，取不到时回落此默认）。 */
+const DEFAULT_ENTRY_LIMIT = 50
+
+/** 句子边界：中英文句末标点 + 分号 + 换行（省略号吸收入前一句）。 */
+const SENTENCE_BOUNDARY = /[。！？!?；;\n….]+/u
+
+/** 取一段文本的首句（含边界标点；连续省略号/标点并入前一句）；无边界时整段。 */
+function firstSentence(text) {
+  const value = String(text ?? '')
+  const match = SENTENCE_BOUNDARY.exec(value)
+  if (match === null) return value
+  let end = match.index + 1
+  while (end < value.length && SENTENCE_BOUNDARY.test(value[end])) end += 1
+  return value.slice(0, end)
+}
+
+/** 语义截断长条目（issue #105 概要/详情两级展示）：多句条目列表**总是**显示
+ *  概要（首句），不截断在句子中间；单句条目仅在超长时退化为字符截断。
+ *  返回 { text, truncated }——truncated 为 true 表示有可展开的详情（多句或超长）。 */
 function truncateText(text, max = TRUNCATE_LEN) {
   const value = String(text ?? '').trim()
-  if (value.length <= max) return { text: value, truncated: false }
-  return { text: `${value.slice(0, max)}…`, truncated: true }
+  const first = firstSentence(value)
+  if (first === value) {
+    if (value.length <= max) return { text: value, truncated: false }
+    return { text: `${value.slice(0, max)}…`, truncated: true }
+  }
+  if (first.length <= max) return { text: first, truncated: true }
+  return { text: `${first.slice(0, max)}…`, truncated: true }
 }
 
 /** 更新时间相对化：「刚刚」「n 分钟前」「n 小时前」「n 天前」，超过 30 天回退绝对时间。 */
@@ -33,7 +59,15 @@ function sortMemories(items, dir = 'desc') {
   return copy
 }
 
+/** 是否超过建议长度上限（保存/输入时的精简提示用）。 */
+function isOverEntryLimit(text, max = DEFAULT_ENTRY_LIMIT) {
+  return String(text ?? '').length > max
+}
+
 // 导出纯函数供单测直接断言（插件只消费 apply，多余导出在 client 端无副作用）。
 exports.truncateText = truncateText
+exports.firstSentence = firstSentence
 exports.relativeTime = relativeTime
 exports.sortMemories = sortMemories
+exports.isOverEntryLimit = isOverEntryLimit
+exports.DEFAULT_ENTRY_LIMIT = DEFAULT_ENTRY_LIMIT

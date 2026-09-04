@@ -28,7 +28,16 @@ const strings = {
       ? '当前无项目会话，请在上方输入项目根路径加载项目记忆'
       : 'No active project session; enter a project root above to load its memory',
   addPlaceholder: () =>
-    isZh() ? '输入要记住的内容（如：回复使用中文）' : 'Type what to remember (e.g. reply in Chinese)',
+    isZh()
+      ? '输入要记住的内容（建议 1-2 句话概括，如：回复使用中文）'
+      : 'Type what to remember (keep it to 1-2 sentences, e.g. reply in Chinese)',
+  // ── issue #105 记忆内容精简：超长提示 / 概要预览 ──
+  entryTooLongHint: (current, limit) =>
+    isZh()
+      ? `内容过长（${current} 字，建议 ≤ ${limit} 字），建议精简为 1-2 句`
+      : `Entry too long (${current} chars, suggested ≤ ${limit}); keep it to 1-2 sentences`,
+  summaryPreview: () =>
+    isZh() ? '将保存完整内容；列表与注入显示概要：' : 'Full content is saved; list & injection show the summary: ',
   add: () => (isZh() ? '新增' : 'Add'),
   save: () => (isZh() ? '保存' : 'Save'),
   cancel: () => (isZh() ? '取消' : 'Cancel'),

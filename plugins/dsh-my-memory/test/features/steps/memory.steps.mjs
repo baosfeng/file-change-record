@@ -413,3 +413,21 @@ Then('项目记忆存于集中存储位置', function () {
   // GET /memory 只暴露 items；这里验证磁盘上集中位置存在且项目根下不再有记忆文件
   assert.equal(JSON.parse(readFileSync(centralized, 'utf8')).items.length, 1, 'centralized file holds the data')
 })
+
+// ── 场景 10：保存长记忆保留完整内容，注入按语义截断（issue #105）─────────
+Then('section 文本不包含 {string}', function (desc) {
+  assert.ok(!this.lastSectionText.includes(desc), `section text excludes ${desc}`)
+})
+
+// ── 场景 11：面板拉取条目长度精简引导配置（issue #105）───────────────────
+When('查询记忆 API 配置', async function () {
+  await this.callRoute('GET', '/my-memory/api/config')
+})
+
+Then('返回精简单条长度上限 {int}', function (limit) {
+  assert.equal(this.lastResponse.json.value.maxEntryLength, limit)
+})
+
+Then('返回单条注入长度上限 {int}', function (limit) {
+  assert.equal(this.lastResponse.json.value.maxDescLength, limit)
+})

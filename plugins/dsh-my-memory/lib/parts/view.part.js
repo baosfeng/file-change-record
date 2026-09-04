@@ -46,9 +46,15 @@ function MemoryView() {
   const [confirming, setConfirming] = useState(null)
   const [expanded, setExpanded] = useState(() => new Set())
   const [sortOrder, setSortOrder] = useState({ global: 'desc', project: 'desc' })
+  const [entryLimit, setEntryLimit] = useState(DEFAULT_ENTRY_LIMIT)
   const actions = createActions({ setData, setLoading, setError, setSaved })
 
   useEffect(() => {
+    // 面板打开即拉取服务端精简引导配置（issue #105；失败回落默认值），
+    // 再解析当前会话 cwd 自动加载记忆（issue #104）。
+    fetchConfig()
+      .then((value) => setEntryLimit(value.maxEntryLength))
+      .catch(() => {})
     fetchSessionCwd(currentSessionId()).then((cwd) => actions.load(cwd))
   }, [])
 
@@ -76,6 +82,7 @@ function MemoryView() {
             confirming,
             expanded,
             sortOrder,
+            entryLimit,
             onDraft: (scope, value) => setDrafts({ ...drafts, [scope]: value }),
             onEdit: (scope, id, desc) => setEditing({ scope, id, desc }),
             onEditDesc: (value) => setEditing({ ...editing, desc: value }),
@@ -179,6 +186,7 @@ function Sections({
   confirming,
   expanded,
   sortOrder,
+  entryLimit,
   onDraft,
   onEdit,
   onEditDesc,
@@ -195,6 +203,7 @@ function Sections({
     confirming,
     expanded,
     sortOrder,
+    entryLimit,
     onDraft,
     onEdit,
     onEditDesc,
@@ -239,6 +248,7 @@ function SectionBlock({
   confirming,
   expanded,
   sortOrder,
+  entryLimit,
   onDraft,
   onEdit,
   onEditDesc,
@@ -277,12 +287,14 @@ function SectionBlock({
     createElement(AddBar, {
       scope,
       value: drafts[scope],
+      entryLimit,
       onChange: (value) => onDraft(scope, value),
       onAdd: () => onConfirm({ kind: 'add', scope, desc: drafts[scope] }),
     }),
     confirming !== null && confirming.scope === scope
       ? createElement(ConfirmPanel, {
           confirm: confirming,
+          entryLimit,
           onCancel: onCancelConfirm,
           onOk: () => onCommit(confirming),
         })

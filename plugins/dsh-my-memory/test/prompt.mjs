@@ -77,6 +77,24 @@ test('truncateDesc keeps short descs untouched', () => {
   assert.equal(truncateDesc('abcd', 3), 'abc…')
 })
 
+test('truncateDesc cuts at the sentence boundary, never mid-sentence (issue #105)', () => {
+  const desc = '回复必须使用中文。代码注释也要中文。'
+  const cut = truncateDesc(desc, 10)
+  assert.equal(cut, '回复必须使用中文。', 'keeps the whole first sentence')
+  assert.ok(!cut.includes('代码'), 'second sentence dropped at the boundary')
+})
+
+test('injection prefers the summary (first sentence) for long multi-sentence descs (issue #105)', () => {
+  const desc = '第一条很长的记忆描述。第二条解释性话语不应该注入。第三条也不需要。'
+  const section = createMemorySection(fakeStore([{ id: 'a', desc, createdAt: 1, updatedAt: 2 }]), {
+    maxDescLength: 30,
+  })
+  const text = section.text({})
+  assert.ok(text.includes('第一条很长的记忆描述。'), 'first sentence injected whole')
+  assert.ok(!text.includes('第二条'), 'explanation sentences not injected')
+  assert.ok(!text.includes('第三条'), 'later sentences not injected')
+})
+
 test('renderMemorySection renders the picked items directly', () => {
   const text = renderMemorySection([{ id: 'a', desc: '第一条', createdAt: 1, updatedAt: 2 }], {
     maxItems: 5,

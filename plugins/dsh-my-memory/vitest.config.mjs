@@ -14,6 +14,7 @@ export default defineConfig({
         'lib/api-route.js',
         'lib/fence.js',
         'lib/http.js',
+        'lib/memory-text.js',
         'lib/prompt.js',
         'lib/tool.js',
       ],
