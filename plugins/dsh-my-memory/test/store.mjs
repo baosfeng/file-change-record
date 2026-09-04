@@ -4,11 +4,21 @@
  */
 import { test } from 'vitest'
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { findProjectRoot } from 'dsh-shared'
-import { createStore, globalMemoryFile, normalizeMemory, projectMemoryFileOf, readMemoryFile } from '../lib/store.js'
+import {
+  createStore,
+  globalMemoryFile,
+  migrateProjectMemory,
+  normalizeMemory,
+  projectIdOf,
+  projectMemoryDir,
+  projectMemoryFileOf,
+  readMemoryFile,
+  resolveProjectMemory,
+} from '../lib/store.js'
 
 const dir = mkdtempSync(join(tmpdir(), 'dmm-store-test-'))
 process.env.DSH_HOME = dir
@@ -26,11 +36,89 @@ test('findProjectRoot walks up to the nearest .git ancestor', async () => {
   assert.equal(await findProjectRoot(join(dir, 'no-git-here')), join(dir, 'no-git-here'), 'no .git → cwd itself')
 })
 
-test('projectMemoryFileOf resolves under the project root', async () => {
+test('projectMemoryFileOf resolves under $DSH_HOME/memory/projects (issue #108)', async () => {
   const proj = join(dir, 'repo2')
   const { mkdirSync } = await import('node:fs')
   mkdirSync(join(proj, '.git'), { recursive: true })
-  assert.equal(await projectMemoryFileOf(proj), join(proj, '.dsh', 'memory.json'))
+  const file = await projectMemoryFileOf(proj)
+  assert.ok(file.startsWith(join(dir, 'memory', 'projects') + '/'), `centralized under DSH_HOME: ${file}`)
+  assert.ok(file.endsWith('.json'))
+  assert.ok(!file.includes(proj), 'project root no longer contains the memory file')
+})
+
+test('projectIdOf is stable for the same root and distinct across roots', () => {
+  const a = join(dir, 'id-a')
+  const b = join(dir, 'id-b')
+  mkdirSync(a, { recursive: true })
+  mkdirSync(b, { recursive: true })
+  const idA1 = projectIdOf(a)
+  const idA2 = projectIdOf(a)
+  const idB = projectIdOf(b)
+  assert.equal(idA1, idA2, 'same root → same id')
+  assert.ok(idA1 !== idB, 'different roots → different ids')
+  assert.match(idA1, /^[0-9a-f]{12}$/, 'sha256 hex prefix')
+  // 尾斜杠不影响 id（规范化的绝对路径）
+  assert.equal(projectIdOf(`${a}/`), idA1, 'trailing slash normalized away')
+})
+
+test('resolveProjectMemory returns root, centralized file and legacy file', async () => {
+  const proj = join(dir, 'repo3')
+  const { mkdirSync } = await import('node:fs')
+  mkdirSync(join(proj, '.git'), { recursive: true })
+  const resolved = await resolveProjectMemory(proj)
+  assert.equal(resolved.root, proj, 'project root resolved')
+  assert.equal(resolved.file, join(projectMemoryDir(), `${projectIdOf(proj)}.json`), 'centralized file')
+  assert.equal(resolved.legacyFile, join(proj, '.dsh', 'memory.json'), 'legacy file under the project root')
+})
+
+test('migrateProjectMemory copies legacy data and cleans the legacy file (issue #108)', async () => {
+  const proj = join(dir, 'repo4')
+  const { mkdirSync, writeFileSync } = await import('node:fs')
+  mkdirSync(join(proj, '.git'), { recursive: true })
+  mkdirSync(join(proj, '.dsh'), { recursive: true })
+  const legacyFile = join(proj, '.dsh', 'memory.json')
+  writeFileSync(
+    legacyFile,
+    JSON.stringify({
+      items: [
+        { id: 'old-1', desc: '旧项目约定', createdAt: 1, updatedAt: 2 },
+        { id: 'old-2', desc: '旧技术栈决策', createdAt: 3, updatedAt: 4 },
+      ],
+    }),
+    'utf8',
+  )
+  const resolved = await resolveProjectMemory(proj)
+  const migrated = await migrateProjectMemory({ file: resolved.file, legacyFile: resolved.legacyFile })
+  assert.equal(migrated, true, 'migration happened')
+  const onDisk = JSON.parse(readFileSync(resolved.file, 'utf8'))
+  assert.equal(onDisk.items.length, 2, 'legacy items copied to the new file')
+  assert.equal(onDisk.items[0].desc, '旧项目约定')
+  assert.throws(() => readFileSync(resolved.legacyFile, 'utf8'), 'legacy file removed')
+  // 再次迁移：新文件已存在 → 不再迁移
+  const again = await migrateProjectMemory({ file: resolved.file, legacyFile: resolved.legacyFile })
+  assert.equal(again, false, 'already migrated → no second migration')
+})
+
+test('migrateProjectMemory skips when the legacy file is absent or empty', async () => {
+  const proj = join(dir, 'repo5')
+  const { mkdirSync } = await import('node:fs')
+  mkdirSync(join(proj, '.git'), { recursive: true })
+  const resolved = await resolveProjectMemory(proj)
+  // 无旧文件 → 无迁移
+  assert.equal(
+    await migrateProjectMemory({ file: resolved.file, legacyFile: resolved.legacyFile }),
+    false,
+    'no legacy file → no migration',
+  )
+  // 空旧文件 → 无迁移
+  const { mkdirSync: mk, writeFileSync } = await import('node:fs')
+  mk(join(proj, '.dsh'), { recursive: true })
+  writeFileSync(resolved.legacyFile, JSON.stringify({ items: [] }), 'utf8')
+  assert.equal(
+    await migrateProjectMemory({ file: resolved.file, legacyFile: resolved.legacyFile }),
+    false,
+    'empty legacy items → no migration',
+  )
 })
 
 test('add/update/remove mutate the cache and persist after flush', async () => {

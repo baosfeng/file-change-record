@@ -2,9 +2,11 @@
  * dsh-my-memory — host half.
  *
  * 全局/项目两级记忆（issue #38）：
- *  - 持久化：全局 `$DSH_HOME/memory.json` + 项目 `<projectRoot>/.dsh/memory.json`
- *    （按 cwd 向上找 .git 定位项目根，与 dsh-my-skill-manager 同模式），
- *    原子写（tmp+rename）+ 防抖（300ms 合并写盘），启动时 load() 恢复缓存；
+ *  - 持久化：全局 `$DSH_HOME/memory.json` + 项目 `$DSH_HOME/memory/projects/<项目 id>.json`
+ *    （issue #108：项目记忆集中存 $DSH_HOME，按项目根路径 hash 分文件，项目目录不再产生
+ *    `.dsh/`；项目根按 cwd 向上找 .git 定位；首次访问自动迁移旧 `<项目根>/.dsh/memory.json`
+ *    数据到新位置，记忆不丢失），原子写（tmp+rename）+ 防抖（300ms 合并写盘），
+ *    启动时 load() 恢复缓存；
  *  - 系统提示词注入：注册 `dsh-my-memory` section（order -95，persona 之前），
  *    text 为 provider 函数——每次组装系统提示词时读取全局记忆缓存，注入
  *    最新 maxItems 条（默认 5），每条截断 maxDescLength 字符（默认 200）；
@@ -21,7 +23,7 @@
 import { createApiHandler } from './api-route.js'
 import { isTrustedApiRequest } from 'dsh-shared'
 import { createMemorySection } from './prompt.js'
-import { createStore, globalMemoryFile, projectMemoryFileOf } from './store.js'
+import { createStore, globalMemoryFile, migrateProjectMemory, resolveProjectMemory } from './store.js'
 import { createMemoryQueryTool, createMemorySaveGate, createMemorySaveTool } from './tool.js'
 
 export const name = 'dsh-my-memory'
@@ -33,9 +35,12 @@ export function apply(ctx, config) {
   const globalStore = createStore({ file: globalMemoryFile() })
   const projectStores = new Map()
   const getProjectStore = async (cwd) => {
-    const file = await projectMemoryFileOf(cwd)
+    // 首次访问：把旧 <项目根>/.dsh/memory.json 数据迁移到新集中位置（issue #108），
+    // 再创建 store——store.load() 读到的是迁移后的数据，旧记忆不丢。
+    const { file, legacyFile } = await resolveProjectMemory(cwd)
     let store = projectStores.get(file)
     if (store === undefined) {
+      await migrateProjectMemory({ file, legacyFile })
       store = createStore({ file })
       await store.load()
       projectStores.set(file, store)

@@ -17,7 +17,7 @@ import {
   renderSaveResult,
   saveToolDescription,
 } from '../lib/tool.js'
-import { createStore } from '../lib/store.js'
+import { createStore, migrateProjectMemory, resolveProjectMemory } from '../lib/store.js'
 
 const dir = mkdtempSync(join(tmpdir(), 'dmm-tool-test-'))
 process.env.DSH_HOME = dir
@@ -222,10 +222,13 @@ function realSaveTool() {
   mkdirSync(join(projectDir, '.git'), { recursive: true })
   const stores = new Map()
   const getProjectStore = async (cwd) => {
-    let store = stores.get(cwd)
+    // 与 server 端 getProjectStore 一致：集中路径（issue #108）+ 旧数据迁移
+    const { file, legacyFile } = await resolveProjectMemory(cwd)
+    let store = stores.get(file)
     if (store === undefined) {
-      store = createStore({ file: join(cwd, '.dsh', 'memory.json') })
-      stores.set(cwd, store)
+      await migrateProjectMemory({ file, legacyFile })
+      store = createStore({ file })
+      stores.set(file, store)
     }
     return store
   }

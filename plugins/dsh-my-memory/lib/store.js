@@ -2,9 +2,16 @@
  * dsh-my-memory — two-scope memory storage.
  *
  *  - global:  $DSH_HOME/memory.json (fallback ~/.dsh/memory.json)
- *  - project: <projectRoot>/.dsh/memory.json, where projectRoot is the
- *    nearest ancestor with a .git directory (findProjectRoot), resolved from
- *    the session cwd — the same global/project pattern as dsh-my-skill-manager.
+ *  - project: $DSH_HOME/memory/projects/<projectId>.json (centralized under
+ *    the DSH home, issue #108), where projectId is a stable id derived from
+ *    the project root (sha256 of the normalized root path, first 12 hex
+ *    chars). The project root itself is the nearest ancestor with a .git
+ *    directory (findProjectRoot), resolved from the session cwd.
+ *
+ *  Legacy location: <projectRoot>/.dsh/memory.json used to hold project
+ *  memories until issue #108. migrateProjectMemory() copies any legacy data
+ *  into the new centralized file on first access (and removes the legacy
+ *  file), so existing memories are never lost.
  *
  * File shape (one scope per file):
  *   { "items": [ { "id", "desc", "createdAt", "updatedAt" } ] }
@@ -16,17 +23,94 @@
  * without touching disk; load() restores the cache at startup (restart
  * recovery).
  */
-import { readFile, rename, writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { createHash } from 'node:crypto'
+import { readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { mkdir } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import { dirname, join, normalize, resolve } from 'node:path'
 import { findProjectRoot } from 'dsh-shared'
+
+/** The DSH home directory: $DSH_HOME, or ~/.dsh when unset (shared by the
+ *  global memory file and the centralized project memory directory). */
+function dshHome() {
+  const home = process.env.DSH_HOME
+  if (typeof home === 'string' && home !== '') return home
+  return join(homedir(), '.dsh')
+}
 
 /** Global memory file: $DSH_HOME/memory.json (fallback ~/.dsh/memory.json). */
 export function globalMemoryFile() {
-  const home = process.env.DSH_HOME
-  if (typeof home === 'string' && home !== '') return `${home}/memory.json`
-  return `${homedir()}/.dsh/memory.json`
+  return `${dshHome()}/memory.json`
+}
+
+/** Project memory directory: $DSH_HOME/memory/projects (issue #108). */
+export function projectMemoryDir() {
+  return join(dshHome(), 'memory', 'projects')
+}
+
+/**
+ * Stable project id for a project root (issue #108, scheme A): sha256 of the
+ * normalized absolute root path, first 12 hex chars. Deterministic across
+ * machines/sessions, unique enough for per-project isolation, and safe as a
+ * filename on every platform.
+ */
+export function projectIdOf(root) {
+  const normalized = normalize(resolve(root))
+  return createHash('sha256').update(normalized).digest('hex').slice(0, 12)
+}
+
+/**
+ * Resolve the project memory paths for a cwd (issue #108): the new
+ * centralized file under $DSH_HOME/memory/projects, plus the legacy
+ * <projectRoot>/.dsh/memory.json (used only for migration), plus the
+ * project root itself.
+ */
+export async function resolveProjectMemory(cwd) {
+  const root = await findProjectRoot(cwd)
+  return {
+    root,
+    file: join(projectMemoryDir(), `${projectIdOf(root)}.json`),
+    legacyFile: join(root, '.dsh', 'memory.json'),
+  }
+}
+
+/**
+ * Project memory file for a cwd (new centralized location, issue #108).
+ * Kept as a thin wrapper over resolveProjectMemory for callers that only
+ * need the path.
+ */
+export async function projectMemoryFileOf(cwd) {
+  return (await resolveProjectMemory(cwd)).file
+}
+
+/**
+ * Migrate legacy <projectRoot>/.dsh/memory.json into the new centralized
+ * file (issue #108). Returns true when a migration actually happened:
+ *  - the new file already exists → nothing to do (migrated before or fresh);
+ *  - the legacy file is missing or empty → nothing to migrate;
+ *  - otherwise copies the legacy items into the new file (atomic write),
+ *    then removes the legacy file and the now-empty .dsh directory
+ *    (best-effort, so the project directory stays clean).
+ * Data is never silently dropped: the legacy items land in the new file
+ * before the old file is touched.
+ */
+export async function migrateProjectMemory({ file, legacyFile }) {
+  try {
+    await stat(file)
+    return false
+  } catch {
+    // new file missing → a legacy file may need migrating
+  }
+  const legacy = await readMemoryFile(legacyFile)
+  if (legacy.items.length === 0) return false
+  await writeMemoryFile(file, legacy)
+  try {
+    await rm(legacyFile, { force: true })
+    await rm(dirname(legacyFile), { force: true })
+  } catch {
+    // removal is best-effort; the migration itself already succeeded
+  }
+  return true
 }
 
 /** Empty memory document. */
@@ -81,12 +165,6 @@ async function writeMemoryFile(file, memory) {
   const tmp = `${file}.tmp-${process.pid}`
   await writeFile(tmp, JSON.stringify(memory, null, 2), 'utf8')
   await rename(tmp, file)
-}
-
-/** Project memory path for a cwd: <projectRoot>/.dsh/memory.json. */
-export async function projectMemoryFileOf(cwd) {
-  const root = await findProjectRoot(cwd)
-  return join(root, '.dsh', 'memory.json')
 }
 
 /** New memory item id: mem-<epoch>-<random>. */

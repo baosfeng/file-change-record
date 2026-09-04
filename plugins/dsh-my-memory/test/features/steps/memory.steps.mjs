@@ -7,10 +7,11 @@
  */
 import { When, Then, After, setWorldConstructor } from '@cucumber/cucumber'
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { apply } from '../../../lib/index.js'
+import { projectMemoryDir, projectIdOf } from '../../../lib/store.js'
 
 class World {
   constructor() {
@@ -379,4 +380,36 @@ Then('该记忆内容为 {string}', function (desc) {
 Then('查询不触发用户确认流程', async function () {
   await this.runGate('memory_query', { scope: 'global' })
   assert.equal(this.lastAsk.kind, 'allow', 'read-only tools do not raise an approval gate')
+})
+
+// ── 场景 9：旧位置项目记忆自动迁移（issue #108）─────────────────────────
+When('项目 {string} 存在旧位置记忆文件', async function (name) {
+  const projectDir = join(this.dir, name)
+  mkdirSync(join(projectDir, '.git'), { recursive: true })
+  mkdirSync(join(projectDir, '.dsh'), { recursive: true })
+  writeFileSync(
+    join(projectDir, '.dsh', 'memory.json'),
+    JSON.stringify({
+      items: [{ id: 'legacy-1', desc: '旧项目约定（迁移）', createdAt: 1, updatedAt: 2 }],
+    }),
+    'utf8',
+  )
+  this.legacyProject = projectDir
+  this.legacyFile = join(projectDir, '.dsh', 'memory.json')
+})
+
+Then('项目记忆包含迁移后的旧记忆', function () {
+  const items = this.lastResponse.json.value.items
+  assert.equal(items.length, 1, 'legacy item readable after migration')
+  assert.equal(items[0].desc, '旧项目约定（迁移）')
+})
+
+Then('旧位置记忆文件已清理', function () {
+  assert.ok(!existsSync(this.legacyFile), 'legacy <projectRoot>/.dsh/memory.json removed')
+})
+
+Then('项目记忆存于集中存储位置', function () {
+  const centralized = join(projectMemoryDir(), `${projectIdOf(this.legacyProject)}.json`)
+  // GET /memory 只暴露 items；这里验证磁盘上集中位置存在且项目根下不再有记忆文件
+  assert.equal(JSON.parse(readFileSync(centralized, 'utf8')).items.length, 1, 'centralized file holds the data')
 })
