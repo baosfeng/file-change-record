@@ -4,6 +4,8 @@
 
 <div align="center">
   <img alt="安全护栏面板：告警列表（提示注入命中 + 确认按钮）+ 投毒扫描结果（可疑脚本/私钥）" src="https://unpkg.com/dsh-my-guard/assets/guard-panel.png" width="640" />
+  <br/>
+  <img alt="自定义护栏规则 + 告警通知（issue #88）：规则编辑（正则/模式/严重级）+ 规则测试（合并决策）+ dsh-my-notify 通知开关" src="https://unpkg.com/dsh-my-guard/assets/guard-rules-panel.png" width="640" />
 </div>
 
 **DSH 安全护栏插件**：**执行前护栏**在破坏性命令（`rm -rf /` 等）执行前拦截/确认；**安装前投毒扫描**在 `dsh plugin add` 时扫描包内容（可疑脚本 / 密钥 / 恶意依赖）并告警；**提示注入检测**用规则 + 启发式检测 prompt injection / jailbreak 尝试。
