@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-09-04
+
+### 变更
+
+- feat(memory): #78 渐进式索引记忆（自动提取 + 结构化索引 + 渐进更新 + 智能注入） (#140)
+- feat(memory): #105 记忆内容精简（保存引导 + 概要/详情两级展示 + 语义截断注入） (#139)
+- feat(memory): #108 项目记忆存储迁移至 $DSH_HOME 集中位置 (#134)
+- feat(memory): #107 记忆保存工具（agent 主动保存 + 用户确认） (#132)
+- feat(memory): #110 记忆面板视觉重设计 (#119)
+- fix(memory): #104 面板打开自动加载当前项目记忆 (#117)
+- docs: #106 安装命令统一加 --trust-lockfile (#113)
+
 ## [Unreleased]
 
 ### Added
