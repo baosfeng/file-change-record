@@ -2,6 +2,23 @@
 
 本文件记录 dsh-md-render 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.4] - 2026-09-04
+
+### 修复
+
+- 修复 client 端 `ctx.config` 访问导致的 `cannot get property "config" without inject`（插件客户端 failed to apply，渲染/设置页不可用）：改为默认全开 + 异步 GET /md/api/config 拉取真实配置（0.1.3 发布版本缺陷修复）
+
+### 变更
+
+- 验证清单与效果图同步
+
+## [0.1.3] - 2026-09-04
+
+### 新增
+
+- [#84](https://github.com/baosfeng/my-dsh-plugins/issues/84) 增强功能配置化：11 个开关（copyButton/syntaxHighlight/languageLabel/lineNumbers/taskList/strikethrough/image/nestedList/mathStructures/tableSort/tableFold）+ 设置 → 插件 → 渲染 页签 + 配置持久化（GET/PUT /md/api/config）+ 热生效
+- [#82](https://github.com/baosfeng/my-dsh-plugins/issues/82) 公式渲染增强：轻量 LaTeX 子集（分数 \frac / 根号 \sqrt / 上下标 / \sum \int / 希腊字母），受 mathStructures 开关门控，零依赖
+
 ## [0.1.2] - 2026-08-28
 
 ### 变更
