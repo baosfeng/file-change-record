@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2026-09-04
+
+### 变更
+
+- fix(skill-manager): 列表可读性——移除状态双编码 chip、排序/过滤控件放大、meta 拆行、未收录徽章
+- docs: #106 安装命令统一加 --trust-lockfile (#113)
+
 ## [0.1.4] - 2026-09-02
 
 ### 变更
