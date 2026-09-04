@@ -2,6 +2,13 @@
 
 本文件记录 dsh-my-observability 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.5] - 2026-09-04
+
+### 变更
+
+- feat(observability): #127 资源看门狗自动降级——写入速率/文件大小连续 ≥3 次采样超限自动暂停落盘（事件仍入内存，FIFO 有界不丢）+ 日志告警；连续 ≥3 次正常自动恢复（全量快照补齐降级窗口）；API 暴露 degraded 标记（#136）
+- 发版前功能级验证清单（issue #67）：verification/dsh-my-observability-0.1.5.md
+
 ## [0.1.4] - 2026-09-03
 
 ### 变更
