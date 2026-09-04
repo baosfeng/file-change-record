@@ -1,30 +1,42 @@
 /**
  * dsh-my-memory — host half.
  *
- * 全局/项目两级记忆（issue #38）：
+ * 全局/项目两级记忆（issue #38）+ 渐进式索引记忆（issue #78）：
  *  - 持久化：全局 `$DSH_HOME/memory.json` + 项目 `$DSH_HOME/memory/projects/<项目 id>.json`
  *    （issue #108：项目记忆集中存 $DSH_HOME，按项目根路径 hash 分文件，项目目录不再产生
  *    `.dsh/`；项目根按 cwd 向上找 .git 定位；首次访问自动迁移旧 `<项目根>/.dsh/memory.json`
  *    数据到新位置，记忆不丢失），原子写（tmp+rename）+ 防抖（300ms 合并写盘），
  *    启动时 load() 恢复缓存；
- *  - 系统提示词注入：注册 `dsh-my-memory` section（order -95，persona 之前），
- *    text 为 provider 函数——每次组装系统提示词时读取全局记忆缓存，注入
- *    最新 maxItems 条（默认 5），每条截断 maxDescLength 字符（默认 200）；
- *    空记忆渲染空 section（renderPrompt 自动丢弃），零成本；
- *  - 工具：`memory_query`（只读，全局/项目过滤 + 关键词过滤，项目 cwd 取
- *    会话工作目录）；`memory_save`（写，agent 主动保存记忆——经 `tools/pre-execute`
- *    确认门触发 DSH 原生审批，用户确认后才写入，绝不静默变更；`proactivePropose`
- *    配置（默认关，#78 阶段）只影响工具描述是否引导 agent 主动提议保存）；
- *  - 写操作 API：`POST /my-memory/api/memory`（add/update/delete），必须携带
- *    `confirmed: true` 用户同意标记，否则 400 拒绝——记忆绝不静默变更；
- *  - Client：官方 slots 设置页签（全局/项目分区 + 自定义确认 UI：删除红色、
- *    保存绿色）。
+ *  - 结构化索引（issue #78）：条目带 category / source / confidence / updatedAt /
+ *    relatedIds / history / status 元数据，旧数据读取时自动回退默认值（不丢不崩）；
+ *    同主题渐进合并（置信度提升 / 内容更新 / 矛盾标记）、长期未用降权、智能注入
+ *    （相关性 + 时效性 + 置信度评分，替代简单 top-N）——见 lib/memory-scoring.js；
+ *  - 自动提取（issue #78）：`autoLearn` 开关（默认关）+ `extractor: 'rule' | 'llm'`
+ *    （rule 为本仓库确定性规则提取器；llm 为预留占位）。会话结束后（agent/status
+ *    idle，顶层 agent）对本次会话的用户消息运行提取器，产出「待确认」候选存
+ *    `$DSH_HOME/memory/candidates.json`——用户经面板/API 确认后才合并进正式记忆，
+ *    记忆绝不静默变更（延续 R4）；
+ *  - 工具：`memory_query`（只读）、`memory_save`（写——经 `tools/pre-execute` 确认门
+ *    触发 DSH 原生审批，用户确认后才写入，绝不静默变更）；
+ *  - 写操作 API：`POST /my-memory/api/memory`（add/update/delete）强制
+ *    `confirmed: true`；`POST /my-memory/api/candidates/confirm|dismiss`（候选确认
+ *    写入 / 拒弃，同样需要用户同意标记）——记忆绝不静默变更；
+ *  - Client：官方 slots 设置页签（全局/项目分区 + 待确认候选列表 + 分类/置信度/
+ *    来源/演进展示 + 自定义确认 UI：删除红色、保存绿色）。
  */
 import { createApiHandler } from './api-route.js'
 import { isTrustedApiRequest } from 'dsh-shared'
 import { DEFAULT_MAX_ENTRY_LENGTH } from './memory-text.js'
 import { createMemorySection } from './prompt.js'
-import { createStore, globalMemoryFile, migrateProjectMemory, resolveProjectMemory } from './store.js'
+import { extractCandidates } from './extract.js'
+import {
+  candidateMemoryFile,
+  createCandidatesStore,
+  createStore,
+  globalMemoryFile,
+  migrateProjectMemory,
+  resolveProjectMemory,
+} from './store.js'
 import { createMemoryQueryTool, createMemorySaveGate, createMemorySaveTool } from './tool.js'
 
 export const name = 'dsh-my-memory'
@@ -56,13 +68,131 @@ function createMemoryStores() {
   return { globalStore, projectStores, getProjectStore }
 }
 
+/** 本次会话的用户消息暂存（sessionId → 文本数组；有上限防膨胀）。 */
+function createMessageCollector(options) {
+  const messages = new Map()
+  const maxPerSession =
+    Number.isInteger(options?.maxMessagesPerSession) && options.maxMessagesPerSession > 0
+      ? options.maxMessagesPerSession
+      : 60
+  return {
+    push: (sessionId, text) => {
+      if (typeof sessionId !== 'string' || sessionId === '' || typeof text !== 'string' || text.trim() === '') return
+      const list = messages.get(sessionId) ?? []
+      list.push(text.trim())
+      messages.set(sessionId, list.slice(-maxPerSession))
+    },
+    take: (sessionId) => {
+      const list = messages.get(sessionId) ?? []
+      messages.delete(sessionId)
+      return list
+    },
+    drop: (sessionId) => messages.delete(sessionId),
+  }
+}
+
+/** 消息是否真实用户输入（非插件注入；与 dsh-my-guard 同判定）。 */
+function isPluginInjected(message) {
+  const source = message?.source
+  return source !== null && typeof source === 'object' && source.kind === 'plugin'
+}
+
+/** 从 user/message 的 data 提取文本（content 中全部 text block 拼接）。 */
+function extractUserText(message) {
+  if (message === null || typeof message !== 'object') return ''
+  const content = message.content
+  if (!Array.isArray(content)) return ''
+  const parts = []
+  for (const block of content) {
+    if (block !== null && typeof block === 'object' && block.type === 'text' && typeof block.text === 'string') {
+      parts.push(block.text)
+    }
+  }
+  return parts.join(' ')
+}
+
+/** 顶层 agent 判定（子代理结束不触发提取）。 */
+function isTopLevelAgent(agent) {
+  if (agent === null || typeof agent !== 'object') return false
+  const header = agent.session?.header
+  if (header === undefined || header === null) return false
+  return !hasSubagentMarker(header, agent.options)
+}
+
+/** 任一子代理标记命中即子代理（header 持久化标记 + 运行时深度 + 派生父会话）。 */
+function hasSubagentMarker(header, options) {
+  if (header.origin === 'subagent') return true
+  if (typeof header.delegationDepth === 'number' && header.delegationDepth > 0) return true
+  if (typeof options?.subagentDepth === 'number' && options.subagentDepth > 0) return true
+  return typeof header.parentSession === 'string' && header.parentSession !== ''
+}
+
+/** 候选指纹（category + 归一化的 desc）——去重用。 */
+function fingerprintOf(candidate) {
+  return `${candidate.category}|${String(candidate.desc).replace(/\s+/g, '')}`
+}
+
+/** 把提取出的候选并入候选存储（按指纹去重，避免同会话重复候选）。 */
+async function storeCandidates(candidatesStore, candidates) {
+  const existing = await candidatesStore.load().then(() => candidatesStore.list())
+  const known = new Set(existing.map((c) => fingerprintOf(c)))
+  const fresh = candidates.filter((c) => !known.has(fingerprintOf(c)))
+  for (const candidate of fresh) {
+    await candidatesStore.addRaw(candidate)
+  }
+  return fresh
+}
+
+/** agent/status 会话结束处理器（issue #78）：顶层 agent idle 时对本次会话
+ *  收集到的用户消息运行提取器，候选进「待确认」区（绝不静默写入）。 */
+function createSessionEndHandler({ collector, candidatesStore, autoLearn, extractor }) {
+  return ({ agent, status }) => {
+    if (!autoLearn || status !== 'idle' || !isTopLevelAgent(agent)) return
+    const sessionId = typeof agent?.id === 'string' ? agent.id : ''
+    const cwd = cwdOfAgent(agent)
+    const messages = collector.take(sessionId)
+    if (messages.length === 0) return
+    const candidates = extractCandidates(messages, {
+      sessionId,
+      cwd,
+      now: Date.now(),
+      extractor,
+    })
+    if (candidates.length > 0) void storeCandidates(candidatesStore, candidates)
+  }
+}
+
+/** agent 的会话工作目录（无则空串）。 */
+function cwdOfAgent(agent) {
+  const header = agent?.session?.header
+  if (header === null || typeof header !== 'object') return ''
+  return typeof header.cwd === 'string' ? header.cwd : ''
+}
+
+/** session/event 用户消息收集器（issue #78，autoLearn 开启时只读收集）。 */
+function createMessageCollectorListener({ collector, autoLearn }) {
+  return (session, event) => {
+    if (!autoLearn) return
+    if (event === null || typeof event !== 'object' || event.type !== 'user/message') return
+    if (isPluginInjected(event.data)) return
+    const text = extractUserText(event.data)
+    const sessionId =
+      session !== null && typeof session === 'object' && typeof session.id === 'string' ? session.id : ''
+    collector.push(sessionId, text)
+  }
+}
+
 export function apply(ctx, config) {
   const { globalStore, projectStores, getProjectStore } = createMemoryStores()
+  const candidatesStore = createCandidatesStore({ file: candidateMemoryFile() })
+  const collector = createMessageCollector(config)
+  const autoLearn = config?.autoLearn === true
+  const extractor = config?.extractor === 'llm' ? 'llm' : 'rule'
 
   ctx.effect(() => {
-    globalStore.load().catch(() => {})
+    Promise.all([globalStore.load(), candidatesStore.load()]).catch(() => {})
     return () => {
-      globalStore.flush().catch(() => {})
+      Promise.all([globalStore.flush(), candidatesStore.flush()]).catch(() => {})
       for (const store of projectStores.values()) store.flush().catch(() => {})
     }
   }, 'dsh-my-memory: store lifecycle')
@@ -88,6 +218,18 @@ export function apply(ctx, config) {
   )
   ctx.effect(() => ctx.on('tools/pre-execute', createMemorySaveGate()), 'dsh-my-memory: memory_save approval gate')
 
+  // ── 自动提取（issue #78，autoLearn 默认关）───────────────────────────
+  // 只读收集本次会话的用户消息（session/event），会话结束（agent/status
+  // idle，顶层 agent）时运行提取器，候选进「待确认」区——绝不静默写入。
+  ctx.effect(
+    () => ctx.on('session/event', createMessageCollectorListener({ collector, autoLearn })),
+    'dsh-my-memory: user-message collector',
+  )
+  ctx.effect(
+    () => ctx.on('agent/status', createSessionEndHandler({ collector, candidatesStore, autoLearn, extractor })),
+    'dsh-my-memory: auto-extract on session end',
+  )
+
   // ── 写操作 API（需用户同意标记）──────────────────────────────────────
   const fence = (request) => isTrustedApiRequest(request, ctx.webRuntime.trustedHosts)
   ctx.effect(
@@ -98,6 +240,7 @@ export function apply(ctx, config) {
         handler: createApiHandler({
           globalStore,
           getProjectStore,
+          candidatesStore,
           fence,
           sessions: ctx.sessions,
           config: { ...config, maxEntryLength: maxEntryLengthOf(config) },

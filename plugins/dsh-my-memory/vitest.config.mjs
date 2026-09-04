@@ -15,6 +15,8 @@ export default defineConfig({
         'lib/fence.js',
         'lib/http.js',
         'lib/memory-text.js',
+        'lib/memory-scoring.js',
+        'lib/extract.js',
         'lib/prompt.js',
         'lib/tool.js',
       ],

@@ -129,6 +129,24 @@ const STYLES = `
 .dsh-my-memory-confirm-cancel:hover { background:var(--dsw-alias-interactive-bg-hover); color:var(--dsw-alias-label-primary); }
 @keyframes dsh-my-memory-row-in { from { opacity:0; transform:translateY(1px); } to { opacity:1; transform:none; } }
 @keyframes dsh-my-memory-spin { to { transform:rotate(360deg); } }
+/* ── issue #78 渐进式索引记忆：候选区块 + 元数据徽标 + 演进历史 ── */
+.dsh-my-memory-candidates { display:flex; flex-direction:column; gap:6px; padding:8px; border-radius:8px;
+  border:1px dashed color-mix(in srgb, var(--dsw-alias-accent) 45%, transparent);
+  background:color-mix(in srgb, var(--dsw-alias-accent) 4%, var(--dsw-alias-bg-layer-1)); }
+.dsh-my-memory-row-candidate { border-style:dashed; }
+.dsh-my-memory-ct-badge { flex:none; display:inline-flex; align-items:center; height:16px; padding:0 5px; border-radius:4px;
+  font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-accent);
+  background:color-mix(in srgb, var(--dsw-alias-accent) 12%, transparent); }
+.dsh-my-memory-conf-badge { flex:none; display:inline-flex; align-items:center; height:16px; padding:0 5px; border-radius:4px;
+  font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-secondary);
+  background:var(--dsw-alias-bg-layer-1); border:1px solid var(--dsw-alias-border-l1); }
+.dsh-my-memory-conflict-badge { flex:none; display:inline-flex; align-items:center; height:16px; padding:0 5px; border-radius:4px;
+  font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-state-warning-primary);
+  background:color-mix(in srgb, var(--dsw-alias-state-warning-primary) 15%, transparent); }
+.dsh-my-memory-meta-sep { color:var(--dsw-alias-label-dimmed); }
+.dsh-my-memory-history-entry { display:inline-flex; font:var(--dsw-font-xxxs-11);
+  color:var(--dsw-alias-label-tertiary); }
+.dsh-my-memory-iconbtn-confirm:hover:not(:disabled) { color:var(--dsw-alias-state-success-primary); }
 `.trim()
 
 const STYLE_TAG = 'data-dsh-my-memory'

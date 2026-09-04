@@ -9,8 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **渐进式索引记忆（issue #78）**：
+  - 自动提取：会话结束时（`agent/status` idle，仅顶层 agent）自动从本次会话的用户消息提取记忆候选（`session/event` 只读收集，过滤插件注入），`lib/extract.js` 规则提取器按偏好/事实/项目/技术栈/工作流 5 类句式模式 + 项目性关键词（scope 建议全局/项目）+ 单会话上限 + 去重；候选进「待确认」区存 `$DSH_HOME/memory/candidates.json`（与正式记忆隔离）；`autoLearn` 开关（默认关）+ `extractor: 'rule' | 'llm'`（llm 为预留占位）——候选经 `POST /my-memory/api/candidates/confirm|dismiss`（强制 `confirmed: true`）确认写入/拒弃，记忆绝不静默变更。
+  - 结构化索引：条目带 `category / source（会话 id+时间）/ confidence（多次出现提升，上限 5）/ updatedAt / relatedIds / history（演进记录）/ status（矛盾标记）` 元数据；`withDefaults` 兼容旧数据（无元数据回退默认值，不丢不崩）；面板条目卡显示分类徽标 + 置信度 + 矛盾警示 + 可展开「演进历史」，底部「自动学习候选（待确认）」区块（分类徽标 + 来源会话 + 时间 + 确认/拒弃按钮）。
+  - 渐进式更新：`lib/memory-scoring.js` 纯函数——`mergeCandidate`（同主题判定：分类 + 归一文本包含/子序列；新增/置信度+1/内容更新/矛盾标记，跨明确分类不坍缩）、`decayConfidence`（默认 90 天未用降权、下限 1）、`scoreForInjection`/`pickForInjection`（相关性：上下文关键词命中 + 时效性：exp 衰减 7 天半衰期 + 置信度：归一化，默认权重 0.5/0.3/0.2）；确认写入走 `store.mergeAdd`。
+  - 智能注入：`lib/prompt.js` 的 section 先对长期未用条目降权，再按评分选 `maxItems` 条（替代简单 top-N），与 #105 语义截断配合。
+- 测试：`test/extract.mjs`（规则提取 13 例）、`test/memory-scoring.mjs`（同主题/合并/降权/评分 18 例）、`test/candidates.mjs`（候选存储/确认拒弃 API/自动提取触发 14 例）；Gherkin 场景 12-18（自动提取/确认写入/渐进更新/元数据/智能注入/绝不静默变更）。
 - `memory_save` 工具（issue #107）：agent 主动保存记忆（`scope`/`desc` 必填、`cwd` 可选），每次调用经 `tools/pre-execute` 确认门触发 DSH 原生审批（`{ kind: 'ask' }`），用户确认后才写入——记忆绝不静默变更；保存后 `memory_query` 立即可查、后续会话注入生效；`proactivePropose` 配置预留（默认关，#78 阶段）。
-- 测试：工具注册（schema 硬规则）/ 确认门（ask gate + 透传）/ 写入生效（save → query 联动）/ saveToolDescription 开关；Gherkin 场景 6-8。
 
 ### Changed
 

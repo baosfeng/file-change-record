@@ -217,8 +217,10 @@ const projectValue = {
 }
 // 初始挂载 fetch 顺序（view.part.js useEffect 同步执行）：
 // 1. GET /my-memory/api/config → { maxEntryLength }（issue #105 精简引导）
-// 2. GET /my-memory/api/memory?scope=global → globalValue（sessionId 空不 fetch /session）
-cannedResponses.push({ ok: true, value: { maxEntryLength: 50 } }, globalValue)
+// 2. GET /my-memory/api/candidates → []（issue #78 待确认候选；sessionId 空
+//    不 fetch /session，global 的 fetchAll 在其后的微任务里发起）
+// 3. GET /my-memory/api/memory?scope=global → globalValue
+cannedResponses.push({ ok: true, value: { maxEntryLength: 50 } }, { ok: true, value: { items: [] } }, globalValue)
 
 const tree = renderView()
 const texts0 = []

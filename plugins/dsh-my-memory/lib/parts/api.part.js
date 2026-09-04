@@ -36,6 +36,47 @@ function writeMemory({ action, scope, cwd, id, desc }) {
     })
 }
 
+/** GET /my-memory/api/candidates → the pending auto-extracted candidates
+ *  (issue #78; read-only — candidates never touch memory before confirm). */
+function fetchCandidates() {
+  return fetch(`${API_BASE}/candidates`)
+    .then((res) => res.json())
+    .then((body) => {
+      if (body === null || body.ok !== true) throw new Error('bad candidates response')
+      return Array.isArray(body.value?.items) ? body.value.items : []
+    })
+}
+
+/** POST /my-memory/api/candidates/confirm — accept one candidate (user
+ *  consent marker; progressive-merged into the target scope on the server). */
+function confirmCandidate(id) {
+  return fetch(`${API_BASE}/candidates/confirm`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id, confirmed: true }),
+  })
+    .then((res) => res.json())
+    .then((body) => {
+      if (body === null || body.ok !== true) throw new Error('candidate confirm failed')
+      return body.value
+    })
+}
+
+/** POST /my-memory/api/candidates/dismiss — reject one candidate (drop it;
+ *  gated on the user-consent marker, never touches any memory). */
+function dismissCandidate(id) {
+  return fetch(`${API_BASE}/candidates/dismiss`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id, confirmed: true }),
+  })
+    .then((res) => res.json())
+    .then((body) => {
+      if (body === null || body.ok !== true) throw new Error('candidate dismiss failed')
+      return body.value
+    })
+}
+
 /** Current session id from localStorage ('dsh.sessions.current' → { sessionId }). */
 function currentSessionId() {
   try {

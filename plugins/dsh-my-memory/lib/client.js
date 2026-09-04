@@ -108,6 +108,41 @@ const strings = {
   sortOldest: () => (isZh() ? '最旧优先' : 'Oldest first'),
   expand: () => (isZh() ? '展开' : 'Expand'),
   collapse: () => (isZh() ? '收起' : 'Collapse'),
+  // ── issue #78 渐进式索引记忆：待确认候选 + 元数据展示 ──
+  candidatesSection: () => (isZh() ? '自动学习候选（待确认）' : 'Auto-learned candidates (pending)'),
+  candidatesNote: () =>
+    isZh()
+      ? '会话结束后自动从对话提取的记忆候选（autoLearn 开启时）。确认后写入记忆（同主题自动提升置信度），拒绝则丢弃——记忆绝不静默变更'
+      : 'Memory candidates auto-extracted from conversations (when autoLearn is on). Confirm to store them (same themes gain confidence), dismiss to drop — memories never change silently',
+  candidatesEmpty: () => (isZh() ? '暂无待确认候选' : 'No pending candidates'),
+  confirmCandidate: () => (isZh() ? '确认写入' : 'Confirm'),
+  dismissCandidate: () => (isZh() ? '拒弃' : 'Dismiss'),
+  candidateSource: (sessionId) =>
+    isZh()
+      ? `来源会话：${sessionId === '' ? '(无)' : sessionId}`
+      : `Source session: ${sessionId === '' ? '(none)' : sessionId}`,
+  candidateScopeBadge: (scope) =>
+    isZh() ? (scope === 'project' ? '项目候选' : '全局候选') : scope === 'project' ? 'Project' : 'Global',
+  categoryLabel: (category) =>
+    ({
+      preference: isZh() ? '偏好' : 'Preference',
+      fact: isZh() ? '事实' : 'Fact',
+      project: isZh() ? '项目' : 'Project',
+      stack: isZh() ? '技术栈' : 'Stack',
+      workflow: isZh() ? '工作流' : 'Workflow',
+    })[category] ?? (isZh() ? '事实' : 'Fact'),
+  confidenceLabel: (n) => (isZh() ? `置信度 ${n}` : `Confidence ${n}`),
+  statusConflict: () => (isZh() ? '待处理矛盾' : 'Conflict'),
+  historyLabel: () => (isZh() ? '演进历史' : 'History'),
+  historyEntry: (action) =>
+    isZh()
+      ? action === 'reinforce'
+        ? '多次出现，置信度提升'
+        : action === 'conflict'
+          ? '内容更新（可能矛盾）'
+          : '新增'
+      : action,
+  noHistory: () => (isZh() ? '暂无演进历史' : 'No history yet'),
 }
 
     // ── styles (DSH semantic tokens, injected on activate, removed on teardown) ──
@@ -241,6 +276,24 @@ const STYLES = `
 .dsh-my-memory-confirm-cancel:hover { background:var(--dsw-alias-interactive-bg-hover); color:var(--dsw-alias-label-primary); }
 @keyframes dsh-my-memory-row-in { from { opacity:0; transform:translateY(1px); } to { opacity:1; transform:none; } }
 @keyframes dsh-my-memory-spin { to { transform:rotate(360deg); } }
+/* ── issue #78 渐进式索引记忆：候选区块 + 元数据徽标 + 演进历史 ── */
+.dsh-my-memory-candidates { display:flex; flex-direction:column; gap:6px; padding:8px; border-radius:8px;
+  border:1px dashed color-mix(in srgb, var(--dsw-alias-accent) 45%, transparent);
+  background:color-mix(in srgb, var(--dsw-alias-accent) 4%, var(--dsw-alias-bg-layer-1)); }
+.dsh-my-memory-row-candidate { border-style:dashed; }
+.dsh-my-memory-ct-badge { flex:none; display:inline-flex; align-items:center; height:16px; padding:0 5px; border-radius:4px;
+  font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-accent);
+  background:color-mix(in srgb, var(--dsw-alias-accent) 12%, transparent); }
+.dsh-my-memory-conf-badge { flex:none; display:inline-flex; align-items:center; height:16px; padding:0 5px; border-radius:4px;
+  font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-label-secondary);
+  background:var(--dsw-alias-bg-layer-1); border:1px solid var(--dsw-alias-border-l1); }
+.dsh-my-memory-conflict-badge { flex:none; display:inline-flex; align-items:center; height:16px; padding:0 5px; border-radius:4px;
+  font:var(--dsw-font-xxxs-11); color:var(--dsw-alias-state-warning-primary);
+  background:color-mix(in srgb, var(--dsw-alias-state-warning-primary) 15%, transparent); }
+.dsh-my-memory-meta-sep { color:var(--dsw-alias-label-dimmed); }
+.dsh-my-memory-history-entry { display:inline-flex; font:var(--dsw-font-xxxs-11);
+  color:var(--dsw-alias-label-tertiary); }
+.dsh-my-memory-iconbtn-confirm:hover:not(:disabled) { color:var(--dsw-alias-state-success-primary); }
 `.trim()
 
 const STYLE_TAG = 'data-dsh-my-memory'
@@ -280,6 +333,47 @@ function writeMemory({ action, scope, cwd, id, desc }) {
     .then((body) => {
       if (body === null || body.ok !== true) throw new Error('write failed')
       return normalizeMemory({ ...body.value, scope })
+    })
+}
+
+/** GET /my-memory/api/candidates → the pending auto-extracted candidates
+ *  (issue #78; read-only — candidates never touch memory before confirm). */
+function fetchCandidates() {
+  return fetch(`${API_BASE}/candidates`)
+    .then((res) => res.json())
+    .then((body) => {
+      if (body === null || body.ok !== true) throw new Error('bad candidates response')
+      return Array.isArray(body.value?.items) ? body.value.items : []
+    })
+}
+
+/** POST /my-memory/api/candidates/confirm — accept one candidate (user
+ *  consent marker; progressive-merged into the target scope on the server). */
+function confirmCandidate(id) {
+  return fetch(`${API_BASE}/candidates/confirm`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id, confirmed: true }),
+  })
+    .then((res) => res.json())
+    .then((body) => {
+      if (body === null || body.ok !== true) throw new Error('candidate confirm failed')
+      return body.value
+    })
+}
+
+/** POST /my-memory/api/candidates/dismiss — reject one candidate (drop it;
+ *  gated on the user-consent marker, never touches any memory). */
+function dismissCandidate(id) {
+  return fetch(`${API_BASE}/candidates/dismiss`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id, confirmed: true }),
+  })
+    .then((res) => res.json())
+    .then((body) => {
+      if (body === null || body.ok !== true) throw new Error('candidate dismiss failed')
+      return body.value
     })
 }
 
@@ -840,7 +934,8 @@ function MemoryRowEdit({ editingDesc, onEditDesc, onSaveEdit, onCancelEdit }) {
   )
 }
 
-/** 一条记忆卡片：描述（+截断/展开）+ 操作图标组 + 相对更新时间。 */
+/** 一条记忆卡片：描述（+截断/展开）+ 操作图标组 + 元数据（分类/置信度/
+ *  冲突/演进历史，issue #78）+ 更新时间。 */
 function MemoryRow({
   item,
   isEditing,
@@ -898,12 +993,18 @@ function MemoryRow({
         ),
       ),
     ),
-    createElement(
-      'div',
-      { className: 'dsh-my-memory-meta' },
-      createElement('span', { className: 'dsh-my-memory-meta-icon' }, icon.clock(11)),
-      relativeTime(item.updatedAt),
-    ),
+    createElement(MetadataRow, { item, isExpanded, onToggle }),
+  )
+}
+
+/** 概要预览行（issue #105）：add/update 内容超长时提示「完整内容保存 + 显示概要」。 */
+function SummaryPreview({ desc }) {
+  const summary = truncateText(desc, TRUNCATE_LEN)
+  return createElement(
+    'div',
+    { className: 'dsh-my-memory-confirm-summary' },
+    createElement('span', { className: 'dsh-my-memory-confirm-summary-label' }, strings.summaryPreview()),
+    createElement('span', { className: 'dsh-my-memory-confirm-summary-text' }, summary.text),
   )
 }
 
@@ -911,14 +1012,8 @@ function MemoryRow({
  *  add/update 时若内容超长，显示概要预览（完整内容仍保存，issue #105）。 */
 function ConfirmPanel({ confirm, onCancel, onOk, entryLimit }) {
   const isDelete = confirm.kind === 'delete'
-  const text =
-    confirm.kind === 'add'
-      ? strings.confirmAdd()
-      : confirm.kind === 'update'
-        ? strings.confirmUpdate()
-        : strings.confirmDelete()
+  const text = CONFIRM_TEXTS[confirm.kind]()
   const showSummary = !isDelete && isOverEntryLimit(confirm.desc, entryLimit)
-  const summary = showSummary ? truncateText(confirm.desc, TRUNCATE_LEN) : null
   return createElement(
     'div',
     { className: `dsh-my-memory-confirm dsh-my-memory-confirm-${isDelete ? 'delete' : 'save'}` },
@@ -929,14 +1024,7 @@ function ConfirmPanel({ confirm, onCancel, onOk, entryLimit }) {
       createElement('div', { className: 'dsh-my-memory-confirm-text' }, text),
     ),
     createElement('div', { className: 'dsh-my-memory-confirm-desc' }, confirm.desc),
-    showSummary
-      ? createElement(
-          'div',
-          { className: 'dsh-my-memory-confirm-summary' },
-          createElement('span', { className: 'dsh-my-memory-confirm-summary-label' }, strings.summaryPreview()),
-          createElement('span', { className: 'dsh-my-memory-confirm-summary-text' }, summary.text),
-        )
-      : null,
+    showSummary ? createElement(SummaryPreview, { desc: confirm.desc }) : null,
     createElement(
       'div',
       { className: 'dsh-my-memory-confirm-actions' },
@@ -959,6 +1047,169 @@ function ConfirmPanel({ confirm, onCancel, onOk, entryLimit }) {
   )
 }
 
+/** 确认面板标题文案（按 kind 取；未知 kind 回落删除文案）。 */
+const CONFIRM_TEXTS = {
+  add: () => strings.confirmAdd(),
+  update: () => strings.confirmUpdate(),
+  delete: () => strings.confirmDelete(),
+}
+
+/** 一条待确认候选（issue #78）：分类徽标 + 描述 + 范围 + 来源 + 确认/拒弃。 */
+function CandidateRow({ candidate, busy, onConfirm, onDismiss }) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-memory-row dsh-my-memory-row-candidate' },
+    createElement(
+      'div',
+      { className: 'dsh-my-memory-row-head' },
+      createElement(
+        'div',
+        { className: 'dsh-my-memory-row-desc-wrap' },
+        createElement('span', { className: 'dsh-my-memory-ct-badge' }, strings.categoryLabel(candidate.category)),
+        createElement('span', { className: 'dsh-my-memory-desc' }, candidate.desc),
+      ),
+      createElement(
+        'div',
+        { className: 'dsh-my-memory-actions' },
+        createElement(
+          IconButton,
+          {
+            className: 'dsh-my-memory-iconbtn dsh-my-memory-iconbtn-confirm',
+            label: `${strings.confirmCandidate()} ${candidate.id}`,
+            onClick: onConfirm,
+          },
+          icon.check(14),
+        ),
+        createElement(
+          IconButton,
+          {
+            className: 'dsh-my-memory-iconbtn dsh-my-memory-iconbtn-danger',
+            label: `${strings.dismissCandidate()} ${candidate.id}`,
+            onClick: onDismiss,
+          },
+          icon.close(14),
+        ),
+      ),
+    ),
+    createElement(
+      'div',
+      { className: 'dsh-my-memory-meta' },
+      createElement('span', { className: 'dsh-my-memory-meta-icon' }, icon.clock(11)),
+      relativeTime(candidate.createdAt),
+      createElement('span', { className: 'dsh-my-memory-meta-sep' }, '·'),
+      strings.candidateScopeBadge(candidate.scope),
+      createElement('span', { className: 'dsh-my-memory-meta-sep' }, '·'),
+      strings.candidateSource(candidate.source?.sessionId),
+    ),
+    busy ? createElement('div', { className: 'dsh-my-memory-entry-hint' }, strings.loading()) : null,
+  )
+}
+
+/** 记忆条目元数据行（issue #78）：分类徽标 + 置信度 + 矛盾标记 + 演进历史
+ *  （展开时显示 history 列表）。 */
+function MetadataRow({ item, isExpanded, onToggle }) {
+  const hasHistory = Array.isArray(item.history) && item.history.length > 0
+  return createElement(
+    'div',
+    { className: 'dsh-my-memory-meta' },
+    createElement('span', { className: 'dsh-my-memory-ct-badge' }, strings.categoryLabel(item.category)),
+    createElement('span', { className: 'dsh-my-memory-conf-badge' }, strings.confidenceLabel(item.confidence)),
+    item.status === 'conflict-pending'
+      ? createElement('span', { className: 'dsh-my-memory-conflict-badge' }, strings.statusConflict())
+      : null,
+    createElement('span', { className: 'dsh-my-memory-meta-sep' }, '·'),
+    createElement('span', { className: 'dsh-my-memory-meta-icon' }, icon.clock(11)),
+    relativeTime(item.updatedAt),
+    hasHistory
+      ? createElement(
+          'button',
+          {
+            className: 'dsh-my-memory-expand',
+            'aria-label': isExpanded ? strings.collapse() : strings.historyLabel(),
+            onClick: onToggle,
+          },
+          icon.chevronDown(14),
+          isExpanded ? strings.collapse() : strings.historyLabel(),
+        )
+      : null,
+    isExpanded && hasHistory
+      ? item.history.map((entry, index) =>
+          createElement(
+            'span',
+            { key: `${entry.at}-${index}`, className: 'dsh-my-memory-history-entry' },
+            `${strings.historyEntry(entry.action)} · ${relativeTime(entry.at)}`,
+          ),
+        )
+      : null,
+  )
+}
+
+/** 待确认候选区块（issue #78）：自动提取的记忆候选，确认后写入（渐进
+ *  合并）、拒弃则丢弃——记忆绝不静默变更。 */
+function CandidatesBlock({ candidates, busy, onConfirmCandidate, onDismissCandidate }) {
+  const list = Array.isArray(candidates) ? candidates : []
+  return createElement(
+    'div',
+    { className: 'dsh-my-memory-candidates' },
+    createElement(
+      'div',
+      { className: 'dsh-my-memory-section-head' },
+      createElement('span', { className: 'dsh-my-memory-section-title' }, strings.candidatesSection()),
+      createElement(
+        'span',
+        { className: 'dsh-my-memory-badge' },
+        strings.countBadge(strings.candidatesSection(), list.length),
+      ),
+    ),
+    createElement('div', { className: 'dsh-my-memory-note' }, strings.candidatesNote()),
+    list.length === 0
+      ? createElement('div', { className: 'dsh-my-memory-empty' }, strings.candidatesEmpty())
+      : list.map((candidate) =>
+          createElement(CandidateRow, {
+            key: candidate.id,
+            candidate,
+            busy,
+            onConfirm: () => onConfirmCandidate(candidate.id),
+            onDismiss: () => onDismissCandidate(candidate.id),
+          }),
+        ),
+  )
+}
+
+/** Path input + load/refresh buttons + consent note. */
+function Toolbar({ pathInput, onInput, onLoad, onRefresh }) {
+  return createElement(
+    'div',
+    { className: 'dsh-my-memory-toolbar' },
+    createElement(
+      'div',
+      { className: 'dsh-my-memory-pathbar' },
+      createElement('input', {
+        className: 'dsh-my-memory-path-input',
+        placeholder: strings.projectHint(),
+        value: pathInput,
+        onChange: (event) => onInput(event.target.value),
+        onKeyDown: (event) => {
+          if (event.key === 'Enter') onLoad(pathInput)
+        },
+      }),
+      createElement(
+        'button',
+        { className: 'dsh-my-memory-btn', 'aria-label': strings.loadProject(), onClick: () => onLoad(pathInput) },
+        icon.folder(14),
+        strings.loadProject(),
+      ),
+      createElement(
+        'button',
+        { className: 'dsh-my-memory-btn', 'aria-label': strings.refresh(), onClick: () => onRefresh(pathInput) },
+        icon.refresh(14),
+        strings.refresh(),
+      ),
+    ),
+    createElement('div', { className: 'dsh-my-memory-note' }, strings.confirmHint()),
+  )
+}
+
     // ── view: Memory settings tab ─────────────────────────────────────────
 /** Load both scopes: global always; project only when a cwd is given. */
 function fetchAll(cwd) {
@@ -976,7 +1227,7 @@ function mergeScope(data, scope, value) {
 }
 
 /** Data actions bound to the state setters; error: null | 'load' | 'save'. */
-function createActions({ setData, setLoading, setError, setSaved }) {
+function createActions({ setData, setLoading, setError, setSaved, setCandidates, setCandidateBusy }) {
   const applyValue = (value) => {
     setData(value)
     setLoading(false)
@@ -992,8 +1243,59 @@ function createActions({ setData, setLoading, setError, setSaved }) {
         setError('load')
       })
   }
+  const loadCandidates = () => {
+    fetchCandidates()
+      .then((items) => setCandidates(items))
+      .catch(() => setCandidates([]))
+  }
   const run = (cwd) => refreshWith(fetchAll, cwd)
-  return { load: run, refresh: run }
+  const refreshCandidates = () => {
+    setCandidateBusy(false)
+    loadCandidates()
+  }
+  return { load: run, refresh: run, loadCandidates, refreshCandidates }
+}
+
+/** 候选确认 / 拒弃处理器（issue #78）：写入或丢弃都要用户显式动作
+ *  （服务端强制 confirmed 标记），操作成功后刷新候选列表与分区数据。 */
+function createCandidateHandlers({ candidateBusy, setCandidateBusy, setSaved, setError, actions, pathInput }) {
+  const busy = () => {
+    if (candidateBusy) return true
+    setCandidateBusy(true)
+    return false
+  }
+  const settle = () => setCandidateBusy(false)
+  const refreshScope = (value, pathInput) => {
+    actions.loadCandidates()
+    if (value?.scope === 'project' && value?.cwd !== '') actions.load(value.cwd)
+    else actions.refresh(pathInput)
+  }
+  const onConfirmCandidate = (id) => {
+    if (busy()) return
+    confirmCandidate(id)
+      .then((value) => {
+        settle()
+        setSaved(true)
+        refreshScope(value, pathInput)
+      })
+      .catch(() => {
+        settle()
+        setError('save')
+      })
+  }
+  const onDismissCandidate = (id) => {
+    if (busy()) return
+    dismissCandidate(id)
+      .then(() => {
+        settle()
+        actions.loadCandidates()
+      })
+      .catch(() => {
+        settle()
+        setError('save')
+      })
+  }
+  return { onConfirmCandidate, onDismissCandidate }
 }
 
 function MemoryView() {
@@ -1008,7 +1310,9 @@ function MemoryView() {
   const [expanded, setExpanded] = useState(() => new Set())
   const [sortOrder, setSortOrder] = useState({ global: 'desc', project: 'desc' })
   const [entryLimit, setEntryLimit] = useState(DEFAULT_ENTRY_LIMIT)
-  const actions = createActions({ setData, setLoading, setError, setSaved })
+  const [candidates, setCandidates] = useState([])
+  const [candidateBusy, setCandidateBusy] = useState(false)
+  const actions = createActions({ setData, setLoading, setError, setSaved, setCandidates, setCandidateBusy })
 
   useEffect(() => {
     // 面板打开即拉取服务端精简引导配置（issue #105；失败回落默认值），
@@ -1017,10 +1321,71 @@ function MemoryView() {
       .then((value) => setEntryLimit(value.maxEntryLength))
       .catch(() => {})
     fetchSessionCwd(currentSessionId()).then((cwd) => actions.load(cwd))
+    actions.loadCandidates()
   }, [])
 
   const commit = createCommitHandler({ data, setData, setSaved, setError, setDrafts, setEditing, setConfirming })
+  const { onConfirmCandidate, onDismissCandidate } = createCandidateHandlers({
+    candidateBusy,
+    setCandidateBusy,
+    setSaved,
+    setError,
+    actions,
+    pathInput,
+  })
+  return renderRoot({
+    data,
+    loading,
+    error,
+    pathInput,
+    saved,
+    drafts,
+    editing,
+    confirming,
+    expanded,
+    sortOrder,
+    entryLimit,
+    candidates,
+    candidateBusy,
+    actions,
+    setDrafts,
+    setEditing,
+    setExpanded,
+    setSortOrder,
+    setConfirming,
+    setPathInput,
+    commit,
+    onConfirmCandidate,
+    onDismissCandidate,
+  })
+}
 
+/** 根视图渲染（保持 MemoryView 简洁；全部状态经 props 传入）。 */
+function renderRoot({
+  data,
+  loading,
+  error,
+  pathInput,
+  saved,
+  drafts,
+  editing,
+  confirming,
+  expanded,
+  sortOrder,
+  entryLimit,
+  candidates,
+  candidateBusy,
+  actions,
+  setDrafts,
+  setEditing,
+  setExpanded,
+  setSortOrder,
+  setConfirming,
+  setPathInput,
+  commit,
+  onConfirmCandidate,
+  onDismissCandidate,
+}) {
   return createElement(
     'div',
     { className: 'dsh-my-memory-root' },
@@ -1044,6 +1409,8 @@ function MemoryView() {
             expanded,
             sortOrder,
             entryLimit,
+            candidates,
+            candidateBusy,
             onDraft: (scope, value) => setDrafts({ ...drafts, [scope]: value }),
             onEdit: (scope, id, desc) => setEditing({ scope, id, desc }),
             onEditDesc: (value) => setEditing({ ...editing, desc: value }),
@@ -1059,6 +1426,8 @@ function MemoryView() {
               }),
             onSort: (scope) => setSortOrder((prev) => ({ ...prev, [scope]: prev[scope] === 'desc' ? 'asc' : 'desc' })),
             onCommit: commit,
+            onConfirmCandidate,
+            onDismissCandidate,
           }),
   )
 }
@@ -1104,41 +1473,8 @@ function createCommitHandler({ data, setData, setSaved, setError, setDrafts, set
   }
 }
 
-/** Path input + load/refresh buttons + consent note. */
-function Toolbar({ pathInput, onInput, onLoad, onRefresh }) {
-  return createElement(
-    'div',
-    { className: 'dsh-my-memory-toolbar' },
-    createElement(
-      'div',
-      { className: 'dsh-my-memory-pathbar' },
-      createElement('input', {
-        className: 'dsh-my-memory-path-input',
-        placeholder: strings.projectHint(),
-        value: pathInput,
-        onChange: (event) => onInput(event.target.value),
-        onKeyDown: (event) => {
-          if (event.key === 'Enter') onLoad(pathInput)
-        },
-      }),
-      createElement(
-        'button',
-        { className: 'dsh-my-memory-btn', 'aria-label': strings.loadProject(), onClick: () => onLoad(pathInput) },
-        icon.folder(14),
-        strings.loadProject(),
-      ),
-      createElement(
-        'button',
-        { className: 'dsh-my-memory-btn', 'aria-label': strings.refresh(), onClick: () => onRefresh(pathInput) },
-        icon.refresh(14),
-        strings.refresh(),
-      ),
-    ),
-    createElement('div', { className: 'dsh-my-memory-note' }, strings.confirmHint()),
-  )
-}
-
-/** The two scopes side by side: global (default) + project (accented). */
+/** The two scopes side by side (global default + project accented), plus the
+ *  pending auto-learned candidates block (issue #78). */
 function Sections({
   data,
   saved,
@@ -1148,6 +1484,8 @@ function Sections({
   expanded,
   sortOrder,
   entryLimit,
+  candidates,
+  candidateBusy,
   onDraft,
   onEdit,
   onEditDesc,
@@ -1157,6 +1495,8 @@ function Sections({
   onToggle,
   onSort,
   onCommit,
+  onConfirmCandidate,
+  onDismissCandidate,
 }) {
   const blockProps = {
     drafts,
@@ -1191,6 +1531,12 @@ function Sections({
       note: strings.projectNote(),
       data: data.project,
       ...blockProps,
+    }),
+    createElement(CandidatesBlock, {
+      candidates,
+      busy: candidateBusy,
+      onConfirmCandidate,
+      onDismissCandidate,
     }),
     saved
       ? createElement('div', { className: 'dsh-my-memory-status dsh-my-memory-saved' }, icon.check(14), strings.saved())
