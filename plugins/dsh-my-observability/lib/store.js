@@ -134,7 +134,7 @@ function eventsOf(handle, sessionId, type, limit) {
   return capped.map((event) => ({ ...event }))
 }
 
-/** 有审计事件的会话列表（按最后活动时间倒序，含事件数）。 */
+/** 有审计事件的会话列表（按最后活动时间倒序，含事件数与可读标题）。 */
 function sessionsOf(handle) {
   const entries = Object.entries(handle.store.state.bySession)
   const list = entries
@@ -142,10 +142,21 @@ function sessionsOf(handle) {
       sessionId,
       count: bucket.events.length,
       lastTime: bucket.events.length > 0 ? bucket.events[bucket.events.length - 1].time : 0,
+      title: sessionTitleOf(bucket),
     }))
     .filter((entry) => entry.count > 0)
   list.sort((a, b) => b.lastTime - a.lastTime)
   return list
+}
+
+/** 会话标题：最早一条 user_message 事件的文本（无则空串，面板回退 UUID 短显）。 */
+function sessionTitleOf(bucket) {
+  for (const event of bucket.events) {
+    if (event.type === 'user_message' && typeof event.data?.text === 'string' && event.data.text !== '') {
+      return event.data.text
+    }
+  }
+  return ''
 }
 
 /** 全部会话事件总数（O(1) 计数）。 */

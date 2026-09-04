@@ -251,6 +251,39 @@ test('audit suite', async () => {
     )
   }
 
+  // ── 12b. user/message → user_message 事件 + 会话标题 ─────────────────
+  {
+    const { listeners, api } = boot({})
+    await settle()
+    await dispatchEvent(
+      listeners,
+      'session/event',
+      { id: 'sT' },
+      { type: 'user/message', data: { content: [{ type: 'text', text: '帮我修复轨迹回放面板' }] } },
+    )
+    await dispatchEvent(
+      listeners,
+      'session/event',
+      { id: 'sT' },
+      { type: 'user/message', data: { content: [{ type: 'text', text: '第二条消息' }] } },
+    )
+    // 插件注入消息不作为标题/事件
+    await dispatchEvent(
+      listeners,
+      'session/event',
+      { id: 'sT' },
+      { type: 'user/message', data: { source: { kind: 'plugin' }, content: [{ type: 'text', text: '注入内容' }] } },
+    )
+    const events = await eventsOf(api, '?sessionId=sT&type=user_message')
+    assert.equal(events.length, 2, 'two real user messages recorded')
+    assert.equal(events[0].data.text, '帮我修复轨迹回放面板')
+    const sessions = jsonOf(
+      await invoke(api, mockRequest({ url: '/observability/api/sessions' }), mockResponse()),
+    ).value
+    const target = sessions.find((s) => s.sessionId === 'sT')
+    assert.equal(target.title, '帮我修复轨迹回放面板', 'title = first user message')
+  }
+
   // ── 13. type 过滤 + limit ────────────────────────────────────────────
   {
     const { listeners, api } = boot({})

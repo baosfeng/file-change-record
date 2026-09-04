@@ -194,6 +194,18 @@ async function loadReplayData(selected, currentSession, setters) {
   }
 }
 
+/** 下拉选项文案：可读标题（首条用户消息）优先，无标题回退 UUID 短显；
+ *  附加事件数与时间，用户一眼看出"哪个对话"。 */
+function sessionOptionLabel(s) {
+  const title = typeof s.title === 'string' && s.title !== '' ? s.title : strings.sessionFallback(shortId(s.sessionId))
+  return `${title} · ${strings.eventCount(s.count)}`
+}
+
+/** 会话 id 短显示（UUID 取前 8 位）。 */
+function shortId(sessionId) {
+  return typeof sessionId === 'string' && sessionId.length > 8 ? `${sessionId.slice(0, 8)}…` : sessionId || ''
+}
+
 /** 工具栏：会话选择 + 手动刷新 + 类型过滤。 */
 function ReplayToolbar({ sessions, selected, onSelect, filter, onFilter, onRefresh }) {
   return createElement(
@@ -212,7 +224,9 @@ function ReplayToolbar({ sessions, selected, onSelect, filter, onFilter, onRefre
         },
         sessions.length === 0
           ? createElement('option', { value: '' }, strings.allSessions())
-          : sessions.map((s) => createElement('option', { key: s.sessionId, value: s.sessionId }, s.sessionId)),
+          : sessions.map((s) =>
+              createElement('option', { key: s.sessionId, value: s.sessionId }, sessionOptionLabel(s)),
+            ),
       ),
       createElement(
         'button',

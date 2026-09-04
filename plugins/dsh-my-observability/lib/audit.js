@@ -17,11 +17,49 @@ import { MAX_ARG_KEYS, MAX_TEXT_LEN } from './constants.js'
 /** 注册全部审计监听；返回 disposer 数组（全部经 ctx.on 注册）。 */
 export function attachAuditListeners(ctx, record) {
   return [
+    ctx.on('session/event', (session, event) => handleSessionEvent(session, event, record)),
     ctx.on('agent/status', (payload) => handleStatus(payload, record)),
     ctx.on('llm/stream', (options, next) => handleStream(options, next, record)),
     ctx.on('tools/pre-execute', (exec, next) => handlePreExecute(exec, next, record)),
     ctx.on('tools/execute', (exec, next) => handleExecute(exec, next, record)),
   ]
+}
+
+/**
+ * session/event → user_message 事件（会话标题来源）。
+ * 轨迹回放面板需要"对话可读标题"而非 UUID：从每个会话真实用户的首条
+ * 消息截断生成（跳过插件注入消息），面板 sessionsOf 取最早一条作为
+ * title。不作为独立存储字段，走现有事件通路，重启后自然恢复。
+ */
+function handleSessionEvent(session, event, record) {
+  if (event === null || typeof event !== 'object' || event.type !== 'user/message') return
+  const message = event.data
+  if (isPluginMessage(message)) return
+  const sessionId = session?.id
+  if (typeof sessionId !== 'string' || sessionId === '') return
+  const text = userTextOf(message)
+  if (text === '') return
+  record({ type: 'user_message', sessionId, data: { text: truncate(text) } })
+}
+
+/** 是否为插件注入的消息（非真实用户输入，不作为标题）。 */
+function isPluginMessage(message) {
+  const source = message?.source
+  return source !== null && typeof source === 'object' && source.kind === 'plugin'
+}
+
+/** 从 user message 提取文本（content 中全部 text block 拼接）。 */
+function userTextOf(message) {
+  if (message === null || typeof message !== 'object') return ''
+  const content = message.content
+  if (!Array.isArray(content)) return ''
+  const parts = []
+  for (const block of content) {
+    if (block !== null && typeof block === 'object' && block.type === 'text' && typeof block.text === 'string') {
+      parts.push(block.text)
+    }
+  }
+  return parts.join(' ').trim()
 }
 
 /** agent/status → agent_status 事件（含顶层/子代理标记）。 */

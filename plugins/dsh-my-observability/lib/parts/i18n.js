@@ -18,6 +18,9 @@ const strings = {
   resourceMem: () => (isZh() ? '内存' : 'Memory'),
   gitTitle: () => (isZh() ? 'Git 工具' : 'Git Tools'),
   allSessions: () => (isZh() ? '全部会话' : 'All sessions'),
+  // ── 会话下拉可读性（issue #1xx：只能看到 UUID）────────────────────────
+  eventCount: (n) => (isZh() ? `${n} 事件` : `${n} events`),
+  sessionFallback: (shortId) => (isZh() ? `会话 ${shortId}` : `session ${shortId}`),
   filterAll: () => (isZh() ? '全部' : 'All'),
   filterStatus: () => (isZh() ? '状态' : 'Status'),
   filterLlm: () => (isZh() ? '模型流' : 'LLM'),
