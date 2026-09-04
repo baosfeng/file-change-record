@@ -94,7 +94,7 @@ dsh plugin --profile web add link:<仓库路径>/plugins/dsh-my-guardian
 
 ![失败自动隔离：错误详情可查](https://unpkg.com/dsh-my-guardian/assets/panel-error-detail.png)
 
-> 截图环境：隔离 DSH 验证实例（`/tmp/dsh-3081`，端口 3081）。候选区同时写入 `demo-plugin`（挂载成功 → 自动转正"运行中"）与 `dsh-no-such-plugin-xyz`（包不存在 → 挂载失败自动隔离 ×1，错误详情保留可查）。
+> 截图环境：隔离 DSH 验证实例（`/tmp/dsh-3085`，端口 3085）。候选区写入 `fake-needy`（peer 依赖 `fake-never-installed-dep` 缺失 → 依赖预检拦截，分类徽标「依赖缺失」+ 安装建议 `dsh plugin add fake-never-installed-dep` + 自动隔离冻结）与 `fake-simple`（无依赖 → 热挂载成功自动转正「运行中」）。
 
 ## 配置
 
