@@ -79,9 +79,9 @@ function renderSwitchesSection(draft, patch) {
 }
 
 /** 保存配置（PUT /md/api/config），成功/失败更新状态。 */
-function saveConfig(draft, setSaved, setError) {
+function saveConfig(draft, setSaved, setErrorKind) {
   setSaved(false)
-  setError(false)
+  setErrorKind('')
   fetch('/md/api/config', {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
@@ -94,7 +94,28 @@ function saveConfig(draft, setSaved, setError) {
       setRenderOptions(pickRenderOptions(draft))
       setSaved(true)
     })
-    .catch(() => setError(true))
+    .catch(() => setErrorKind('save'))
+}
+
+/** 配置加载失败视图：失败原因（http 状态/网络）+ 针对性提示 + 重试。 */
+function LoadErrorView({ errorKind, onRetry }) {
+  const hint =
+    errorKind === 'http:404'
+      ? '服务端插件未加载：/md/api 路由不存在（请确认已安装并启用 dsh-md-render 后重启 DSH）'
+      : errorKind === 'http:403'
+        ? '请求被安全围栏拒绝（403）：请检查网络/代理设置'
+        : '网络错误或响应异常：请检查 DSH 服务是否正常运行'
+  return createElement(
+    'div',
+    { className: 'dsh-md-render-settings' },
+    createElement('div', { className: 'dsh-md-render-settings-error' }, '配置加载失败'),
+    createElement('div', { className: 'dsh-md-render-settings-status' }, hint),
+    createElement(
+      'div',
+      { className: 'dsh-md-render-settings-actions' },
+      createElement('button', { className: 'dsh-md-render-settings-btn', onClick: onRetry }, '重试'),
+    ),
+  )
 }
 
 /** 设置页主视图：加载当前配置 → 开关编辑 → 保存（PUT /md/api/config）。 */
@@ -102,22 +123,34 @@ function MdRenderSettingsView() {
   const [config, setConfig] = useState(null)
   const [draft, setDraft] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [errorKind, setErrorKind] = useState('')
   const [saved, setSaved] = useState(false)
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true)
+    setErrorKind('')
     fetch('/md/api/config')
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw Object.assign(new Error('HTTP ' + res.status), { status: res.status })
+        return res.json()
+      })
       .then((body) => {
         if (body === null || body.ok !== true) throw new Error('bad config response')
         setConfig(body.value)
         setDraft(body.value)
         setLoading(false)
       })
-      .catch(() => {
+      .catch((err) => {
         setLoading(false)
-        setError(true)
+        setConfig(null)
+        // 区分失败原因：404 = /md/api 路由未注册（服务端插件未加载），
+        // 403 = 安全围栏拒绝，其余为网络/响应异常。之前只显示笼统的
+        // "配置加载失败"，用户无法判断是插件没启用还是临时网络问题。
+        setErrorKind(typeof err?.status === 'number' ? 'http:' + err.status : 'network')
       })
+  }
+  useEffect(() => {
+    load()
   }, [])
 
   if (loading) {
@@ -128,14 +161,10 @@ function MdRenderSettingsView() {
     )
   }
   if (config === null) {
-    return createElement(
-      'div',
-      { className: 'dsh-md-render-settings' },
-      createElement('div', { className: 'dsh-md-render-settings-error' }, '配置加载失败'),
-    )
+    return createElement(LoadErrorView, { errorKind, onRetry: load })
   }
   const patch = (key, value) => setDraft({ ...draft, [key]: value })
-  const save = () => saveConfig(draft, setSaved, setError)
+  const save = () => saveConfig(draft, setSaved, setErrorKind)
   return createElement(
     'div',
     { className: 'dsh-md-render-settings' },
@@ -145,7 +174,7 @@ function MdRenderSettingsView() {
       { className: 'dsh-md-render-settings-actions' },
       createElement('button', { className: 'dsh-md-render-settings-btn', onClick: save }, '保存'),
       saved ? createElement('span', { className: 'dsh-md-render-settings-saved' }, '已保存') : null,
-      error ? createElement('span', { className: 'dsh-md-render-settings-error' }, '保存失败') : null,
+      errorKind ? createElement('span', { className: 'dsh-md-render-settings-error' }, '保存失败') : null,
     ),
   )
 }
