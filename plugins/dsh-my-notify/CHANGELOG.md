@@ -2,6 +2,16 @@
 
 本文件记录 dsh-notify 的所有版本变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.3.8] - 2026-09-04
+
+### 变更
+
+- fix(notify): #12 修复 CodeQL js/polynomial-redos 告警（webBaseUrl 尾斜杠处理） (#131)
+- feat(notify): #109 webhook 推送内容增强（token/完整问题/模板） (#128)
+- fix(notify): #11 修复 URL 主机名校验（CodeQL 告警） (#114)
+- fix(notify): #112 子代理完成通知受全局开关控制 (#115)
+- docs: #106 安装命令统一加 --trust-lockfile (#113)
+
 ## [0.3.7] - 2026-09-02
 
 ### 变更
