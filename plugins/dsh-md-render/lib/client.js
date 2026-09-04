@@ -959,6 +959,526 @@ function renderCodeBlock({ key, lang, code }) {
 }
 
 
+    // ── 公式结构（issue #82）：命令符号表 / 轻量解析器 / 结构渲染 ────
+    // ── 公式命令 → Unicode 映射表（issue #82）：希腊字母 / 求和积分 /
+//    常见符号 / 函数名文本 / \text 类文本命令。由 math.part.js 的
+//    parseCommand / parseDelim 查表；零运行时依赖（R10）。
+const GREEK_COMMANDS = {
+  alpha: 'α',
+  beta: 'β',
+  gamma: 'γ',
+  delta: 'δ',
+  epsilon: 'ε',
+  varepsilon: 'ϵ',
+  zeta: 'ζ',
+  eta: 'η',
+  theta: 'θ',
+  vartheta: 'ϑ',
+  iota: 'ι',
+  kappa: 'κ',
+  lambda: 'λ',
+  mu: 'μ',
+  nu: 'ν',
+  xi: 'ξ',
+  omicron: 'ο',
+  pi: 'π',
+  varpi: 'ϖ',
+  rho: 'ρ',
+  varrho: 'ϱ',
+  sigma: 'σ',
+  varsigma: 'ς',
+  tau: 'τ',
+  upsilon: 'υ',
+  phi: 'φ',
+  varphi: 'ϕ',
+  chi: 'χ',
+  psi: 'ψ',
+  omega: 'ω',
+  Gamma: 'Γ',
+  Delta: 'Δ',
+  Theta: 'Θ',
+  Lambda: 'Λ',
+  Xi: 'Ξ',
+  Pi: 'Π',
+  Sigma: 'Σ',
+  Upsilon: 'Υ',
+  Phi: 'Φ',
+  Psi: 'Ψ',
+  Omega: 'Ω',
+}
+
+const MATH_BIG_SYMS = {
+  sum: '∑',
+  int: '∫',
+  prod: '∏',
+  coprod: '∐',
+  bigcup: '⋃',
+  bigcap: '⋂',
+  bigoplus: '⨁',
+  bigotimes: '⨂',
+  oint: '∮',
+  iint: '∬',
+  iiint: '∭',
+}
+
+const MATH_SYMBOLS = {
+  times: '×',
+  cdot: '⋅',
+  pm: '±',
+  mp: '∓',
+  div: '÷',
+  leq: '≤',
+  geq: '≥',
+  neq: '≠',
+  approx: '≈',
+  equiv: '≡',
+  sim: '∼',
+  simeq: '≃',
+  propto: '∝',
+  in: '∈',
+  notin: '∉',
+  subset: '⊂',
+  supset: '⊃',
+  subseteq: '⊆',
+  supseteq: '⊇',
+  cup: '∪',
+  cap: '∩',
+  setminus: '∖',
+  emptyset: '∅',
+  varnothing: '∅',
+  forall: '∀',
+  exists: '∃',
+  nexists: '∄',
+  neg: '¬',
+  land: '∧',
+  lor: '∨',
+  to: '→',
+  rightarrow: '→',
+  leftarrow: '←',
+  leftrightarrow: '↔',
+  Rightarrow: '⇒',
+  Leftarrow: '⇐',
+  Leftrightarrow: '⇔',
+  mapsto: '↦',
+  ldots: '…',
+  cdots: '⋯',
+  vdots: '⋮',
+  ddots: '⋱',
+  infty: '∞',
+  nabla: '∇',
+  partial: '∂',
+  hbar: 'ℏ',
+  ell: 'ℓ',
+  prime: '′',
+  deg: '°',
+  circ: '∘',
+  bullet: '∙',
+  dagger: '†',
+  ddagger: '‡',
+  parallel: '∥',
+  perp: '⊥',
+  angle: '∠',
+  triangle: '△',
+  square: '□',
+  aleph: 'ℵ',
+  Re: 'ℜ',
+  Im: 'ℑ',
+  oplus: '⊕',
+  ominus: '⊖',
+  otimes: '⊗',
+  oslash: '⊘',
+  odot: '⊙',
+  ast: '∗',
+  star: '⋆',
+}
+
+/** 函数名命令 → 罗马文本（\sin → sin）。 */
+const MATH_FUNC_TEXT = {
+  sin: 'sin',
+  cos: 'cos',
+  tan: 'tan',
+  cot: 'cot',
+  sec: 'sec',
+  csc: 'csc',
+  arcsin: 'arcsin',
+  arccos: 'arccos',
+  arctan: 'arctan',
+  sinh: 'sinh',
+  cosh: 'cosh',
+  tanh: 'tanh',
+  log: 'log',
+  ln: 'ln',
+  exp: 'exp',
+  lim: 'lim',
+  max: 'max',
+  min: 'min',
+  det: 'det',
+  gcd: 'gcd',
+  inf: 'inf',
+  sup: 'sup',
+}
+
+/** 文本命令：参数组内容按普通文本内联（\text{if} → if）。 */
+const MATH_TEXT_CMDS = ['text', 'textrm', 'mathrm', 'mathbf', 'mathit', 'mathsf', 'mathtt', 'operatorname']
+
+    // ── 公式结构渲染（issue #82）：轻量 LaTeX 子集解析器 ─────────────────
+// 零运行时依赖（R10）：自实现 tokenize + 递归下降，输出语义化嵌套节点
+// （text / seq / frac / sqrt / supsub / big），由 math-render.part.js
+// 渲染为 <span class="dsh-md-render-*"> 结构。符号映射表见
+// math-symbols.part.js。回退策略（不误伤）：结构命令（\frac / \sqrt /
+// 组 / 上下标）参数不完整时为「全局解析失败」→ 整个公式保持原文；未知
+// 命令（\foo）保持原样文本（不报错）。由 syntax.part.js（行内）与
+// markdown.part.js（块级）调用。
+
+// ── tokenizer（纯函数）：\命令 / 花括号组 / ^ _ 上下标 / 字符 / 空白 ──
+function tokenizeMath(src) {
+  const out = []
+  let i = 0
+  while (i < src.length) {
+    if (src[i] === '\\') i = tokenizeCommand(src, i, out)
+    else if (src[i] === '{') {
+      out.push({ t: 'lbrace' })
+      i += 1
+    } else if (src[i] === '}') {
+      out.push({ t: 'rbrace' })
+      i += 1
+    } else if (src[i] === '^' || src[i] === '_') {
+      out.push({ t: src[i] === '^' ? 'sup' : 'sub' })
+      i += 1
+    } else if (/\s/.test(src[i])) {
+      out.push({ t: 'space', v: src[i] })
+      i += 1
+    } else {
+      out.push({ t: 'char', v: src[i] })
+      i += 1
+    }
+  }
+  return out
+}
+
+/** 消费一个 \\命令（或孤立反斜杠）token，返回新的下标。 */
+function tokenizeCommand(src, i, out) {
+  if (!/[A-Za-z]/.test(src[i + 1] || '')) {
+    out.push({ t: 'char', v: '\\' })
+    return i + 1
+  }
+  let j = i + 1
+  while (j < src.length && /[A-Za-z]/.test(src[j])) j += 1
+  out.push({ t: 'cmd', v: src.slice(i, j) })
+  return j
+}
+
+// ── 解析：递归下降，输出节点数组（text / seq / frac / sqrt / supsub / big）──
+function parseMath(src) {
+  const tokens = tokenizeMath(String(src ?? ''))
+  const state = { p: 0, failed: false }
+  const nodes = parseSequence(tokens, state)
+  return { nodes, failed: state.failed }
+}
+
+/** 追加文本片段到序列末尾（相邻文本合并）。 */
+function mergeText(kids, v) {
+  const last = kids[kids.length - 1]
+  if (last !== undefined && last !== null && last.t === 'text') last.v += v
+  else kids.push({ t: 'text', v })
+}
+
+/** 读取一个原子（组 / 命令 / 单个字符），供上下标等使用。 */
+function readAtom(tokens, state) {
+  if (state.p >= tokens.length) return null
+  const tk = tokens[state.p]
+  if (tk.t === 'lbrace') {
+    state.p += 1
+    return parseGroup(tokens, state)
+  }
+  if (tk.t === 'cmd') return parseCommand(tokens, state)
+  if (tk.t === 'space') {
+    state.p += 1
+    return readAtom(tokens, state)
+  }
+  if (tk.t === 'rbrace' || tk.t === 'sup' || tk.t === 'sub') return null
+  state.p += 1
+  return { t: 'text', v: tk.v }
+}
+
+/** 解析序列，直到 token 耗尽或遇 rbrace（组边界）。 */
+function parseSequence(tokens, state) {
+  const kids = []
+  while (state.p < tokens.length) {
+    const tk = tokens[state.p]
+    if (tk.t === 'rbrace') break
+    if (tk.t === 'lbrace') {
+      state.p += 1
+      kids.push(parseGroup(tokens, state))
+    } else if (tk.t === 'cmd') {
+      kids.push(parseCommand(tokens, state))
+    } else if (tk.t === 'sup' || tk.t === 'sub') {
+      applyScript(tokens, state, kids)
+    } else if (tk.t === 'space') {
+      mergeText(kids, tk.v)
+      state.p += 1
+    } else {
+      mergeText(kids, tk.v)
+      state.p += 1
+    }
+  }
+  return kids
+}
+
+/** 解析花括号组：state.p 位于 lbrace 之后；未闭合 → 全局失败（回退原文）。 */
+function parseGroup(tokens, state) {
+  const kids = parseSequence(tokens, state)
+  if (state.p < tokens.length && tokens[state.p].t === 'rbrace') {
+    state.p += 1
+  } else {
+    state.failed = true
+  }
+  return kids.length === 1 && kids[0].t !== 'seq' ? kids[0] : { t: 'seq', kids }
+}
+
+/** 尝试读花括号参数（跳过空白）；不闭合/不存在 → null（调用方决定失败）。 */
+function tryGroup(tokens, state) {
+  let i = state.p
+  while (i < tokens.length && tokens[i].t === 'space') i += 1
+  if (tokens[i] === undefined || tokens[i].t !== 'lbrace') return null
+  state.p = i + 1
+  const kids = parseSequence(tokens, state)
+  let closed = false
+  if (state.p < tokens.length && tokens[state.p].t === 'rbrace') {
+    state.p += 1
+    closed = true
+  }
+  if (!closed) return null
+  return kids.length === 1 && kids[0].t !== 'seq' ? kids[0] : { t: 'seq', kids }
+}
+
+/** 上下标：把 ^/_ 后的原子绑定到序列末尾元素（supsub）；无 base → 失败回退。 */
+function applyScript(tokens, state, kids) {
+  const dir = tokens[state.p].t
+  state.p += 1
+  const atom = readAtom(tokens, state)
+  if (atom === null) {
+    state.failed = true
+    return
+  }
+  const last = kids[kids.length - 1]
+  if (last !== undefined && last.t === 'supsub') {
+    if (dir === 'sup') last.sup = atom
+    else last.sub = atom
+    return
+  }
+  const node = { t: 'supsub', base: last !== undefined ? kids.pop() : null, sup: null, sub: null }
+  if (dir === 'sup') node.sup = atom
+  else node.sub = atom
+  if (node.base === null) {
+    state.failed = true
+    return
+  }
+  kids.push(node)
+}
+
+/** 命令分派（表驱动分支，控制圈复杂度）。state.p 指向 \\命令 token。 */
+function parseCommand(tokens, state) {
+  const name = tokens[state.p].v.slice(1)
+  state.p += 1
+  if (name === 'frac') return parseFrac(tokens, state)
+  if (name === 'sqrt') return parseSqrt(tokens, state)
+  if (MATH_BIG_SYMS[name] !== undefined) return parseBig(tokens, state, MATH_BIG_SYMS[name])
+  if (name === 'left' || name === 'right') return parseDelim(tokens, state)
+  if (MATH_TEXT_CMDS.includes(name)) return parseTextCmd(tokens, state)
+  const sym = GREEK_COMMANDS[name]
+  if (sym !== undefined) return { t: 'text', v: sym }
+  const symbol = MATH_SYMBOLS[name]
+  if (symbol !== undefined) return { t: 'text', v: symbol }
+  const fn = MATH_FUNC_TEXT[name]
+  if (fn !== undefined) return { t: 'text', v: fn }
+  return { t: 'text', v: '\\' + name }
+}
+
+/** 分数：\frac{num}{den}；参数不完整 → 全局失败（整体回退原文）。 */
+function parseFrac(tokens, state) {
+  const num = tryGroup(tokens, state)
+  if (num !== null) {
+    const den = tryGroup(tokens, state)
+    if (den !== null) return { t: 'frac', num, den }
+  }
+  state.failed = true
+  return { t: 'text', v: '\\frac' }
+}
+
+/** 根号：\sqrt{body}；无体 → 全局失败。 */
+function parseSqrt(tokens, state) {
+  const body = tryGroup(tokens, state)
+  if (body !== null) return { t: 'sqrt', body }
+  state.failed = true
+  return { t: 'text', v: '\\sqrt' }
+}
+
+/** 大符号（求和/积分等）：\sum_{sub}^{sup}，上下限可选。 */
+function parseBig(tokens, state, sym) {
+  const sub = tryScript(tokens, state, 'sub')
+  const sup = tryScript(tokens, state, 'sup')
+  return { t: 'big', sym, sub, sup }
+}
+
+/** 尝试读上下限脚本（_{...} 或 ^{...}）；不存在 → null。 */
+function tryScript(tokens, state, dir) {
+  let i = state.p
+  while (i < tokens.length && tokens[i].t === 'space') i += 1
+  if (tokens[i] === undefined || tokens[i].t !== dir) return null
+  state.p = i + 1
+  return readAtom(tokens, state)
+}
+
+/** \left / \right 定界符：后随字符或组按普通文本渲染（不构造结构）。 */
+function parseDelim(tokens, state) {
+  if (state.p >= tokens.length) return { t: 'text', v: '' }
+  const tk = tokens[state.p]
+  if (tk.t === 'space') {
+    state.p += 1
+    return parseDelim(tokens, state)
+  }
+  if (tk.t === 'char') {
+    state.p += 1
+    return { t: 'text', v: tk.v }
+  }
+  if (tk.t === 'cmd') {
+    const name = tk.v.slice(1)
+    if (name === 'vert') {
+      state.p += 1
+      return { t: 'text', v: '|' }
+    }
+    if (name === 'Vert') {
+      state.p += 1
+      return { t: 'text', v: '‖' }
+    }
+    const sym = GREEK_COMMANDS[name] ?? MATH_SYMBOLS[name]
+    if (sym !== undefined) {
+      state.p += 1
+      return { t: 'text', v: sym }
+    }
+  }
+  if (tk.t === 'lbrace') {
+    state.p += 1
+    return parseGroup(tokens, state)
+  }
+  return { t: 'text', v: '' }
+}
+
+/** 文本命令：\text{...} 参数组按普通文本内联。 */
+function parseTextCmd(tokens, state) {
+  const body = tryGroup(tokens, state)
+  if (body !== null) return body
+  return { t: 'text', v: '' }
+}
+
+exports.parseMath = parseMath
+
+    // ── 公式结构渲染（issue #82）：AST 节点 → React 元素 ────────────────
+// 由 math.part.js（解析）产出节点数组，本文件渲染为语义化嵌套结构：
+//   frac → span.dsh-md-render-frac（num / den 上下 + 分数线）
+//   sqrt → span.dsh-md-render-sqrt（√ 符号 + body 顶部根号线）
+//   supsub → span.dsh-md-render-supsub（base + 上下标 scripts）
+//   big → span.dsh-md-render-big（求和/积分符号 + 上下限）
+//   seq → span.dsh-md-render-seq（组内联，无样式）
+// 样式见 styles.part.js（语义 token，深浅主题自适应；随 activation 注入）。
+let __mathKey = 0
+function mathNodesToReact(nodes) {
+  return nodes.map(renderMathNode)
+}
+
+function renderMathNode(node) {
+  const k = 'm' + __mathKey++
+  if (node === null || node === undefined) return ''
+  if (node.t === 'text') return node.v
+  if (node.t === 'seq')
+    return createElement('span', { key: k, className: 'dsh-md-render-seq' }, ...mathNodesToReact(node.kids))
+  if (node.t === 'frac') return renderFrac(node, k)
+  if (node.t === 'sqrt') return renderSqrt(node, k)
+  if (node.t === 'supsub') return renderSupsub(node, k)
+  if (node.t === 'big') return renderBig(node, k)
+  return ''
+}
+
+function renderFrac(node, k) {
+  return createElement(
+    'span',
+    { key: k, className: 'dsh-md-render-frac' },
+    createElement('span', { key: k + 'n', className: 'dsh-md-render-frac-num' }, ...mathNodesToReact([node.num])),
+    createElement('span', { key: k + 'd', className: 'dsh-md-render-frac-den' }, ...mathNodesToReact([node.den])),
+  )
+}
+
+function renderSqrt(node, k) {
+  return createElement(
+    'span',
+    { key: k, className: 'dsh-md-render-sqrt' },
+    createElement('span', { key: k + 's', className: 'dsh-md-render-sqrt-symbol' }, '√'),
+    createElement('span', { key: k + 'b', className: 'dsh-md-render-sqrt-body' }, ...mathNodesToReact([node.body])),
+  )
+}
+
+function renderSupsub(node, k) {
+  const scripts =
+    node.sup !== null || node.sub !== null
+      ? createElement(
+          'span',
+          { key: k + 's', className: 'dsh-md-render-supsub-scripts' },
+          node.sup !== null
+            ? createElement(
+                'span',
+                { key: k + 'u', className: 'dsh-md-render-supsub-sup' },
+                ...mathNodesToReact([node.sup]),
+              )
+            : null,
+          node.sub !== null
+            ? createElement(
+                'span',
+                { key: k + 'd', className: 'dsh-md-render-supsub-sub' },
+                ...mathNodesToReact([node.sub]),
+              )
+            : null,
+        )
+      : null
+  return createElement(
+    'span',
+    { key: k, className: 'dsh-md-render-supsub' },
+    createElement('span', { key: k + 'b', className: 'dsh-md-render-supsub-base' }, ...mathNodesToReact([node.base])),
+    scripts,
+  )
+}
+
+function renderBig(node, k) {
+  return createElement(
+    'span',
+    { key: k, className: 'dsh-md-render-big' },
+    node.sup !== null || node.sub !== null
+      ? createElement(
+          'span',
+          { key: k + 'l', className: 'dsh-md-render-big-limits' },
+          node.sup !== null
+            ? createElement(
+                'span',
+                { key: k + 'u', className: 'dsh-md-render-big-sup' },
+                ...mathNodesToReact([node.sup]),
+              )
+            : null,
+          node.sub !== null
+            ? createElement(
+                'span',
+                { key: k + 'd', className: 'dsh-md-render-big-sub' },
+                ...mathNodesToReact([node.sub]),
+              )
+            : null,
+        )
+      : null,
+    createElement('span', { key: k + 'y', className: 'dsh-md-render-big-symbol' }, node.sym),
+  )
+}
+
+exports.mathNodesToReact = mathNodesToReact
+
+
     // ── 语法补全（issue #81）：图片 / 任务列表 / 行内元素构造 / 列表解析 ──
     // ── 语法补全（issue #81）：图片 / 任务列表 / 行内元素构造 / 列表解析 ──
 // 零运行时依赖（R10）。与 markdown.part.js 处于同一 factory 作用域（经
@@ -1005,7 +1525,12 @@ function mathSpanOrText(m, text, kk) {
   // issue #84：mathStructures 关闭 → 公式语法保持原文（不渲染公式结构）。
   if (!renderOptions.mathStructures) return m[7]
   if (isMathSpan(text, m)) {
-    return createElement('span', { key: kk, className: 'dsh-md-render-math' }, m[7].slice(1, -1))
+    const content = m[7].slice(1, -1)
+    const parsed = parseMath(content)
+    // issue #82：轻量结构解析成功 → 渲染嵌套结构；解析失败 → 保持原文
+    // （不误伤，与 R14 错误标记逻辑兼容——此处仅处理合法公式内容）。
+    const kids = parsed.failed ? [content] : mathNodesToReact(parsed.nodes)
+    return createElement('span', { key: kk, className: 'dsh-md-render-math' }, ...kids)
   }
   if (isMathError(m)) {
     return createElement(
@@ -1363,11 +1888,7 @@ function tryMathEnabled(lines, i, out) {
   const single = lines[i].match(/^\$\$([^$]*)\$\$\s*$/)
   if (single) {
     const content = single[1].trim()
-    out.push(
-      content === ''
-        ? mathErrorEl(out, MATH_ERROR_TITLES.empty, lines[i].trim())
-        : createElement('div', { key: 'b' + out.length, className: 'dsh-md-render-math-block' }, content),
-    )
+    out.push(content === '' ? mathErrorEl(out, MATH_ERROR_TITLES.empty, lines[i].trim()) : mathBlockEl(out, content))
     return i + 1
   }
   if (!/^\$\$\s*$/.test(lines[i])) return 0
@@ -1381,12 +1902,15 @@ function tryMathEnabled(lines, i, out) {
   i += 1
   const content = buf.join('\n').trim()
   const err = !closed ? MATH_ERROR_TITLES.unclosed : content === '' ? MATH_ERROR_TITLES.empty : null
-  out.push(
-    err
-      ? mathErrorEl(out, err, !closed ? '$$\n' + buf.join('\n') : '$$\n$$')
-      : createElement('div', { key: 'b' + out.length, className: 'dsh-md-render-math-block' }, content),
-  )
+  out.push(err ? mathErrorEl(out, err, !closed ? '$$\n' + buf.join('\n') : '$$\n$$') : mathBlockEl(out, content))
   return i
+}
+
+/** 块级公式内容：轻量结构解析成功 → 嵌套结构；失败 → 保持原文（issue #82）。 */
+function mathBlockEl(out, content) {
+  const parsed = parseMath(content)
+  const kids = parsed.failed ? [content] : mathNodesToReact(parsed.nodes)
+  return createElement('div', { key: 'b' + out.length, className: 'dsh-md-render-math-block' }, ...kids)
 }
 
 function tryParagraph(lines, i, out) {
@@ -1932,6 +2456,26 @@ const STYLES = `
 .dsh-md-render-math-error{display:inline-flex;align-items:center;gap:4px;font:var(--dsw-font-markdown-code-block-small);font-style:italic;color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);border-radius:4px;padding:0 4px}
 .dsh-md-render-math-error svg{display:block;flex:none}
 div.dsh-md-render-math-error{margin:0;text-align:center;justify-content:center;padding:4px 8px}
+/* ── 公式结构（issue #82）：分数 / 根号 / 上下标 / 求和积分、希腊字母 ──
+   自实现轻量 LaTeX 子集（零依赖）：frac(a,b) 上下结构 + 分数线、
+   sqrt(x) 根号符号 + 顶部根号线、x^2 / x_i 上下标、sum / int 符号 +
+   上下限；flex 布局走语义 token（currentColor 继承，深浅主题自适应）。
+   无法解析的公式命令回退原文（不误伤，见 math.part.js / syntax.part.js）。 */
+.dsh-md-render-math,.dsh-md-render-math-block{white-space:normal}
+.dsh-md-render-math .dsh-md-render-frac,.dsh-md-render-math .dsh-md-render-sqrt,.dsh-md-render-math .dsh-md-render-supsub,.dsh-md-render-math .dsh-md-render-big,.dsh-md-render-math .dsh-md-render-seq,.dsh-md-render-math-block .dsh-md-render-frac,.dsh-md-render-math-block .dsh-md-render-sqrt,.dsh-md-render-math-block .dsh-md-render-supsub,.dsh-md-render-math-block .dsh-md-render-big,.dsh-md-render-math-block .dsh-md-render-seq{display:inline;font-style:italic;white-space:nowrap}
+.dsh-md-render-frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 2px;line-height:1.25}
+.dsh-md-render-frac-num{padding:1px 4px 0}
+.dsh-md-render-frac-den{border-top:1px solid currentColor;padding:0 4px 1px}
+.dsh-md-render-sqrt{display:inline-flex;align-items:center;vertical-align:middle;margin:0 2px}
+.dsh-md-render-sqrt-symbol{font-size:1.2em;line-height:1;padding-right:1px}
+.dsh-md-render-sqrt-body{display:inline-flex;flex-direction:column;justify-content:center;border-top:1px solid currentColor;padding:1px 2px 0}
+.dsh-md-render-supsub{display:inline-flex;align-items:flex-start;vertical-align:middle;margin:0 1px}
+.dsh-md-render-supsub-base{line-height:1.3}
+.dsh-md-render-supsub-scripts{display:inline-flex;flex-direction:column;align-items:flex-start;font-size:.7em;line-height:1.05;margin-left:1px}
+.dsh-md-render-big{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 2px;line-height:1.1}
+.dsh-md-render-big-limits{display:flex;flex-direction:column;align-items:center;font-size:.7em;line-height:1.05}
+.dsh-md-render-big-symbol{font-size:1.5em;line-height:1}
+.dsh-md-render-seq{display:inline}
 .dsh-md-render-table-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;margin:0;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;background:var(--dsw-alias-bg-layer-1);transition:border-color var(--ds-transition-duration-slow) var(--ds-ease-in-out)}
 .dsh-md-render-table-scroll:hover{border-color:var(--dsw-alias-border-l2)}
 .dsh-md-render-table{border-collapse:collapse;width:max-content;max-width:max-content;font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary)}

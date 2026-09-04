@@ -74,6 +74,10 @@ function render(text) {
   let mathErrorSpans = 0
   let mathErrorBlocks = 0
   let copyButtons = 0
+  let mathFracs = 0
+  let mathSqrts = 0
+  let mathSupsubs = 0
+  let mathBigs = 0
   const mathErrorTitles = []
   function walk(node) {
     if (node === null || node === undefined || typeof node === 'boolean') return
@@ -95,6 +99,11 @@ function render(text) {
       if (node.type === 'code' && typeof props.className === 'string') codeLangs.push(props.className)
       if (node.type === 'span' && props.className === 'dsh-md-render-math') mathSpans += 1
       if (node.type === 'div' && props.className === 'dsh-md-render-math-block') mathBlocks += 1
+      // issue #82：公式结构计数（分数/根号/上下标/大符号）。
+      if (node.type === 'span' && props.className === 'dsh-md-render-frac') mathFracs += 1
+      if (node.type === 'span' && props.className === 'dsh-md-render-sqrt') mathSqrts += 1
+      if (node.type === 'span' && props.className === 'dsh-md-render-supsub') mathSupsubs += 1
+      if (node.type === 'span' && props.className === 'dsh-md-render-big') mathBigs += 1
       if (node.type === 'span' && props.className === 'dsh-md-render-math-error') {
         mathErrorSpans += 1
         if (typeof props.title === 'string') mathErrorTitles.push(props.title)
@@ -129,6 +138,10 @@ function render(text) {
     mathErrorBlocks,
     mathErrorTitles,
     copyButtons,
+    mathFracs,
+    mathSqrts,
+    mathSupsubs,
+    mathBigs,
   }
 }
 
@@ -169,10 +182,12 @@ test('代码块保持语言类并包裹在 md-code-block 容器（mermaid 扫描
   assert.ok(r.mdCodeBlockWrappers >= 2, 'fenced blocks wrapped in md-code-block')
 })
 
-test('行内公式 $...$ 渲染为 span.dsh-md-render-math', () => {
+test('行内公式 $...$ 渲染为 span.dsh-md-render-math（结构解析）', () => {
   const r = render('公式 $x^2 + y^2$ 测试')
   assert.equal(r.mathSpans, 1, 'inline math span rendered')
-  assert.ok(r.texts.includes('x^2 + y^2'), 'math content kept')
+  // issue #82：x^2 解析为上标结构（supsub），文本递归收集保留内容。
+  assert.equal(r.mathSupsubs, 2, 'x^2 与 y^2 均渲染为上标结构')
+  assert.ok(r.texts.join('').includes('x2 + y2'), 'math content flattened with scripts')
 })
 
 test('货币 $5 与变量 a$b 不解析为公式', () => {
@@ -187,16 +202,18 @@ test('货币 $5 与变量 a$b 不解析为公式', () => {
 test('块级公式 $$...$$ 渲染为 div.dsh-md-render-math-block（单行）', () => {
   const r = render('$$E=mc^2$$')
   assert.equal(r.mathBlocks, 1, 'block math rendered')
-  assert.ok(r.texts.includes('E=mc^2'), 'block math content kept')
+  // issue #82：mc^2 解析为上标结构（supsub），文本递归收集保留内容。
+  assert.equal(r.mathSupsubs, 1, 'mc^2 rendered as superscript structure')
+  assert.ok(r.texts.join('').includes('E=mc2'), 'block math content flattened')
 })
 
 test('块级公式 $$ 开闭块（多行）渲染为 div.dsh-md-render-math-block', () => {
   const r = render('$$\nE = mc^2\n\\int_0^1 x dx\n$$')
   assert.equal(r.mathBlocks, 1, 'multi-line block math rendered')
-  assert.ok(
-    r.texts.some((t) => t.includes('E = mc^2')),
-    'multi-line content kept',
-  )
+  // issue #82：mc^2 上标结构 + \int 带上下限（big 结构）。
+  assert.equal(r.mathSupsubs, 1, 'mc^2 rendered as superscript structure')
+  assert.equal(r.mathBigs, 1, '\\int rendered as big symbol structure')
+  assert.ok(r.texts.join('').includes('E = mc2'), 'multi-line content flattened')
 })
 
 // ── 公式错误提示（issue #32）：异常公式 → 错误标记 + 原文保留 ──────────
