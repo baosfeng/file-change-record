@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5] - 2026-09-04
+
+### 新增
+
+- [#86](https://github.com/baosfeng/my-dsh-plugins/issues/86) 候选区插件依赖预检 + 失败分类：热挂载前校验依赖就绪，失败按类别诊断（缺失依赖/锁定冲突/加载错误），诊断面板展示分类详情
+
+### 变更
+
+- 验证清单与效果图同步（发版前功能级验证归档）
+
 ## [0.3.4] - 2026-09-02
 
 ### 变更
