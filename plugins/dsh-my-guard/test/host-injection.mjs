@@ -4,7 +4,13 @@
  */
 import { test, afterAll } from 'vitest'
 import assert from 'node:assert/strict'
-import { detectPromptInjection, extractUserText, isPluginInjected, isMetaDiscussion, isDirective } from '../lib/injection.js'
+import {
+  detectPromptInjection,
+  extractUserText,
+  isPluginInjected,
+  isMetaDiscussion,
+  isDirective,
+} from '../lib/injection.js'
 import {
   bootPlugin,
   userMessageEvent,
