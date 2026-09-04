@@ -85,7 +85,7 @@ git -C /tmp/gh-base worktree add /tmp/gh-wt-<编号> -b fix/<编号>   # 每子�
 | 安全告警           | 依赖/代码已修复，升级前查 CHANGELOG/breaking changes 确认兼容；测试通过；已建 PR；无修复版本时给出原因与建议并评论到 issue                               |
 | Actions 失败       | 先 `ghops actions logs baosfeng/my-dsh-plugins <run-id>` 取日志 → 定位失败步骤与根因 → 修复 + 已建 PR；CI 重跑通过（重跑仍失败则继续排查，不得标记完成） |
 | PR 健康检查        | 确认问题（冲突/CI 红/无 review/超时）→ rebase 最新 main 解冲突或修复 CI → CI 重跑绿 → 更新 PR 描述/评论说明；无法处理给建议评论到 PR                     |
-| CICD workflow 维护 | 修改目标明确（新增/优化/修复 workflow 文件）→ 本地语法校验（YAML 解析）→ 改动 + 已建 PR → 触发相关 action 重跑通过                                        |
+| CICD workflow 维护 | 修改目标明确（新增/优化/修复 workflow 文件）→ 本地语法校验（YAML 解析）→ 改动 + 已建 PR → 触发相关 action 重跑通过                                       |
 | 分析类（不改代码） | 给出明确结论（无需修复 / 等上游 / 建议方案）并发布到对应 issue/PR                                                                                        |
 
 ### 通用要求（所有子任务）
@@ -118,24 +118,24 @@ git -C /tmp/gh-base worktree add /tmp/gh-wt-<编号> -b fix/<编号>   # 每子�
 
 ## 常见错误
 
-| 错误                                 | 解法                                                                    |
-| ------------------------------------ | ----------------------------------------------------------------------- |
-| 子 agent prompt 信息不全             | 必须自包含：仓库+问题全文+任务+约束+验收+输出格式                       |
-| 一个子 agent 处理所有问题            | 每次只处理一个问题，并行派多个                                          |
-| 多个子 agent 共用同一 git 仓库       | 各用独立 worktree `/tmp/gh-wt-<编号>`；共享基准库/工作区会互相污染      |
-| worktree 不清理                      | 汇总后 `worktree remove --force`；数量=问题数，用完即清                 |
-| 子 agent 在基准库/他人 worktree 操作 | 只允许操作自己被分配的 worktree 目录                                    |
-| 把 [需求] issue 当 BUG 派子 agent 修 | 需求转 development-lifecycle，本 skill 只处理 BUG/告警/CI/PR/workflow   |
-| 等所有子任务完成才统一提交           | 验收达标即独立提交（分支+PR），各自独立                                 |
-| 一个 PR 混多个问题                   | 一子任务一分支一 PR，标题带编号                                         |
-| 验收不达标就提交                     | 按验收标准逐项自查：根因/修复/测试/PR 缺一不可                          |
-| PR 后不管 CI 结果                    | `ghops actions watch/logs` 确认绿，红了继续修                           |
-| 子 agent 自行合并 PR / 发布 release  | 禁止；合并与发布只在汇总阶段按用户决策执行                              |
-| 自己写 curl/gh/API 访问 GitHub       | 一律用 github-ops 的 ghops 命令                                         |
-| 读取/打印 token 或 secrets           | 禁止；凭据由 ghops setup 封装，本 skill 不接触                          |
-| 只看 issue 漏掉告警/CI/PR            | 四类查询一次跑全（issue/alerts/actions/pr）                             |
-| 子 agent push 主分支                 | 约束建分支+PR                                                           |
-| 重复处理已交付的工作                 | 接手前先盘点：`ghops pr list --state all` + main 历史核对每个 issue 是否已合并（closed PR ≠ 未合并，看 merged_at）；已合并的只关 issue，不再派工         |
-| 遇到其他代理留下的半成品             | 先验证（`git status`/`git diff` + `npm test`）再决定接手：代码完整则 rebase 最新 main → push → PR；不完整才重派子 agent                       |
-| `ghops pr create` 报 nil is not a string | 需显式加 `--base main`（base 缺省解析失败）                          |
-| `ghops push` 偶发超时               | 先 `git ls-remote origin refs/heads/<分支>` 确认是否已推；未推则后台重试，勿重复推                        |
+| 错误                                     | 解法                                                                                                                                             |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 子 agent prompt 信息不全                 | 必须自包含：仓库+问题全文+任务+约束+验收+输出格式                                                                                                |
+| 一个子 agent 处理所有问题                | 每次只处理一个问题，并行派多个                                                                                                                   |
+| 多个子 agent 共用同一 git 仓库           | 各用独立 worktree `/tmp/gh-wt-<编号>`；共享基准库/工作区会互相污染                                                                               |
+| worktree 不清理                          | 汇总后 `worktree remove --force`；数量=问题数，用完即清                                                                                          |
+| 子 agent 在基准库/他人 worktree 操作     | 只允许操作自己被分配的 worktree 目录                                                                                                             |
+| 把 [需求] issue 当 BUG 派子 agent 修     | 需求转 development-lifecycle，本 skill 只处理 BUG/告警/CI/PR/workflow                                                                            |
+| 等所有子任务完成才统一提交               | 验收达标即独立提交（分支+PR），各自独立                                                                                                          |
+| 一个 PR 混多个问题                       | 一子任务一分支一 PR，标题带编号                                                                                                                  |
+| 验收不达标就提交                         | 按验收标准逐项自查：根因/修复/测试/PR 缺一不可                                                                                                   |
+| PR 后不管 CI 结果                        | `ghops actions watch/logs` 确认绿，红了继续修                                                                                                    |
+| 子 agent 自行合并 PR / 发布 release      | 禁止；合并与发布只在汇总阶段按用户决策执行                                                                                                       |
+| 自己写 curl/gh/API 访问 GitHub           | 一律用 github-ops 的 ghops 命令                                                                                                                  |
+| 读取/打印 token 或 secrets               | 禁止；凭据由 ghops setup 封装，本 skill 不接触                                                                                                   |
+| 只看 issue 漏掉告警/CI/PR                | 四类查询一次跑全（issue/alerts/actions/pr）                                                                                                      |
+| 子 agent push 主分支                     | 约束建分支+PR                                                                                                                                    |
+| 重复处理已交付的工作                     | 接手前先盘点：`ghops pr list --state all` + main 历史核对每个 issue 是否已合并（closed PR ≠ 未合并，看 merged_at）；已合并的只关 issue，不再派工 |
+| 遇到其他代理留下的半成品                 | 先验证（`git status`/`git diff` + `npm test`）再决定接手：代码完整则 rebase 最新 main → push → PR；不完整才重派子 agent                          |
+| `ghops pr create` 报 nil is not a string | 需显式加 `--base main`（base 缺省解析失败）                                                                                                      |
+| `ghops push` 偶发超时                    | 先 `git ls-remote origin refs/heads/<分支>` 确认是否已推；未推则后台重试，勿重复推                                                               |
